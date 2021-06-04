@@ -95,8 +95,8 @@ impl Application for BaseCoinApp {
         let last_block_app_hash = channel_recv(&result_rx).unwrap();
 
         ResponseInitChain {
-            consensus_params: None,
-            validators: vec![],
+            consensus_params: request.consensus_params,
+            validators: request.validators,
             app_hash: last_block_app_hash,
         }
     }
@@ -211,7 +211,7 @@ impl Application for BaseCoinApp {
         info!("Committed height {}", height);
         ResponseCommit {
             data: app_hash,
-            retain_height: height - 1,
+            retain_height: 0,
         }
     }
 }
