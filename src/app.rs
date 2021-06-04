@@ -247,6 +247,7 @@ impl BaseCoinDriver {
                     result_tx,
                 } => {
                     self.store = balances;
+                    debug!("Account balances initialized: {:?}", self.store);
                     channel_send(&result_tx, self.app_hash.clone())?;
                 }
                 Command::GetInfo { result_tx } => {
