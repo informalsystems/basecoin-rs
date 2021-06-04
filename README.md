@@ -20,7 +20,7 @@ tendermint unsafe-reset-all
 
 ### Step 2: Set up your `genesis.json`
 
-Edit your `~/.tendermint/genesis.json` file to update the `app_state` with initial account balances.
+Edit your `~/.tendermint/config/genesis.json` file to update the `app_state` with initial account balances.
 This is a simple hash map of account IDs to amounts (where an amount is a positive integer). An example `genesis.json`
 file:
 
