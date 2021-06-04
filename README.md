@@ -1,6 +1,7 @@
 # basecoin
 
-A rudimentary Tendermint ABCI application that keeps track of different accounts' balances (in-memory only).
+A rudimentary Tendermint ABCI application that keeps track of different accounts' balances (in-memory only)
+and facilitates transactions between those accounts.
 
 ## Requirements
 
