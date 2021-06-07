@@ -11,6 +11,11 @@ use tracing::debug;
 
 const APP_HASH_LENGTH: usize = 16;
 
+/// The core state machine of the basecoin application.
+///
+/// It is exclusively accessible via its handle (i.e. the `BaseCoinApp`). All
+/// incoming requests are effectively serialized into an unbounded channel and
+/// are processed serially.
 #[derive(Debug)]
 pub struct BaseCoinDriver {
     store: HashMap<String, u64>,

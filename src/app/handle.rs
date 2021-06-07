@@ -1,7 +1,6 @@
 //! The primary interface to the actual application.
 
-use crate::app::BaseCoinDriver;
-use crate::app::Command;
+use crate::app::{BaseCoinDriver, Command};
 use crate::sync::{channel_recv, channel_send};
 use crate::tx::Transaction;
 use std::collections::HashMap;
@@ -13,6 +12,11 @@ use tendermint_proto::abci::{
 };
 use tracing::{debug, info};
 
+/// The primary interface for an instance of the basecoin ABCI application.
+///
+/// This interface cannot be shared across threads, but can easily be cloned
+/// across threads, since it is effectively just a handle to the actual
+/// application machine (i.e. the `BaseCoinDriver`).
 #[derive(Debug, Clone)]
 pub struct BaseCoinApp {
     cmd_tx: Sender<Command>,
