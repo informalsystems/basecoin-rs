@@ -143,44 +143,16 @@ impl Application for BaseCoinApp {
     }
 
     fn check_tx(&self, request: RequestCheckTx) -> ResponseCheckTx {
-        let tx = match Tx::from_bytes(request.tx.as_ref()) {
-            Ok(tx) => tx,
-            Err(e) => {
-                debug!("Failed to decode incoming tx bytes: {:?}", request.tx);
-                return response_check_tx(1, e.to_string());
-            }
-        };
-        if tx.body.messages.is_empty() {
-            debug!("Got empty tx body");
-            return response_check_tx(2, "no messages in incoming transaction".to_string());
+        match validate_tx(request.tx) {
+            Ok(_) => response_check_tx(0, "".to_string()),
+            Err((code, log)) => response_check_tx(code, log),
         }
-        let msg = match MsgSend::from_msg(&tx.body.messages[0]) {
-            Ok(m) => m,
-            Err(e) => {
-                debug!(
-                    "Failed to decode a bank send tx from {:?}\n\n{:?}",
-                    tx.body.messages[0], e
-                );
-                return response_check_tx(3, e.to_string());
-            }
-        };
-        if let Err(e) = u64::from_str(msg.amount[0].amount.to_string().as_str()) {
-            return response_check_tx(4, format!("failed to decode amount: {}", e.to_string()));
-        }
-        response_check_tx(0, "".to_string())
     }
 
     fn deliver_tx(&self, request: RequestDeliverTx) -> ResponseDeliverTx {
-        let tx = match Tx::from_bytes(request.tx.as_ref()) {
-            Ok(tx) => tx,
-            Err(e) => return response_deliver_tx(1, e.to_string()),
-        };
-        if tx.body.messages.is_empty() {
-            return response_deliver_tx(2, "no messages in incoming transaction".to_string());
-        }
-        let msg = match MsgSend::from_msg(&tx.body.messages[0]) {
+        let msg = match validate_tx(request.tx) {
             Ok(msg) => msg,
-            Err(e) => return response_deliver_tx(3, e.to_string()),
+            Err((code, log)) => return response_deliver_tx(code, log),
         };
         debug!("Got MsgSend = {:?}", msg);
         match self.transfer(&msg.from_address, &msg.to_address, msg.amount) {
@@ -208,4 +180,33 @@ impl Application for BaseCoinApp {
             retain_height: 0,
         }
     }
+}
+
+fn validate_tx<B: AsRef<[u8]>>(tx: B) -> std::result::Result<MsgSend, (u32, String)> {
+    let tx = tx.as_ref();
+    let tx = match Tx::from_bytes(tx) {
+        Ok(tx) => tx,
+        Err(e) => {
+            debug!("Failed to decode incoming tx bytes: {:?}", tx);
+            return Err((1, e.to_string()));
+        }
+    };
+    if tx.body.messages.is_empty() {
+        debug!("Got empty tx body");
+        return Err((2, "no messages in incoming transaction".to_string()));
+    }
+    let msg = match MsgSend::from_msg(&tx.body.messages[0]) {
+        Ok(m) => m,
+        Err(e) => {
+            debug!(
+                "Failed to decode a bank send tx from {:?}\n\n{:?}",
+                tx.body.messages[0], e
+            );
+            return Err((3, e.to_string()));
+        }
+    };
+    if let Err(e) = u64::from_str(msg.amount[0].amount.to_string().as_str()) {
+        return Err((4, format!("failed to decode amount: {}", e.to_string())));
+    }
+    Ok(msg)
 }
