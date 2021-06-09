@@ -1,6 +1,6 @@
 //! The primary interface to the actual application.
 
-use crate::app::responses::{response_check_tx, response_deliver_tx};
+use crate::app::response::ResponseFromErrorExt;
 use crate::app::{BaseCoinDriver, Command};
 use crate::sync::{channel_recv, channel_send};
 use cosmos_sdk::bank::MsgSend;
@@ -126,17 +126,7 @@ impl Application for BaseCoinApp {
                     height,
                     codespace: "".to_string(),
                 },
-                None => ResponseQuery {
-                    code: 0,
-                    log: "does not exist".to_string(),
-                    info: "".to_string(),
-                    index: 0,
-                    key: request.data,
-                    value: vec![],
-                    proof_ops: None,
-                    height,
-                    codespace: "".to_string(),
-                },
+                None => ResponseQuery::from_error(1, "does not exist"),
             },
             Err(e) => panic!("Failed to get key \"{}\": {:?}", account_id, e),
         }
@@ -144,29 +134,29 @@ impl Application for BaseCoinApp {
 
     fn check_tx(&self, request: RequestCheckTx) -> ResponseCheckTx {
         match validate_tx(request.tx) {
-            Ok(_) => response_check_tx(0, "".to_string()),
-            Err((code, log)) => response_check_tx(code, log),
+            Ok(_) => ResponseCheckTx::default(),
+            Err((code, log)) => ResponseCheckTx::from_error(code, log),
         }
     }
 
     fn deliver_tx(&self, request: RequestDeliverTx) -> ResponseDeliverTx {
         let msg = match validate_tx(request.tx) {
             Ok(msg) => msg,
-            Err((code, log)) => return response_deliver_tx(code, log),
+            Err((code, log)) => return ResponseDeliverTx::from_error(code, log),
         };
         debug!("Got MsgSend = {:?}", msg);
         match self.transfer(&msg.from_address, &msg.to_address, msg.amount) {
             Ok((_, success)) => {
                 if success {
-                    response_deliver_tx(0, "".to_string())
+                    ResponseDeliverTx::default()
                 } else {
-                    response_deliver_tx(
+                    ResponseDeliverTx::from_error(
                         4,
                         "source account does not exist or insufficient balance".to_owned(),
                     )
                 }
             }
-            Err(e) => response_deliver_tx(5, e.to_string()),
+            Err(e) => ResponseDeliverTx::from_error(5, e.to_string()),
         }
     }
 

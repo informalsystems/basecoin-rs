@@ -3,7 +3,7 @@
 mod command;
 mod driver;
 mod handle;
-mod responses;
+mod response;
 
 pub use command::Command;
 pub use driver::BaseCoinDriver;
