@@ -33,8 +33,8 @@ impl BaseCoinApp {
         (Self { cmd_tx }, BaseCoinDriver::new(cmd_rx))
     }
 
-    /// Attempt to retrieve the value associated with the given key.
-    pub fn get<K: AsRef<str>>(&self, key: K) -> Result<(i64, Option<u64>)> {
+    /// Attempt to retrieve the balance associated with the given account ID.
+    pub fn get_balance<K: AsRef<str>>(&self, key: K) -> Result<(i64, Option<u64>)> {
         let (result_tx, result_rx) = channel();
         channel_send(
             &self.cmd_tx,
@@ -97,7 +97,7 @@ impl Application for BaseCoinApp {
                 result_tx,
             },
         )
-            .unwrap();
+        .unwrap();
         let last_block_app_hash = channel_recv(&result_rx).unwrap();
 
         ResponseInitChain {
@@ -113,7 +113,7 @@ impl Application for BaseCoinApp {
             Err(e) => panic!("Failed to intepret key as UTF-8: {}", e),
         };
         debug!("Attempting to get account ID: {}", account_id);
-        match self.get(account_id.clone()) {
+        match self.get_balance(account_id.clone()) {
             Ok((height, value_opt)) => match value_opt {
                 Some(value) => ResponseQuery {
                     code: 0,
@@ -133,77 +133,30 @@ impl Application for BaseCoinApp {
     }
 
     fn check_tx(&self, request: RequestCheckTx) -> ResponseCheckTx {
-        let tx = match Tx::from_bytes(request.tx.as_ref()) {
-            Ok(tx) => tx,
-            Err(e) => {
-                debug!("Failed to decode incoming tx bytes: {:?}", request.tx);
-                return ResponseCheckTx::from_error(1, e);
-            }
-        };
-        if tx.body.messages.is_empty() {
-            debug!("Got empty tx body");
-            return ResponseCheckTx::from_error(2, "no messages in incoming transaction");
-        }
-        let msg = match MsgSend::from_msg(&tx.body.messages[0]) {
-            Ok(m) => m,
-            Err(e) => {
-                debug!(
-                    "Failed to decode a bank send tx from {:?}\n\n{:?}",
-                    tx.body.messages[0], e
-                );
-                return ResponseCheckTx::from_error(3, e);
-            }
-        };
-        if let Err(e) = u64::from_str(msg.amount[0].amount.to_string().as_str()) {
-            return ResponseCheckTx::from_error(4, format!("failed to decode amount: {}", e.to_string()));
-        }
-        ResponseCheckTx {
-            code: 0,
-            data: vec![],
-            log: "".to_string(),
-            info: "".to_string(),
-            gas_wanted: 1,
-            gas_used: 0,
-            events: vec![],
-            codespace: "".to_string(),
+        match validate_tx(request.tx) {
+            Ok(_) => ResponseCheckTx::default(),
+            Err((code, log)) => ResponseCheckTx::from_error(code, log),
         }
     }
 
     fn deliver_tx(&self, request: RequestDeliverTx) -> ResponseDeliverTx {
-        let tx = match Tx::from_bytes(request.tx.as_ref()) {
-            Ok(tx) => tx,
-            Err(e) => return ResponseDeliverTx::from_error(1, e),
-        };
-        if tx.body.messages.is_empty() {
-            return ResponseDeliverTx::from_error(1, "no messages in incoming transaction");
-        }
-
-        let msg = match MsgSend::from_msg(&tx.body.messages[0]) {
+        let msg = match validate_tx(request.tx) {
             Ok(msg) => msg,
-            Err(e) => return ResponseDeliverTx::from_error(1, e)
+            Err((code, log)) => return ResponseDeliverTx::from_error(code, log),
         };
         debug!("Got MsgSend = {:?}", msg);
         match self.transfer(&msg.from_address, &msg.to_address, msg.amount) {
             Ok((_, success)) => {
                 if success {
-                    ResponseDeliverTx {
-                        code: 0,
-                        data: vec![],
-                        log: "".to_string(),
-                        info: "".to_string(),
-                        gas_wanted: 0,
-                        gas_used: 0,
-                        events: vec![],
-                        codespace: "".to_string(),
-                    }
+                    ResponseDeliverTx::default()
                 } else {
                     ResponseDeliverTx::from_error(
-                        1,
-                        "source account does not exist or insufficient balance",
+                        4,
+                        "source account does not exist or insufficient balance".to_owned(),
                     )
                 }
             }
-            Err(e) => ResponseDeliverTx::from_error(1, e),
+            Err(e) => ResponseDeliverTx::from_error(5, e.to_string()),
         }
     }
 
@@ -217,4 +170,33 @@ impl Application for BaseCoinApp {
             retain_height: 0,
         }
     }
+}
+
+fn validate_tx<B: AsRef<[u8]>>(tx: B) -> std::result::Result<MsgSend, (u32, String)> {
+    let tx = tx.as_ref();
+    let tx = match Tx::from_bytes(tx) {
+        Ok(tx) => tx,
+        Err(e) => {
+            debug!("Failed to decode incoming tx bytes: {:?}", tx);
+            return Err((1, e.to_string()));
+        }
+    };
+    if tx.body.messages.is_empty() {
+        debug!("Got empty tx body");
+        return Err((2, "no messages in incoming transaction".to_string()));
+    }
+    let msg = match MsgSend::from_msg(&tx.body.messages[0]) {
+        Ok(m) => m,
+        Err(e) => {
+            debug!(
+                "Failed to decode a bank send tx from {:?}\n\n{:?}",
+                tx.body.messages[0], e
+            );
+            return Err((3, e.to_string()));
+        }
+    };
+    if let Err(e) = u64::from_str(msg.amount[0].amount.to_string().as_str()) {
+        return Err((4, format!("failed to decode amount: {}", e.to_string())));
+    }
+    Ok(msg)
 }
