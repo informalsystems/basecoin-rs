@@ -33,8 +33,8 @@ impl BaseCoinApp {
         (Self { cmd_tx }, BaseCoinDriver::new(cmd_rx))
     }
 
-    /// Attempt to retrieve the value associated with the given key.
-    pub fn get<K: AsRef<str>>(&self, key: K) -> Result<(i64, Option<u64>)> {
+    /// Attempt to retrieve the balance associated with the given account ID.
+    pub fn get_balance<K: AsRef<str>>(&self, key: K) -> Result<(i64, Option<u64>)> {
         let (result_tx, result_rx) = channel();
         channel_send(
             &self.cmd_tx,
@@ -113,7 +113,7 @@ impl Application for BaseCoinApp {
             Err(e) => panic!("Failed to intepret key as UTF-8: {}", e),
         };
         debug!("Attempting to get account ID: {}", account_id);
-        match self.get(account_id.clone()) {
+        match self.get_balance(account_id.clone()) {
             Ok((height, value_opt)) => match value_opt {
                 Some(value) => ResponseQuery {
                     code: 0,
