@@ -2,8 +2,11 @@
 
 use crate::app::{BaseCoinDriver, Command};
 use crate::sync::{channel_recv, channel_send};
-use crate::tx::Transaction;
+use cosmos_sdk::bank::MsgSend;
+use cosmos_sdk::tx::MsgType;
+use cosmos_sdk::{AccountId, Coin, Tx};
 use std::collections::HashMap;
+use std::str::FromStr;
 use std::sync::mpsc::{channel, Sender};
 use tendermint_abci::{Application, Result};
 use tendermint_proto::abci::{
@@ -42,14 +45,19 @@ impl BaseCoinApp {
         channel_recv(&result_rx)
     }
 
-    pub fn transfer(&self, sender: &str, receiver: &str, amount: u64) -> Result<(i64, bool)> {
+    pub fn transfer(
+        &self,
+        sender: &AccountId,
+        receiver: &AccountId,
+        amount: Vec<Coin>,
+    ) -> Result<(i64, bool)> {
         let (result_tx, result_rx) = channel();
         channel_send(
             &self.cmd_tx,
             Command::Transfer {
-                src_account_id: sender.to_owned(),
-                dest_account_id: receiver.to_owned(),
-                amount,
+                src_account_id: sender.as_ref().to_owned(),
+                dest_account_id: receiver.as_ref().to_owned(),
+                amount: u64::from_str(amount[0].amount.to_string().as_str())?,
                 result_tx,
             },
         )?;
@@ -133,7 +141,67 @@ impl Application for BaseCoinApp {
         }
     }
 
-    fn check_tx(&self, _request: RequestCheckTx) -> ResponseCheckTx {
+    fn check_tx(&self, request: RequestCheckTx) -> ResponseCheckTx {
+        let tx = match Tx::from_bytes(request.tx.as_ref()) {
+            Ok(tx) => tx,
+            Err(e) => {
+                debug!("Failed to decode incoming tx bytes: {:?}", request.tx);
+                return ResponseCheckTx {
+                    code: 1,
+                    data: vec![],
+                    log: e.to_string(),
+                    info: "".to_string(),
+                    gas_wanted: 0,
+                    gas_used: 0,
+                    events: vec![],
+                    codespace: "".to_string(),
+                };
+            }
+        };
+        if tx.body.messages.is_empty() {
+            debug!("Got empty tx body");
+            return ResponseCheckTx {
+                code: 2,
+                data: vec![],
+                log: "no messages in incoming transaction".to_string(),
+                info: "".to_string(),
+                gas_wanted: 0,
+                gas_used: 0,
+                events: vec![],
+                codespace: "".to_string(),
+            };
+        }
+        let msg = match MsgSend::from_msg(&tx.body.messages[0]) {
+            Ok(m) => m,
+            Err(e) => {
+                debug!(
+                    "Failed to decode a bank send tx from {:?}\n\n{:?}",
+                    tx.body.messages[0], e
+                );
+                return ResponseCheckTx {
+                    code: 3,
+                    data: vec![],
+                    log: e.to_string(),
+                    info: "".to_string(),
+                    gas_wanted: 0,
+                    gas_used: 0,
+                    events: vec![],
+                    codespace: "".to_string(),
+                };
+            }
+        };
+        if let Err(e) = u64::from_str(msg.amount[0].amount.to_string().as_str()) {
+            return ResponseCheckTx {
+                code: 4,
+                data: vec![],
+                log: format!("failed to decode amount: {}", e.to_string()),
+                info: "".to_string(),
+                gas_wanted: 0,
+                gas_used: 0,
+                events: vec![],
+                codespace: "".to_string(),
+            };
+        }
         ResponseCheckTx {
             code: 0,
             data: vec![],
@@ -147,7 +215,7 @@ impl Application for BaseCoinApp {
     }
 
     fn deliver_tx(&self, request: RequestDeliverTx) -> ResponseDeliverTx {
-        let tx: Transaction = match serde_json::from_str(&String::from_utf8(request.tx).unwrap()) {
+        let tx = match Tx::from_bytes(request.tx.as_ref()) {
             Ok(tx) => tx,
             Err(e) => {
                 return ResponseDeliverTx {
@@ -162,7 +230,35 @@ impl Application for BaseCoinApp {
                 }
             }
         };
-        match self.transfer(&tx.sender, &tx.receiver, tx.amount) {
+        if tx.body.messages.is_empty() {
+            return ResponseDeliverTx {
+                code: 1,
+                data: vec![],
+                log: "no messages in incoming transaction".to_string(),
+                info: "".to_string(),
+                gas_wanted: 0,
+                gas_used: 0,
+                events: vec![],
+                codespace: "".to_string(),
+            };
+        }
+        let msg = match MsgSend::from_msg(&tx.body.messages[0]) {
+            Ok(msg) => msg,
+            Err(e) => {
+                return ResponseDeliverTx {
+                    code: 1,
+                    data: vec![],
+                    log: e.to_string(),
+                    info: "".to_string(),
+                    gas_wanted: 0,
+                    gas_used: 0,
+                    events: vec![],
+                    codespace: "".to_string(),
+                }
+            }
+        };
+        debug!("Got MsgSend = {:?}", msg);
+        match self.transfer(&msg.from_address, &msg.to_address, msg.amount) {
             Ok((_, success)) => {
                 if success {
                     ResponseDeliverTx {
