@@ -126,6 +126,7 @@ dependencies = [
  "cosmos-sdk-proto",
  "cosmos_sdk",
  "prost",
+ "prost-types",
  "serde",
  "serde_json",
  "structopt",
