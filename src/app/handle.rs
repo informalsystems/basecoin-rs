@@ -1,5 +1,6 @@
 //! The primary interface to the actual application.
 
+use crate::app::responses::{response_check_tx, response_deliver_tx};
 use crate::app::{BaseCoinDriver, Command};
 use crate::sync::{channel_recv, channel_send};
 use cosmos_sdk::bank::MsgSend;
@@ -146,30 +147,12 @@ impl Application for BaseCoinApp {
             Ok(tx) => tx,
             Err(e) => {
                 debug!("Failed to decode incoming tx bytes: {:?}", request.tx);
-                return ResponseCheckTx {
-                    code: 1,
-                    data: vec![],
-                    log: e.to_string(),
-                    info: "".to_string(),
-                    gas_wanted: 0,
-                    gas_used: 0,
-                    events: vec![],
-                    codespace: "".to_string(),
-                };
+                return response_check_tx(1, e.to_string());
             }
         };
         if tx.body.messages.is_empty() {
             debug!("Got empty tx body");
-            return ResponseCheckTx {
-                code: 2,
-                data: vec![],
-                log: "no messages in incoming transaction".to_string(),
-                info: "".to_string(),
-                gas_wanted: 0,
-                gas_used: 0,
-                events: vec![],
-                codespace: "".to_string(),
-            };
+            return response_check_tx(2, "no messages in incoming transaction".to_string());
         }
         let msg = match MsgSend::from_msg(&tx.body.messages[0]) {
             Ok(m) => m,
@@ -178,122 +161,40 @@ impl Application for BaseCoinApp {
                     "Failed to decode a bank send tx from {:?}\n\n{:?}",
                     tx.body.messages[0], e
                 );
-                return ResponseCheckTx {
-                    code: 3,
-                    data: vec![],
-                    log: e.to_string(),
-                    info: "".to_string(),
-                    gas_wanted: 0,
-                    gas_used: 0,
-                    events: vec![],
-                    codespace: "".to_string(),
-                };
+                return response_check_tx(3, e.to_string());
             }
         };
         if let Err(e) = u64::from_str(msg.amount[0].amount.to_string().as_str()) {
-            return ResponseCheckTx {
-                code: 4,
-                data: vec![],
-                log: format!("failed to decode amount: {}", e.to_string()),
-                info: "".to_string(),
-                gas_wanted: 0,
-                gas_used: 0,
-                events: vec![],
-                codespace: "".to_string(),
-            };
+            return response_check_tx(4, format!("failed to decode amount: {}", e.to_string()));
         }
-        ResponseCheckTx {
-            code: 0,
-            data: vec![],
-            log: "".to_string(),
-            info: "".to_string(),
-            gas_wanted: 1,
-            gas_used: 0,
-            events: vec![],
-            codespace: "".to_string(),
-        }
+        response_check_tx(0, "".to_string())
     }
 
     fn deliver_tx(&self, request: RequestDeliverTx) -> ResponseDeliverTx {
         let tx = match Tx::from_bytes(request.tx.as_ref()) {
             Ok(tx) => tx,
-            Err(e) => {
-                return ResponseDeliverTx {
-                    code: 1,
-                    data: vec![],
-                    log: e.to_string(),
-                    info: "".to_string(),
-                    gas_wanted: 0,
-                    gas_used: 0,
-                    events: vec![],
-                    codespace: "".to_string(),
-                }
-            }
+            Err(e) => return response_deliver_tx(1, e.to_string()),
         };
         if tx.body.messages.is_empty() {
-            return ResponseDeliverTx {
-                code: 1,
-                data: vec![],
-                log: "no messages in incoming transaction".to_string(),
-                info: "".to_string(),
-                gas_wanted: 0,
-                gas_used: 0,
-                events: vec![],
-                codespace: "".to_string(),
-            };
+            return response_deliver_tx(2, "no messages in incoming transaction".to_string());
         }
         let msg = match MsgSend::from_msg(&tx.body.messages[0]) {
             Ok(msg) => msg,
-            Err(e) => {
-                return ResponseDeliverTx {
-                    code: 1,
-                    data: vec![],
-                    log: e.to_string(),
-                    info: "".to_string(),
-                    gas_wanted: 0,
-                    gas_used: 0,
-                    events: vec![],
-                    codespace: "".to_string(),
-                }
-            }
+            Err(e) => return response_deliver_tx(3, e.to_string()),
         };
         debug!("Got MsgSend = {:?}", msg);
         match self.transfer(&msg.from_address, &msg.to_address, msg.amount) {
             Ok((_, success)) => {
                 if success {
-                    ResponseDeliverTx {
-                        code: 0,
-                        data: vec![],
-                        log: "".to_string(),
-                        info: "".to_string(),
-                        gas_wanted: 0,
-                        gas_used: 0,
-                        events: vec![],
-                        codespace: "".to_string(),
-                    }
+                    response_deliver_tx(0, "".to_string())
                 } else {
-                    ResponseDeliverTx {
-                        code: 1,
-                        data: vec![],
-                        log: "source account does not exist or insufficient balance".to_owned(),
-                        info: "".to_string(),
-                        gas_wanted: 0,
-                        gas_used: 0,
-                        events: vec![],
-                        codespace: "".to_string(),
-                    }
+                    response_deliver_tx(
+                        4,
+                        "source account does not exist or insufficient balance".to_owned(),
+                    )
                 }
             }
-            Err(e) => ResponseDeliverTx {
-                code: 1,
-                data: vec![],
-                log: e.to_string(),
-                info: "".to_string(),
-                gas_wanted: 0,
-                gas_used: 0,
-                events: vec![],
-                codespace: "".to_string(),
-            },
+            Err(e) => response_deliver_tx(5, e.to_string()),
         }
     }
 
