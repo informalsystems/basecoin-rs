@@ -4,7 +4,6 @@ use crate::app::response::ResponseFromErrorExt;
 use crate::app::{BaseCoinDriver, Command};
 use crate::sync::{channel_recv, channel_send};
 use cosmos_sdk::bank::MsgSend;
-use cosmos_sdk::tx::MsgType;
 use cosmos_sdk::{AccountId, Coin, Tx};
 use prost::Message;
 use prost_types::Any;
