@@ -1,15 +1,11 @@
 //! The core driver of the basecoin application.
 
+use crate::app::state::BaseCoinState;
 use crate::app::Command;
-use crate::encoding::encode_varint;
 use crate::sync::channel_send;
-use bytes::BytesMut;
-use std::collections::HashMap;
-use std::sync::mpsc::{Receiver, Sender};
+use std::sync::mpsc::Receiver;
 use tendermint_abci::{Error, Result};
 use tracing::debug;
-
-const APP_HASH_LENGTH: usize = 16;
 
 /// The core state machine of the basecoin application.
 ///
@@ -18,18 +14,14 @@ const APP_HASH_LENGTH: usize = 16;
 /// are processed serially.
 #[derive(Debug)]
 pub struct BaseCoinDriver {
-    store: HashMap<String, u64>,
-    height: i64,
-    app_hash: Vec<u8>,
+    state: BaseCoinState,
     cmd_rx: Receiver<Command>,
 }
 
 impl BaseCoinDriver {
     pub(crate) fn new(cmd_rx: Receiver<Command>) -> Self {
         Self {
-            store: HashMap::new(),
-            height: 0,
-            app_hash: vec![0_u8; APP_HASH_LENGTH],
+            state: Default::default(),
             cmd_rx,
         }
     }
@@ -46,24 +38,24 @@ impl BaseCoinDriver {
                     balances,
                     result_tx,
                 } => {
-                    self.store = balances;
-                    debug!("Account balances initialized: {:?}", self.store);
-                    channel_send(&result_tx, self.app_hash.clone())?;
+                    self.state = BaseCoinState::new(balances);
+                    debug!("Account balances initialized: {:?}", self.state);
+                    channel_send(&result_tx, self.state.hash())?;
                 }
                 Command::GetInfo { result_tx } => {
-                    channel_send(&result_tx, (self.height, self.app_hash.clone()))?
+                    channel_send(&result_tx, (self.state.height(), self.state.hash()))?
                 }
                 Command::Get {
-                    account_id: key,
+                    account_id,
                     result_tx,
                 } => {
-                    debug!("Getting value for \"{}\"", key);
+                    debug!("Getting value for \"{}\"", account_id);
                     channel_send(
                         &result_tx,
-                        (self.height, self.store.get(&key).map(Clone::clone)),
+                        (self.state.height(), self.state.get_account(&account_id)),
                     )?;
                 }
-                Command::Commit { result_tx } => self.commit(result_tx)?,
+                Command::Commit { result_tx } => channel_send(&result_tx, self.state.commit())?,
                 Command::Transfer {
                     src_account_id,
                     dest_account_id,
@@ -74,10 +66,10 @@ impl BaseCoinDriver {
                         "Transfer request from {} to {} of amount {}",
                         src_account_id, dest_account_id, amount
                     );
-                    let mut src_balance = match self.store.get(&src_account_id) {
-                        Some(b) => *b,
+                    let mut src_balance = match self.state.get_account(&src_account_id) {
+                        Some(b) => b,
                         None => {
-                            channel_send(&result_tx, (self.height, false))?;
+                            channel_send(&result_tx, (self.state.height(), false))?;
                             continue;
                         }
                     };
@@ -86,37 +78,27 @@ impl BaseCoinDriver {
                             "Source account does not have enough funds ({})",
                             src_balance
                         );
-                        channel_send(&result_tx, (self.height, false))?;
+                        channel_send(&result_tx, (self.state.height(), false))?;
                         continue;
                     }
-                    let mut dest_balance = match self.store.get(&dest_account_id) {
-                        Some(b) => *b,
+                    let mut dest_balance = match self.state.get_account(&dest_account_id) {
+                        Some(b) => b,
                         None => {
-                            self.store.insert(dest_account_id.clone(), 0);
+                            self.state.put_account(&dest_account_id, 0);
                             0
                         }
                     };
                     src_balance -= amount;
                     dest_balance += amount;
-                    self.store.insert(src_account_id.clone(), src_balance);
-                    self.store.insert(dest_account_id.clone(), dest_balance);
+                    self.state.put_account(&src_account_id, src_balance);
+                    self.state.put_account(&dest_account_id, dest_balance);
                     debug!(
                         "New account balances: {} = {}, {} = {}",
                         src_account_id, src_balance, dest_account_id, dest_balance
                     );
-                    channel_send(&result_tx, (self.height, true))?;
+                    channel_send(&result_tx, (self.state.height(), true))?;
                 }
             }
         }
-    }
-
-    fn commit(&mut self, result_tx: Sender<(i64, Vec<u8>)>) -> Result<()> {
-        // As in the Go-based key/value store, simply encode the number of
-        // items as the "app hash"
-        let mut app_hash = BytesMut::with_capacity(APP_HASH_LENGTH);
-        encode_varint(self.store.len() as u64, &mut app_hash);
-        self.app_hash = app_hash.to_vec();
-        self.height += 1;
-        channel_send(&result_tx, (self.height, self.app_hash.clone()))
     }
 }
