@@ -2,6 +2,7 @@
 
 mod app;
 mod encoding;
+mod result;
 mod sync;
 mod tx;
 

@@ -1,13 +1,13 @@
 //! The primary interface to the actual application.
 
 use crate::app::response::ResponseFromErrorExt;
+use crate::app::state::{Balances, Store};
 use crate::app::{BaseCoinDriver, Command};
 use crate::sync::{channel_recv, channel_send};
 use cosmos_sdk::bank::MsgSend;
 use cosmos_sdk::{AccountId, Coin, Tx};
 use prost::Message;
 use prost_types::Any;
-use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::str::FromStr;
 use std::sync::mpsc::{channel, Sender};
@@ -35,8 +35,8 @@ impl BaseCoinApp {
         (Self { cmd_tx }, BaseCoinDriver::new(cmd_rx))
     }
 
-    /// Attempt to retrieve the balance associated with the given account ID.
-    pub fn get_balance<K: AsRef<str>>(&self, key: K) -> Result<(i64, Option<u64>)> {
+    /// Attempt to retrieve the balances associated with the given account ID.
+    pub fn get_balances<K: AsRef<str>>(&self, key: K) -> Result<(i64, Option<Balances>)> {
         let (result_tx, result_rx) = channel();
         channel_send(
             &self.cmd_tx,
@@ -52,15 +52,15 @@ impl BaseCoinApp {
         &self,
         sender: &AccountId,
         receiver: &AccountId,
-        amount: Vec<Coin>,
-    ) -> Result<(i64, bool)> {
+        amounts: Vec<Coin>,
+    ) -> Result<(i64, crate::result::Result<()>)> {
         let (result_tx, result_rx) = channel();
         channel_send(
             &self.cmd_tx,
             Command::Transfer {
                 src_account_id: sender.as_ref().to_owned(),
                 dest_account_id: receiver.as_ref().to_owned(),
-                amount: u64::from_str(amount[0].amount.to_string().as_str())?,
+                amounts,
                 result_tx,
             },
         )?;
@@ -89,7 +89,7 @@ impl Application for BaseCoinApp {
     }
 
     fn init_chain(&self, request: RequestInitChain) -> ResponseInitChain {
-        let balances: HashMap<String, u64> =
+        let balances: Store =
             serde_json::from_str(&String::from_utf8(request.app_state_bytes).unwrap()).unwrap();
         let (result_tx, result_rx) = channel();
         channel_send(
@@ -112,18 +112,18 @@ impl Application for BaseCoinApp {
     fn query(&self, request: RequestQuery) -> ResponseQuery {
         let account_id = match String::from_utf8(request.data.clone()) {
             Ok(s) => s,
-            Err(e) => panic!("Failed to intepret key as UTF-8: {}", e),
+            Err(e) => panic!("Failed to interpret key as UTF-8: {}", e),
         };
         debug!("Attempting to get account ID: {}", account_id);
-        match self.get_balance(account_id.clone()) {
-            Ok((height, value_opt)) => match value_opt {
-                Some(value) => ResponseQuery {
+        match self.get_balances(account_id.clone()) {
+            Ok((height, maybe_balances)) => match maybe_balances {
+                Some(balances) => ResponseQuery {
                     code: 0,
                     log: "exists".to_string(),
                     info: "".to_string(),
                     index: 0,
                     key: request.data,
-                    value: format!("{}", value).into_bytes(),
+                    value: serde_json::to_string(&balances).unwrap().into_bytes(),
                     proof_ops: None,
                     height,
                     codespace: "".to_string(),
@@ -148,16 +148,10 @@ impl Application for BaseCoinApp {
         };
         debug!("Got MsgSend = {:?}", msg);
         match self.transfer(&msg.from_address, &msg.to_address, msg.amount) {
-            Ok((_, success)) => {
-                if success {
-                    ResponseDeliverTx::default()
-                } else {
-                    ResponseDeliverTx::from_error(
-                        4,
-                        "source account does not exist or insufficient balance".to_owned(),
-                    )
-                }
-            }
+            Ok((_, success)) => match success {
+                Ok(_) => ResponseDeliverTx::default(),
+                Err(e) => ResponseDeliverTx::from_error(4, e.to_string()),
+            },
             Err(e) => ResponseDeliverTx::from_error(5, e.to_string()),
         }
     }

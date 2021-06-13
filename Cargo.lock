@@ -125,6 +125,7 @@ dependencies = [
  "bytes",
  "cosmos-sdk-proto",
  "cosmos_sdk",
+ "flex-error",
  "prost",
  "prost-types",
  "serde",
@@ -132,6 +133,7 @@ dependencies = [
  "structopt",
  "tendermint-abci",
  "tendermint-proto",
+ "thiserror",
  "tracing",
  "tracing-subscriber",
 ]
@@ -380,6 +382,17 @@ dependencies = [
  "bitvec",
  "rand_core 0.5.1",
  "subtle",
+]
+
+[[package]]
+name = "flex-error"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "431f579d1c92791fcaf7753d9beac4b8b2338965eca57b11aea6932f5d9785ea"
+dependencies = [
+ "anyhow",
+ "eyre",
+ "paste",
 ]
 
 [[package]]
@@ -845,6 +858,12 @@ name = "opaque-debug"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "624a8340c38c1b80fd549087862da4ba43e08858af025b236e509b6649fc13d5"
+
+[[package]]
+name = "paste"
+version = "1.0.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "acbf547ad0c65e31259204bd90935776d1c693cec2f4ff7abb7a1bbbd40dfe58"
 
 [[package]]
 name = "percent-encoding"
