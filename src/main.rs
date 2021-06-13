@@ -3,8 +3,6 @@
 mod app;
 mod encoding;
 mod result;
-mod sync;
-mod tx;
 
 use app::BaseCoinApp;
 use cosmos_sdk::tx::{AuthInfo, Fee, MsgType};
@@ -120,11 +118,10 @@ fn start_app(
     };
     tracing_subscriber::fmt().with_max_level(log_level).init();
 
-    let (app, driver) = BaseCoinApp::new();
+    let app = BaseCoinApp::new();
     let server = ServerBuilder::new(read_buf_size)
         .bind(format!("{}:{}", host, port), app)
         .unwrap();
-    std::thread::spawn(move || driver.run());
     server.listen().map_err(|e| e.into())
 }
 

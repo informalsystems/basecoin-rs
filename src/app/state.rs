@@ -9,6 +9,7 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::str::FromStr;
 use thiserror::Error;
+use tracing::debug;
 
 const APP_HASH_LENGTH: usize = 16;
 
@@ -90,14 +91,10 @@ impl Default for BaseCoinState {
 }
 
 impl BaseCoinState {
-    /// Create application state, initializing it with the given store data.
-    pub fn new(store: Store) -> Self {
-        let mut state = Self {
-            store,
-            ..Self::default()
-        };
-        state.hash = state.compute_hash();
-        state
+    /// Override all balances in the store (useful for initialization).
+    pub fn set_balances(&mut self, store: Store) {
+        self.store = store;
+        self.hash = self.compute_hash();
     }
 
     /// Get the current balances for all currency denominations for the
@@ -167,6 +164,7 @@ impl BaseCoinState {
             .insert(src_account_id.to_owned(), Account(src_balances));
         self.store
             .insert(dest_account_id.to_owned(), Account(dest_balances));
+        debug!("New account balances: {:?}", self.store);
         Ok(())
     }
 
