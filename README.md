@@ -20,9 +20,9 @@ tendermint unsafe-reset-all
 
 ### Step 2: Set up your `genesis.json`
 
-Edit your `~/.tendermint/config/genesis.json` file to update the `app_state` with initial account balances.
-This is a simple hash map of account IDs to amounts (where an amount is a positive integer). An example `genesis.json`
-file:
+Edit your `~/.tendermint/config/genesis.json` file to update the `app_state` with initial account balances. This is a
+simple hash map of account IDs to balances (where each balance is a map of denomination and amount). Here's an
+example `genesis.json` file:
 
 ```json
 {
@@ -59,39 +59,48 @@ file:
     }
   ],
   "app_hash": "",
-  "app_state": {"thane": 1000, "ethan": 1000, "shoaib": 1000}
+  "app_state": {
+    "cosmos1snd5m4h0wt5ur55d47vpxla389r2xkf8dl6g9w": {
+      "basecoin": 1000,
+      "othercoin": 1000
+    },
+    "cosmos1t2e0nyjhwn3revunvf2uperhftvhzu4euuzva9": {
+      "basecoin": 250,
+      "othercoin": 5000
+    },
+    "cosmos1uawm90a5xm36kjmaazv89nxmfr8s8cyzkjqytd": {
+      "acidcoin": 500
+    },
+    "cosmos1ny9epydqnr7ymqhmgfvlshp3485cuqlmt7vsmf": {},
+    "cosmos1xwgdxu4ahd9eevtfnq5f7w4td3rqnph4llnngw": {
+      "acidcoin": 500,
+      "basecoin": 0,
+      "othercoin": 100
+    },
+    "cosmos1mac8xqhun2c3y0njptdmmh3vy8nfjmtm6vua9u": {
+      "basecoin": 1000
+    },
+    "cosmos1wkvwnez6fkjn63xaz7nzpm4zxcd9cetqmyh2y8": {
+      "basecoin": 1
+    },
+    "cosmos166vcha998g7tl8j8cq0kwa8rfvm68cqmj88cff": {
+      "basecoin": 18446744073709551615
+    }
+  }
 }
 ```
 
 ### Step 3: Prepare a transfer transaction
 
-We want to transfer some money from one of the accounts to the other. You could use a transaction like the following:
-
-```json
-{"sender": "ethan", "receiver": "shoaib", "amount": 100}
-```
-
-We will be sending this via `POST` request to the JSON-RPC endpoint of the Tendermint node, which means we need
-to base64-encode it and wrap it in a JSON-RPC request:
-
-```json
-{
-    "method": "broadcast_tx_commit",
-    "params": [
-        "eyJzZW5kZXIiOiAiZXRoYW4iLCAicmVjZWl2ZXIiOiAic2hvYWliIiwgImFtb3VudCI6IDEwMH0="
-    ],
-    "id": 1
-}
-```
-
-Save this somewhere, like `/tmp/tx1.json`.
+We want to transfer some money from one of the accounts to the other. See [tx.json](tests/fixtures/tx.json) for an
+example transaction that works with the above genesis `app_state`.
 
 ### Step 4: Run the basecoin app and Tendermint
 
 ```bash
 # Run the ABCI application (from this repo)
 # The -v is to enable debug-level logging
-cargo run -- -v
+cargo run -- start -v
 
 # In another terminal
 tendermint node --consensus.create_empty_blocks=false
@@ -99,35 +108,21 @@ tendermint node --consensus.create_empty_blocks=false
 
 ### Step 5: Send your transaction
 
+We will be sending our transaction via [gaiad](https://github.com/cosmos/gaia) like so:
+
 ```bash
-cat /tmp/tx1.json | curl -H "Content-Type: application/json" -X POST --data-binary @- http://localhost:26657/
+gaiad tx broadcast tests/fixtures/tx.json 
 ```
 
 ### Step 6: Query the account balances to ensure they've been updated
 
-```bash
-# Query balance for account "ethan"
-curl "http://localhost:26657/abci_query?data=\"ethan\""
-{
-  "jsonrpc": "2.0",
-  "id": -1,
-  "result": {
-    "response": {
-      "code": 0,
-      "log": "exists",
-      "info": "",
-      "index": "0",
-      "key": "ZXRoYW4=",
-      "value": "OTAw",
-      "proofOps": null,
-      "height": "3",
-      "codespace": ""
-    }
-  }
-}
+Query balance of receiver's account, i.e. `cosmos1t2e0nyjhwn3revunvf2uperhftvhzu4euuzva9`:
 
-# Query balance for account "shoaib"
-curl "http://localhost:26657/abci_query?data=\"shoaib\""
+```bash 
+curl http://localhost:26657/abci_query?data=\"cosmos1t2e0nyjhwn3revunvf2uperhftvhzu4euuzva9\"
+```
+
+```json
 {
   "jsonrpc": "2.0",
   "id": -1,
@@ -137,15 +132,45 @@ curl "http://localhost:26657/abci_query?data=\"shoaib\""
       "log": "exists",
       "info": "",
       "index": "0",
-      "key": "c2hvYWli",
-      "value": "MTEwMA==",
+      "key": "Y29zbW9zMXQyZTBueWpod24zcmV2dW52ZjJ1cGVyaGZ0dmh6dTRldXV6dmE5",
+      "value": "eyJvdGhlcmNvaW4iOjYwMDAsImJhc2Vjb2luIjozNTB9",
       "proofOps": null,
-      "height": "3",
+      "height": "2",
       "codespace": ""
     }
   }
 }
 ```
 
-The value `OTAw` is the base64-encoded string representation of the account's balance, which decodes to the
-string `900`. Similarly `MTEwMA==` decodes to `1100`.
+The value `eyJvdGhlcmNvaW4iOjYwMDAsImJhc2Vjb2luIjozNTB9` is the base64-encoded string representation of the account's 
+balance, which decodes to the string `"{"othercoin":6000,"basecoin":350}"` - this can be verified using 
+`echo "eyJvdGhlcmNvaW4iOjYwMDAsImJhc2Vjb2luIjozNTB9" | base64 -d`.
+
+Now, we query balance of sender's account (i.e. `cosmos1snd5m4h0wt5ur55d47vpxla389r2xkf8dl6g9w`):
+
+```bash
+curl http://localhost:26657/abci_query?data=\"cosmos1snd5m4h0wt5ur55d47vpxla389r2xkf8dl6g9w\"
+```
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": -1,
+  "result": {
+    "response": {
+      "code": 0,
+      "log": "exists",
+      "info": "",
+      "index": "0",
+      "key": "Y29zbW9zMXNuZDVtNGgwd3Q1dXI1NWQ0N3ZweGxhMzg5cjJ4a2Y4ZGw2Zzl3",
+      "value": "eyJiYXNlY29pbiI6OTAwLCJvdGhlcmNvaW4iOjB9",
+      "proofOps": null,
+      "height": "2",
+      "codespace": ""
+    }
+  }
+}
+```
+
+Just as before, value `eyJiYXNlY29pbiI6OTAwLCJvdGhlcmNvaW4iOjB9` is the base64-encoded string representation of the 
+account's balance, which decodes to the string `"{"basecoin":900,"othercoin":0}"`.
