@@ -5,8 +5,8 @@ pub(crate) trait ResponseFromErrorExt {
 }
 
 macro_rules! impl_response_error_for {
-    ($resp: ident) => {
-        impl ResponseFromErrorExt for $resp {
+    ($($resp:ty),+) => {
+        $(impl ResponseFromErrorExt for $resp {
             fn from_error(code: u32, log: impl ToString) -> Self {
                 let log = log.to_string();
                 Self {
@@ -15,10 +15,8 @@ macro_rules! impl_response_error_for {
                     ..Self::default()
                 }
             }
-        }
+        })+
     };
 }
 
-impl_response_error_for!(ResponseQuery);
-impl_response_error_for!(ResponseCheckTx);
-impl_response_error_for!(ResponseDeliverTx);
+impl_response_error_for!(ResponseQuery, ResponseCheckTx, ResponseDeliverTx);
