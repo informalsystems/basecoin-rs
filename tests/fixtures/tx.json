@@ -7,8 +7,12 @@
         "to_address": "cosmos1t2e0nyjhwn3revunvf2uperhftvhzu4euuzva9",
         "amount": [
           {
-            "denom": "uatom",
+            "denom": "basecoin",
             "amount": "100"
+          },
+          {
+            "denom": "othercoin",
+            "amount": "1000"
           }
         ]
       }
