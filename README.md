@@ -100,7 +100,7 @@ example transaction that works with the above genesis `app_state`.
 ```bash
 # Run the ABCI application (from this repo)
 # The -v is to enable debug-level logging
-cargo run -- start -v
+cargo run -- -v
 
 # In another terminal
 tendermint node --consensus.create_empty_blocks=false
