@@ -8,15 +8,7 @@ use tracing::debug;
 
 /// Validate the given transaction data, decoding it as a `MsgSend` structure
 /// if it is valid.
-pub fn validate_tx<B: AsRef<[u8]>>(tx: B) -> std::result::Result<MsgSend, (u32, String)> {
-    let tx = tx.as_ref();
-    let tx = match Tx::from_bytes(tx) {
-        Ok(tx) => tx,
-        Err(e) => {
-            debug!("Failed to decode incoming tx bytes: {:?}", tx);
-            return Err((1, e.to_string()));
-        }
-    };
+pub fn validate_tx(tx: Tx) -> std::result::Result<MsgSend, (u32, String)> {
     if tx.body.messages.is_empty() {
         debug!("Got empty tx body");
         return Err((2, "no messages in incoming transaction".to_string()));

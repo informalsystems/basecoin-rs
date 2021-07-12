@@ -1,5 +1,6 @@
 //! The basecoin ABCI application.
 
+mod ibc;
 mod response;
 mod state;
 mod tx;
@@ -7,10 +8,14 @@ mod tx;
 use crate::app::response::ResponseFromErrorExt;
 use crate::app::state::{BaseCoinState, Store};
 use crate::app::tx::validate_tx;
+use ::ibc::events::IbcEvent;
+use ::ibc::ics26_routing::error::Kind;
+use ::ibc::ics26_routing::handler::deliver;
+use cosmos_sdk::Tx;
 use std::sync::{Arc, RwLock};
 use tendermint_abci::Application;
 use tendermint_proto::abci::{
-    RequestCheckTx, RequestDeliverTx, RequestInfo, RequestInitChain, RequestQuery, ResponseCheckTx,
+    Event, EventAttribute, RequestDeliverTx, RequestInfo, RequestInitChain, RequestQuery,
     ResponseCommit, ResponseDeliverTx, ResponseInfo, ResponseInitChain, ResponseQuery,
 };
 use tracing::{debug, info};
@@ -92,30 +97,70 @@ impl Application for BaseCoinApp {
         }
     }
 
-    fn check_tx(&self, request: RequestCheckTx) -> ResponseCheckTx {
-        match validate_tx(request.tx) {
-            Ok(_) => ResponseCheckTx::default(),
-            Err((code, log)) => ResponseCheckTx::from_error(code, log),
-        }
-    }
-
     fn deliver_tx(&self, request: RequestDeliverTx) -> ResponseDeliverTx {
-        let msg = match validate_tx(request.tx) {
-            Ok(msg) => msg,
-            Err((code, log)) => return ResponseDeliverTx::from_error(code, log),
+        // Decode the txs
+        let tx = match Tx::from_bytes(&request.tx) {
+            Ok(tx) => tx,
+            Err(e) => {
+                debug!("Failed to decode incoming tx bytes: {:?}", request.tx);
+                return ResponseDeliverTx::from_error(1, e.to_string());
+            }
         };
-        debug!("Got MsgSend = {:?}", msg);
+
         let mut state = self.state.write().unwrap();
-        match state.transfer(
-            &msg.from_address.to_string(),
-            &msg.to_address.to_string(),
-            msg.amount,
+        match deliver(
+            &mut state.store.context,
+            tx.body
+                .messages
+                .clone()
+                .into_iter()
+                .map(|msg| msg.into())
+                .collect(),
         ) {
-            Ok(_) => ResponseDeliverTx {
-                log: "success".to_owned(),
-                ..ResponseDeliverTx::default()
+            Ok(events) => {
+                let events = events
+                    .iter()
+                    .filter_map(|e| match e {
+                        IbcEvent::CreateClient(c) => Some(Event {
+                            r#type: "create_client".to_string(),
+                            attributes: vec![EventAttribute {
+                                key: "client_id".as_bytes().to_vec(),
+                                value: c.client_id().to_string().as_bytes().to_vec(),
+                                index: false,
+                            }],
+                        }),
+                        _ => None,
+                    })
+                    .collect();
+
+                ResponseDeliverTx {
+                    log: "success".to_string(),
+                    events,
+                    ..ResponseDeliverTx::default()
+                }
+            }
+            Err(e) => match e.kind() {
+                Kind::UnknownMessageTypeUrl(_) => {
+                    let msg = match validate_tx(tx) {
+                        Ok(msg) => msg,
+                        Err((code, log)) => return ResponseDeliverTx::from_error(code, log),
+                    };
+                    debug!("Got MsgSend = {:?}", msg);
+                    let mut state = self.state.write().unwrap();
+                    match state.transfer(
+                        &msg.from_address.to_string(),
+                        &msg.to_address.to_string(),
+                        msg.amount,
+                    ) {
+                        Ok(_) => ResponseDeliverTx {
+                            log: "success".to_owned(),
+                            ..ResponseDeliverTx::default()
+                        },
+                        Err(e) => ResponseDeliverTx::from_error(10, e.to_string()),
+                    }
+                }
+                _ => ResponseDeliverTx::from_error(2, e.to_string()),
             },
-            Err(e) => ResponseDeliverTx::from_error(10, e.to_string()),
         }
     }
 

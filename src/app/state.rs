@@ -1,5 +1,6 @@
 //! The state of the basecoin ABCI application.
 
+use crate::app::ibc::Context;
 use crate::encoding::encode_varint;
 use crate::result::Result;
 use bytes::BytesMut;
@@ -24,25 +25,31 @@ pub type Balances = HashMap<Denom, u64>;
 
 /// Our account store.
 #[derive(Debug, Clone, Deserialize)]
-pub struct Store(HashMap<AccountId, Account>);
+pub struct Store {
+    accounts: HashMap<AccountId, Account>,
+    pub context: Context,
+}
 
 impl Store {
     fn get(&self, account_id: &str) -> Option<&Account> {
-        self.0.get(account_id)
+        self.accounts.get(account_id)
     }
 
     fn insert(&mut self, account_id: AccountId, account: Account) {
-        self.0.insert(account_id, account);
+        self.accounts.insert(account_id, account);
     }
 
     fn len(&self) -> usize {
-        self.0.len()
+        self.accounts.len()
     }
 }
 
 impl Default for Store {
     fn default() -> Self {
-        Self(HashMap::new())
+        Self {
+            accounts: HashMap::new(),
+            context: Default::default(),
+        }
     }
 }
 
@@ -71,7 +78,7 @@ impl Default for Account {
 #[derive(Debug)]
 pub struct BaseCoinState {
     // A mapping of account IDs to balances.
-    store: Store,
+    pub store: Store,
 
     // The current height of the blockchain for this state.
     height: i64,
@@ -102,7 +109,7 @@ impl BaseCoinState {
     ///
     /// Returns `None` if no such account exists.
     pub fn get_balances(&self, account_id: &str) -> Option<Balances> {
-        self.store.0.get(account_id).map(|acc| acc.0.clone())
+        self.store.accounts.get(account_id).map(|acc| acc.0.clone())
     }
 
     /// Attempts to transfer the given quantity of funds (in the specified
@@ -233,7 +240,7 @@ mod tests {
         // insufficient source funds
         assert_eq!(
             state
-                .transfer(from, to, vec![create_coin(denom_basecoin, 901)?],)
+                .transfer(from, to, vec![create_coin(denom_basecoin, 901)?])
                 .err()
                 .unwrap()
                 .downcast::<StateError>()?,
@@ -243,7 +250,7 @@ mod tests {
         // unknown denom transfer
         assert_eq!(
             state
-                .transfer(from, to, vec![create_coin("unknowncoin", 10)?],)
+                .transfer(from, to, vec![create_coin("unknowncoin", 10)?])
                 .err()
                 .unwrap()
                 .downcast::<StateError>()?,
@@ -254,7 +261,7 @@ mod tests {
         let non_existent_acc = "cosmos1awx9pmmr82p7097wx6gft923k4ugwd5vxuhf3s";
         assert_eq!(
             state
-                .transfer(non_existent_acc, to, vec![create_coin(denom_basecoin, 10)?],)
+                .transfer(non_existent_acc, to, vec![create_coin(denom_basecoin, 10)?])
                 .err()
                 .unwrap()
                 .downcast::<StateError>()?,
@@ -266,7 +273,7 @@ mod tests {
             .transfer(
                 from,
                 non_existent_acc,
-                vec![create_coin(denom_basecoin, 100)?]
+                vec![create_coin(denom_basecoin, 100)?],
             )
             .is_ok());
         assert_eq!(state.get_balances(from).unwrap()[denom_basecoin], 800);
@@ -308,7 +315,7 @@ mod tests {
                 vec![
                     create_coin(denom_basecoin, 100)?,
                     create_coin(denom_othercoin, 100)?
-                ]
+                ],
             )
             .is_ok());
         assert_eq!(state.get_balances(from).unwrap()[denom_basecoin], 700);
