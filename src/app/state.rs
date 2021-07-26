@@ -1,6 +1,6 @@
 //! The state of the basecoin ABCI application.
 
-use crate::app::ibc::Context;
+use crate::app::modules::ibc::Context;
 use crate::encoding::encode_varint;
 use crate::result::Result;
 use bytes::BytesMut;
