@@ -1,3 +1,6 @@
+pub mod memory;
+mod avl;
+
 use std::error::Error as StdError;
 
 /// A newtype representing a bytestring used as the key for an object stored in state.
