@@ -1,7 +1,9 @@
 use std::sync::RwLock;
 
 use crate::app::store::avl::AvlTree;
-use crate::app::store::{Height, Store, Path};
+use crate::app::store::{Height, Path, ProvableStore, Store};
+
+use ics23::CommitmentProof;
 use thiserror::Error as ThisError;
 
 #[derive(ThisError, Debug)]
@@ -55,7 +57,7 @@ impl std::fmt::Debug for Memory {
 impl Store for Memory {
     type Error = Error;
 
-    fn set(&mut self, path: &Path, value: Vec<u8>)  -> Result<(), Self::Error> {
+    fn set(&mut self, path: &Path, value: Vec<u8>) -> Result<(), Self::Error> {
         let mut store = self.pending.write().unwrap();
         store.insert(path.0.clone().into_bytes(), value);
         Ok(())
@@ -104,6 +106,17 @@ impl Store for Memory {
     fn current_height(&self) -> u64 {
         let store = self.store.read().unwrap();
         store.len() as u64
+    }
+}
+
+impl ProvableStore for Memory {
+    fn root_hash(&self) -> Option<tendermint::Hash> {
+        let pending = self.pending.read().unwrap();
+        pending.root_hash().cloned()
+    }
+
+    fn get_proof(&self, key: &Path) -> Option<CommitmentProof> {
+        todo!()
     }
 }
 

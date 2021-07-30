@@ -1,11 +1,38 @@
-pub mod memory;
 mod avl;
+pub mod memory;
 
+use std::convert::TryFrom;
 use std::error::Error as StdError;
 
 /// A newtype representing a bytestring used as the key for an object stored in state.
-/// TODO: Must be validated in accordance with [ICS 24 - Path, Identifiers, Separators](https://github.com/cosmos/ibc/blob/0eba039ed65a66eace21124041d39be07ebfb69a/spec/core/ics-024-host-requirements/README.md#path-space)
 pub struct Path(String);
+
+impl Path {
+    // TODO: clarify
+    fn is_valid(s: impl AsRef<str>) -> bool {
+        s.as_ref().chars().all(|c| {
+            c.is_ascii_alphanumeric()
+                || matches!(c, '.' | '_' | '+' | '-' | '#' | '[' | ']' | '<' | '>' | '/')
+        })
+    }
+}
+
+impl TryFrom<String> for Path {
+    type Error = PathError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        if Path::is_valid(&value) {
+            Ok(Path(value))
+        } else {
+            Err(PathError::InvalidPath(value))
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum PathError {
+    InvalidPath(String),
+}
 
 /// Block height
 pub type RawHeight = u64;
@@ -41,4 +68,13 @@ pub trait Store {
 
     /// Return the current height of the chain
     fn current_height(&self) -> RawHeight;
+}
+
+/// ProvableStore trait
+pub trait ProvableStore: Store {
+    /// Return a vector commitment
+    fn root_hash(&self) -> Option<tendermint::Hash>;
+
+    // Return proof of existence for key
+    fn get_proof(&self, key: &Path) -> Option<ics23::CommitmentProof>;
 }
