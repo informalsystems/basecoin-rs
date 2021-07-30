@@ -1,9 +1,9 @@
 //! The basecoin ABCI application.
 
-mod modules;
+pub mod modules;
 mod response;
 mod state;
-mod store;
+pub mod store;
 mod tx;
 
 use crate::app::response::ResponseFromErrorExt;
