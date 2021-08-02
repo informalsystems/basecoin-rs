@@ -26,7 +26,6 @@ use ibc::Height as IbcHeight;
 use prost_types::Any;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use std::convert::TryInto;
 use std::sync::{Arc, RwLock};
 use tendermint_proto::abci::{Event, EventAttribute};
 
@@ -40,7 +39,7 @@ pub struct Ibc {
 
 impl Ibc {
     fn get_at_path<T: DeserializeOwned>(&self, path_str: &str) -> Option<T> {
-        let path = self.prefixed_path(path_str).try_into().unwrap();
+        let path = self.prefixed_path(path_str);
         let store = self.store.read().unwrap();
         store
             .get(Height::Pending, &path)
@@ -48,7 +47,7 @@ impl Ibc {
     }
 
     fn set_at_path<T: Serialize>(&mut self, path_str: &str, value: &T) {
-        let path = self.prefixed_path(path_str).try_into().unwrap();
+        let path = self.prefixed_path(path_str);
         let mut store = self.store.write().unwrap();
         store
             .set(&path, serde_json::to_string(value).unwrap().into())
@@ -108,7 +107,7 @@ impl ClientKeeper for Ibc {
     }
 
     fn increase_client_counter(&mut self) {
-        self.client_counter = self.client_counter + 1;
+        self.client_counter += 1;
     }
 }
 
@@ -344,7 +343,7 @@ impl Ics26Context for Ibc {}
 
 impl Module<Memory> for Ibc {
     fn deliver(&mut self, _store: &mut Memory, message: Any) -> Result<Vec<Event>, ModuleError> {
-        match dispatch(self, decode(message).map_err(|e| ModuleError::IbcError(e))?) {
+        match dispatch(self, decode(message).map_err(ModuleError::IbcError)?) {
             Ok(output) => Ok(output
                 .events
                 .into_iter()
@@ -368,7 +367,7 @@ impl From<IbcEventWrapper> for Event {
                     index: false,
                 }],
             },
-            _ => unimplemented!()
+            _ => todo!(),
         }
     }
 }

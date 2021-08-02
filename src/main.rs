@@ -1,8 +1,6 @@
 //! In-memory key/value store application for Tendermint.
 
 mod app;
-mod encoding;
-mod result;
 
 use app::BaseCoinApp;
 use structopt::StructOpt;

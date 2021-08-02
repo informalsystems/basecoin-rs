@@ -64,24 +64,18 @@ impl Module<Memory> for Bank {
                 let amt = coin.amount.to_string();
                 match u64::from_str(&amt) {
                     Ok(amt) => Ok((amt, coin.denom.to_string())),
-                    Err(e) => return Err(Error::AmountParseErr(e).into()),
+                    Err(e) => Err(Error::AmountParseErr(e)),
                 }
             })
             .collect::<Result<Vec<(u64, String)>, Error>>()?;
 
-        let src_path = self
-            .prefixed_path(&format!("accounts/{}", message.from_address))
-            .try_into()
-            .unwrap();
+        let src_path = self.prefixed_path(&format!("accounts/{}", message.from_address));
         let mut src_balances: Balances = match store.get(Height::Pending, &src_path) {
             Some(sb) => serde_json::from_str(&String::from_utf8(sb).unwrap()).unwrap(),
             None => return Err(Error::NonExistentAccount(message.from_address.to_string()).into()),
         };
 
-        let dst_path = self
-            .prefixed_path(&format!("accounts/{}", message.to_address))
-            .try_into()
-            .unwrap();
+        let dst_path = self.prefixed_path(&format!("accounts/{}", message.to_address));
         let mut dst_balances: Balances = store
             .get(Height::Pending, &dst_path)
             .map(|db| serde_json::from_str(&String::from_utf8(db).unwrap()).unwrap())
@@ -128,10 +122,7 @@ impl Module<Memory> for Bank {
 
         let accounts: HashMap<AccountId, Balances> = serde_json::from_value(app_state).unwrap();
         for account in accounts {
-            let path = self
-                .prefixed_path(&format!("accounts/{}", account.0))
-                .try_into()
-                .unwrap();
+            let path = self.prefixed_path(&format!("accounts/{}", account.0));
             store
                 .set(&path, serde_json::to_string(&account.1).unwrap().into())
                 .unwrap();
@@ -153,10 +144,7 @@ impl Module<Memory> for Bank {
         };
         debug!("Attempting to get account ID: {}", account_id);
 
-        let path = self
-            .prefixed_path(&format!("accounts/{}", account_id))
-            .try_into()
-            .unwrap();
+        let path = self.prefixed_path(&format!("accounts/{}", account_id));
 
         match store.get(height, &path) {
             None => Err(Error::NonExistentAccount(account_id).into()),
