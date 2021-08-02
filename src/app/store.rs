@@ -5,6 +5,7 @@ use std::convert::TryFrom;
 use std::error::Error as StdError;
 
 /// A newtype representing a bytestring used as the key for an object stored in state.
+#[derive(Debug)]
 pub struct Path(String);
 
 impl Path {
@@ -38,6 +39,7 @@ pub enum PathError {
 pub type RawHeight = u64;
 
 /// Store height to query
+#[derive(Debug)]
 pub enum Height {
     Pending,
     Latest,
@@ -46,7 +48,10 @@ pub enum Height {
 
 impl From<RawHeight> for Height {
     fn from(value: u64) -> Self {
-        Height::Stable(value)
+        match value {
+            0 => Height::Latest,
+            _ => Height::Stable(value),
+        }
     }
 }
 

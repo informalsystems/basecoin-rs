@@ -70,6 +70,9 @@ impl Application for BaseCoinApp {
             )
         }
 
+        // commit genesis state
+        state.commit();
+
         ResponseInitChain {
             consensus_params: request.consensus_params,
             validators: request.validators,

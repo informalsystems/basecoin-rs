@@ -42,12 +42,9 @@ impl Default for Memory {
     /// The store starts out by comprising the state of a single committed block, the genesis
     /// block, at height 0, with an empty state. We also initialize the pending location as empty.
     fn default() -> Self {
-        let genesis = AvlTree::new();
-        let pending = genesis.clone();
-
         Memory {
-            store: vec![genesis],
-            pending: pending,
+            store: vec![],
+            pending: AvlTree::new(),
         }
     }
 }
@@ -61,14 +58,13 @@ impl Store for Memory {
     }
 
     fn get(&self, height: Height, path: &Path) -> Option<Vec<u8>> {
+        println!("Memory get -> {:?} => {:?}", height, path);
+        println!("Store: {:?}", &self);
         match height {
             // Request to access the pending blocks
             Height::Pending => self.pending.get(path.0.as_bytes()).cloned(),
             // Access the last committed block
-            Height::Latest => {
-                // Access the last committed block
-                return self.store.last().unwrap().get(path.0.as_bytes()).cloned();
-            }
+            Height::Latest => self.store.last().unwrap().get(path.0.as_bytes()).cloned(),
             // Access one of the committed blocks
             Height::Stable(height) => {
                 let h = height as usize;
@@ -92,7 +88,7 @@ impl Store for Memory {
     }
 
     fn current_height(&self) -> u64 {
-        (self.store.len() - 1) as u64
+        (self.store.len()) as u64
     }
 }
 
