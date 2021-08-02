@@ -2,9 +2,13 @@ use std::sync::RwLock;
 
 use crate::app::store::avl::AvlTree;
 use crate::app::store::{Height, Path, ProvableStore, Store};
+// use crate::encoding::encode_varint;
 
 use ics23::CommitmentProof;
 use thiserror::Error as ThisError;
+// use bytes::BytesMut;
+use tendermint::hash::Algorithm;
+use tendermint::Hash;
 
 #[derive(ThisError, Debug)]
 pub enum Error {}
@@ -13,20 +17,6 @@ pub enum Error {}
 pub struct Memory {
     store: RwLock<Vec<AvlTree<Vec<u8>, Vec<u8>>>>,
     pending: RwLock<AvlTree<Vec<u8>, Vec<u8>>>,
-}
-
-impl Memory {
-    /// The store starts out by comprising the state of a single committed block, the genesis
-    /// block, at height 0, with an empty state. We also initialize the pending location as empty.
-    pub fn new() -> Self {
-        let genesis = AvlTree::new();
-        let pending = genesis.clone();
-
-        Memory {
-            store: RwLock::new(vec![genesis]),
-            pending: RwLock::new(pending),
-        }
-    }
 }
 
 impl std::fmt::Debug for Memory {
@@ -51,6 +41,20 @@ impl std::fmt::Debug for Memory {
                 .collect::<Vec<String>>()
                 .join(", ")
         )
+    }
+}
+
+impl Default for Memory {
+    /// The store starts out by comprising the state of a single committed block, the genesis
+    /// block, at height 0, with an empty state. We also initialize the pending location as empty.
+    fn default() -> Self {
+        let genesis = AvlTree::new();
+        let pending = genesis.clone();
+
+        Memory {
+            store: RwLock::new(vec![genesis]),
+            pending: RwLock::new(pending),
+        }
     }
 }
 
@@ -95,12 +99,13 @@ impl Store for Memory {
         todo!()
     }
 
-    fn commit(&self) -> Vec<u8> {
+    fn commit(&mut self) -> Vec<u8> {
         let mut store = self.store.write().unwrap();
         let pending = self.pending.write().unwrap();
         let pending_copy = pending.clone();
         store.push(pending_copy);
-        pending.root_hash().unwrap().as_bytes().to_vec()
+        // pending.root_hash().unwrap().as_bytes().to_vec()
+        self.root_hash()
     }
 
     fn current_height(&self) -> u64 {
@@ -110,12 +115,16 @@ impl Store for Memory {
 }
 
 impl ProvableStore for Memory {
-    fn root_hash(&self) -> Option<tendermint::Hash> {
+    fn root_hash(&self) -> Vec<u8> {
         let pending = self.pending.read().unwrap();
-        pending.root_hash().cloned()
+        pending
+            .root_hash()
+            .unwrap_or(&Hash::from_bytes(Algorithm::Sha256, &[0u8; 16]).unwrap())
+            .as_bytes()
+            .to_vec()
     }
 
-    fn get_proof(&self, key: &Path) -> Option<CommitmentProof> {
+    fn get_proof(&self, _key: &Path) -> Option<CommitmentProof> {
         todo!()
     }
 }

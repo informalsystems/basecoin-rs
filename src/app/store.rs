@@ -44,6 +44,12 @@ pub enum Height {
     Stable(RawHeight), // or equivalently `tendermint::block::Height`
 }
 
+impl From<RawHeight> for Height {
+    fn from(value: u64) -> Self {
+        Height::Stable(value)
+    }
+}
+
 /// Store trait - maybe provableStore or privateStore
 pub trait Store {
     /// Error type - expected to envelope all possible errors in store
@@ -59,7 +65,7 @@ pub trait Store {
     fn delete(&mut self, path: &Path);
 
     /// Commit `Pending` block to canonical chain and create new `Pending`
-    fn commit(&self) -> Vec<u8>;
+    fn commit(&mut self) -> Vec<u8>;
 
     /// Prune historic blocks upto specified `height`
     fn prune(&self, height: RawHeight) -> Result<RawHeight, Self::Error> {
@@ -73,7 +79,7 @@ pub trait Store {
 /// ProvableStore trait
 pub trait ProvableStore: Store {
     /// Return a vector commitment
-    fn root_hash(&self) -> Option<tendermint::Hash>;
+    fn root_hash(&self) -> Vec<u8>;
 
     // Return proof of existence for key
     fn get_proof(&self, key: &Path) -> Option<ics23::CommitmentProof>;

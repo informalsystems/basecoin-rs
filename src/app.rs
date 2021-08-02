@@ -2,100 +2,116 @@
 
 pub mod modules;
 mod response;
-mod state;
 pub mod store;
-mod tx;
 
+use crate::app::modules::bank::Bank;
+use crate::app::modules::{Error, Module};
 use crate::app::response::ResponseFromErrorExt;
-use crate::app::state::{BaseCoinState, Store};
-use crate::app::tx::validate_tx;
-use ::ibc::events::IbcEvent;
-use ::ibc::ics26_routing::error::Kind;
-use ::ibc::ics26_routing::handler::deliver;
+use crate::app::store::memory::Memory;
+use crate::app::store::{Height, Path, ProvableStore, Store};
 use cosmos_sdk::Tx;
+use std::convert::{Into, TryInto};
 use std::sync::{Arc, RwLock};
 use tendermint_abci::Application;
 use tendermint_proto::abci::{
-    Event, EventAttribute, RequestDeliverTx, RequestInfo, RequestInitChain, RequestQuery,
-    ResponseCommit, ResponseDeliverTx, ResponseInfo, ResponseInitChain, ResponseQuery,
+    RequestDeliverTx, RequestInfo, RequestInitChain, RequestQuery, ResponseCommit,
+    ResponseDeliverTx, ResponseInfo, ResponseInitChain, ResponseQuery,
 };
 use tracing::{debug, info};
 
 /// BaseCoin ABCI application.
 ///
 /// Can be safely cloned and sent across threads, but not shared.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct BaseCoinApp {
-    state: Arc<RwLock<BaseCoinState>>,
+    state: Arc<RwLock<Memory>>,
+    modules: Arc<RwLock<Vec<Box<dyn Module<Memory> + Send + Sync>>>>,
 }
 
 impl BaseCoinApp {
     /// Constructor.
     pub fn new() -> Self {
         Self {
-            state: Arc::new(RwLock::new(BaseCoinState::default())),
+            state: Arc::new(RwLock::new(Default::default())),
+            modules: Arc::new(RwLock::new(vec![Box::new(Bank)])),
         }
     }
 }
 
 impl Application for BaseCoinApp {
     fn info(&self, request: RequestInfo) -> ResponseInfo {
-        debug!(
-            "Got info request. Tendermint version: {}; Block version: {}; P2P version: {}",
-            request.version, request.block_version, request.p2p_version
-        );
-
         let (last_block_height, last_block_app_hash) = {
             let state = self.state.read().unwrap();
-            (state.height(), state.hash())
+            (state.current_height() as i64, state.root_hash())
         };
-
+        debug!(
+            "Got info request. Tendermint version: {}; Block version: {}; P2P version: {}, {:?}, {:?}",
+            request.version, request.block_version, request.p2p_version, last_block_height, last_block_app_hash
+        );
         ResponseInfo {
             data: "basecoin-rs".to_string(),
             version: "0.1.0".to_string(),
             app_version: 1,
             last_block_height,
-            last_block_app_hash,
+            last_block_app_hash: vec![],
         }
     }
 
     fn init_chain(&self, request: RequestInitChain) -> ResponseInitChain {
-        let balances: Store =
-            serde_json::from_str(&String::from_utf8(request.app_state_bytes).unwrap()).unwrap();
-        let app_hash = {
-            let mut state = self.state.write().unwrap();
-            state.set_balances(balances);
-            state.hash()
-        };
+        debug!("Got init chain request.");
+
+        let mut state = self.state.write().unwrap();
+        let modules = self.modules.read().unwrap();
+        for m in modules.iter() {
+            m.init(
+                &mut state,
+                serde_json::from_str(&String::from_utf8(request.app_state_bytes.clone()).unwrap())
+                    .unwrap(),
+            )
+        }
 
         ResponseInitChain {
             consensus_params: request.consensus_params,
             validators: request.validators,
-            app_hash,
+            // app_hash: state.root_hash().unwrap_or(Hash::from_bytes(Algorithm::Sha256, &[0u8;16]).unwrap()).as_bytes().to_vec()
+            app_hash: state.root_hash(),
         }
     }
 
     fn query(&self, request: RequestQuery) -> ResponseQuery {
-        let account_id = match String::from_utf8(request.data.clone()) {
-            Ok(s) => s,
-            Err(e) => panic!("Failed to interpret key as UTF-8: {}", e),
-        };
-        debug!("Attempting to get account ID: {}", account_id);
         let state = self.state.read().unwrap();
-        match state.get_balances(&account_id) {
-            Some(balances) => ResponseQuery {
-                code: 0,
-                log: "exists".to_string(),
-                info: "".to_string(),
-                index: 0,
-                key: request.data,
-                value: serde_json::to_string(&balances).unwrap().into_bytes(),
-                proof_ops: None,
-                height: state.height(),
-                codespace: "".to_string(),
-            },
-            None => ResponseQuery::from_error(1, "does not exist"),
+        let modules = self.modules.read().unwrap();
+
+        let path: Path = match request.path.try_into() {
+            Err(e) => return ResponseQuery::from_error(1, format!("Invalid path: {:?}", e)),
+            Ok(path) => path,
+        };
+
+        for m in modules.iter() {
+            match m.query(
+                &state,
+                &request.data,
+                &path,
+                Height::from(request.height as u64),
+            ) {
+                Ok(result) => {
+                    return ResponseQuery {
+                        code: 0,
+                        log: "exists".to_string(),
+                        info: "".to_string(),
+                        index: 0,
+                        key: request.data,
+                        value: result,
+                        proof_ops: None,
+                        height: state.current_height() as i64,
+                        codespace: "".to_string(),
+                    }
+                }
+                Err(Error::Unhandled) => continue,
+                Err(e) => return ResponseQuery::from_error(1, format!("query error: {:?}", e)),
+            }
         }
+        ResponseQuery::from_error(1, "query msg unhandled")
     }
 
     fn deliver_tx(&self, request: RequestDeliverTx) -> ResponseDeliverTx {
@@ -109,70 +125,31 @@ impl Application for BaseCoinApp {
         };
 
         let mut state = self.state.write().unwrap();
-        match deliver(
-            &mut state.store.context,
-            tx.body
-                .messages
-                .clone()
-                .into_iter()
-                .map(|msg| msg.into())
-                .collect(),
-        ) {
-            Ok(events) => {
-                let events = events
-                    .iter()
-                    .filter_map(|e| match e {
-                        IbcEvent::CreateClient(c) => Some(Event {
-                            r#type: "create_client".to_string(),
-                            attributes: vec![EventAttribute {
-                                key: "client_id".as_bytes().to_vec(),
-                                value: c.client_id().to_string().as_bytes().to_vec(),
-                                index: false,
-                            }],
-                        }),
-                        _ => None,
-                    })
-                    .collect();
-
-                ResponseDeliverTx {
-                    log: "success".to_string(),
-                    events,
-                    ..ResponseDeliverTx::default()
-                }
-            }
-            Err(e) => match e.kind() {
-                Kind::UnknownMessageTypeUrl(_) => {
-                    let msg = match validate_tx(tx) {
-                        Ok(msg) => msg,
-                        Err((code, log)) => return ResponseDeliverTx::from_error(code, log),
-                    };
-                    debug!("Got MsgSend = {:?}", msg);
-                    let mut state = self.state.write().unwrap();
-                    match state.transfer(
-                        &msg.from_address.to_string(),
-                        &msg.to_address.to_string(),
-                        msg.amount,
-                    ) {
-                        Ok(_) => ResponseDeliverTx {
+        let modules = self.modules.read().unwrap();
+        for message in tx.body.messages {
+            for m in modules.iter() {
+                match m.deliver(&mut state, message.clone().into()) {
+                    Ok(events) => {
+                        return ResponseDeliverTx {
                             log: "success".to_owned(),
+                            events,
                             ..ResponseDeliverTx::default()
-                        },
-                        Err(e) => ResponseDeliverTx::from_error(10, e.to_string()),
+                        };
                     }
-                }
-                _ => ResponseDeliverTx::from_error(2, e.to_string()),
-            },
+                    Err(Error::Unhandled) => continue,
+                    Err(e) => return ResponseDeliverTx::from_error(2, format!("{:?}", e)),
+                };
+            }
         }
+        ResponseDeliverTx::from_error(2, "Tx msg unhandled")
     }
 
     fn commit(&self) -> ResponseCommit {
-        let (height, app_hash) = {
-            let mut state = self.state.write().unwrap();
-            state.commit()
-        };
-        info!("Committed height {}", height);
+        let mut state = self.state.write().unwrap();
+        let data = state.commit();
+        info!("Committed height {}", state.current_height());
         ResponseCommit {
-            data: app_hash,
+            data,
             retain_height: 0,
         }
     }
