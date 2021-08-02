@@ -1,6 +1,6 @@
-use crate::app::modules::{Error as ModuleError, IdentifiableBy, Module};
+use crate::app::modules::{Error as ModuleError, Module};
 use crate::app::store::memory::Memory;
-use crate::app::store::{Height, Path, Store};
+use crate::app::store::{Height, Path, PrefixedPath, Store};
 use cosmos_sdk::bank::MsgSend;
 use cosmos_sdk::proto;
 use prost::{DecodeError, Message};
@@ -52,7 +52,7 @@ impl Bank {
 }
 
 impl Module<Memory> for Bank {
-    fn deliver(&self, store: &mut Memory, message: Any) -> Result<Vec<Event>, ModuleError> {
+    fn deliver(&mut self, store: &mut Memory, message: Any) -> Result<Vec<Event>, ModuleError> {
         let message: MsgSend = Self::decode::<proto::cosmos::bank::v1beta1::MsgSend>(message)?
             .try_into()
             .map_err(|e| Error::MsgValidationErr(format!("{:?}", e)))?;
@@ -69,7 +69,8 @@ impl Module<Memory> for Bank {
             })
             .collect::<Result<Vec<(u64, String)>, Error>>()?;
 
-        let src_path = format!("{}/accounts/{}", self.identifier(), message.from_address)
+        let src_path = self
+            .prefixed_path(&format!("accounts/{}", message.from_address))
             .try_into()
             .unwrap();
         let mut src_balances: Balances = match store.get(Height::Pending, &src_path) {
@@ -77,7 +78,8 @@ impl Module<Memory> for Bank {
             None => return Err(Error::NonExistentAccount(message.from_address.to_string()).into()),
         };
 
-        let dst_path = format!("{}/accounts/{}", self.identifier(), message.to_address)
+        let dst_path = self
+            .prefixed_path(&format!("accounts/{}", message.to_address))
             .try_into()
             .unwrap();
         let mut dst_balances: Balances = store
@@ -121,12 +123,13 @@ impl Module<Memory> for Bank {
         Ok(vec![])
     }
 
-    fn init(&self, store: &mut Memory, app_state: serde_json::Value) {
+    fn init(&mut self, store: &mut Memory, app_state: serde_json::Value) {
         debug!("Initializing bank module");
 
         let accounts: HashMap<AccountId, Balances> = serde_json::from_value(app_state).unwrap();
         for account in accounts {
-            let path = format!("{}/accounts/{}", self.identifier(), account.0)
+            let path = self
+                .prefixed_path(&format!("accounts/{}", account.0))
                 .try_into()
                 .unwrap();
             store
@@ -150,7 +153,8 @@ impl Module<Memory> for Bank {
         };
         debug!("Attempting to get account ID: {}", account_id);
 
-        let path = format!("{}/accounts/{}", self.identifier(), account_id)
+        let path = self
+            .prefixed_path(&format!("accounts/{}", account_id))
             .try_into()
             .unwrap();
 

@@ -2,6 +2,7 @@ pub mod bank;
 pub mod ibc;
 
 use crate::app::modules::bank::Bank;
+use crate::app::modules::ibc::Ibc;
 use crate::app::store::{Height, Path, Store};
 use prost_types::Any;
 use std::hash::Hash;
@@ -24,11 +25,11 @@ pub trait Module<S: Store> {
     /// Execute specified `Message`, modify state accordingly and return resulting `Events`
     /// Similar to [ABCI DeliverTx method](https://docs.tendermint.com/master/spec/abci/abci.html#delivertx)
     /// *NOTE* - Implementations MUST be deterministic!
-    fn deliver(&self, store: &mut S, message: Any) -> Result<Vec<Event>, Error>;
+    fn deliver(&mut self, store: &mut S, message: Any) -> Result<Vec<Event>, Error>;
 
     /// Similar to [ABCI InitChain method](https://docs.tendermint.com/master/spec/abci/abci.html#initchain)
     /// Just as with `InitChain`, implementations are encouraged to panic on error
-    fn init(&self, _store: &mut S, _app_state: serde_json::Value) {}
+    fn init(&mut self, _store: &mut S, _app_state: serde_json::Value) {}
 
     /// Similar to [ABCI Query method](https://docs.tendermint.com/master/spec/abci/abci.html#query)
     fn query(
@@ -52,8 +53,15 @@ impl IdentifiableBy<&'static str> for Bank {
     }
 }
 
+impl IdentifiableBy<&'static str> for Ibc {
+    fn identifier(&self) -> &'static str {
+        "ibc"
+    }
+}
+
 #[derive(Debug)]
 pub enum Error {
     Unhandled,
     BankError(bank::Error),
+    IbcError(ibc::Error),
 }

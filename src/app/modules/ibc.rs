@@ -1,4 +1,8 @@
+use crate::app::modules::{Error as ModuleError, Module};
+use crate::app::store::memory::Memory;
+use crate::app::store::{Height, PrefixedPath, Store};
 use ibc::application::ics20_fungible_token_transfer::context::Ics20Context;
+use ibc::events::IbcEvent;
 use ibc::ics02_client::client_consensus::AnyConsensusState;
 use ibc::ics02_client::client_state::AnyClientState;
 use ibc::ics02_client::client_type::ClientType;
@@ -16,70 +20,99 @@ use ibc::ics05_port::context::PortReader;
 use ibc::ics23_commitment::commitment::CommitmentPrefix;
 use ibc::ics24_host::identifier::{ChannelId, ClientId, ConnectionId, PortId};
 use ibc::ics26_routing::context::Ics26Context;
+use ibc::ics26_routing::handler::{decode, dispatch};
 use ibc::timestamp::Timestamp;
-use ibc::Height;
-use serde::Deserialize;
-use std::collections::HashMap;
+use ibc::Height as IbcHeight;
+use prost_types::Any;
+use serde::de::DeserializeOwned;
+use serde::Serialize;
+use std::convert::TryInto;
+use std::sync::{Arc, RwLock};
+use tendermint_proto::abci::{Event, EventAttribute};
 
-#[derive(Clone, Debug, Deserialize)]
-pub struct Context(HashMap<ClientId, AnyClientState>);
+pub(crate) type Error = ibc::ics26_routing::error::Error;
 
-impl Default for Context {
-    fn default() -> Self {
-        Self(Default::default())
+#[derive(Clone, Debug)]
+pub struct Ibc {
+    pub store: Arc<RwLock<Memory>>,
+    pub client_counter: u64,
+}
+
+impl Ibc {
+    fn get_at_path<T: DeserializeOwned>(&self, path_str: &str) -> Option<T> {
+        let path = self.prefixed_path(path_str).try_into().unwrap();
+        let store = self.store.read().unwrap();
+        store
+            .get(Height::Pending, &path)
+            .map(|v| serde_json::from_str(&String::from_utf8(v).unwrap()).unwrap())
+    }
+
+    fn set_at_path<T: Serialize>(&mut self, path_str: &str, value: &T) {
+        let path = self.prefixed_path(path_str).try_into().unwrap();
+        let mut store = self.store.write().unwrap();
+        store
+            .set(&path, serde_json::to_string(value).unwrap().into())
+            .unwrap();
     }
 }
 
-impl ClientReader for Context {
-    fn client_type(&self, _client_id: &ClientId) -> Option<ClientType> {
-        todo!()
+impl ClientReader for Ibc {
+    fn client_type(&self, client_id: &ClientId) -> Option<ClientType> {
+        self.get_at_path(&format!("clients/{}/clientType", client_id))
     }
 
-    fn client_state(&self, _client_id: &ClientId) -> Option<AnyClientState> {
-        todo!()
+    fn client_state(&self, client_id: &ClientId) -> Option<AnyClientState> {
+        self.get_at_path(&format!("clients/{}/clientState", client_id))
     }
 
-    fn consensus_state(&self, _client_id: &ClientId, _height: Height) -> Option<AnyConsensusState> {
+    fn consensus_state(
+        &self,
+        _client_id: &ClientId,
+        _height: IbcHeight,
+    ) -> Option<AnyConsensusState> {
+        // self.get_at_path(&format!("clients/{}/consensusStates/{}", client_id, height))
         todo!()
     }
 
     fn client_counter(&self) -> u64 {
-        todo!()
+        self.client_counter
     }
 }
 
-impl ClientKeeper for Context {
+impl ClientKeeper for Ibc {
     fn store_client_type(
         &mut self,
-        _client_id: ClientId,
-        _client_type: ClientType,
+        client_id: ClientId,
+        client_type: ClientType,
     ) -> Result<(), ClientError> {
-        todo!()
+        self.set_at_path(&format!("clients/{}/clientType", client_id), &client_type);
+        Ok(())
     }
 
     fn store_client_state(
         &mut self,
-        _client_id: ClientId,
-        _client_state: AnyClientState,
+        client_id: ClientId,
+        client_state: AnyClientState,
     ) -> Result<(), ClientError> {
-        todo!()
+        self.set_at_path(&format!("clients/{}/clientState", client_id), &client_state);
+        Ok(())
     }
 
     fn store_consensus_state(
         &mut self,
         _client_id: ClientId,
-        _height: Height,
+        _height: IbcHeight,
         _consensus_state: AnyConsensusState,
     ) -> Result<(), ClientError> {
         todo!()
     }
 
     fn increase_client_counter(&mut self) {
-        todo!()
+        self.client_counter = self.client_counter + 1;
     }
 }
 
-impl ConnectionReader for Context {
+impl ConnectionReader for Ibc {
     fn connection_end(&self, _conn_id: &ConnectionId) -> Option<ConnectionEnd> {
         todo!()
     }
@@ -88,11 +121,11 @@ impl ConnectionReader for Context {
         todo!()
     }
 
-    fn host_current_height(&self) -> Height {
+    fn host_current_height(&self) -> IbcHeight {
         todo!()
     }
 
-    fn host_oldest_height(&self) -> Height {
+    fn host_oldest_height(&self) -> IbcHeight {
         todo!()
     }
 
@@ -103,12 +136,12 @@ impl ConnectionReader for Context {
     fn client_consensus_state(
         &self,
         _client_id: &ClientId,
-        _height: Height,
+        _height: IbcHeight,
     ) -> Option<AnyConsensusState> {
         todo!()
     }
 
-    fn host_consensus_state(&self, _height: Height) -> Option<AnyConsensusState> {
+    fn host_consensus_state(&self, _height: IbcHeight) -> Option<AnyConsensusState> {
         todo!()
     }
 
@@ -117,7 +150,7 @@ impl ConnectionReader for Context {
     }
 }
 
-impl ConnectionKeeper for Context {
+impl ConnectionKeeper for Ibc {
     fn store_connection(
         &mut self,
         _connection_id: ConnectionId,
@@ -139,7 +172,7 @@ impl ConnectionKeeper for Context {
     }
 }
 
-impl ChannelReader for Context {
+impl ChannelReader for Ibc {
     fn channel_end(&self, _port_channel_id: &(PortId, ChannelId)) -> Option<ChannelEnd> {
         todo!()
     }
@@ -159,7 +192,7 @@ impl ChannelReader for Context {
     fn client_consensus_state(
         &self,
         _client_id: &ClientId,
-        _height: Height,
+        _height: IbcHeight,
     ) -> Option<AnyConsensusState> {
         todo!()
     }
@@ -196,7 +229,7 @@ impl ChannelReader for Context {
         todo!()
     }
 
-    fn host_height(&self) -> Height {
+    fn host_height(&self) -> IbcHeight {
         todo!()
     }
 
@@ -209,12 +242,12 @@ impl ChannelReader for Context {
     }
 }
 
-impl ChannelKeeper for Context {
+impl ChannelKeeper for Ibc {
     fn store_packet_commitment(
         &mut self,
         _key: (PortId, ChannelId, Sequence),
         _timestamp: Timestamp,
-        _heigh: Height,
+        _height: IbcHeight,
         _data: Vec<u8>,
     ) -> Result<(), ChannelError> {
         todo!()
@@ -295,7 +328,7 @@ impl ChannelKeeper for Context {
     }
 }
 
-impl PortReader for Context {
+impl PortReader for Ibc {
     fn lookup_module_by_port(&self, _port_id: &PortId) -> Option<Capability> {
         todo!()
     }
@@ -305,6 +338,37 @@ impl PortReader for Context {
     }
 }
 
-impl Ics20Context for Context {}
+impl Ics20Context for Ibc {}
 
-impl Ics26Context for Context {}
+impl Ics26Context for Ibc {}
+
+impl Module<Memory> for Ibc {
+    fn deliver(&mut self, _store: &mut Memory, message: Any) -> Result<Vec<Event>, ModuleError> {
+        match dispatch(self, decode(message).map_err(|e| ModuleError::IbcError(e))?) {
+            Ok(output) => Ok(output
+                .events
+                .into_iter()
+                .map(|ev| IbcEventWrapper(ev).into())
+                .collect()),
+            Err(e) => Err(ModuleError::IbcError(e)),
+        }
+    }
+}
+
+struct IbcEventWrapper(IbcEvent);
+
+impl From<IbcEventWrapper> for Event {
+    fn from(value: IbcEventWrapper) -> Self {
+        match value.0 {
+            IbcEvent::CreateClient(c) => Self {
+                r#type: "create_client".to_string(),
+                attributes: vec![EventAttribute {
+                    key: "client_id".as_bytes().to_vec(),
+                    value: c.client_id().to_string().as_bytes().to_vec(),
+                    index: false,
+                }],
+            },
+            _ => unimplemented!()
+        }
+    }
+}

@@ -1,7 +1,9 @@
 mod avl;
 pub mod memory;
 
-use std::convert::TryFrom;
+use crate::app::modules::{IdentifiableBy, Module};
+use crate::app::store::memory::Memory;
+use std::convert::{TryFrom, TryInto};
 use std::error::Error as StdError;
 
 /// A newtype representing a bytestring used as the key for an object stored in state.
@@ -88,4 +90,14 @@ pub trait ProvableStore: Store {
 
     // Return proof of existence for key
     fn get_proof(&self, key: &Path) -> Option<ics23::CommitmentProof>;
+}
+
+pub(crate) trait PrefixedPath: Sized {
+    fn prefixed_path(&self, s: &str) -> Path;
+}
+
+impl<T: Module<Memory> + IdentifiableBy<&'static str>> PrefixedPath for T {
+    fn prefixed_path(&self, s: &str) -> Path {
+        format!("{}/{}", self.identifier(), s).try_into().unwrap()
+    }
 }

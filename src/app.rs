@@ -5,6 +5,7 @@ mod response;
 pub mod store;
 
 use crate::app::modules::bank::Bank;
+use crate::app::modules::ibc::Ibc;
 use crate::app::modules::{Error, Module};
 use crate::app::response::ResponseFromErrorExt;
 use crate::app::store::memory::Memory;
@@ -31,9 +32,17 @@ pub struct BaseCoinApp {
 impl BaseCoinApp {
     /// Constructor.
     pub fn new() -> Self {
+        let state = Arc::new(RwLock::new(Default::default()));
+        let modules: Vec<Box<dyn Module<Memory> + Send + Sync>> = vec![
+            Box::new(Bank),
+            Box::new(Ibc {
+                store: state.clone(),
+                client_counter: 0,
+            }),
+        ];
         Self {
-            state: Arc::new(RwLock::new(Default::default())),
-            modules: Arc::new(RwLock::new(vec![Box::new(Bank)])),
+            state,
+            modules: Arc::new(RwLock::new(modules)),
         }
     }
 }
@@ -61,8 +70,8 @@ impl Application for BaseCoinApp {
         debug!("Got init chain request.");
 
         let mut state = self.state.write().unwrap();
-        let modules = self.modules.read().unwrap();
-        for m in modules.iter() {
+        let mut modules = self.modules.write().unwrap();
+        for m in modules.iter_mut() {
             m.init(
                 &mut state,
                 serde_json::from_str(&String::from_utf8(request.app_state_bytes.clone()).unwrap())
@@ -128,9 +137,9 @@ impl Application for BaseCoinApp {
         };
 
         let mut state = self.state.write().unwrap();
-        let modules = self.modules.read().unwrap();
+        let mut modules = self.modules.write().unwrap();
         for message in tx.body.messages {
-            for m in modules.iter() {
+            for m in modules.iter_mut() {
                 match m.deliver(&mut state, message.clone().into()) {
                     Ok(events) => {
                         return ResponseDeliverTx {
