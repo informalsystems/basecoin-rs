@@ -23,10 +23,12 @@ use ibc::ics26_routing::context::Ics26Context;
 use ibc::ics26_routing::handler::{decode, dispatch};
 use ibc::timestamp::Timestamp;
 use ibc::Height as IbcHeight;
+use prost::Message;
 use prost_types::Any;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::sync::{Arc, RwLock};
+use std::convert::TryInto;
 use tendermint_proto::abci::{Event, EventAttribute};
 
 pub(crate) type Error = ibc::ics26_routing::error::Error;
@@ -66,11 +68,14 @@ impl ClientReader for Ibc {
 
     fn consensus_state(
         &self,
-        _client_id: &ClientId,
-        _height: IbcHeight,
+        client_id: &ClientId,
+        height: IbcHeight,
     ) -> Option<AnyConsensusState> {
-        // self.get_at_path(&format!("clients/{}/consensusStates/{}", client_id, height))
-        todo!()
+        let path = self.prefixed_path(&format!("clients/{}/consensusStates/{}", client_id, height));
+        let store = self.store.read().unwrap();
+        let value = store.get(Height::Pending, &path)?;
+        let consensus_state = Any::decode(value.as_slice());
+        consensus_state.ok().map(|v|v.try_into().unwrap())
     }
 
     fn client_counter(&self) -> u64 {
@@ -99,11 +104,20 @@ impl ClientKeeper for Ibc {
 
     fn store_consensus_state(
         &mut self,
-        _client_id: ClientId,
-        _height: IbcHeight,
-        _consensus_state: AnyConsensusState,
+        client_id: ClientId,
+        height: IbcHeight,
+        consensus_state: AnyConsensusState,
     ) -> Result<(), ClientError> {
-        todo!()
+        let path = self.prefixed_path(&format!("clients/{}/consensusStates/{}", client_id, height));
+        let mut store = self.store.write().unwrap();
+
+        let data: Any = consensus_state.into();
+        let mut buffer = Vec::new();
+        data.encode(&mut buffer)
+            .map_err(|e| ClientError::unknown_consensus_state_type(e.to_string()))?;
+
+        store.set(&path, buffer).unwrap();
+        Ok(())
     }
 
     fn increase_client_counter(&mut self) {
