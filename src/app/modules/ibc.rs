@@ -1,5 +1,4 @@
 use crate::app::modules::{Error as ModuleError, Module};
-use crate::app::store::memory::Memory;
 use crate::app::store::{Height, PrefixedPath, Store};
 use ibc::application::ics20_fungible_token_transfer::context::Ics20Context;
 use ibc::events::IbcEvent;
@@ -27,19 +26,19 @@ use prost::Message;
 use prost_types::Any;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use std::sync::{Arc, RwLock};
 use std::convert::TryInto;
+use std::sync::{Arc, RwLock};
 use tendermint_proto::abci::{Event, EventAttribute};
 
 pub(crate) type Error = ibc::ics26_routing::error::Error;
 
 #[derive(Clone, Debug)]
-pub struct Ibc {
-    pub store: Arc<RwLock<Memory>>,
+pub struct Ibc<S: Store> {
+    pub store: Arc<RwLock<S>>,
     pub client_counter: u64,
 }
 
-impl Ibc {
+impl<S: Store> Ibc<S> {
     fn get_at_path<T: DeserializeOwned>(&self, path_str: &str) -> Option<T> {
         let path = self.prefixed_path(path_str);
         let store = self.store.read().unwrap();
@@ -57,7 +56,7 @@ impl Ibc {
     }
 }
 
-impl ClientReader for Ibc {
+impl<S: Store> ClientReader for Ibc<S> {
     fn client_type(&self, client_id: &ClientId) -> Option<ClientType> {
         self.get_at_path(&format!("clients/{}/clientType", client_id))
     }
@@ -75,7 +74,7 @@ impl ClientReader for Ibc {
         let store = self.store.read().unwrap();
         let value = store.get(Height::Pending, &path)?;
         let consensus_state = Any::decode(value.as_slice());
-        consensus_state.ok().map(|v|v.try_into().unwrap())
+        consensus_state.ok().map(|v| v.try_into().unwrap())
     }
 
     fn client_counter(&self) -> u64 {
@@ -83,7 +82,7 @@ impl ClientReader for Ibc {
     }
 }
 
-impl ClientKeeper for Ibc {
+impl<S: Store> ClientKeeper for Ibc<S> {
     fn store_client_type(
         &mut self,
         client_id: ClientId,
@@ -125,7 +124,7 @@ impl ClientKeeper for Ibc {
     }
 }
 
-impl ConnectionReader for Ibc {
+impl<S: Store> ConnectionReader for Ibc<S> {
     fn connection_end(&self, _conn_id: &ConnectionId) -> Option<ConnectionEnd> {
         todo!()
     }
@@ -163,7 +162,7 @@ impl ConnectionReader for Ibc {
     }
 }
 
-impl ConnectionKeeper for Ibc {
+impl<S: Store> ConnectionKeeper for Ibc<S> {
     fn store_connection(
         &mut self,
         _connection_id: ConnectionId,
@@ -185,7 +184,7 @@ impl ConnectionKeeper for Ibc {
     }
 }
 
-impl ChannelReader for Ibc {
+impl<S: Store> ChannelReader for Ibc<S> {
     fn channel_end(&self, _port_channel_id: &(PortId, ChannelId)) -> Option<ChannelEnd> {
         todo!()
     }
@@ -255,7 +254,7 @@ impl ChannelReader for Ibc {
     }
 }
 
-impl ChannelKeeper for Ibc {
+impl<S: Store> ChannelKeeper for Ibc<S> {
     fn store_packet_commitment(
         &mut self,
         _key: (PortId, ChannelId, Sequence),
@@ -341,7 +340,7 @@ impl ChannelKeeper for Ibc {
     }
 }
 
-impl PortReader for Ibc {
+impl<S: Store> PortReader for Ibc<S> {
     fn lookup_module_by_port(&self, _port_id: &PortId) -> Option<Capability> {
         todo!()
     }
@@ -351,12 +350,12 @@ impl PortReader for Ibc {
     }
 }
 
-impl Ics20Context for Ibc {}
+impl<S: Store> Ics20Context for Ibc<S> {}
 
-impl Ics26Context for Ibc {}
+impl<S: Store> Ics26Context for Ibc<S> {}
 
-impl Module<Memory> for Ibc {
-    fn deliver(&mut self, _store: &mut Memory, message: Any) -> Result<Vec<Event>, ModuleError> {
+impl<S: Store> Module for Ibc<S> {
+    fn deliver(&mut self, message: Any) -> Result<Vec<Event>, ModuleError> {
         match dispatch(self, decode(message).map_err(ModuleError::IbcError)?) {
             Ok(output) => Ok(output
                 .events

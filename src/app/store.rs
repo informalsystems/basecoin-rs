@@ -2,7 +2,6 @@ mod avl;
 pub mod memory;
 
 use crate::app::modules::{IdentifiableBy, Module};
-use crate::app::store::memory::Memory;
 use std::convert::{TryFrom, TryInto};
 use std::error::Error as StdError;
 
@@ -58,7 +57,7 @@ impl From<RawHeight> for Height {
 }
 
 /// Store trait - maybe provableStore or privateStore
-pub trait Store {
+pub trait Store: Send + Sync + Clone + Default {
     /// Error type - expected to envelope all possible errors in store
     type Error: StdError;
 
@@ -96,7 +95,7 @@ pub(crate) trait PrefixedPath: Sized {
     fn prefixed_path(&self, s: &str) -> Path;
 }
 
-impl<T: Module<Memory> + IdentifiableBy<&'static str>> PrefixedPath for T {
+impl<T: Module + IdentifiableBy<&'static str>> PrefixedPath for T {
     fn prefixed_path(&self, s: &str) -> Path {
         format!("{}/{}", self.identifier(), s).try_into().unwrap()
     }

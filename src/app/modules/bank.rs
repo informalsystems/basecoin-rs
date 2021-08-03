@@ -1,5 +1,4 @@
 use crate::app::modules::{Error as ModuleError, Module};
-use crate::app::store::memory::Memory;
 use crate::app::store::{Height, Path, PrefixedPath, Store};
 use cosmos_sdk::bank::MsgSend;
 use cosmos_sdk::proto;
@@ -10,6 +9,7 @@ use std::collections::HashMap;
 use std::convert::TryInto;
 use std::num::ParseIntError;
 use std::str::FromStr;
+use std::sync::{Arc, RwLock};
 use tendermint_proto::abci::Event;
 use tracing::debug;
 
@@ -24,7 +24,9 @@ pub type Denom = String;
 #[serde(transparent)]
 pub struct Balances(HashMap<Denom, u64>);
 
-pub struct Bank;
+pub struct Bank<S: Store> {
+    pub store: Arc<RwLock<S>>,
+}
 
 #[derive(Debug)]
 pub enum Error {
@@ -42,7 +44,7 @@ impl From<Error> for ModuleError {
     }
 }
 
-impl Bank {
+impl<S: Store> Bank<S> {
     fn decode<T: Message + Default>(message: Any) -> Result<T, ModuleError> {
         if message.type_url != "/cosmos.bank.v1beta1.MsgSend" {
             return Err(ModuleError::Unhandled);
@@ -51,8 +53,8 @@ impl Bank {
     }
 }
 
-impl Module<Memory> for Bank {
-    fn deliver(&mut self, store: &mut Memory, message: Any) -> Result<Vec<Event>, ModuleError> {
+impl<S: Store> Module for Bank<S> {
+    fn deliver(&mut self, message: Any) -> Result<Vec<Event>, ModuleError> {
         let message: MsgSend = Self::decode::<proto::cosmos::bank::v1beta1::MsgSend>(message)?
             .try_into()
             .map_err(|e| Error::MsgValidationErr(format!("{:?}", e)))?;
@@ -69,6 +71,7 @@ impl Module<Memory> for Bank {
             })
             .collect::<Result<Vec<(u64, String)>, Error>>()?;
 
+        let mut store = self.store.write().unwrap();
         let src_path = self.prefixed_path(&format!("accounts/{}", message.from_address));
         let mut src_balances: Balances = match store.get(Height::Pending, &src_path) {
             Some(sb) => serde_json::from_str(&String::from_utf8(sb).unwrap()).unwrap(),
@@ -117,9 +120,10 @@ impl Module<Memory> for Bank {
         Ok(vec![])
     }
 
-    fn init(&mut self, store: &mut Memory, app_state: serde_json::Value) {
+    fn init(&mut self, app_state: serde_json::Value) {
         debug!("Initializing bank module");
 
+        let mut store = self.store.write().unwrap();
         let accounts: HashMap<AccountId, Balances> = serde_json::from_value(app_state).unwrap();
         for account in accounts {
             let path = self.prefixed_path(&format!("accounts/{}", account.0));
@@ -131,21 +135,15 @@ impl Module<Memory> for Bank {
         }
     }
 
-    fn query(
-        &self,
-        store: &Memory,
-        data: &[u8],
-        _path: &Path,
-        height: Height,
-    ) -> Result<Vec<u8>, ModuleError> {
+    fn query(&self, data: &[u8], _path: &Path, height: Height) -> Result<Vec<u8>, ModuleError> {
         let account_id = match String::from_utf8(data.to_vec()) {
             Ok(s) => s,
             Err(e) => panic!("Failed to interpret key as UTF-8: {}", e),
         };
         debug!("Attempting to get account ID: {}", account_id);
 
+        let store = self.store.read().unwrap();
         let path = self.prefixed_path(&format!("accounts/{}", account_id));
-
         match store.get(height, &path) {
             None => Err(Error::NonExistentAccount(account_id).into()),
             Some(balance) => Ok(balance),

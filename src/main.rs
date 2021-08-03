@@ -2,6 +2,7 @@
 
 mod app;
 
+use crate::app::store::memory::Memory;
 use app::BaseCoinApp;
 use structopt::StructOpt;
 use tendermint_abci::ServerBuilder;
@@ -42,7 +43,7 @@ fn main() {
     };
     tracing_subscriber::fmt().with_max_level(log_level).init();
 
-    let app = BaseCoinApp::new();
+    let app = BaseCoinApp::<Memory>::new();
     let server = ServerBuilder::new(opt.read_buf_size)
         .bind(format!("{}:{}", opt.host, opt.port), app)
         .unwrap();

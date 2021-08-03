@@ -8,8 +8,7 @@ use crate::app::modules::bank::Bank;
 use crate::app::modules::ibc::Ibc;
 use crate::app::modules::{Error, Module};
 use crate::app::response::ResponseFromErrorExt;
-use crate::app::store::memory::Memory;
-use crate::app::store::{Height, Path, ProvableStore, Store};
+use crate::app::store::{Height, Path, ProvableStore};
 use cosmos_sdk::Tx;
 use std::convert::{Into, TryInto};
 use std::sync::{Arc, RwLock};
@@ -24,17 +23,19 @@ use tracing::{debug, info};
 ///
 /// Can be safely cloned and sent across threads, but not shared.
 #[derive(Clone)]
-pub struct BaseCoinApp {
-    state: Arc<RwLock<Memory>>,
-    modules: Arc<RwLock<Vec<Box<dyn Module<Memory> + Send + Sync>>>>,
+pub struct BaseCoinApp<S: ProvableStore> {
+    state: Arc<RwLock<S>>,
+    modules: Arc<RwLock<Vec<Box<dyn Module + Send + Sync>>>>,
 }
 
-impl BaseCoinApp {
+impl<S: ProvableStore + 'static> BaseCoinApp<S> {
     /// Constructor.
     pub fn new() -> Self {
         let state = Arc::new(RwLock::new(Default::default()));
-        let modules: Vec<Box<dyn Module<Memory> + Send + Sync>> = vec![
-            Box::new(Bank),
+        let modules: Vec<Box<dyn Module + Send + Sync>> = vec![
+            Box::new(Bank {
+                store: state.clone(),
+            }),
             Box::new(Ibc {
                 store: state.clone(),
                 client_counter: 0,
@@ -47,7 +48,7 @@ impl BaseCoinApp {
     }
 }
 
-impl Application for BaseCoinApp {
+impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
     fn info(&self, request: RequestInfo) -> ResponseInfo {
         let (last_block_height, last_block_app_hash) = {
             let state = self.state.read().unwrap();
@@ -69,17 +70,16 @@ impl Application for BaseCoinApp {
     fn init_chain(&self, request: RequestInitChain) -> ResponseInitChain {
         debug!("Got init chain request.");
 
-        let mut state = self.state.write().unwrap();
         let mut modules = self.modules.write().unwrap();
         for m in modules.iter_mut() {
             m.init(
-                &mut state,
                 serde_json::from_str(&String::from_utf8(request.app_state_bytes.clone()).unwrap())
                     .unwrap(),
             )
         }
 
         // commit genesis state
+        let mut state = self.state.write().unwrap();
         state.commit();
 
         ResponseInitChain {
@@ -100,12 +100,7 @@ impl Application for BaseCoinApp {
         };
 
         for m in modules.iter() {
-            match m.query(
-                &state,
-                &request.data,
-                &path,
-                Height::from(request.height as u64),
-            ) {
+            match m.query(&request.data, &path, Height::from(request.height as u64)) {
                 Ok(result) => {
                     return ResponseQuery {
                         code: 0,
@@ -136,11 +131,10 @@ impl Application for BaseCoinApp {
             }
         };
 
-        let mut state = self.state.write().unwrap();
         let mut modules = self.modules.write().unwrap();
         for message in tx.body.messages {
             for m in modules.iter_mut() {
-                match m.deliver(&mut state, message.clone().into()) {
+                match m.deliver(message.clone().into()) {
                     Ok(events) => {
                         return ResponseDeliverTx {
                             log: "success".to_owned(),

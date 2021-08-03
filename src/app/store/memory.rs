@@ -10,6 +10,7 @@ use thiserror::Error as ThisError;
 pub enum Error {}
 
 /// An in-memory store backed by an AvlTree.
+#[derive(Clone)]
 pub struct Memory {
     store: Vec<AvlTree<Vec<u8>, Vec<u8>>>,
     pending: AvlTree<Vec<u8>, Vec<u8>>,
