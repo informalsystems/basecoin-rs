@@ -73,6 +73,6 @@ impl Display for IbcPrefix {
 #[derive(Debug)]
 pub enum Error {
     Unhandled,
-    BankError(bank::Error),
-    IbcError(ibc::Error),
+    Bank(bank::Error),
+    Ibc(ibc::Error),
 }

@@ -65,12 +65,12 @@ where
 
     /// The left merkle hash, if any
     pub fn left_hash(&self) -> Option<&[u8]> {
-        Some(&self.left.as_ref()?.merkle_hash.as_bytes())
+        Some(self.left.as_ref()?.merkle_hash.as_bytes())
     }
 
     /// The right merkle hash, if any
     pub fn right_hash(&self) -> Option<&[u8]> {
-        Some(&self.right.as_ref()?.merkle_hash.as_bytes())
+        Some(self.right.as_ref()?.merkle_hash.as_bytes())
     }
 
     /// Update the height of this node by looking at the height of its two children.

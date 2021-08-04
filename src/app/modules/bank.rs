@@ -39,7 +39,7 @@ pub enum Error {
 
 impl From<Error> for ModuleError {
     fn from(e: Error) -> Self {
-        ModuleError::BankError(e)
+        ModuleError::Bank(e)
     }
 }
 
