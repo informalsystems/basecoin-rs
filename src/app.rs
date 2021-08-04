@@ -6,9 +6,9 @@ pub mod store;
 
 use crate::app::modules::bank::Bank;
 use crate::app::modules::ibc::Ibc;
-use crate::app::modules::{Error, Module};
+use crate::app::modules::{BankPrefix, Error, IbcPrefix, Module};
 use crate::app::response::ResponseFromErrorExt;
-use crate::app::store::{Height, Path, ProvableStore};
+use crate::app::store::{Height, Path, ProvableStore, SharedSubStore};
 use cosmos_sdk::Tx;
 use std::convert::{Into, TryInto};
 use std::sync::{Arc, RwLock};
@@ -28,16 +28,22 @@ pub struct BaseCoinApp<S: ProvableStore> {
     modules: Arc<RwLock<Vec<Box<dyn Module + Send + Sync>>>>,
 }
 
-impl<S: ProvableStore + 'static> BaseCoinApp<S> {
+impl<S: Default + ProvableStore + 'static> BaseCoinApp<S> {
     /// Constructor.
     pub fn new() -> Self {
         let state = Arc::new(RwLock::new(Default::default()));
         let modules: Vec<Box<dyn Module + Send + Sync>> = vec![
             Box::new(Bank {
-                store: state.clone(),
+                store: SharedSubStore {
+                    store: state.clone(),
+                    path: BankPrefix,
+                },
             }),
             Box::new(Ibc {
-                store: state.clone(),
+                store: SharedSubStore {
+                    store: state.clone(),
+                    path: IbcPrefix,
+                },
                 client_counter: 0,
             }),
         ];
@@ -112,7 +118,7 @@ impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
                         proof_ops: None,
                         height: state.current_height() as i64,
                         codespace: "".to_string(),
-                    }
+                    };
                 }
                 Err(Error::Unhandled) => continue,
                 Err(e) => return ResponseQuery::from_error(1, format!("query error: {:?}", e)),

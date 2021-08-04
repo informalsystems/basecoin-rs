@@ -1,5 +1,5 @@
 use crate::app::modules::{Error as ModuleError, Module};
-use crate::app::store::{Height, PrefixedPath, Store};
+use crate::app::store::{Height, Path, Store};
 use ibc::application::ics20_fungible_token_transfer::context::Ics20Context;
 use ibc::events::IbcEvent;
 use ibc::ics02_client::client_consensus::AnyConsensusState;
@@ -27,42 +27,45 @@ use prost_types::Any;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::convert::TryInto;
-use std::sync::{Arc, RwLock};
 use tendermint_proto::abci::{Event, EventAttribute};
 
 pub(crate) type Error = ibc::ics26_routing::error::Error;
 
 #[derive(Clone, Debug)]
 pub struct Ibc<S: Store> {
-    pub store: Arc<RwLock<S>>,
+    pub store: S,
     pub client_counter: u64,
 }
 
 impl<S: Store> Ibc<S> {
-    fn get_at_path<T: DeserializeOwned>(&self, path_str: &str) -> Option<T> {
-        let path = self.prefixed_path(path_str);
-        let store = self.store.read().unwrap();
-        store
-            .get(Height::Pending, &path)
+    fn get_at_path<T: DeserializeOwned>(&self, path: &Path) -> Option<T> {
+        self.store
+            .get(Height::Pending, path)
             .map(|v| serde_json::from_str(&String::from_utf8(v).unwrap()).unwrap())
     }
 
-    fn set_at_path<T: Serialize>(&mut self, path_str: &str, value: &T) {
-        let path = self.prefixed_path(path_str);
-        let mut store = self.store.write().unwrap();
-        store
-            .set(&path, serde_json::to_string(value).unwrap().into())
+    fn set_at_path<T: Serialize>(&mut self, path: &Path, value: &T) {
+        self.store
+            .set(path, serde_json::to_string(value).unwrap().into())
             .unwrap();
     }
 }
 
 impl<S: Store> ClientReader for Ibc<S> {
     fn client_type(&self, client_id: &ClientId) -> Option<ClientType> {
-        self.get_at_path(&format!("clients/{}/clientType", client_id))
+        self.get_at_path(
+            &format!("clients/{}/clientType", client_id)
+                .try_into()
+                .unwrap(),
+        )
     }
 
     fn client_state(&self, client_id: &ClientId) -> Option<AnyClientState> {
-        self.get_at_path(&format!("clients/{}/clientState", client_id))
+        self.get_at_path(
+            &format!("clients/{}/clientState", client_id)
+                .try_into()
+                .unwrap(),
+        )
     }
 
     fn consensus_state(
@@ -70,9 +73,10 @@ impl<S: Store> ClientReader for Ibc<S> {
         client_id: &ClientId,
         height: IbcHeight,
     ) -> Option<AnyConsensusState> {
-        let path = self.prefixed_path(&format!("clients/{}/consensusStates/{}", client_id, height));
-        let store = self.store.read().unwrap();
-        let value = store.get(Height::Pending, &path)?;
+        let path = format!("clients/{}/consensusStates/{}", client_id, height)
+            .try_into()
+            .unwrap();
+        let value = self.store.get(Height::Pending, &path)?;
         let consensus_state = Any::decode(value.as_slice());
         consensus_state.ok().map(|v| v.try_into().unwrap())
     }
@@ -88,7 +92,12 @@ impl<S: Store> ClientKeeper for Ibc<S> {
         client_id: ClientId,
         client_type: ClientType,
     ) -> Result<(), ClientError> {
-        self.set_at_path(&format!("clients/{}/clientType", client_id), &client_type);
+        self.set_at_path(
+            &format!("clients/{}/clientType", client_id)
+                .try_into()
+                .unwrap(),
+            &client_type,
+        );
         Ok(())
     }
 
@@ -97,7 +106,12 @@ impl<S: Store> ClientKeeper for Ibc<S> {
         client_id: ClientId,
         client_state: AnyClientState,
     ) -> Result<(), ClientError> {
-        self.set_at_path(&format!("clients/{}/clientState", client_id), &client_state);
+        self.set_at_path(
+            &format!("clients/{}/clientState", client_id)
+                .try_into()
+                .unwrap(),
+            &client_state,
+        );
         Ok(())
     }
 
@@ -107,15 +121,16 @@ impl<S: Store> ClientKeeper for Ibc<S> {
         height: IbcHeight,
         consensus_state: AnyConsensusState,
     ) -> Result<(), ClientError> {
-        let path = self.prefixed_path(&format!("clients/{}/consensusStates/{}", client_id, height));
-        let mut store = self.store.write().unwrap();
+        let path = format!("clients/{}/consensusStates/{}", client_id, height)
+            .try_into()
+            .unwrap();
 
         let data: Any = consensus_state.into();
         let mut buffer = Vec::new();
         data.encode(&mut buffer)
             .map_err(|e| ClientError::unknown_consensus_state_type(e.to_string()))?;
 
-        store.set(&path, buffer).unwrap();
+        self.store.set(&path, buffer).unwrap();
         Ok(())
     }
 

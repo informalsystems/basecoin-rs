@@ -1,10 +1,9 @@
 pub mod bank;
 pub mod ibc;
 
-use crate::app::modules::bank::Bank;
-use crate::app::modules::ibc::Ibc;
-use crate::app::store::{Height, Path, Store};
+use crate::app::store::{Height, Path};
 use prost_types::Any;
+use std::fmt::{Display, Formatter};
 use std::hash::Hash;
 use tendermint_proto::abci::Event;
 
@@ -41,15 +40,33 @@ pub(crate) trait IdentifiableBy<I: Sized + Eq + Hash> {
     fn identifier(&self) -> I;
 }
 
-impl<S: Store> IdentifiableBy<&'static str> for Bank<S> {
+#[derive(Clone)]
+pub(crate) struct BankPrefix;
+
+impl IdentifiableBy<&'static str> for BankPrefix {
     fn identifier(&self) -> &'static str {
         "bank"
     }
 }
 
-impl<S: Store> IdentifiableBy<&'static str> for Ibc<S> {
+impl Display for BankPrefix {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.identifier())
+    }
+}
+
+#[derive(Clone)]
+pub(crate) struct IbcPrefix;
+
+impl IdentifiableBy<&'static str> for IbcPrefix {
     fn identifier(&self) -> &'static str {
         "ibc"
+    }
+}
+
+impl Display for IbcPrefix {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.identifier())
     }
 }
 

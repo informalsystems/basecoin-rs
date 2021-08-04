@@ -747,8 +747,6 @@ dependencies = [
 [[package]]
 name = "ibc"
 version = "0.6.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5c46ab054c69630fa8de1ed6ad12f55285b47daac8922e37cdb182e604e53005"
 dependencies = [
  "bytes",
  "chrono",
@@ -772,8 +770,6 @@ dependencies = [
 [[package]]
 name = "ibc-proto"
 version = "0.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "50c9f1f5941826a5517e2ca10fb721f20d03c6084272bbbe6c031da65b12d9ab"
 dependencies = [
  "bytes",
  "getrandom 0.2.3",

@@ -1,5 +1,5 @@
 use crate::app::modules::{Error as ModuleError, Module};
-use crate::app::store::{Height, Path, PrefixedPath, Store};
+use crate::app::store::{Height, Path, Store};
 use cosmos_sdk::bank::MsgSend;
 use cosmos_sdk::proto;
 use prost::{DecodeError, Message};
@@ -9,7 +9,6 @@ use std::collections::HashMap;
 use std::convert::TryInto;
 use std::num::ParseIntError;
 use std::str::FromStr;
-use std::sync::{Arc, RwLock};
 use tendermint_proto::abci::Event;
 use tracing::debug;
 
@@ -25,7 +24,7 @@ pub type Denom = String;
 pub struct Balances(HashMap<Denom, u64>);
 
 pub struct Bank<S: Store> {
-    pub store: Arc<RwLock<S>>,
+    pub store: S,
 }
 
 #[derive(Debug)]
@@ -71,15 +70,19 @@ impl<S: Store> Module for Bank<S> {
             })
             .collect::<Result<Vec<(u64, String)>, Error>>()?;
 
-        let mut store = self.store.write().unwrap();
-        let src_path = self.prefixed_path(&format!("accounts/{}", message.from_address));
-        let mut src_balances: Balances = match store.get(Height::Pending, &src_path) {
+        let src_path = format!("accounts/{}", message.from_address)
+            .try_into()
+            .unwrap();
+        let mut src_balances: Balances = match self.store.get(Height::Pending, &src_path) {
             Some(sb) => serde_json::from_str(&String::from_utf8(sb).unwrap()).unwrap(),
             None => return Err(Error::NonExistentAccount(message.from_address.to_string()).into()),
         };
 
-        let dst_path = self.prefixed_path(&format!("accounts/{}", message.to_address));
-        let mut dst_balances: Balances = store
+        let dst_path = format!("accounts/{}", message.to_address)
+            .try_into()
+            .unwrap();
+        let mut dst_balances: Balances = self
+            .store
             .get(Height::Pending, &dst_path)
             .map(|db| serde_json::from_str(&String::from_utf8(db).unwrap()).unwrap())
             .unwrap_or_else(Default::default);
@@ -104,13 +107,13 @@ impl<S: Store> Module for Bank<S> {
         }
 
         // Store the updated account balances
-        store
+        self.store
             .set(
                 &src_path,
                 serde_json::to_string(&src_balances).unwrap().into(),
             )
             .unwrap();
-        store
+        self.store
             .set(
                 &dst_path,
                 serde_json::to_string(&dst_balances).unwrap().into(),
@@ -123,11 +126,10 @@ impl<S: Store> Module for Bank<S> {
     fn init(&mut self, app_state: serde_json::Value) {
         debug!("Initializing bank module");
 
-        let mut store = self.store.write().unwrap();
         let accounts: HashMap<AccountId, Balances> = serde_json::from_value(app_state).unwrap();
         for account in accounts {
-            let path = self.prefixed_path(&format!("accounts/{}", account.0));
-            store
+            let path = format!("accounts/{}", account.0).try_into().unwrap();
+            self.store
                 .set(&path, serde_json::to_string(&account.1).unwrap().into())
                 .unwrap();
 
@@ -142,9 +144,8 @@ impl<S: Store> Module for Bank<S> {
         };
         debug!("Attempting to get account ID: {}", account_id);
 
-        let store = self.store.read().unwrap();
-        let path = self.prefixed_path(&format!("accounts/{}", account_id));
-        match store.get(height, &path) {
+        let path = format!("accounts/{}", account_id).try_into().unwrap();
+        match self.store.get(height, &path) {
             None => Err(Error::NonExistentAccount(account_id).into()),
             Some(balance) => Ok(balance),
         }
