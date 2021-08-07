@@ -32,7 +32,7 @@ use tendermint_proto::abci::{Event, EventAttribute};
 pub(crate) type Error = ibc::ics26_routing::error::Error;
 
 #[derive(Clone, Debug)]
-pub struct Ibc<S: Store> {
+pub struct Ibc<S> {
     pub store: S,
     pub client_counter: u64,
 }

@@ -1,7 +1,7 @@
 mod avl;
 pub mod memory;
 
-use crate::app::modules::IdentifiableBy;
+use crate::app::modules::Identify;
 use std::convert::{TryFrom, TryInto};
 use std::error::Error as StdError;
 use std::fmt::{Display, Formatter};
@@ -112,7 +112,7 @@ pub(crate) struct SharedSubStore<S: Store, P: ToString> {
     pub(crate) path: P,
 }
 
-impl<S: Store, P: IdentifiableBy<&'static str> + Sync + Clone + Send + Display> Store
+impl<S: Store, P: Identify<&'static str> + Sync + Clone + Send + Display> Store
     for SharedSubStore<S, P>
 {
     type Error = S::Error;
@@ -146,7 +146,7 @@ pub(crate) trait PrefixedPath: Sized {
     fn prefixed_path(&self, s: &Path) -> Path;
 }
 
-impl<T: IdentifiableBy<&'static str>> PrefixedPath for T {
+impl<T: Identify<&'static str>> PrefixedPath for T {
     fn prefixed_path(&self, s: &Path) -> Path {
         format!("{}/{}", self.identifier(), s).try_into().unwrap()
     }

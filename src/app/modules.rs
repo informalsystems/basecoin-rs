@@ -4,8 +4,6 @@ pub mod ibc;
 use crate::app::store::{Height, Path};
 use flex_error::{define_error, TraceError};
 use prost_types::Any;
-use std::fmt::{Display, Formatter};
-use std::hash::Hash;
 use tendermint_proto::abci::Event;
 
 pub trait Module {
@@ -37,37 +35,42 @@ pub trait Module {
     }
 }
 
-pub(crate) trait IdentifiableBy<I: Sized + Eq + Hash> {
+pub(crate) trait Identify<I> {
     fn identifier(&self) -> I;
 }
 
-#[derive(Clone)]
-pub(crate) struct BankPrefix;
+pub mod prefix {
+    use super::Identify;
+    use std::fmt::{Display, Formatter};
 
-impl IdentifiableBy<&'static str> for BankPrefix {
-    fn identifier(&self) -> &'static str {
-        "bank"
+    #[derive(Clone)]
+    pub(crate) struct Bank;
+
+    impl Identify<&'static str> for Bank {
+        fn identifier(&self) -> &'static str {
+            "bank"
+        }
     }
-}
 
-impl Display for BankPrefix {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.identifier())
+    impl Display for Bank {
+        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+            f.write_str(self.identifier())
+        }
     }
-}
 
-#[derive(Clone)]
-pub(crate) struct IbcPrefix;
+    #[derive(Clone)]
+    pub(crate) struct Ibc;
 
-impl IdentifiableBy<&'static str> for IbcPrefix {
-    fn identifier(&self) -> &'static str {
-        "ibc"
+    impl Identify<&'static str> for Ibc {
+        fn identifier(&self) -> &'static str {
+            "ibc"
+        }
     }
-}
 
-impl Display for IbcPrefix {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.identifier())
+    impl Display for Ibc {
+        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+            f.write_str(self.identifier())
+        }
     }
 }
 

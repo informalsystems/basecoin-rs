@@ -6,14 +6,16 @@ use tendermint::hash::Algorithm;
 use tendermint::Hash;
 use thiserror::Error as ThisError;
 
+type State = AvlTree<Vec<u8>, Vec<u8>>;
+
 #[derive(ThisError, Debug)]
 pub enum Error {}
 
 /// An in-memory store backed by an AvlTree.
 #[derive(Clone)]
 pub struct Memory {
-    store: Vec<AvlTree<Vec<u8>, Vec<u8>>>,
-    pending: AvlTree<Vec<u8>, Vec<u8>>,
+    store: Vec<State>,
+    pending: State,
 }
 
 impl std::fmt::Debug for Memory {

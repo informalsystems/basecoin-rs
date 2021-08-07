@@ -24,7 +24,7 @@ pub type Denom = String;
 #[serde(transparent)]
 pub struct Balances(HashMap<Denom, u64>);
 
-pub struct Bank<S: Store> {
+pub struct Bank<S> {
     pub store: S,
 }
 

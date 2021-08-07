@@ -6,7 +6,7 @@ pub mod store;
 
 use crate::app::modules::bank::Bank;
 use crate::app::modules::ibc::Ibc;
-use crate::app::modules::{BankPrefix, Error, IbcPrefix, Module};
+use crate::app::modules::{prefix, Error, Module};
 use crate::app::response::ResponseFromErrorExt;
 use crate::app::store::{Height, Path, ProvableStore, SharedSubStore};
 use cosmos_sdk::Tx;
@@ -23,7 +23,7 @@ use tracing::{debug, info};
 ///
 /// Can be safely cloned and sent across threads, but not shared.
 #[derive(Clone)]
-pub struct BaseCoinApp<S: ProvableStore> {
+pub struct BaseCoinApp<S> {
     state: Arc<RwLock<S>>,
     modules: Arc<RwLock<Vec<Box<dyn Module + Send + Sync>>>>,
 }
@@ -36,13 +36,13 @@ impl<S: Default + ProvableStore + 'static> BaseCoinApp<S> {
             Box::new(Bank {
                 store: SharedSubStore {
                     store: state.clone(),
-                    path: BankPrefix,
+                    path: prefix::Bank,
                 },
             }),
             Box::new(Ibc {
                 store: SharedSubStore {
                     store: state.clone(),
-                    path: IbcPrefix,
+                    path: prefix::Ibc,
                 },
                 client_counter: 0,
             }),
