@@ -120,7 +120,7 @@ impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
                         codespace: "".to_string(),
                     };
                 }
-                Err(Error::Unhandled) => continue,
+                Err(e) if e.detail() == Error::unhandled().detail() => continue,
                 Err(e) => return ResponseQuery::from_error(1, format!("query error: {:?}", e)),
             }
         }
@@ -148,7 +148,7 @@ impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
                             ..ResponseDeliverTx::default()
                         };
                     }
-                    Err(Error::Unhandled) => continue,
+                    Err(e) if e.detail() == Error::unhandled().detail() => continue,
                     Err(e) => return ResponseDeliverTx::from_error(2, format!("{:?}", e)),
                 };
             }

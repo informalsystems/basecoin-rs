@@ -2,6 +2,7 @@ pub mod bank;
 pub mod ibc;
 
 use crate::app::store::{Height, Path};
+use flex_error::{define_error, TraceError};
 use prost_types::Any;
 use std::fmt::{Display, Formatter};
 use std::hash::Hash;
@@ -32,7 +33,7 @@ pub trait Module {
 
     /// Similar to [ABCI Query method](https://docs.tendermint.com/master/spec/abci/abci.html#query)
     fn query(&self, _data: &[u8], _path: &Path, _height: Height) -> Result<Vec<u8>, Error> {
-        Err(Error::Unhandled)
+        Err(Error::unhandled())
     }
 }
 
@@ -70,9 +71,16 @@ impl Display for IbcPrefix {
     }
 }
 
-#[derive(Debug)]
-pub enum Error {
-    Unhandled,
-    Bank(bank::Error),
-    Ibc(ibc::Error),
+define_error! {
+    #[derive(PartialEq, Eq)]
+    Error {
+        Unhandled
+            | _ | { "no module could handle specified message" },
+        Bank
+            [ TraceError<bank::Error> ]
+            | _ | { "bank module error" },
+        Ibc
+            [ ibc::Error ]
+            | _ | { "IBC module error" },
+    }
 }

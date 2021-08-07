@@ -371,13 +371,13 @@ impl<S: Store> Ics26Context for Ibc<S> {}
 
 impl<S: Store> Module for Ibc<S> {
     fn deliver(&mut self, message: Any) -> Result<Vec<Event>, ModuleError> {
-        match dispatch(self, decode(message).map_err(ModuleError::Ibc)?) {
+        match dispatch(self, decode(message).map_err(ModuleError::ibc)?) {
             Ok(output) => Ok(output
                 .events
                 .into_iter()
                 .map(|ev| IbcEventWrapper(ev).into())
                 .collect()),
-            Err(e) => Err(ModuleError::Ibc(e)),
+            Err(e) => Err(ModuleError::ibc(e)),
         }
     }
 }
