@@ -1,10 +1,12 @@
 mod avl;
-pub mod memory;
+mod memory;
+
+pub(crate) use memory::Memory;
 
 use crate::app::modules::Identify;
+
 use std::convert::{TryFrom, TryInto};
-use std::error::Error as StdError;
-use std::fmt::{Display, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 use std::sync::{Arc, RwLock};
 
 /// A newtype representing a bytestring used as the key for an object stored in state.
@@ -52,7 +54,7 @@ pub enum PathError {
 }
 
 /// Block height
-pub type RawHeight = u64;
+pub(crate) type RawHeight = u64;
 
 /// Store height to query
 #[derive(Debug)]
@@ -74,7 +76,7 @@ impl From<RawHeight> for Height {
 /// Store trait - maybe provableStore or privateStore
 pub trait Store: Send + Sync + Clone {
     /// Error type - expected to envelope all possible errors in store
-    type Error: StdError;
+    type Error: core::fmt::Debug;
 
     /// Set `value` for `path`
     fn set(&mut self, path: &Path, value: Vec<u8>) -> Result<(), Self::Error>;
@@ -98,7 +100,7 @@ pub trait Store: Send + Sync + Clone {
 }
 
 /// ProvableStore trait
-pub trait ProvableStore: Store {
+pub(crate) trait ProvableStore: Store {
     /// Return a vector commitment
     fn root_hash(&self) -> Vec<u8>;
 

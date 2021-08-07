@@ -191,6 +191,7 @@ where
         std::mem::swap(root, &mut Some(right))
     }
 
+    #[allow(dead_code)]
     /// Return a list of the keys present in the tree.
     pub fn get_keys(&self) -> Vec<&K> {
         let mut keys = Vec::new();
@@ -198,6 +199,7 @@ where
         keys
     }
 
+    #[allow(dead_code)]
     fn get_keys_rec<'a, 'b>(node_ref: &'a NodeRef<K, V>, keys: &'b mut Vec<&'a K>) {
         if let Some(node) = node_ref {
             Self::get_keys_rec(&node.left, keys);

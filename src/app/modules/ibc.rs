@@ -1,5 +1,8 @@
 use crate::app::modules::{Error as ModuleError, Module};
 use crate::app::store::{Height, Path, Store};
+
+use std::convert::TryInto;
+
 use ibc::application::ics20_fungible_token_transfer::context::Ics20Context;
 use ibc::events::IbcEvent;
 use ibc::ics02_client::client_consensus::AnyConsensusState;
@@ -26,12 +29,11 @@ use prost::Message;
 use prost_types::Any;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use std::convert::TryInto;
 use tendermint_proto::abci::{Event, EventAttribute};
 
 pub(crate) type Error = ibc::ics26_routing::error::Error;
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Ibc<S> {
     pub store: S,
     pub client_counter: u64,

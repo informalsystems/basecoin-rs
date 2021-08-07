@@ -4,41 +4,17 @@ use crate::app::store::{Height, Path, ProvableStore, Store};
 use ics23::CommitmentProof;
 use tendermint::hash::Algorithm;
 use tendermint::Hash;
-use thiserror::Error as ThisError;
 
 type State = AvlTree<Vec<u8>, Vec<u8>>;
 
-#[derive(ThisError, Debug)]
-pub enum Error {}
+#[derive(Debug)]
+pub(crate) struct Error {}
 
 /// An in-memory store backed by an AvlTree.
 #[derive(Clone)]
-pub struct Memory {
+pub(crate) struct Memory {
     store: Vec<State>,
     pending: State,
-}
-
-impl std::fmt::Debug for Memory {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let last_store_keys = self.store.last().unwrap().get_keys();
-
-        write!(
-            f,
-            "store::Memory {{ height: {}, keys: [{}] \n\tpending keys: [{}] }}",
-            self.store.len(),
-            last_store_keys
-                .iter()
-                .map(|k| String::from_utf8_lossy(k).into_owned())
-                .collect::<Vec<String>>()
-                .join(", "),
-            self.pending
-                .get_keys()
-                .iter()
-                .map(|k| String::from_utf8_lossy(k).into_owned())
-                .collect::<Vec<String>>()
-                .join(", ")
-        )
-    }
 }
 
 impl Default for Memory {
@@ -61,8 +37,6 @@ impl Store for Memory {
     }
 
     fn get(&self, height: Height, path: &Path) -> Option<Vec<u8>> {
-        println!("Memory get -> {:?} => {:?}", height, path);
-        println!("Store: {:?}", &self);
         match height {
             // Request to access the pending blocks
             Height::Pending => self.pending.get(path.0.as_bytes()).cloned(),

@@ -1,15 +1,17 @@
 use crate::app::modules::{Error as ModuleError, Module};
 use crate::app::store::{Height, Path, Store};
+
+use std::collections::HashMap;
+use std::convert::TryInto;
+use std::num::ParseIntError;
+use std::str::FromStr;
+
 use cosmos_sdk::bank::MsgSend;
 use cosmos_sdk::proto;
 use flex_error::{define_error, TraceError};
 use prost::{DecodeError, Message};
 use prost_types::Any;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::convert::TryInto;
-use std::num::ParseIntError;
-use std::str::FromStr;
 use tendermint_proto::abci::Event;
 use tracing::debug;
 
@@ -18,15 +20,6 @@ pub type AccountId = String;
 
 /// A currency denomination.
 pub type Denom = String;
-
-/// A mapping of currency denomination identifiers to balances.
-#[derive(Serialize, Deserialize, Debug, Default)]
-#[serde(transparent)]
-pub struct Balances(HashMap<Denom, u64>);
-
-pub struct Bank<S> {
-    pub store: S,
-}
 
 define_error! {
     #[derive(Eq, PartialEq)]
@@ -54,6 +47,15 @@ impl From<Error> for ModuleError {
     fn from(e: Error) -> Self {
         ModuleError::bank(e)
     }
+}
+
+/// A mapping of currency denomination identifiers to balances.
+#[derive(Serialize, Deserialize, Debug, Default)]
+#[serde(transparent)]
+pub struct Balances(HashMap<Denom, u64>);
+
+pub struct Bank<S> {
+    pub store: S,
 }
 
 impl<S: Store> Bank<S> {

@@ -1,12 +1,30 @@
-pub mod bank;
-pub mod ibc;
+mod bank;
+mod ibc;
+
+pub(crate) use self::bank::Bank;
+pub(crate) use self::ibc::Ibc;
 
 use crate::app::store::{Height, Path};
+
 use flex_error::{define_error, TraceError};
 use prost_types::Any;
 use tendermint_proto::abci::Event;
 
-pub trait Module {
+define_error! {
+    #[derive(PartialEq, Eq)]
+    Error {
+        Unhandled
+            | _ | { "no module could handle specified message" },
+        Bank
+            [ TraceError<bank::Error> ]
+            | _ | { "bank module error" },
+        Ibc
+            [ ibc::Error ]
+            | _ | { "IBC module error" },
+    }
+}
+
+pub(crate) trait Module {
     /// Tries to decode a protobuf message to a module supported Message`
     /// This is used to determine if a message is handleable by this module or not
     /// Do NOT use for validation!
@@ -39,7 +57,7 @@ pub(crate) trait Identify<I> {
     fn identifier(&self) -> I;
 }
 
-pub mod prefix {
+pub(crate) mod prefix {
     use super::Identify;
     use std::fmt::{Display, Formatter};
 
@@ -71,19 +89,5 @@ pub mod prefix {
         fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
             f.write_str(self.identifier())
         }
-    }
-}
-
-define_error! {
-    #[derive(PartialEq, Eq)]
-    Error {
-        Unhandled
-            | _ | { "no module could handle specified message" },
-        Bank
-            [ TraceError<bank::Error> ]
-            | _ | { "bank module error" },
-        Ibc
-            [ ibc::Error ]
-            | _ | { "IBC module error" },
     }
 }

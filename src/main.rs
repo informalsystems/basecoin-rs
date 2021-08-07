@@ -2,8 +2,9 @@
 
 mod app;
 
-use crate::app::store::memory::Memory;
-use app::BaseCoinApp;
+use crate::app::store::Memory;
+use crate::app::BaseCoinApp;
+
 use structopt::StructOpt;
 use tendermint_abci::ServerBuilder;
 use tracing_subscriber::filter::LevelFilter;

@@ -1,17 +1,18 @@
 //! The basecoin ABCI application.
 
-pub mod modules;
+mod modules;
 mod response;
-pub mod store;
 
-use crate::app::modules::bank::Bank;
-use crate::app::modules::ibc::Ibc;
-use crate::app::modules::{prefix, Error, Module};
+pub(crate) mod store;
+
+use crate::app::modules::{prefix, Bank, Error, Ibc, Module};
 use crate::app::response::ResponseFromErrorExt;
 use crate::app::store::{Height, Path, ProvableStore, SharedSubStore};
-use cosmos_sdk::Tx;
+
 use std::convert::{Into, TryInto};
 use std::sync::{Arc, RwLock};
+
+use cosmos_sdk::Tx;
 use tendermint_abci::Application;
 use tendermint_proto::abci::{
     RequestDeliverTx, RequestInfo, RequestInitChain, RequestQuery, ResponseCommit,
@@ -23,14 +24,14 @@ use tracing::{debug, info};
 ///
 /// Can be safely cloned and sent across threads, but not shared.
 #[derive(Clone)]
-pub struct BaseCoinApp<S> {
+pub(crate) struct BaseCoinApp<S> {
     state: Arc<RwLock<S>>,
     modules: Arc<RwLock<Vec<Box<dyn Module + Send + Sync>>>>,
 }
 
 impl<S: Default + ProvableStore + 'static> BaseCoinApp<S> {
     /// Constructor.
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         let state = Arc::new(RwLock::new(Default::default()));
         let modules: Vec<Box<dyn Module + Send + Sync>> = vec![
             Box::new(Bank {
