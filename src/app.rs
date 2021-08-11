@@ -35,16 +35,10 @@ impl<S: Default + ProvableStore + 'static> BaseCoinApp<S> {
         let state = Arc::new(RwLock::new(Default::default()));
         let modules: Vec<Box<dyn Module + Send + Sync>> = vec![
             Box::new(Bank {
-                store: SharedSubStore {
-                    store: state.clone(),
-                    path: prefix::Bank,
-                },
+                store: SharedSubStore::new(state.clone(), prefix::Bank),
             }),
             Box::new(Ibc {
-                store: SharedSubStore {
-                    store: state.clone(),
-                    path: prefix::Ibc,
-                },
+                store: SharedSubStore::new(state.clone(), prefix::Ibc),
                 client_counter: 0,
             }),
         ];

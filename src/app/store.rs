@@ -109,13 +109,21 @@ pub(crate) trait ProvableStore: Store {
 }
 
 #[derive(Clone)]
-pub(crate) struct SharedSubStore<S: Store, P: ToString> {
-    pub(crate) store: Arc<RwLock<S>>,
-    pub(crate) path: P,
+pub(crate) struct SharedSubStore<S, P> {
+    store: Arc<RwLock<S>>,
+    path: P,
 }
 
-impl<S: Store, P: Identify<&'static str> + Sync + Clone + Send + Display> Store
-    for SharedSubStore<S, P>
+impl<S, P> SharedSubStore<S, P> {
+    pub(crate) fn new(store: Arc<RwLock<S>>, path: P) -> Self {
+        Self { store, path }
+    }
+}
+
+impl<S, P> Store for SharedSubStore<S, P>
+where
+    S: Store,
+    P: Identify<&'static str> + Send + Sync + Clone + Display,
 {
     type Error = S::Error;
 
