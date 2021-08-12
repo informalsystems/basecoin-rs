@@ -1,8 +1,16 @@
 [package]
-name = "basecoin"
+name = "tendermint-basecoin"
 version = "0.1.0"
-authors = ["Thane Thomson <thane@informal.systems>"]
 edition = "2018"
+license = "Apache-2.0"
+readme = "README.md"
+categories = ["cryptography::cryptocurrencies"]
+repository = "https://github.com/informalsystems/basecoin-rs"
+authors = ["Informal Systems <hello@informal.systems>"]
+description = """
+    An example Tendermint ABCI application that integrates with ibc-rs, making
+    use of tendermint-rs.
+"""
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -10,7 +18,7 @@ edition = "2018"
 bytes = "1.0.1"
 cosmos-sdk-proto = "0.5.0"
 cosmos_sdk = "0.1.1"
-flex-error = { version = "0.2.0", features = [ "eyre_tracer" ] }
+flex-error = { version = "0.2.0", features = ["eyre_tracer"] }
 prost = "0.7.0"
 prost-types = "0.7.0"
 serde = "1.0"
