@@ -5,7 +5,7 @@ mod response;
 
 pub(crate) mod store;
 
-use crate::app::modules::{prefix, Bank, Error, Ibc, Module};
+use crate::app::modules::{prefix, Bank, Error, ErrorDetail, Ibc, Module};
 use crate::app::response::ResponseFromErrorExt;
 use crate::app::store::{Height, Path, ProvableStore, SharedSubStore};
 
@@ -115,7 +115,7 @@ impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
                         codespace: "".to_string(),
                     };
                 }
-                Err(e) if e.detail() == Error::unhandled().detail() => continue,
+                Err(Error(ErrorDetail::Unhandled(_), _)) => continue,
                 Err(e) => return ResponseQuery::from_error(1, format!("query error: {:?}", e)),
             }
         }
