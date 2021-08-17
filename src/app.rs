@@ -8,16 +8,38 @@ pub(crate) mod store;
 use crate::app::modules::{prefix, Bank, Error, ErrorDetail, Ibc, Module};
 use crate::app::response::ResponseFromErrorExt;
 use crate::app::store::{Height, Path, ProvableStore, SharedSubStore};
+use crate::prostgen::cosmos::auth::v1beta1::{
+    query_server::Query as AuthQuery, BaseAccount, QueryAccountRequest, QueryAccountResponse,
+    QueryAccountsRequest, QueryAccountsResponse, QueryParamsRequest as AuthQueryParamsRequest,
+    QueryParamsResponse as AuthQueryParamsResponse,
+};
+use crate::prostgen::cosmos::staking::v1beta1::{
+    query_server::Query as StakingQuery, Params, QueryDelegationRequest, QueryDelegationResponse,
+    QueryDelegatorDelegationsRequest, QueryDelegatorDelegationsResponse,
+    QueryDelegatorUnbondingDelegationsRequest, QueryDelegatorUnbondingDelegationsResponse,
+    QueryDelegatorValidatorRequest, QueryDelegatorValidatorResponse,
+    QueryDelegatorValidatorsRequest, QueryDelegatorValidatorsResponse, QueryHistoricalInfoRequest,
+    QueryHistoricalInfoResponse, QueryParamsRequest as StakingQueryParamsRequest,
+    QueryParamsResponse as StakingQueryParamsResponse, QueryPoolRequest, QueryPoolResponse,
+    QueryRedelegationsRequest, QueryRedelegationsResponse, QueryUnbondingDelegationRequest,
+    QueryUnbondingDelegationResponse, QueryValidatorDelegationsRequest,
+    QueryValidatorDelegationsResponse, QueryValidatorRequest, QueryValidatorResponse,
+    QueryValidatorUnbondingDelegationsRequest, QueryValidatorUnbondingDelegationsResponse,
+    QueryValidatorsRequest, QueryValidatorsResponse,
+};
 
 use std::convert::{Into, TryInto};
 use std::sync::{Arc, RwLock};
 
 use cosmos_sdk::Tx;
+use prost::Message;
+use prost_types::{Any, Duration};
 use tendermint_abci::Application;
 use tendermint_proto::abci::{
     RequestDeliverTx, RequestInfo, RequestInitChain, RequestQuery, ResponseCommit,
     ResponseDeliverTx, ResponseInfo, ResponseInitChain, ResponseQuery,
 };
+use tonic::{Request, Response, Status};
 use tracing::{debug, info};
 
 /// BaseCoin ABCI application.
@@ -159,5 +181,153 @@ impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
             data,
             retain_height: 0,
         }
+    }
+}
+
+#[tonic::async_trait]
+impl<S: ProvableStore + 'static> AuthQuery for BaseCoinApp<S> {
+    async fn accounts(
+        &self,
+        _request: Request<QueryAccountsRequest>,
+    ) -> Result<Response<QueryAccountsResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn account(
+        &self,
+        _request: Request<QueryAccountRequest>,
+    ) -> Result<Response<QueryAccountResponse>, Status> {
+        println!("query account");
+        let account = BaseAccount {
+            address: "".to_string(),
+            pub_key: None,
+            account_number: 0,
+            sequence: 0,
+        };
+        let mut buf = Vec::new();
+        account.encode(&mut buf).unwrap();
+
+        Ok(Response::new(QueryAccountResponse {
+            account: Some(Any {
+                type_url: "/cosmos.auth.v1beta1.BaseAccount".to_string(),
+                value: buf,
+            }),
+        }))
+    }
+
+    async fn params(
+        &self,
+        _request: Request<AuthQueryParamsRequest>,
+    ) -> Result<Response<AuthQueryParamsResponse>, Status> {
+        unimplemented!()
+    }
+}
+
+#[tonic::async_trait]
+impl<S: ProvableStore + 'static> StakingQuery for BaseCoinApp<S> {
+    async fn validators(
+        &self,
+        _request: Request<QueryValidatorsRequest>,
+    ) -> Result<Response<QueryValidatorsResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn validator(
+        &self,
+        _request: Request<QueryValidatorRequest>,
+    ) -> Result<Response<QueryValidatorResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn validator_delegations(
+        &self,
+        _request: Request<QueryValidatorDelegationsRequest>,
+    ) -> Result<Response<QueryValidatorDelegationsResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn validator_unbonding_delegations(
+        &self,
+        _request: Request<QueryValidatorUnbondingDelegationsRequest>,
+    ) -> Result<Response<QueryValidatorUnbondingDelegationsResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn delegation(
+        &self,
+        _request: Request<QueryDelegationRequest>,
+    ) -> Result<Response<QueryDelegationResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn unbonding_delegation(
+        &self,
+        _request: Request<QueryUnbondingDelegationRequest>,
+    ) -> Result<Response<QueryUnbondingDelegationResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn delegator_delegations(
+        &self,
+        _request: Request<QueryDelegatorDelegationsRequest>,
+    ) -> Result<Response<QueryDelegatorDelegationsResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn delegator_unbonding_delegations(
+        &self,
+        _request: Request<QueryDelegatorUnbondingDelegationsRequest>,
+    ) -> Result<Response<QueryDelegatorUnbondingDelegationsResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn redelegations(
+        &self,
+        _request: Request<QueryRedelegationsRequest>,
+    ) -> Result<Response<QueryRedelegationsResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn delegator_validators(
+        &self,
+        _request: Request<QueryDelegatorValidatorsRequest>,
+    ) -> Result<Response<QueryDelegatorValidatorsResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn delegator_validator(
+        &self,
+        _request: Request<QueryDelegatorValidatorRequest>,
+    ) -> Result<Response<QueryDelegatorValidatorResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn historical_info(
+        &self,
+        _request: Request<QueryHistoricalInfoRequest>,
+    ) -> Result<Response<QueryHistoricalInfoResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn pool(
+        &self,
+        _request: Request<QueryPoolRequest>,
+    ) -> Result<Response<QueryPoolResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn params(
+        &self,
+        _request: Request<StakingQueryParamsRequest>,
+    ) -> Result<Response<StakingQueryParamsResponse>, Status> {
+        Ok(Response::new(StakingQueryParamsResponse {
+            params: Some(Params {
+                unbonding_time: Some(Duration{ seconds: 3 * 7 * 24 * 60 * 60, nanos: 0 }),
+                max_validators: 0,
+                max_entries: 0,
+                historical_entries: 0,
+                bond_denom: "".to_string(),
+            }),
+        }))
     }
 }

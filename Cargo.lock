@@ -149,6 +149,8 @@ dependencies = [
  "tendermint-abci",
  "tendermint-proto 0.21.0",
  "thiserror",
+ "tokio",
+ "tonic",
  "tracing",
  "tracing-subscriber",
 ]
@@ -330,33 +332,6 @@ checksum = "d3dd60d1080a57a05ab032377049e0591415d2b31afd7028356dbf3cc6dcb066"
 dependencies = [
  "generic-array",
 ]
-
-[[package]]
-name = "dyn-clonable"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4e9232f0e607a262ceb9bd5141a3dfb3e4db6994b31989bbfd845878cba59fd4"
-dependencies = [
- "dyn-clonable-impl",
- "dyn-clone",
-]
-
-[[package]]
-name = "dyn-clonable-impl"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "558e40ea573c374cf53507fd240b7ee2f5477df7cfebdb97323ec61c719399c5"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
-name = "dyn-clone"
-version = "1.0.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ee2626afccd7561a06cf1367e2950c4718ea04565e20fb5029b6c7d8ad09abcf"
 
 [[package]]
 name = "ecdsa"
@@ -737,12 +712,9 @@ dependencies = [
 [[package]]
 name = "ibc"
 version = "0.6.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5c46ab054c69630fa8de1ed6ad12f55285b47daac8922e37cdb182e604e53005"
 dependencies = [
  "bytes",
  "chrono",
- "dyn-clonable",
  "flex-error",
  "ibc-proto",
  "ics23",
@@ -762,8 +734,6 @@ dependencies = [
 [[package]]
 name = "ibc-proto"
 version = "0.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "50c9f1f5941826a5517e2ca10fb721f20d03c6084272bbbe6c031da65b12d9ab"
 dependencies = [
  "bytes",
  "getrandom 0.2.3",
@@ -968,6 +938,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9a64b1ec5cda2586e284722486d802acf1f7dbdc623e2bfc57e65ca1cd099290"
 dependencies = [
  "autocfg",
+]
+
+[[package]]
+name = "num_cpus"
+version = "1.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "05499f3756671c15885fee9034446956fff3f243d6077b91e5767df161f766b3"
+dependencies = [
+ "hermit-abi",
+ "libc",
 ]
 
 [[package]]
@@ -1652,6 +1632,7 @@ dependencies = [
  "libc",
  "memchr",
  "mio",
+ "num_cpus",
  "pin-project-lite",
  "tokio-macros",
 ]
