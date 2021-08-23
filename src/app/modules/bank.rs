@@ -156,9 +156,10 @@ impl<S: Store> Module for Bank<S> {
 
     fn query(&self, data: &[u8], _path: &Path, height: Height) -> Result<Vec<u8>, ModuleError> {
         let account_id = match String::from_utf8(data.to_vec()) {
-            Ok(s) => s,
-            Err(e) => panic!("Failed to interpret key as UTF-8: {}", e),
+            Ok(s) if s.starts_with("cosmos") => s,
+            _ => return Err(ModuleError::unhandled()),
         };
+
         debug!("Attempting to get account ID: {}", account_id);
 
         let path = format!("accounts/{}", account_id).try_into().unwrap();

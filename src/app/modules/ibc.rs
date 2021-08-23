@@ -2,6 +2,7 @@ use crate::app::modules::{Error as ModuleError, Module};
 use crate::app::store::{Height, Path, Store};
 
 use std::convert::TryInto;
+use std::str::FromStr;
 
 use ibc::application::ics20_fungible_token_transfer::context::Ics20Context;
 use ibc::events::IbcEvent;
@@ -30,8 +31,17 @@ use prost_types::Any;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use tendermint_proto::abci::{Event, EventAttribute};
+use tracing::field::debug;
+// use tendermint_proto::Protobuf;
+// use tracing::debug;
 
 pub(crate) type Error = ibc::ics26_routing::error::Error;
+
+impl From<Error> for ModuleError {
+    fn from(e: Error) -> Self {
+        ModuleError::ibc(e)
+    }
+}
 
 #[derive(Clone)]
 pub struct Ibc<S> {
@@ -39,35 +49,25 @@ pub struct Ibc<S> {
     pub client_counter: u64,
 }
 
-impl<S: Store> Ibc<S> {
-    fn get_at_path<T: DeserializeOwned>(&self, path: &Path) -> Option<T> {
-        self.store
-            .get(Height::Pending, path)
-            .map(|v| serde_json::from_str(&String::from_utf8(v).unwrap()).unwrap())
-    }
-
-    fn set_at_path<T: Serialize>(&mut self, path: &Path, value: &T) {
-        self.store
-            .set(path, serde_json::to_string(value).unwrap().into())
-            .unwrap();
-    }
-}
+impl<S: Store> Ibc<S> {}
 
 impl<S: Store> ClientReader for Ibc<S> {
     fn client_type(&self, client_id: &ClientId) -> Option<ClientType> {
-        self.get_at_path(
-            &format!("clients/{}/clientType", client_id)
-                .try_into()
-                .unwrap(),
-        )
+        let path = format!("clients/{}/clientType", client_id)
+            .try_into()
+            .unwrap();
+        self.store
+            .get(Height::Pending, &path)
+            .map(|v| serde_json::from_str(&String::from_utf8(v).unwrap()).unwrap())
     }
 
     fn client_state(&self, client_id: &ClientId) -> Option<AnyClientState> {
-        self.get_at_path(
-            &format!("clients/{}/clientState", client_id)
-                .try_into()
-                .unwrap(),
-        )
+        let path = format!("clients/{}/clientState", client_id)
+            .try_into()
+            .unwrap();
+        let value = self.store.get(Height::Pending, &path)?;
+        let client_state = Any::decode(value.as_slice());
+        client_state.ok().map(|v| v.try_into().unwrap())
     }
 
     fn consensus_state(
@@ -94,12 +94,12 @@ impl<S: Store> ClientKeeper for Ibc<S> {
         client_id: ClientId,
         client_type: ClientType,
     ) -> Result<(), ClientError> {
-        self.set_at_path(
-            &format!("clients/{}/clientType", client_id)
-                .try_into()
-                .unwrap(),
-            &client_type,
-        );
+        let path = format!("clients/{}/clientType", client_id)
+            .try_into()
+            .unwrap();
+        self.store
+            .set(&path, serde_json::to_string(&client_type).unwrap().into())
+            .unwrap();
         Ok(())
     }
 
@@ -108,12 +108,15 @@ impl<S: Store> ClientKeeper for Ibc<S> {
         client_id: ClientId,
         client_state: AnyClientState,
     ) -> Result<(), ClientError> {
-        self.set_at_path(
-            &format!("clients/{}/clientState", client_id)
-                .try_into()
-                .unwrap(),
-            &client_state,
-        );
+        let path = format!("clients/{}/clientState", client_id)
+            .try_into()
+            .unwrap();
+        let data: Any = client_state.into();
+        let mut buffer = Vec::new();
+        data.encode(&mut buffer)
+            .map_err(|e| ClientError::unknown_client_type(e.to_string()))?;
+
+        self.store.set(&path, buffer).unwrap();
         Ok(())
     }
 
@@ -382,6 +385,25 @@ impl<S: Store> Module for Ibc<S> {
             Err(e) => Err(ModuleError::ibc(e)),
         }
     }
+
+    fn query(&self, data: &[u8], path: &Path, height: Height) -> Result<Vec<u8>, ModuleError> {
+        if path.to_string() != "store/ibc/key" {
+            return Err(ModuleError::unhandled());
+        }
+
+        let path = String::from_utf8(data.to_vec())
+            .map_err(|_| ModuleError::unhandled())?
+            .try_into()
+            .unwrap();
+
+        match self.store.get(height, &path) {
+            None => Err(Error::ics02_client(ClientError::client_not_found(
+                ClientId::from_str(&path.to_string()).unwrap(),
+            ))
+            .into()),
+            Some(client_state) => Ok(client_state),
+        }
+    }
 }
 
 struct IbcEventWrapper(IbcEvent);
@@ -391,6 +413,14 @@ impl From<IbcEventWrapper> for Event {
         match value.0 {
             IbcEvent::CreateClient(c) => Self {
                 r#type: "create_client".to_string(),
+                attributes: vec![EventAttribute {
+                    key: "client_id".as_bytes().to_vec(),
+                    value: c.client_id().to_string().as_bytes().to_vec(),
+                    index: false,
+                }],
+            },
+            IbcEvent::UpdateClient(c) => Self {
+                r#type: "update_client".to_string(),
                 attributes: vec![EventAttribute {
                     key: "client_id".as_bytes().to_vec(),
                     value: c.client_id().to_string().as_bytes().to_vec(),
