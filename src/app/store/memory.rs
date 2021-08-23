@@ -17,6 +17,16 @@ pub(crate) struct Memory {
     pending: State,
 }
 
+impl Memory {
+    pub fn get_keys(&self, key_prefix: Path) -> Vec<&Vec<u8>> {
+        let keys = self.pending.get_keys();
+        let key_prefix = key_prefix.0.into_bytes();
+        keys.into_iter()
+            .filter_map(|key| key.starts_with(&key_prefix).then(|| key))
+            .collect()
+    }
+}
+
 impl Default for Memory {
     /// The store starts out by comprising the state of a single committed block, the genesis
     /// block, at height 0, with an empty state. We also initialize the pending location as empty.
@@ -32,11 +42,13 @@ impl Store for Memory {
     type Error = Error;
 
     fn set(&mut self, path: &Path, value: Vec<u8>) -> Result<(), Self::Error> {
+        tracing::trace!("set at path = {}", path);
         self.pending.insert(path.0.clone().into_bytes(), value);
         Ok(())
     }
 
     fn get(&self, height: Height, path: &Path) -> Option<Vec<u8>> {
+        tracing::trace!("get at path = {} at height = {:?}", path, height);
         match height {
             // Request to access the pending blocks
             Height::Pending => self.pending.get(path.0.as_bytes()).cloned(),

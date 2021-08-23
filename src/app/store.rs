@@ -29,22 +29,15 @@ impl Display for Path {
     }
 }
 
-impl TryFrom<&str> for Path {
-    type Error = PathError;
-
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        if Path::is_valid(value) {
-            Ok(Path(value.to_owned()))
-        } else {
-            Err(PathError::InvalidPath(value.to_owned()))
-        }
-    }
-}
 impl TryFrom<String> for Path {
     type Error = PathError;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
-        value.as_str().try_into()
+        if Path::is_valid(&value) {
+            Ok(Path(value))
+        } else {
+            Err(PathError::InvalidPath(value))
+        }
     }
 }
 
