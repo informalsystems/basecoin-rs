@@ -14,13 +14,30 @@ pub mod cosmos {
         }
     }
 
+    pub mod upgrade {
+        pub mod v1beta1 {
+            include!("prostgen/cosmos.upgrade.v1beta1.rs");
+        }
+    }
+
     pub mod base {
         pub mod v1beta1 {
             include!("prostgen/cosmos.base.v1beta1.rs");
         }
+
         pub mod query {
             pub mod v1beta1 {
                 include!("prostgen/cosmos.base.query.v1beta1.rs");
+            }
+        }
+    }
+}
+
+pub mod ibc {
+    pub mod core {
+        pub mod client {
+            pub mod v1 {
+                include!("prostgen/ibc.core.client.v1.rs");
             }
         }
     }
