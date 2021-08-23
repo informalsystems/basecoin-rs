@@ -7,6 +7,7 @@ use crate::app::store::{Memory, ProvableStore};
 use crate::app::BaseCoinApp;
 use crate::prostgen::cosmos::auth::v1beta1::query_server::QueryServer as AuthQueryServer;
 use crate::prostgen::cosmos::staking::v1beta1::query_server::QueryServer as StakingQueryServer;
+use crate::prostgen::ibc::core::client::v1::query_server::QueryServer as ClientQueryServer;
 
 use structopt::StructOpt;
 use tendermint_abci::ServerBuilder;
@@ -42,12 +43,13 @@ struct Opt {
 }
 
 #[tokio::main]
-async fn grpc_serve<S: ProvableStore + 'static>(app: BaseCoinApp<S>, port: u16) {
+async fn grpc_serve(app: BaseCoinApp<Memory>, port: u16) {
     let addr = format!("127.0.0.1:{}", port).parse().unwrap();
 
     Server::builder()
         .add_service(AuthQueryServer::new(app.clone()))
-        .add_service(StakingQueryServer::new(app))
+        .add_service(StakingQueryServer::new(app.clone()))
+        .add_service(ClientQueryServer::new(app))
         .serve(addr)
         .await
         .unwrap()
