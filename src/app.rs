@@ -7,7 +7,7 @@ pub(crate) mod store;
 
 use crate::app::modules::{prefix, Bank, Error, ErrorDetail, Ibc, Module};
 use crate::app::response::ResponseFromErrorExt;
-use crate::app::store::{Height, Path, ProvableStore, SharedSubStore};
+use crate::app::store::{Height, Memory, Path, ProvableStore, SharedSubStore, Store};
 use crate::prostgen::cosmos::auth::v1beta1::{
     query_server::Query as AuthQuery, BaseAccount, QueryAccountRequest, QueryAccountResponse,
     QueryAccountsRequest, QueryAccountsResponse, QueryParamsRequest as AuthQueryParamsRequest,
@@ -27,13 +27,24 @@ use crate::prostgen::cosmos::staking::v1beta1::{
     QueryValidatorUnbondingDelegationsRequest, QueryValidatorUnbondingDelegationsResponse,
     QueryValidatorsRequest, QueryValidatorsResponse,
 };
+use crate::prostgen::ibc::core::client::v1::{
+    query_server::Query as ClientQuery, ConsensusStateWithHeight, Height as RawHeight,
+    QueryClientParamsRequest, QueryClientParamsResponse, QueryClientStateRequest,
+    QueryClientStateResponse, QueryClientStatesRequest, QueryClientStatesResponse,
+    QueryClientStatusRequest, QueryClientStatusResponse, QueryConsensusStateRequest,
+    QueryConsensusStateResponse, QueryConsensusStatesRequest, QueryConsensusStatesResponse,
+    QueryUpgradedClientStateRequest, QueryUpgradedClientStateResponse,
+    QueryUpgradedConsensusStateRequest, QueryUpgradedConsensusStateResponse,
+};
 
 use std::convert::{Into, TryInto};
 use std::sync::{Arc, RwLock};
 
 use cosmos_sdk::Tx;
+use ibc::ics02_client::height::Height as IcsHeight;
 use prost::Message;
 use prost_types::{Any, Duration};
+use std::str::FromStr;
 use tendermint_abci::Application;
 use tendermint_proto::abci::{
     RequestDeliverTx, RequestInfo, RequestInitChain, RequestQuery, ResponseCommit,
@@ -322,12 +333,140 @@ impl<S: ProvableStore + 'static> StakingQuery for BaseCoinApp<S> {
     ) -> Result<Response<StakingQueryParamsResponse>, Status> {
         Ok(Response::new(StakingQueryParamsResponse {
             params: Some(Params {
-                unbonding_time: Some(Duration{ seconds: 3 * 7 * 24 * 60 * 60, nanos: 0 }),
+                unbonding_time: Some(Duration {
+                    seconds: 3 * 7 * 24 * 60 * 60,
+                    nanos: 0,
+                }),
                 max_validators: 0,
                 max_entries: 0,
                 historical_entries: 0,
                 bond_denom: "".to_string(),
             }),
         }))
+    }
+}
+
+#[tonic::async_trait]
+// impl<S: ProvableStore + 'static> ClientQuery for BaseCoinApp<S> {
+impl ClientQuery for BaseCoinApp<Memory> {
+    async fn client_state(
+        &self,
+        _request: Request<QueryClientStateRequest>,
+    ) -> Result<Response<QueryClientStateResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn client_states(
+        &self,
+        _request: Request<QueryClientStatesRequest>,
+    ) -> Result<Response<QueryClientStatesResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn consensus_state(
+        &self,
+        _request: Request<QueryConsensusStateRequest>,
+    ) -> Result<Response<QueryConsensusStateResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn consensus_states(
+        &self,
+        request: Request<QueryConsensusStatesRequest>,
+    ) -> Result<Response<QueryConsensusStatesResponse>, Status> {
+        let path: Path = format!(
+            "{}/clients/{}/consensusStates",
+            prefix::Ibc,
+            request.get_ref().client_id
+        )
+        .try_into()
+        .unwrap();
+
+        let state = self.state.read().unwrap();
+        let keys: Vec<&Vec<u8>> = state.get_keys(path);
+
+        let consensus_states = keys
+            .into_iter()
+            .map(|key| {
+                let path: Path = String::from_utf8(key.to_vec()).unwrap().try_into().unwrap();
+                let height = path
+                    .to_string()
+                    .split('/')
+                    .last()
+                    .unwrap()
+                    .parse::<IbcHeightExt>()
+                    .unwrap();
+
+                let consensus_state = state.get(Height::Pending, &path).unwrap();
+                let consensus_state = Any::decode(consensus_state.as_slice()).unwrap();
+                ConsensusStateWithHeight {
+                    height: Some(height.into()),
+                    consensus_state: Some(consensus_state),
+                }
+            })
+            .collect();
+
+        Ok(Response::new(QueryConsensusStatesResponse {
+            consensus_states,
+            pagination: None,
+        }))
+    }
+
+    async fn client_status(
+        &self,
+        _request: Request<QueryClientStatusRequest>,
+    ) -> Result<Response<QueryClientStatusResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn client_params(
+        &self,
+        _request: Request<QueryClientParamsRequest>,
+    ) -> Result<Response<QueryClientParamsResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn upgraded_client_state(
+        &self,
+        _request: Request<QueryUpgradedClientStateRequest>,
+    ) -> Result<Response<QueryUpgradedClientStateResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn upgraded_consensus_state(
+        &self,
+        _request: Request<QueryUpgradedConsensusStateRequest>,
+    ) -> Result<Response<QueryUpgradedConsensusStateResponse>, Status> {
+        unimplemented!()
+    }
+}
+
+struct IbcHeightExt(IcsHeight);
+
+#[derive(Debug)]
+struct IbcHeightParseError;
+
+impl FromStr for IbcHeightExt {
+    type Err = IbcHeightParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let h: Vec<&str> = s.split('-').collect();
+        if h.len() != 2 {
+            Err(IbcHeightParseError)
+        } else {
+            Ok(Self(IcsHeight {
+                revision_number: h[0].parse().unwrap(),
+                revision_height: h[1].parse().unwrap(),
+            }))
+        }
+    }
+}
+
+impl From<IbcHeightExt> for RawHeight {
+    fn from(ics_height: IbcHeightExt) -> Self {
+        RawHeight {
+            revision_number: ics_height.0.revision_number,
+            revision_height: ics_height.0.revision_height,
+        }
     }
 }
