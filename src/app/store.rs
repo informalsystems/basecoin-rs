@@ -13,7 +13,7 @@ use std::sync::{Arc, RwLock};
 use flex_error::{define_error, TraceError};
 
 /// A newtype representing a bytestring used as the key for an object stored in state.
-#[derive(Debug, Clone)]
+#[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Clone)]
 pub struct Path(String);
 
 impl Path {
@@ -92,13 +92,13 @@ pub trait Store: Send + Sync + Clone {
     type Error: core::fmt::Debug;
 
     /// Set `value` for `path`
-    fn set(&mut self, path: &Path, value: Vec<u8>) -> Result<(), Self::Error>;
+    fn set(&mut self, path: Path, value: Vec<u8>) -> Result<(), Self::Error>;
 
     /// Get associated `value` for `path` at specified `height`
-    fn get(&self, height: Height, path: &Path) -> Option<Vec<u8>>;
+    fn get(&self, height: Height, path: Path) -> Option<Vec<u8>>;
 
     /// Delete specified `path`
-    fn delete(&mut self, path: &Path);
+    fn delete(&mut self, path: Path);
 
     /// Commit `Pending` block to canonical chain and create new `Pending`
     fn commit(&mut self) -> Vec<u8>;
@@ -121,7 +121,7 @@ pub(crate) trait ProvableStore: Store {
     fn root_hash(&self) -> Vec<u8>;
 
     // Return proof of existence for key
-    fn get_proof(&self, key: &Path) -> Option<ics23::CommitmentProof>;
+    fn get_proof(&self, key: Path) -> Option<ics23::CommitmentProof>;
 }
 
 #[derive(Clone)]
@@ -143,19 +143,19 @@ where
 {
     type Error = S::Error;
 
-    fn set(&mut self, path: &Path, value: Vec<u8>) -> Result<(), Self::Error> {
+    fn set(&mut self, path: Path, value: Vec<u8>) -> Result<(), Self::Error> {
         let mut store = self.store.write().unwrap();
-        store.set(&self.path.prefixed_path(path), value)
+        store.set(self.path.prefixed_path(path), value)
     }
 
-    fn get(&self, height: Height, path: &Path) -> Option<Vec<u8>> {
+    fn get(&self, height: Height, path: Path) -> Option<Vec<u8>> {
         let store = self.store.read().unwrap();
-        store.get(height, &self.path.prefixed_path(path))
+        store.get(height, self.path.prefixed_path(path))
     }
 
-    fn delete(&mut self, path: &Path) {
+    fn delete(&mut self, path: Path) {
         let mut store = self.store.write().unwrap();
-        store.delete(&self.path.prefixed_path(path))
+        store.delete(self.path.prefixed_path(path))
     }
 
     fn commit(&mut self) -> Vec<u8> {
@@ -174,11 +174,11 @@ where
 }
 
 pub(crate) trait PrefixedPath: Sized {
-    fn prefixed_path(&self, s: &Path) -> Path;
+    fn prefixed_path(&self, s: Path) -> Path;
 }
 
 impl<T: Identify<&'static str>> PrefixedPath for T {
-    fn prefixed_path(&self, s: &Path) -> Path {
+    fn prefixed_path(&self, s: Path) -> Path {
         format!("{}/{}", self.identifier(), s).try_into().unwrap()
     }
 }

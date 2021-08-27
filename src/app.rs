@@ -395,7 +395,7 @@ impl<S: ProvableStore + 'static> ClientQuery for BaseCoinApp<S> {
                     .parse::<IbcHeightExt>()
                     .unwrap();
 
-                let consensus_state = state.get(Height::Pending, &path).unwrap();
+                let consensus_state = state.get(Height::Pending, path).unwrap();
                 let consensus_state = Any::decode(consensus_state.as_slice()).unwrap();
                 ConsensusStateWithHeight {
                     height: Some(height.into()),

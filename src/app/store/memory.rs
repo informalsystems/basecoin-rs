@@ -1,4 +1,4 @@
-use crate::app::store::avl::AvlTree;
+use crate::app::store::avl::{AsBytes, AvlTree};
 use crate::app::store::{Height, Path, ProvableStore, Store};
 
 use std::convert::TryInto;
@@ -7,7 +7,7 @@ use ics23::CommitmentProof;
 use tendermint::hash::Algorithm;
 use tendermint::Hash;
 
-type State = AvlTree<Vec<u8>, Vec<u8>>;
+type State = AvlTree<Path, Vec<u8>>;
 
 /// An in-memory store backed by an AvlTree.
 #[derive(Clone)]
@@ -30,25 +30,25 @@ impl Default for InMemoryStore {
 impl Store for InMemoryStore {
     type Error = ();
 
-    fn set(&mut self, path: &Path, value: Vec<u8>) -> Result<(), Self::Error> {
+    fn set(&mut self, path: Path, value: Vec<u8>) -> Result<(), Self::Error> {
         tracing::trace!("set at path = {}", path);
-        self.pending.insert(path.0.clone().into_bytes(), value);
+        self.pending.insert(path, value);
         Ok(())
     }
 
-    fn get(&self, height: Height, path: &Path) -> Option<Vec<u8>> {
-        tracing::trace!("get at path = {} at height = {:?}", path, height);
+    fn get(&self, height: Height, path: Path) -> Option<Vec<u8>> {
+        tracing::trace!("get at path = {} at height = {:?}", &path, height);
         match height {
             // Request to access the pending blocks
-            Height::Pending => self.pending.get(path.0.as_bytes()).cloned(),
+            Height::Pending => self.pending.get(&path).cloned(),
             // Access the last committed block
-            Height::Latest => self.store.last().unwrap().get(path.0.as_bytes()).cloned(),
+            Height::Latest => self.store.last().unwrap().get(&path).cloned(),
             // Access one of the committed blocks
             Height::Stable(height) => {
                 let h = height as usize;
                 if h < self.store.len() {
                     let state = self.store.get(h).unwrap();
-                    state.get(path.0.as_bytes()).cloned()
+                    state.get(&path).cloned()
                 } else {
                     None
                 }
@@ -56,7 +56,7 @@ impl Store for InMemoryStore {
         }
     }
 
-    fn delete(&mut self, _path: &Path) {
+    fn delete(&mut self, _path: Path) {
         todo!()
     }
 
@@ -70,12 +70,14 @@ impl Store for InMemoryStore {
     }
 
     fn get_keys(&self, key_prefix: Path) -> Vec<Path> {
-        let keys = self.pending.get_keys();
         let key_prefix = key_prefix.0.into_bytes();
-        keys.into_iter()
+        self.pending
+            .get_keys()
+            .into_iter()
             .filter_map(|key| {
+                let key = key.0.as_bytes();
                 key.starts_with(&key_prefix)
-                    .then(|| key.as_slice().try_into().unwrap())
+                    .then(|| key.try_into().unwrap())
             })
             .collect()
     }
@@ -90,8 +92,14 @@ impl ProvableStore for InMemoryStore {
             .to_vec()
     }
 
-    fn get_proof(&self, _key: &Path) -> Option<CommitmentProof> {
+    fn get_proof(&self, _key: Path) -> Option<CommitmentProof> {
         todo!()
+    }
+}
+
+impl AsBytes for Path {
+    fn as_bytes(&self) -> &[u8] {
+        self.0.as_bytes()
     }
 }
 

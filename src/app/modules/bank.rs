@@ -85,22 +85,22 @@ impl<S: Store> Module for Bank<S> {
             })
             .collect::<Result<Vec<(u64, String)>, Error>>()?;
 
-        let src_path = format!("accounts/{}", message.from_address)
+        let src_path: Path = format!("accounts/{}", message.from_address)
             .try_into()
             .unwrap();
-        let mut src_balances: Balances = match self.store.get(Height::Pending, &src_path) {
+        let mut src_balances: Balances = match self.store.get(Height::Pending, src_path.clone()) {
             Some(sb) => serde_json::from_str(&String::from_utf8(sb).unwrap()).unwrap(),
             None => {
                 return Err(Error::non_existent_account(message.from_address.to_string()).into())
             }
         };
 
-        let dst_path = format!("accounts/{}", message.to_address)
+        let dst_path: Path = format!("accounts/{}", message.to_address)
             .try_into()
             .unwrap();
         let mut dst_balances: Balances = self
             .store
-            .get(Height::Pending, &dst_path)
+            .get(Height::Pending, dst_path.clone())
             .map(|db| serde_json::from_str(&String::from_utf8(db).unwrap()).unwrap())
             .unwrap_or_else(Default::default);
 
@@ -126,13 +126,13 @@ impl<S: Store> Module for Bank<S> {
         // Store the updated account balances
         self.store
             .set(
-                &src_path,
+                src_path,
                 serde_json::to_string(&src_balances).unwrap().into(),
             )
             .unwrap();
         self.store
             .set(
-                &dst_path,
+                dst_path,
                 serde_json::to_string(&dst_balances).unwrap().into(),
             )
             .unwrap();
@@ -147,7 +147,7 @@ impl<S: Store> Module for Bank<S> {
         for account in accounts {
             let path = format!("accounts/{}", account.0).try_into().unwrap();
             self.store
-                .set(&path, serde_json::to_string(&account.1).unwrap().into())
+                .set(path, serde_json::to_string(&account.1).unwrap().into())
                 .unwrap();
 
             debug!("Added account ({}) => {:?}", account.0, account.1);
@@ -163,7 +163,7 @@ impl<S: Store> Module for Bank<S> {
         debug!("Attempting to get account ID: {}", account_id);
 
         let path = format!("accounts/{}", account_id).try_into().unwrap();
-        match self.store.get(height, &path) {
+        match self.store.get(height, path) {
             None => Err(Error::non_existent_account(account_id).into()),
             Some(balance) => Ok(balance),
         }

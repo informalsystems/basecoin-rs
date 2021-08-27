@@ -52,7 +52,7 @@ impl<S: Store> ClientReader for Ibc<S> {
             .try_into()
             .unwrap();
         self.store
-            .get(Height::Pending, &path)
+            .get(Height::Pending, path)
             .map(|v| serde_json::from_str(&String::from_utf8(v).unwrap()).unwrap())
     }
 
@@ -60,7 +60,7 @@ impl<S: Store> ClientReader for Ibc<S> {
         let path = format!("clients/{}/clientState", client_id)
             .try_into()
             .unwrap();
-        let value = self.store.get(Height::Pending, &path)?;
+        let value = self.store.get(Height::Pending, path)?;
         let client_state = Any::decode(value.as_slice());
         client_state.ok().map(|v| v.try_into().unwrap())
     }
@@ -73,7 +73,7 @@ impl<S: Store> ClientReader for Ibc<S> {
         let path = format!("clients/{}/consensusStates/{}", client_id, height)
             .try_into()
             .unwrap();
-        let value = self.store.get(Height::Pending, &path)?;
+        let value = self.store.get(Height::Pending, path)?;
         let consensus_state = Any::decode(value.as_slice());
         consensus_state.ok().map(|v| v.try_into().unwrap())
     }
@@ -93,7 +93,7 @@ impl<S: Store> ClientKeeper for Ibc<S> {
             .try_into()
             .unwrap();
         self.store
-            .set(&path, serde_json::to_string(&client_type).unwrap().into())
+            .set(path, serde_json::to_string(&client_type).unwrap().into())
             .unwrap();
         Ok(())
     }
@@ -103,15 +103,15 @@ impl<S: Store> ClientKeeper for Ibc<S> {
         client_id: ClientId,
         client_state: AnyClientState,
     ) -> Result<(), ClientError> {
-        let path = format!("clients/{}/clientState", client_id)
-            .try_into()
-            .unwrap();
         let data: Any = client_state.into();
         let mut buffer = Vec::new();
         data.encode(&mut buffer)
             .map_err(|e| ClientError::unknown_client_type(e.to_string()))?;
 
-        self.store.set(&path, buffer).unwrap();
+        let path = format!("clients/{}/clientState", client_id)
+            .try_into()
+            .unwrap();
+        self.store.set(path, buffer).unwrap();
         Ok(())
     }
 
@@ -121,16 +121,15 @@ impl<S: Store> ClientKeeper for Ibc<S> {
         height: IbcHeight,
         consensus_state: AnyConsensusState,
     ) -> Result<(), ClientError> {
-        let path = format!("clients/{}/consensusStates/{}", client_id, height)
-            .try_into()
-            .unwrap();
-
         let data: Any = consensus_state.into();
         let mut buffer = Vec::new();
         data.encode(&mut buffer)
             .map_err(|e| ClientError::unknown_consensus_state_type(e.to_string()))?;
 
-        self.store.set(&path, buffer).unwrap();
+        let path = format!("clients/{}/consensusStates/{}", client_id, height)
+            .try_into()
+            .unwrap();
+        self.store.set(path, buffer).unwrap();
         Ok(())
     }
 
@@ -386,12 +385,11 @@ impl<S: Store> Module for Ibc<S> {
             return Err(ModuleError::unhandled());
         }
 
-        let path = String::from_utf8(data.to_vec())
+        let path: Path = String::from_utf8(data.to_vec())
             .map_err(|_| ModuleError::unhandled())?
             .try_into()
             .unwrap();
-
-        match self.store.get(height, &path) {
+        match self.store.get(height, path.clone()) {
             None => Err(Error::ics02_client(ClientError::client_not_found(
                 ClientId::from_str(&path.to_string()).unwrap(),
             ))
