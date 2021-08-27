@@ -5,7 +5,7 @@ mod response;
 
 pub(crate) mod store;
 
-use crate::app::modules::{prefix, Bank, Error, ErrorDetail, Ibc, Module};
+use crate::app::modules::{prefix, Bank, Error, ErrorDetail, Ibc, Identifiable, Module};
 use crate::app::response::ResponseFromErrorExt;
 use crate::app::store::{Height, Path, ProvableStore, SharedSubStore};
 use crate::prostgen::cosmos::auth::v1beta1::{
@@ -375,7 +375,7 @@ impl<S: ProvableStore + 'static> ClientQuery for BaseCoinApp<S> {
     ) -> Result<Response<QueryConsensusStatesResponse>, Status> {
         let path: Path = format!(
             "{}/clients/{}/consensusStates",
-            prefix::Ibc,
+            prefix::Ibc.identifier(),
             request.get_ref().client_id
         )
         .try_into()

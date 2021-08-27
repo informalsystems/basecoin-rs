@@ -8,6 +8,7 @@ use crate::app::store::{Height, Path};
 
 use flex_error::{define_error, TraceError};
 use prost_types::Any;
+use std::fmt::Display;
 use tendermint_proto::abci::Event;
 
 define_error! {
@@ -53,41 +54,34 @@ pub(crate) trait Module {
     }
 }
 
-pub(crate) trait Identify<I> {
-    fn identifier(&self) -> I;
+pub(crate) trait Identifiable {
+    type Identifier: Display;
+
+    fn identifier(&self) -> Self::Identifier;
 }
 
 pub(crate) mod prefix {
-    use super::Identify;
-    use std::fmt::{Display, Formatter};
+    use super::Identifiable;
 
     #[derive(Clone)]
     pub(crate) struct Bank;
 
-    impl Identify<&'static str> for Bank {
+    impl Identifiable for Bank {
+        type Identifier = &'static str;
+
         fn identifier(&self) -> &'static str {
             "bank"
-        }
-    }
-
-    impl Display for Bank {
-        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-            f.write_str(self.identifier())
         }
     }
 
     #[derive(Clone)]
     pub(crate) struct Ibc;
 
-    impl Identify<&'static str> for Ibc {
+    impl Identifiable for Ibc {
+        type Identifier = &'static str;
+
         fn identifier(&self) -> &'static str {
             "ibc"
-        }
-    }
-
-    impl Display for Ibc {
-        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-            f.write_str(self.identifier())
         }
     }
 }

@@ -3,7 +3,7 @@ mod memory;
 
 pub(crate) use memory::InMemoryStore;
 
-use crate::app::modules::Identify;
+use crate::app::modules::Identifiable;
 
 use std::convert::{TryFrom, TryInto};
 use std::fmt::{Debug, Display, Formatter};
@@ -139,7 +139,7 @@ impl<S, P> SharedSubStore<S, P> {
 impl<S, P> Store for SharedSubStore<S, P>
 where
     S: Store,
-    P: Identify<&'static str> + Send + Sync + Clone + Display,
+    P: Identifiable + Send + Sync + Clone,
 {
     type Error = S::Error;
 
@@ -177,7 +177,7 @@ pub(crate) trait PrefixedPath: Sized {
     fn prefixed_path(&self, s: Path) -> Path;
 }
 
-impl<T: Identify<&'static str>> PrefixedPath for T {
+impl<T: Identifiable> PrefixedPath for T {
     fn prefixed_path(&self, s: Path) -> Path {
         format!("{}/{}", self.identifier(), s).try_into().unwrap()
     }
