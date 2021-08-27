@@ -7,7 +7,7 @@ pub(crate) mod store;
 
 use crate::app::modules::{prefix, Bank, Error, ErrorDetail, Ibc, Module};
 use crate::app::response::ResponseFromErrorExt;
-use crate::app::store::{Height, Memory, Path, ProvableStore, SharedSubStore, Store};
+use crate::app::store::{Height, Path, ProvableStore, SharedSubStore};
 use crate::prostgen::cosmos::auth::v1beta1::{
     query_server::Query as AuthQuery, BaseAccount, QueryAccountRequest, QueryAccountResponse,
     QueryAccountsRequest, QueryAccountsResponse, QueryParamsRequest as AuthQueryParamsRequest,
@@ -347,8 +347,7 @@ impl<S: ProvableStore + 'static> StakingQuery for BaseCoinApp<S> {
 }
 
 #[tonic::async_trait]
-// impl<S: ProvableStore + 'static> ClientQuery for BaseCoinApp<S> {
-impl ClientQuery for BaseCoinApp<Memory> {
+impl<S: ProvableStore + 'static> ClientQuery for BaseCoinApp<S> {
     async fn client_state(
         &self,
         _request: Request<QueryClientStateRequest>,
@@ -383,12 +382,11 @@ impl ClientQuery for BaseCoinApp<Memory> {
         .unwrap();
 
         let state = self.state.read().unwrap();
-        let keys: Vec<&Vec<u8>> = state.get_keys(path);
+        let keys = state.get_keys(path);
 
         let consensus_states = keys
             .into_iter()
-            .map(|key| {
-                let path: Path = String::from_utf8(key.to_vec()).unwrap().try_into().unwrap();
+            .map(|path| {
                 let height = path
                     .to_string()
                     .split('/')

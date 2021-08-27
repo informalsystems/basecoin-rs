@@ -1,16 +1,19 @@
 mod avl;
 mod memory;
 
-pub(crate) use memory::Memory;
+pub(crate) use memory::InMemoryStore;
 
 use crate::app::modules::Identify;
 
 use std::convert::{TryFrom, TryInto};
 use std::fmt::{Debug, Display, Formatter};
+use std::str::{from_utf8, Utf8Error};
 use std::sync::{Arc, RwLock};
 
+use flex_error::{define_error, TraceError};
+
 /// A newtype representing a bytestring used as the key for an object stored in state.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Path(String);
 
 impl Path {
@@ -30,20 +33,37 @@ impl Display for Path {
 }
 
 impl TryFrom<String> for Path {
-    type Error = PathError;
+    type Error = Error;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         if Path::is_valid(&value) {
             Ok(Path(value))
         } else {
-            Err(PathError::InvalidPath(value))
+            Err(Error::invalid_path(value))
         }
     }
 }
 
-#[derive(Debug)]
-pub enum PathError {
-    InvalidPath(String),
+impl TryFrom<&[u8]> for Path {
+    type Error = Error;
+
+    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+        let s = from_utf8(value).map_err(Error::malformed_path_string)?;
+        s.to_owned().try_into()
+    }
+}
+
+define_error! {
+    #[derive(Eq, PartialEq)]
+    Error {
+        InvalidPath
+            { path_str: String }
+            | e | { format!("'{}' is not a valid path", e.path_str) },
+        MalformedPathString
+            [ TraceError<Utf8Error> ]
+            | _ | { "path isn't a valid string" },
+
+    }
 }
 
 /// Block height
@@ -90,6 +110,9 @@ pub trait Store: Send + Sync + Clone {
 
     /// Return the current height of the chain
     fn current_height(&self) -> RawHeight;
+
+    /// Return all keys that start with specified prefix
+    fn get_keys(&self, key_prefix: Path) -> Vec<Path>;
 }
 
 /// ProvableStore trait
@@ -142,6 +165,11 @@ where
     fn current_height(&self) -> RawHeight {
         let store = self.store.read().unwrap();
         store.current_height()
+    }
+
+    fn get_keys(&self, key_prefix: Path) -> Vec<Path> {
+        let store = self.store.read().unwrap();
+        store.get_keys(key_prefix)
     }
 }
 

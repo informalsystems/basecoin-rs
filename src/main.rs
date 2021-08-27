@@ -3,7 +3,7 @@
 mod app;
 mod prostgen;
 
-use crate::app::store::{Memory, ProvableStore};
+use crate::app::store::InMemoryStore;
 use crate::app::BaseCoinApp;
 use crate::prostgen::cosmos::auth::v1beta1::query_server::QueryServer as AuthQueryServer;
 use crate::prostgen::cosmos::staking::v1beta1::query_server::QueryServer as StakingQueryServer;
@@ -43,7 +43,7 @@ struct Opt {
 }
 
 #[tokio::main]
-async fn grpc_serve(app: BaseCoinApp<Memory>, port: u16) {
+async fn grpc_serve(app: BaseCoinApp<InMemoryStore>, port: u16) {
     let addr = format!("127.0.0.1:{}", port).parse().unwrap();
 
     Server::builder()
@@ -66,7 +66,7 @@ fn main() {
     };
     tracing_subscriber::fmt().with_max_level(log_level).init();
 
-    let app = BaseCoinApp::<Memory>::new();
+    let app = BaseCoinApp::<InMemoryStore>::new();
 
     let app_copy = app.clone();
     let grpc_port = opt.grpc_port;

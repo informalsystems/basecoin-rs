@@ -1,45 +1,34 @@
 use crate::app::store::avl::AvlTree;
 use crate::app::store::{Height, Path, ProvableStore, Store};
 
+use std::convert::TryInto;
+
 use ics23::CommitmentProof;
 use tendermint::hash::Algorithm;
 use tendermint::Hash;
 
 type State = AvlTree<Vec<u8>, Vec<u8>>;
 
-#[derive(Debug)]
-pub(crate) struct Error {}
-
 /// An in-memory store backed by an AvlTree.
 #[derive(Clone)]
-pub(crate) struct Memory {
+pub(crate) struct InMemoryStore {
     store: Vec<State>,
     pending: State,
 }
 
-impl Memory {
-    pub fn get_keys(&self, key_prefix: Path) -> Vec<&Vec<u8>> {
-        let keys = self.pending.get_keys();
-        let key_prefix = key_prefix.0.into_bytes();
-        keys.into_iter()
-            .filter_map(|key| key.starts_with(&key_prefix).then(|| key))
-            .collect()
-    }
-}
-
-impl Default for Memory {
+impl Default for InMemoryStore {
     /// The store starts out by comprising the state of a single committed block, the genesis
     /// block, at height 0, with an empty state. We also initialize the pending location as empty.
     fn default() -> Self {
-        Memory {
+        InMemoryStore {
             store: vec![],
             pending: AvlTree::new(),
         }
     }
 }
 
-impl Store for Memory {
-    type Error = Error;
+impl Store for InMemoryStore {
+    type Error = ();
 
     fn set(&mut self, path: &Path, value: Vec<u8>) -> Result<(), Self::Error> {
         tracing::trace!("set at path = {}", path);
@@ -77,11 +66,22 @@ impl Store for Memory {
     }
 
     fn current_height(&self) -> u64 {
-        (self.store.len()) as u64
+        self.store.len() as u64
+    }
+
+    fn get_keys(&self, key_prefix: Path) -> Vec<Path> {
+        let keys = self.pending.get_keys();
+        let key_prefix = key_prefix.0.into_bytes();
+        keys.into_iter()
+            .filter_map(|key| {
+                key.starts_with(&key_prefix)
+                    .then(|| key.as_slice().try_into().unwrap())
+            })
+            .collect()
     }
 }
 
-impl ProvableStore for Memory {
+impl ProvableStore for InMemoryStore {
     fn root_hash(&self) -> Vec<u8> {
         self.pending
             .root_hash()
