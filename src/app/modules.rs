@@ -20,7 +20,7 @@ define_error! {
             [ TraceError<bank::Error> ]
             | _ | { "bank module error" },
         Ibc
-            [ ibc::Error ]
+            [ TraceError<ibc::Error> ]
             | _ | { "IBC module error" },
     }
 }
