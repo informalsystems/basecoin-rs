@@ -43,8 +43,8 @@ struct Opt {
 }
 
 #[tokio::main]
-async fn grpc_serve(app: BaseCoinApp<InMemoryStore>, port: u16) {
-    let addr = format!("127.0.0.1:{}", port).parse().unwrap();
+async fn grpc_serve(app: BaseCoinApp<InMemoryStore>, host: String, port: u16) {
+    let addr = format!("{}:{}", host, port).parse().unwrap();
 
     Server::builder()
         .add_service(AuthQueryServer::new(app.clone()))
@@ -70,7 +70,8 @@ fn main() {
 
     let app_copy = app.clone();
     let grpc_port = opt.grpc_port;
-    std::thread::spawn(move || grpc_serve(app_copy, grpc_port));
+    let grpc_host = opt.host.clone();
+    std::thread::spawn(move || grpc_serve(app_copy, grpc_host, grpc_port));
 
     let server = ServerBuilder::new(opt.read_buf_size)
         .bind(format!("{}:{}", opt.host, opt.port), app)
