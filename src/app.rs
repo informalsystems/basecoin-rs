@@ -44,6 +44,8 @@ use cosmos_sdk::Tx;
 use ibc::ics02_client::height::Height as IcsHeight;
 use prost::Message;
 use prost_types::{Any, Duration};
+use serde_json::Value;
+use std::num::ParseIntError;
 use std::str::FromStr;
 use tendermint_abci::Application;
 use tendermint_proto::abci::{
@@ -52,6 +54,22 @@ use tendermint_proto::abci::{
 };
 use tonic::{Request, Response, Status};
 use tracing::{debug, info};
+
+// an adaptation of the deprecated `try!()` macro that tries to unwrap a `Result` or returns the
+// error in the form of an ABCI response object
+macro_rules! attempt {
+    ($expr:expr $(,)+ $code:literal $(,)+ $msg:literal) => {
+        match $expr {
+            ::core::result::Result::Ok(val) => val,
+            ::core::result::Result::Err(err) => {
+                return $crate::app::response::ResponseFromErrorExt::from_error(
+                    $code,
+                    ::std::format!("{}: {}", $msg, err),
+                );
+            }
+        }
+    };
+}
 
 /// BaseCoin ABCI application.
 ///
@@ -105,11 +123,13 @@ impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
         debug!("Got init chain request.");
 
         let mut modules = self.modules.write().unwrap();
+
+        // Safety - we panic on errors to prevent chain creation with invalid genesis config
+        let app_state: Value =
+            serde_json::from_str(&String::from_utf8(request.app_state_bytes.clone()).unwrap())
+                .unwrap();
         for m in modules.iter_mut() {
-            m.init(
-                serde_json::from_str(&String::from_utf8(request.app_state_bytes.clone()).unwrap())
-                    .unwrap(),
-            )
+            m.init(app_state.clone());
         }
 
         // commit genesis state
@@ -118,8 +138,7 @@ impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
 
         ResponseInitChain {
             consensus_params: request.consensus_params,
-            validators: request.validators,
-            // app_hash: state.root_hash().unwrap_or(Hash::from_bytes(Algorithm::Sha256, &[0u8;16]).unwrap()).as_bytes().to_vec()
+            validators: vec![], // use validator set proposed by tendermint (ie. in the genesis file)
             app_hash: state.root_hash(),
         }
     }
@@ -127,11 +146,7 @@ impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
     fn query(&self, request: RequestQuery) -> ResponseQuery {
         let state = self.state.read().unwrap();
         let modules = self.modules.read().unwrap();
-
-        let path: Path = match request.path.try_into() {
-            Err(e) => return ResponseQuery::from_error(1, format!("Invalid path: {:?}", e)),
-            Ok(path) => path,
-        };
+        let path: Path = attempt!(request.path.try_into(), 1, "invalid path");
 
         for m in modules.iter() {
             match m.query(&request.data, &path, Height::from(request.height as u64)) {
@@ -156,14 +171,11 @@ impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
     }
 
     fn deliver_tx(&self, request: RequestDeliverTx) -> ResponseDeliverTx {
-        // Decode the txs
-        let tx = match Tx::from_bytes(&request.tx) {
-            Ok(tx) => tx,
-            Err(e) => {
-                debug!("Failed to decode incoming tx bytes: {:?}", request.tx);
-                return ResponseDeliverTx::from_error(1, e.to_string());
-            }
-        };
+        let tx: Tx = attempt!(
+            request.tx.as_slice().try_into(),
+            1,
+            "failed to decode incoming tx bytes"
+        );
 
         let mut modules = self.modules.write().unwrap();
         for message in tx.body.messages {
@@ -216,7 +228,7 @@ impl<S: ProvableStore + 'static> AuthQuery for BaseCoinApp<S> {
             sequence: 0,
         };
         let mut buf = Vec::new();
-        account.encode(&mut buf).unwrap();
+        account.encode(&mut buf).unwrap(); // safety - cannot fail since buf is a vector
 
         Ok(Response::new(QueryAccountResponse {
             account: Some(Any {
@@ -379,7 +391,7 @@ impl<S: ProvableStore + 'static> ClientQuery for BaseCoinApp<S> {
             request.get_ref().client_id
         )
         .try_into()
-        .unwrap();
+        .map_err(|e| Status::invalid_argument(format!("{}", e)))?;
 
         let state = self.state.read().unwrap();
         let keys = state.get_keys(path);
@@ -391,10 +403,11 @@ impl<S: ProvableStore + 'static> ClientQuery for BaseCoinApp<S> {
                     .to_string()
                     .split('/')
                     .last()
-                    .unwrap()
+                    .unwrap() // safety - prefixed paths will have atleast one '/'
                     .parse::<IbcHeightExt>()
-                    .unwrap();
+                    .unwrap(); // safety - data on the store is assumed to be well-formed
 
+                // safety - data on the store is assumed to be well-formed
                 let consensus_state = state.get(Height::Pending, path).unwrap();
                 let consensus_state = Any::decode(consensus_state.as_slice()).unwrap();
                 ConsensusStateWithHeight {
@@ -442,7 +455,11 @@ impl<S: ProvableStore + 'static> ClientQuery for BaseCoinApp<S> {
 struct IbcHeightExt(IcsHeight);
 
 #[derive(Debug)]
-struct IbcHeightParseError;
+enum IbcHeightParseError {
+    Malformed,
+    InvalidNumber(ParseIntError),
+    InvalidHeight(ParseIntError),
+}
 
 impl FromStr for IbcHeightExt {
     type Err = IbcHeightParseError;
@@ -450,11 +467,11 @@ impl FromStr for IbcHeightExt {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let h: Vec<&str> = s.split('-').collect();
         if h.len() != 2 {
-            Err(IbcHeightParseError)
+            Err(IbcHeightParseError::Malformed)
         } else {
             Ok(Self(IcsHeight {
-                revision_number: h[0].parse().unwrap(),
-                revision_height: h[1].parse().unwrap(),
+                revision_number: h[0].parse().map_err(IbcHeightParseError::InvalidNumber)?,
+                revision_height: h[1].parse().map_err(IbcHeightParseError::InvalidHeight)?,
             }))
         }
     }
