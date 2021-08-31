@@ -163,11 +163,11 @@ impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
                         codespace: "".to_string(),
                     };
                 }
-                Err(Error(ErrorDetail::Unhandled(_), _)) => continue,
+                Err(Error(ErrorDetail::NotHandled(_), _)) => continue,
                 Err(e) => return ResponseQuery::from_error(1, format!("query error: {:?}", e)),
             }
         }
-        ResponseQuery::from_error(1, "query msg unhandled")
+        ResponseQuery::from_error(1, "query msg not handled")
     }
 
     fn deliver_tx(&self, request: RequestDeliverTx) -> ResponseDeliverTx {
@@ -188,12 +188,12 @@ impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
                             ..ResponseDeliverTx::default()
                         };
                     }
-                    Err(e) if e.detail() == Error::unhandled().detail() => continue,
+                    Err(e) if e.detail() == Error::not_handled().detail() => continue,
                     Err(e) => return ResponseDeliverTx::from_error(2, format!("{:?}", e)),
                 };
             }
         }
-        ResponseDeliverTx::from_error(2, "Tx msg unhandled")
+        ResponseDeliverTx::from_error(2, "Tx msg not handled")
     }
 
     fn commit(&self) -> ResponseCommit {
@@ -220,7 +220,6 @@ impl<S: ProvableStore + 'static> AuthQuery for BaseCoinApp<S> {
         &self,
         _request: Request<QueryAccountRequest>,
     ) -> Result<Response<QueryAccountResponse>, Status> {
-        println!("query account");
         let account = BaseAccount {
             address: "".to_string(),
             pub_key: None,

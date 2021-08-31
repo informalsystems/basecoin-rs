@@ -94,7 +94,7 @@ impl<S: Store> ClientKeeper for Ibc<S> {
             .try_into()
             .unwrap(); // safety - path must be valid since ClientId is a valid Identifier
         self.store
-            .set(path, serde_json::to_string(&client_type).unwrap().into()) // safety - cannot fail since ClientType's Serialize doesn't fail
+            .set(path, serde_json::to_string(&client_type).unwrap().into()) // safety - cannot fail since ClientType's Serialize impl doesn't fail
             .map_err(|_| ClientError::implementation_specific())?;
         Ok(())
     }
@@ -387,7 +387,7 @@ impl<S: Store> Module for Ibc<S> {
 
     fn query(&self, data: &[u8], path: &Path, height: Height) -> Result<Vec<u8>, ModuleError> {
         if path.to_string() != "store/ibc/key" {
-            return Err(ModuleError::unhandled());
+            return Err(ModuleError::not_handled());
         }
 
         let path: Path = String::from_utf8(data.to_vec())

@@ -42,7 +42,7 @@ impl Store for InMemoryStore {
             // Request to access the pending blocks
             Height::Pending => self.pending.get(&path).cloned(),
             // Access the last committed block
-            Height::Latest => self.store.last().unwrap().get(&path).cloned(),
+            Height::Latest => self.store.last().and_then(|s| s.get(&path).cloned()),
             // Access one of the committed blocks
             Height::Stable(height) => {
                 let h = height as usize;

@@ -14,7 +14,7 @@ use tendermint_proto::abci::Event;
 define_error! {
     #[derive(PartialEq, Eq)]
     Error {
-        Unhandled
+        NotHandled
             | _ | { "no module could handle specified message" },
         Store
             [ TraceError<store::Error> ]
@@ -53,7 +53,7 @@ pub(crate) trait Module {
 
     /// Similar to [ABCI Query method](https://docs.tendermint.com/master/spec/abci/abci.html#query)
     fn query(&self, _data: &[u8], _path: &Path, _height: Height) -> Result<Vec<u8>, Error> {
-        Err(Error::unhandled())
+        Err(Error::not_handled())
     }
 }
 
