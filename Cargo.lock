@@ -711,7 +711,7 @@ dependencies = [
 
 [[package]]
 name = "ibc"
-version = "0.7.0"
+version = "0.6.2"
 dependencies = [
  "bytes",
  "chrono",
@@ -733,7 +733,7 @@ dependencies = [
 
 [[package]]
 name = "ibc-proto"
-version = "0.10.0"
+version = "0.9.1"
 dependencies = [
  "bytes",
  "getrandom 0.2.3",

@@ -122,12 +122,12 @@ impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
     fn init_chain(&self, request: RequestInitChain) -> ResponseInitChain {
         debug!("Got init chain request.");
 
+        // safety - we panic on errors to prevent chain creation with invalid genesis config
+        let app_state: Value = serde_json::from_str(
+            &String::from_utf8(request.app_state_bytes.clone()).expect("invalid genesis state"),
+        )
+        .expect("genesis state isn't valid JSON");
         let mut modules = self.modules.write().unwrap();
-
-        // Safety - we panic on errors to prevent chain creation with invalid genesis config
-        let app_state: Value =
-            serde_json::from_str(&String::from_utf8(request.app_state_bytes.clone()).unwrap())
-                .unwrap();
         for m in modules.iter_mut() {
             m.init(app_state.clone());
         }
@@ -144,13 +144,13 @@ impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
     }
 
     fn query(&self, request: RequestQuery) -> ResponseQuery {
-        let state = self.state.read().unwrap();
-        let modules = self.modules.read().unwrap();
         let path: Path = attempt!(request.path.try_into(), 1, "invalid path");
 
+        let modules = self.modules.read().unwrap();
         for m in modules.iter() {
             match m.query(&request.data, &path, Height::from(request.height as u64)) {
                 Ok(result) => {
+                    let state = self.state.read().unwrap();
                     return ResponseQuery {
                         code: 0,
                         log: "exists".to_string(),
@@ -403,13 +403,15 @@ impl<S: ProvableStore + 'static> ClientQuery for BaseCoinApp<S> {
                     .to_string()
                     .split('/')
                     .last()
-                    .unwrap() // safety - prefixed paths will have atleast one '/'
+                    .expect("invalid path") // safety - prefixed paths will have atleast one '/'
                     .parse::<IbcHeightExt>()
-                    .unwrap(); // safety - data on the store is assumed to be well-formed
+                    .expect("couldn't parse Path as Height"); // safety - data on the store is assumed to be well-formed
 
                 // safety - data on the store is assumed to be well-formed
                 let consensus_state = state.get(Height::Pending, path).unwrap();
-                let consensus_state = Any::decode(consensus_state.as_slice()).unwrap();
+                let consensus_state = Any::decode(consensus_state.as_slice())
+                    .expect("failed to decode consensus state");
+
                 ConsensusStateWithHeight {
                     height: Some(height.into()),
                     consensus_state: Some(consensus_state),

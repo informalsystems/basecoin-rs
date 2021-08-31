@@ -4,7 +4,7 @@ mod ibc;
 pub(crate) use self::bank::Bank;
 pub(crate) use self::ibc::Ibc;
 
-use crate::app::store::{Height, Path};
+use crate::app::store::{self, Height, Path};
 
 use flex_error::{define_error, TraceError};
 use prost_types::Any;
@@ -16,6 +16,9 @@ define_error! {
     Error {
         Unhandled
             | _ | { "no module could handle specified message" },
+        Store
+            [ TraceError<store::Error> ]
+            | _ | { "store error" },
         Bank
             [ TraceError<bank::Error> ]
             | _ | { "bank module error" },

@@ -3,7 +3,7 @@ mod memory;
 
 pub(crate) use memory::InMemoryStore;
 
-use crate::app::modules::Identifiable;
+use crate::app::modules::{Error as ModuleError, Identifiable};
 
 use std::convert::{TryFrom, TryInto};
 use std::fmt::{Debug, Display, Formatter};
@@ -63,6 +63,12 @@ define_error! {
             [ TraceError<Utf8Error> ]
             | _ | { "path isn't a valid string" },
 
+    }
+}
+
+impl From<Error> for ModuleError {
+    fn from(e: Error) -> Self {
+        ModuleError::store(e)
     }
 }
 
@@ -179,6 +185,6 @@ pub(crate) trait PrefixedPath: Sized {
 
 impl<T: Identifiable> PrefixedPath for T {
     fn prefixed_path(&self, s: Path) -> Path {
-        format!("{}/{}", self.identifier(), s).try_into().unwrap()
+        format!("{}/{}", self.identifier(), s).try_into().unwrap() // safety - path created by concatenation of two paths must be valid
     }
 }

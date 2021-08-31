@@ -50,19 +50,20 @@ impl<S: Store> ClientReader for Ibc<S> {
     fn client_type(&self, client_id: &ClientId) -> Option<ClientType> {
         let path = format!("clients/{}/clientType", client_id)
             .try_into()
-            .unwrap();
+            .unwrap(); // safety - path must be valid since ClientId is a valid Identifier
         self.store
             .get(Height::Pending, path)
             .map(|v| serde_json::from_str(&String::from_utf8(v).unwrap()).unwrap())
+        // safety - data on the store is assumed to be well-formed
     }
 
     fn client_state(&self, client_id: &ClientId) -> Option<AnyClientState> {
         let path = format!("clients/{}/clientState", client_id)
             .try_into()
-            .unwrap();
+            .unwrap(); // safety - path must be valid since ClientId is a valid Identifier
         let value = self.store.get(Height::Pending, path)?;
         let client_state = Any::decode(value.as_slice());
-        client_state.ok().map(|v| v.try_into().unwrap())
+        client_state.ok().map(|v| v.try_into().unwrap()) // safety - data on the store is assumed to be well-formed
     }
 
     fn consensus_state(
@@ -72,10 +73,10 @@ impl<S: Store> ClientReader for Ibc<S> {
     ) -> Option<AnyConsensusState> {
         let path = format!("clients/{}/consensusStates/{}", client_id, height)
             .try_into()
-            .unwrap();
+            .unwrap(); // safety - path must be valid since ClientId and height are valid Identifiers
         let value = self.store.get(Height::Pending, path)?;
         let consensus_state = Any::decode(value.as_slice());
-        consensus_state.ok().map(|v| v.try_into().unwrap())
+        consensus_state.ok().map(|v| v.try_into().unwrap()) // safety - data on the store is assumed to be well-formed
     }
 
     fn client_counter(&self) -> u64 {
@@ -91,10 +92,10 @@ impl<S: Store> ClientKeeper for Ibc<S> {
     ) -> Result<(), ClientError> {
         let path = format!("clients/{}/clientType", client_id)
             .try_into()
-            .unwrap();
+            .unwrap(); // safety - path must be valid since ClientId is a valid Identifier
         self.store
-            .set(path, serde_json::to_string(&client_type).unwrap().into())
-            .unwrap();
+            .set(path, serde_json::to_string(&client_type).unwrap().into()) // safety - cannot fail since ClientType's Serialize doesn't fail
+            .map_err(|_| ClientError::implementation_specific())?;
         Ok(())
     }
 
@@ -110,8 +111,10 @@ impl<S: Store> ClientKeeper for Ibc<S> {
 
         let path = format!("clients/{}/clientState", client_id)
             .try_into()
-            .unwrap();
-        self.store.set(path, buffer).unwrap();
+            .unwrap(); // safety - path must be valid since ClientId is a valid Identifier
+        self.store
+            .set(path, buffer)
+            .map_err(|_| ClientError::implementation_specific())?;
         Ok(())
     }
 
@@ -128,8 +131,10 @@ impl<S: Store> ClientKeeper for Ibc<S> {
 
         let path = format!("clients/{}/consensusStates/{}", client_id, height)
             .try_into()
-            .unwrap();
-        self.store.set(path, buffer).unwrap();
+            .unwrap(); // safety - path must be valid since ClientId and height are valid Identifiers
+        self.store
+            .set(path, buffer)
+            .map_err(|_| ClientError::implementation_specific())?;
         Ok(())
     }
 
@@ -386,12 +391,11 @@ impl<S: Store> Module for Ibc<S> {
         }
 
         let path: Path = String::from_utf8(data.to_vec())
-            .map_err(|_| ModuleError::unhandled())?
-            .try_into()
-            .unwrap();
+            .map_err(|_| Error::ics02_client(ClientError::implementation_specific()))?
+            .try_into()?;
         match self.store.get(height, path.clone()) {
             None => Err(Error::ics02_client(ClientError::client_not_found(
-                ClientId::from_str(&path.to_string()).unwrap(),
+                ClientId::from_str(&path.to_string()).unwrap(), // safety - path must be a valid identifier
             ))
             .into()),
             Some(client_state) => Ok(client_state),
