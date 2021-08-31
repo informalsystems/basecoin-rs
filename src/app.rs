@@ -134,7 +134,7 @@ impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
 
         // commit genesis state
         let mut state = self.state.write().unwrap();
-        state.commit();
+        state.commit().expect("failed to commit genesis state");
 
         ResponseInitChain {
             consensus_params: request.consensus_params,
@@ -198,7 +198,7 @@ impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
 
     fn commit(&self) -> ResponseCommit {
         let mut state = self.state.write().unwrap();
-        let data = state.commit();
+        let data = state.commit().expect("failed to commit to state");
         info!("Committed height {}", state.current_height());
         ResponseCommit {
             data,

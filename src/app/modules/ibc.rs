@@ -2,7 +2,6 @@ use crate::app::modules::{Error as ModuleError, Module};
 use crate::app::store::{Height, Path, Store};
 
 use std::convert::TryInto;
-use std::str::FromStr;
 
 use ibc::application::ics20_fungible_token_transfer::context::Ics20Context;
 use ibc::events::IbcEvent;
@@ -393,11 +392,8 @@ impl<S: Store> Module for Ibc<S> {
         let path: Path = String::from_utf8(data.to_vec())
             .map_err(|_| Error::ics02_client(ClientError::implementation_specific()))?
             .try_into()?;
-        match self.store.get(height, path.clone()) {
-            None => Err(Error::ics02_client(ClientError::client_not_found(
-                ClientId::from_str(&path.to_string()).unwrap(), // safety - path must be a valid identifier
-            ))
-            .into()),
+        match self.store.get(height, path) {
+            None => Err(Error::ics02_client(ClientError::implementation_specific()).into()),
             Some(client_state) => Ok(client_state),
         }
     }

@@ -107,7 +107,15 @@ pub trait Store: Send + Sync + Clone {
     fn delete(&mut self, path: Path);
 
     /// Commit `Pending` block to canonical chain and create new `Pending`
-    fn commit(&mut self) -> Vec<u8>;
+    fn commit(&mut self) -> Result<Vec<u8>, Self::Error>;
+
+    /// Apply accumulated changes to `Pending`
+    fn apply(&mut self) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
+    /// Reset accumulated changes
+    fn reset(&mut self) {}
 
     /// Prune historic blocks upto specified `height`
     fn prune(&self, height: RawHeight) -> Result<RawHeight, Self::Error> {
@@ -164,7 +172,7 @@ where
         store.delete(self.path.prefixed_path(path))
     }
 
-    fn commit(&mut self) -> Vec<u8> {
+    fn commit(&mut self) -> Result<Vec<u8>, Self::Error> {
         panic!("shared sub-stores may not commit!")
     }
 

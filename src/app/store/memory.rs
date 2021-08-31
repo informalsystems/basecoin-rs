@@ -14,15 +14,16 @@ type State = AvlTree<Path, Vec<u8>>;
 pub(crate) struct InMemoryStore {
     store: Vec<State>,
     pending: State,
+    op_log: Vec<(Path, Vec<u8>)>,
 }
 
 impl Default for InMemoryStore {
-    /// The store starts out by comprising the state of a single committed block, the genesis
-    /// block, at height 0, with an empty state. We also initialize the pending location as empty.
+    /// The store starts out with an empty state. We also initialize the pending location as empty.
     fn default() -> Self {
         InMemoryStore {
             store: vec![],
             pending: AvlTree::new(),
+            op_log: vec![],
         }
     }
 }
@@ -32,7 +33,7 @@ impl Store for InMemoryStore {
 
     fn set(&mut self, path: Path, value: Vec<u8>) -> Result<(), Self::Error> {
         tracing::trace!("set at path = {}", path);
-        self.pending.insert(path, value);
+        self.op_log.push((path, value));
         Ok(())
     }
 
@@ -40,7 +41,12 @@ impl Store for InMemoryStore {
         tracing::trace!("get at path = {} at height = {:?}", &path, height);
         match height {
             // Request to access the pending blocks
-            Height::Pending => self.pending.get(&path).cloned(),
+            Height::Pending => self
+                .op_log
+                .iter()
+                .find(|op| op.0 == path)
+                .map(|op| op.1.clone())
+                .or_else(|| self.pending.get(&path).cloned()),
             // Access the last committed block
             Height::Latest => self.store.last().and_then(|s| s.get(&path).cloned()),
             // Access one of the committed blocks
@@ -60,9 +66,22 @@ impl Store for InMemoryStore {
         todo!()
     }
 
-    fn commit(&mut self) -> Vec<u8> {
+    fn commit(&mut self) -> Result<Vec<u8>, Self::Error> {
+        tracing::trace!("committing height: {}", self.store.len());
+        self.apply()?;
         self.store.push(self.pending.clone());
-        self.root_hash()
+        Ok(self.root_hash())
+    }
+
+    fn apply(&mut self) -> Result<(), Self::Error> {
+        while let Some(op) = self.op_log.pop() {
+            self.pending.insert(op.0, op.1);
+        }
+        Ok(())
+    }
+
+    fn reset(&mut self) {
+        self.op_log.clear()
     }
 
     fn current_height(&self) -> u64 {

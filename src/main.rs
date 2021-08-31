@@ -60,7 +60,7 @@ fn main() {
     let log_level = if opt.quiet {
         LevelFilter::OFF
     } else if opt.verbose {
-        LevelFilter::DEBUG
+        LevelFilter::TRACE
     } else {
         LevelFilter::INFO
     };
