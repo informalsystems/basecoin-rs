@@ -11,6 +11,7 @@ use std::str::{from_utf8, Utf8Error};
 use std::sync::{Arc, RwLock};
 
 use flex_error::{define_error, TraceError};
+use ics23::CommitmentProof;
 
 /// A newtype representing a bytestring used as the key for an object stored in state.
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Clone)]
@@ -130,11 +131,11 @@ pub trait Store: Send + Sync + Clone {
 }
 
 /// ProvableStore trait
-pub(crate) trait ProvableStore: Store {
+pub trait ProvableStore: Store {
     /// Return a vector commitment
     fn root_hash(&self) -> Vec<u8>;
 
-    // Return proof of existence for key
+    /// Return proof of existence for key
     fn get_proof(&self, key: Path) -> Option<ics23::CommitmentProof>;
 }
 
@@ -183,7 +184,23 @@ where
 
     fn get_keys(&self, key_prefix: Path) -> Vec<Path> {
         let store = self.store.read().unwrap();
-        store.get_keys(key_prefix)
+        store.get_keys(self.path.prefixed_path(key_prefix))
+    }
+}
+
+impl<S, P> ProvableStore for SharedSubStore<S, P>
+where
+    S: ProvableStore,
+    P: Identifiable + Send + Sync + Clone,
+{
+    fn root_hash(&self) -> Vec<u8> {
+        let store = self.store.read().unwrap();
+        store.root_hash()
+    }
+
+    fn get_proof(&self, key: Path) -> Option<CommitmentProof> {
+        let store = self.store.read().unwrap();
+        store.get_proof(key)
     }
 }
 
@@ -193,6 +210,10 @@ pub(crate) trait PrefixedPath: Sized {
 
 impl<T: Identifiable> PrefixedPath for T {
     fn prefixed_path(&self, s: Path) -> Path {
-        format!("{}/{}", self.identifier(), s).try_into().unwrap() // safety - path created by concatenation of two paths must be valid
+        if !s.0.starts_with(&format!("{}/", self.identifier())) {
+            format!("{}/{}", self.identifier(), s).try_into().unwrap() // safety - path created by concatenation of two paths must be valid
+        } else {
+            s
+        }
     }
 }
