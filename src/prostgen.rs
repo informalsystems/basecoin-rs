@@ -21,6 +21,12 @@ pub mod cosmos {
     }
 
     pub mod base {
+        pub mod tendermint {
+            pub mod v1beta1 {
+                include!("prostgen/cosmos.base.tendermint.v1beta1.rs");
+            }
+        }
+
         pub mod v1beta1 {
             include!("prostgen/cosmos.base.v1beta1.rs");
         }

@@ -1,7 +1,18 @@
 use crate::app::modules::{Error as ModuleError, Module};
-use crate::app::store::{Height, Path, Store};
+use crate::app::store::{Height, Path, ProvableStore, Store};
+use crate::prostgen::ibc::core::client::v1::{
+    query_server::Query as ClientQuery, ConsensusStateWithHeight, Height as RawHeight,
+    QueryClientParamsRequest, QueryClientParamsResponse, QueryClientStateRequest,
+    QueryClientStateResponse, QueryClientStatesRequest, QueryClientStatesResponse,
+    QueryClientStatusRequest, QueryClientStatusResponse, QueryConsensusStateRequest,
+    QueryConsensusStateResponse, QueryConsensusStatesRequest, QueryConsensusStatesResponse,
+    QueryUpgradedClientStateRequest, QueryUpgradedClientStateResponse,
+    QueryUpgradedConsensusStateRequest, QueryUpgradedConsensusStateResponse,
+};
 
 use std::convert::TryInto;
+use std::num::ParseIntError;
+use std::str::FromStr;
 
 use ibc::application::ics20_fungible_token_transfer::context::Ics20Context;
 use ibc::events::IbcEvent;
@@ -10,6 +21,7 @@ use ibc::ics02_client::client_state::AnyClientState;
 use ibc::ics02_client::client_type::ClientType;
 use ibc::ics02_client::context::{ClientKeeper, ClientReader};
 use ibc::ics02_client::error::Error as ClientError;
+use ibc::ics02_client::height::Height as IcsHeight;
 use ibc::ics03_connection::connection::ConnectionEnd;
 use ibc::ics03_connection::context::{ConnectionKeeper, ConnectionReader};
 use ibc::ics03_connection::error::Error as ConnectionError;
@@ -28,6 +40,7 @@ use ibc::Height as IbcHeight;
 use prost::Message;
 use prost_types::Any;
 use tendermint_proto::abci::{Event, EventAttribute};
+use tonic::{Request, Response, Status};
 
 pub(crate) type Error = ibc::ics26_routing::error::Error;
 
@@ -392,6 +405,7 @@ impl<S: Store> Module for Ibc<S> {
         let path: Path = String::from_utf8(data.to_vec())
             .map_err(|_| Error::ics02_client(ClientError::implementation_specific()))?
             .try_into()?;
+
         match self.store.get(height, path) {
             None => Err(Error::ics02_client(ClientError::implementation_specific()).into()),
             Some(client_state) => Ok(client_state),
@@ -421,6 +435,130 @@ impl From<IbcEventWrapper> for Event {
                 }],
             },
             _ => todo!(),
+        }
+    }
+}
+
+#[tonic::async_trait]
+impl<S: ProvableStore + 'static> ClientQuery for Ibc<S> {
+    async fn client_state(
+        &self,
+        _request: Request<QueryClientStateRequest>,
+    ) -> Result<Response<QueryClientStateResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn client_states(
+        &self,
+        _request: Request<QueryClientStatesRequest>,
+    ) -> Result<Response<QueryClientStatesResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn consensus_state(
+        &self,
+        _request: Request<QueryConsensusStateRequest>,
+    ) -> Result<Response<QueryConsensusStateResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn consensus_states(
+        &self,
+        request: Request<QueryConsensusStatesRequest>,
+    ) -> Result<Response<QueryConsensusStatesResponse>, Status> {
+        let path: Path = format!("clients/{}/consensusStates", request.get_ref().client_id)
+            .try_into()
+            .map_err(|e| Status::invalid_argument(format!("{}", e)))?;
+
+        let keys = self.store.get_keys(path);
+        let consensus_states = keys
+            .into_iter()
+            .map(|path| {
+                let height = path
+                    .to_string()
+                    .split('/')
+                    .last()
+                    .expect("invalid path") // safety - prefixed paths will have atleast one '/'
+                    .parse::<IbcHeightExt>()
+                    .expect("couldn't parse Path as Height"); // safety - data on the store is assumed to be well-formed
+
+                // safety - data on the store is assumed to be well-formed
+                let consensus_state = self.store.get(Height::Pending, path).unwrap();
+                let consensus_state = Any::decode(consensus_state.as_slice())
+                    .expect("failed to decode consensus state");
+
+                ConsensusStateWithHeight {
+                    height: Some(height.into()),
+                    consensus_state: Some(consensus_state),
+                }
+            })
+            .collect();
+
+        Ok(Response::new(QueryConsensusStatesResponse {
+            consensus_states,
+            pagination: None,
+        }))
+    }
+
+    async fn client_status(
+        &self,
+        _request: Request<QueryClientStatusRequest>,
+    ) -> Result<Response<QueryClientStatusResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn client_params(
+        &self,
+        _request: Request<QueryClientParamsRequest>,
+    ) -> Result<Response<QueryClientParamsResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn upgraded_client_state(
+        &self,
+        _request: Request<QueryUpgradedClientStateRequest>,
+    ) -> Result<Response<QueryUpgradedClientStateResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn upgraded_consensus_state(
+        &self,
+        _request: Request<QueryUpgradedConsensusStateRequest>,
+    ) -> Result<Response<QueryUpgradedConsensusStateResponse>, Status> {
+        unimplemented!()
+    }
+}
+
+struct IbcHeightExt(IcsHeight);
+
+#[derive(Debug)]
+enum IbcHeightParseError {
+    Malformed,
+    InvalidNumber(ParseIntError),
+    InvalidHeight(ParseIntError),
+}
+
+impl FromStr for IbcHeightExt {
+    type Err = IbcHeightParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let h: Vec<&str> = s.split('-').collect();
+        if h.len() != 2 {
+            Err(IbcHeightParseError::Malformed)
+        } else {
+            Ok(Self(IcsHeight {
+                revision_number: h[0].parse().map_err(IbcHeightParseError::InvalidNumber)?,
+                revision_height: h[1].parse().map_err(IbcHeightParseError::InvalidHeight)?,
+            }))
+        }
+    }
+}
+
+impl From<IbcHeightExt> for RawHeight {
+    fn from(ics_height: IbcHeightExt) -> Self {
+        RawHeight {
+            revision_number: ics_height.0.revision_number,
+            revision_height: ics_height.0.revision_height,
         }
     }
 }

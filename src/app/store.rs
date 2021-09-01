@@ -18,7 +18,7 @@ use ics23::CommitmentProof;
 pub struct Path(String);
 
 impl Path {
-    // TODO: clarify
+    // TODO(hu55a1n1): clarify
     fn is_valid(s: impl AsRef<str>) -> bool {
         s.as_ref().chars().all(|c| {
             c.is_ascii_alphanumeric()

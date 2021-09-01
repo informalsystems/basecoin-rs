@@ -3,9 +3,11 @@
 mod app;
 mod prostgen;
 
-use crate::app::store::InMemoryStore;
+use crate::app::modules::{prefix, Ibc};
+use crate::app::store::{InMemoryStore, SharedSubStore};
 use crate::app::BaseCoinApp;
 use crate::prostgen::cosmos::auth::v1beta1::query_server::QueryServer as AuthQueryServer;
+use crate::prostgen::cosmos::base::tendermint::v1beta1::service_server::ServiceServer as HealthServer;
 use crate::prostgen::cosmos::staking::v1beta1::query_server::QueryServer as StakingQueryServer;
 use crate::prostgen::ibc::core::client::v1::query_server::QueryServer as ClientQueryServer;
 
@@ -46,10 +48,15 @@ struct Opt {
 async fn grpc_serve(app: BaseCoinApp<InMemoryStore>, host: String, port: u16) {
     let addr = format!("{}:{}", host, port).parse().unwrap();
 
+    // TODO(hu55a1n1): implement these services for `auth` and `staking` modules
     Server::builder()
+        .add_service(HealthServer::new(app.clone()))
         .add_service(AuthQueryServer::new(app.clone()))
         .add_service(StakingQueryServer::new(app.clone()))
-        .add_service(ClientQueryServer::new(app))
+        .add_service(ClientQueryServer::new(Ibc {
+            store: SharedSubStore::new(app.state.clone(), prefix::Ibc),
+            client_counter: 0,
+        }))
         .serve(addr)
         .await
         .unwrap()

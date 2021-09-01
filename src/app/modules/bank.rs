@@ -103,6 +103,7 @@ impl<S: Store> Module for Bank<S> {
             .map(|db| serde_json::from_str(&String::from_utf8(db).unwrap()).unwrap()) // safety - data on the store is assumed to be well-formed
             .unwrap_or_else(Default::default);
 
+        // TODO(hu55a1n1): extract account related code into the `auth` module
         for (amount, denom) in amounts {
             let mut src_balance = match src_balances.0.get(&denom) {
                 Some(b) if *b >= amount => *b,
@@ -156,7 +157,7 @@ impl<S: Store> Module for Bank<S> {
 
     fn query(&self, data: &[u8], _path: &Path, height: Height) -> Result<Vec<u8>, ModuleError> {
         let account_id = match String::from_utf8(data.to_vec()) {
-            Ok(s) if s.starts_with("cosmos") => s, // TODO(hu55a1n1) - check if valid identifier
+            Ok(s) if s.starts_with("cosmos") => s, // TODO(hu55a1n1): check if valid identifier
             _ => return Err(ModuleError::not_handled()),
         };
 
