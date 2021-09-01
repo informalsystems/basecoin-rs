@@ -4,6 +4,7 @@ use crate::app::store::{Height, Path, ProvableStore, Store};
 use std::convert::TryInto;
 
 use ics23::CommitmentProof;
+use std::collections::VecDeque;
 use tendermint::hash::Algorithm;
 use tendermint::Hash;
 
@@ -14,7 +15,7 @@ type State = AvlTree<Path, Vec<u8>>;
 pub(crate) struct InMemoryStore {
     store: Vec<State>,
     pending: State,
-    op_log: Vec<(Path, Vec<u8>)>,
+    op_log: VecDeque<(Path, Vec<u8>)>,
 }
 
 impl Default for InMemoryStore {
@@ -23,7 +24,7 @@ impl Default for InMemoryStore {
         InMemoryStore {
             store: vec![],
             pending: AvlTree::new(),
-            op_log: vec![],
+            op_log: Default::default(),
         }
     }
 }
@@ -33,7 +34,7 @@ impl Store for InMemoryStore {
 
     fn set(&mut self, path: Path, value: Vec<u8>) -> Result<(), Self::Error> {
         tracing::trace!("set at path = {}", path);
-        self.op_log.push((path, value));
+        self.op_log.push_back((path, value));
         Ok(())
     }
 
@@ -67,14 +68,14 @@ impl Store for InMemoryStore {
     }
 
     fn commit(&mut self) -> Result<Vec<u8>, Self::Error> {
-        tracing::trace!("committing height: {}", self.store.len());
+        tracing::trace!("committing height: {}", self.store.len() + 1);
         self.apply()?;
         self.store.push(self.pending.clone());
         Ok(self.root_hash())
     }
 
     fn apply(&mut self) -> Result<(), Self::Error> {
-        while let Some(op) = self.op_log.pop() {
+        while let Some(op) = self.op_log.pop_back() {
             self.pending.insert(op.0, op.1);
         }
         Ok(())
