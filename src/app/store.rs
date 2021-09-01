@@ -127,7 +127,7 @@ pub trait Store: Send + Sync + Clone {
     fn current_height(&self) -> RawHeight;
 
     /// Return all keys that start with specified prefix
-    fn get_keys(&self, key_prefix: Path) -> Vec<Path>;
+    fn get_keys(&self, key_prefix: Path) -> Vec<Path>; // TODO(hu55a1n1): implement support for all heights
 }
 
 /// ProvableStore trait

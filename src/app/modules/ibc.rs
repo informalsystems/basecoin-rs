@@ -402,6 +402,7 @@ impl<S: Store> Module for Ibc<S> {
             return Err(ModuleError::not_handled());
         }
 
+        // TODO(hu55a1n1): validate query
         let path: Path = String::from_utf8(data.to_vec())
             .map_err(|_| Error::ics02_client(ClientError::implementation_specific()))?
             .try_into()?;
@@ -496,7 +497,7 @@ impl<S: ProvableStore + 'static> ClientQuery for Ibc<S> {
 
         Ok(Response::new(QueryConsensusStatesResponse {
             consensus_states,
-            pagination: None,
+            pagination: None, // TODO(hu55a1n1): add pagination support
         }))
     }
 
