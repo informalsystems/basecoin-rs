@@ -56,8 +56,6 @@ pub struct Ibc<S> {
     pub client_counter: u64,
 }
 
-impl<S: Store> Ibc<S> {}
-
 impl<S: Store> ClientReader for Ibc<S> {
     fn client_type(&self, client_id: &ClientId) -> Option<ClientType> {
         let path = format!("clients/{}/clientType", client_id)

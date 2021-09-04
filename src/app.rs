@@ -18,7 +18,7 @@ use crate::prostgen::cosmos::base::tendermint::v1beta1::{
     GetLatestBlockRequest, GetLatestBlockResponse, GetLatestValidatorSetRequest,
     GetLatestValidatorSetResponse, GetNodeInfoRequest, GetNodeInfoResponse, GetSyncingRequest,
     GetSyncingResponse, GetValidatorSetByHeightRequest, GetValidatorSetByHeightResponse,
-    VersionInfo,
+    Module as VersionInfoModule, VersionInfo,
 };
 use crate::prostgen::cosmos::staking::v1beta1::{
     query_server::Query as StakingQuery, Params, QueryDelegationRequest, QueryDelegationResponse,
@@ -209,6 +209,7 @@ impl<S: ProvableStore + 'static> HealthService for BaseCoinApp<S> {
         &self,
         _request: Request<GetNodeInfoRequest>,
     ) -> Result<Response<GetNodeInfoResponse>, Status> {
+        // TODO(hu55a1n1): generate below info using build script
         Ok(Response::new(GetNodeInfoResponse {
             default_node_info: Some(DefaultNodeInfo {
                 protocol_version: Some(ProtocolVersion {
@@ -225,13 +226,17 @@ impl<S: ProvableStore + 'static> HealthService for BaseCoinApp<S> {
                 other: None,
             }),
             application_version: Some(VersionInfo {
-                name: "".to_string(),
-                app_name: "".to_string(),
-                version: "".to_string(),
-                git_commit: "".to_string(),
+                name: "basecoin-rs".to_string(),
+                app_name: "basecoind".to_string(),
+                version: "0.1.0".to_string(),
+                git_commit: "209afef7e99ebcb814b25b6738d033aa5e1a932c".to_string(),
                 build_tags: "".to_string(),
                 go_version: "".to_string(),
-                build_deps: vec![],
+                build_deps: vec![VersionInfoModule {
+                    path: "github.com/cosmos/cosmos-sdk".to_string(),
+                    version: "v0.43.0".to_string(),
+                    sum: "h1:ps1QWfvaX6VLNcykA7wzfii/5IwBfYgTIik6NOVDq/c=".to_string(),
+                }],
                 cosmos_sdk_version: "".to_string(),
             }),
         }))
