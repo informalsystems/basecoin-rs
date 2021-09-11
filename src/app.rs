@@ -38,13 +38,13 @@ use crate::prostgen::cosmos::staking::v1beta1::{
 use std::convert::{Into, TryInto};
 use std::sync::{Arc, RwLock};
 
-use cosmos_sdk::Tx;
+use cosmos_sdk::{tx::Msg, Tx};
 use prost::Message;
 use prost_types::{Any, Duration};
 use serde_json::Value;
 use tendermint_abci::Application;
 use tendermint_proto::abci::{
-    RequestDeliverTx, RequestInfo, RequestInitChain, RequestQuery, ResponseCommit,
+    Event, RequestDeliverTx, RequestInfo, RequestInitChain, RequestQuery, ResponseCommit,
     ResponseDeliverTx, ResponseInfo, ResponseInitChain, ResponseQuery,
 };
 use tendermint_proto::p2p::{DefaultNodeInfo, ProtocolVersion};
@@ -92,6 +92,32 @@ impl<S: Default + ProvableStore + 'static> BaseCoinApp<S> {
         Self {
             state,
             modules: Arc::new(RwLock::new(modules)),
+        }
+    }
+}
+
+impl<S> BaseCoinApp<S> {
+    fn deliver_msg(&self, message: Msg) -> Result<Vec<Event>, Error> {
+        let mut modules = self.modules.write().unwrap();
+        let mut handled = false;
+        let mut events = vec![];
+
+        for m in modules.iter_mut() {
+            match m.deliver(message.clone().into()) {
+                Ok(mut msg_events) => {
+                    events.append(&mut msg_events);
+                    handled = true;
+                    break;
+                }
+                Err(Error(ErrorDetail::NotHandled(_), _)) => continue,
+                Err(e) => return Err(e),
+            };
+        }
+
+        if handled {
+            Ok(events)
+        } else {
+            Err(Error::not_handled())
         }
     }
 }
@@ -173,23 +199,36 @@ impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
             "failed to decode incoming tx bytes"
         );
 
-        let mut modules = self.modules.write().unwrap();
+        let mut events = vec![];
+        let mut handled = false;
         for message in tx.body.messages {
-            for m in modules.iter_mut() {
-                match m.deliver(message.clone().into()) {
-                    Ok(events) => {
-                        return ResponseDeliverTx {
-                            log: "success".to_owned(),
-                            events,
-                            ..ResponseDeliverTx::default()
-                        };
-                    }
-                    Err(e) if e.detail() == Error::not_handled().detail() => continue,
-                    Err(e) => return ResponseDeliverTx::from_error(2, format!("{:?}", e)),
-                };
+            match self.deliver_msg(message.clone()) {
+                Ok(mut msg_events) => {
+                    events.append(&mut msg_events);
+                    handled = true;
+                }
+                Err(e) => {
+                    let mut state = self.state.write().unwrap();
+                    state.reset();
+                    return ResponseDeliverTx::from_error(
+                        2,
+                        format!("deliver failed with error: {}", e),
+                    );
+                }
             }
         }
-        ResponseDeliverTx::from_error(2, "Tx msg not handled")
+
+        if handled {
+            ResponseDeliverTx {
+                log: "success".to_owned(),
+                events,
+                ..ResponseDeliverTx::default()
+            }
+        } else {
+            let mut state = self.state.write().unwrap();
+            state.reset();
+            ResponseDeliverTx::from_error(2, "Tx msg not handled")
+        }
     }
 
     fn commit(&self) -> ResponseCommit {
