@@ -150,7 +150,7 @@ pub(crate) struct SharedSubStore<S, P> {
 }
 
 impl<S, P> SharedSubStore<S, P> {
-    pub(crate) fn new(store: Arc<RwLock<S>>, path: P) -> Self {
+    pub(crate) fn new(store: SharedStore<S>, path: P) -> Self {
         Self {
             store,
             prefix: path,
