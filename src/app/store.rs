@@ -5,6 +5,7 @@ pub(crate) use memory::InMemoryStore;
 
 use crate::app::modules::{Error as ModuleError, Identifiable};
 
+use std::collections::VecDeque;
 use std::convert::{TryFrom, TryInto};
 use std::fmt::{Debug, Display, Formatter};
 use std::str::{from_utf8, Utf8Error};
@@ -12,6 +13,8 @@ use std::sync::{Arc, RwLock};
 
 use flex_error::{define_error, TraceError};
 use ics23::CommitmentProof;
+
+pub(crate) type SharedStore<S> = Arc<RwLock<S>>;
 
 /// A newtype representing a bytestring used as the key for an object stored in state.
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Clone)]
@@ -141,7 +144,7 @@ pub trait ProvableStore: Store {
 
 #[derive(Clone)]
 pub(crate) struct SharedSubStore<S, P> {
-    store: Arc<RwLock<S>>,
+    store: SharedStore<S>,
     prefix: P,
 }
 
@@ -204,6 +207,80 @@ where
     fn get_proof(&self, key: Path) -> Option<CommitmentProof> {
         let store = self.store.read().unwrap();
         store.get_proof(key)
+    }
+}
+
+#[derive(Clone)]
+pub(crate) struct WalStore<S> {
+    store: S,
+    op_log: VecDeque<(Path, Vec<u8>)>,
+}
+
+impl<S: Store> Store for WalStore<S> {
+    type Error = S::Error;
+
+    fn set(&mut self, path: Path, value: Vec<u8>) -> Result<(), Self::Error> {
+        self.op_log.push_back((path, value));
+        Ok(())
+    }
+
+    fn get(&self, height: Height, path: Path) -> Option<Vec<u8>> {
+        match height {
+            Height::Pending => self
+                .op_log
+                .iter()
+                .find(|op| op.0 == path)
+                .map(|op| op.1.clone())
+                .or_else(|| self.store.get(height, path)),
+            _ => self.store.get(height, path),
+        }
+    }
+
+    fn delete(&mut self, path: Path) {
+        self.store.delete(path)
+    }
+
+    fn commit(&mut self) -> Result<Vec<u8>, Self::Error> {
+        self.apply()?;
+        self.store.commit()
+    }
+
+    fn apply(&mut self) -> Result<(), Self::Error> {
+        while let Some(op) = self.op_log.pop_back() {
+            self.store.set(op.0, op.1)?;
+        }
+        Ok(())
+    }
+
+    fn reset(&mut self) {
+        self.op_log.clear()
+    }
+
+    fn current_height(&self) -> u64 {
+        self.store.current_height()
+    }
+
+    fn get_keys(&self, key_prefix: Path) -> Vec<Path> {
+        self.store.get_keys(key_prefix)
+    }
+}
+
+impl<S: ProvableStore> ProvableStore for WalStore<S> {
+    fn root_hash(&self) -> Vec<u8> {
+        self.store.root_hash()
+    }
+
+    fn get_proof(&self, key: Path) -> Option<CommitmentProof> {
+        self.store.get_proof(key)
+    }
+}
+
+impl<S: Default> Default for WalStore<S> {
+    fn default() -> Self {
+        Self {
+            store: S::default(),
+            op_log: Default::default(),
+        }
     }
 }
 

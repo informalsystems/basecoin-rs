@@ -4,7 +4,7 @@ mod app;
 mod prostgen;
 
 use crate::app::modules::{prefix, Ibc};
-use crate::app::store::{InMemoryStore, SharedSubStore};
+use crate::app::store::{InMemoryStore, ProvableStore, SharedSubStore, WalStore};
 use crate::app::BaseCoinApp;
 use crate::prostgen::cosmos::auth::v1beta1::query_server::QueryServer as AuthQueryServer;
 use crate::prostgen::cosmos::base::tendermint::v1beta1::service_server::ServiceServer as HealthServer;
@@ -45,7 +45,7 @@ struct Opt {
 }
 
 #[tokio::main]
-async fn grpc_serve(app: BaseCoinApp<InMemoryStore>, host: String, port: u16) {
+async fn grpc_serve<S: ProvableStore + 'static>(app: BaseCoinApp<S>, host: String, port: u16) {
     let addr = format!("{}:{}", host, port).parse().unwrap();
 
     // TODO(hu55a1n1): implement these services for `auth` and `staking` modules
@@ -73,7 +73,7 @@ fn main() {
     };
     tracing_subscriber::fmt().with_max_level(log_level).init();
 
-    let app = BaseCoinApp::<InMemoryStore>::new();
+    let app = BaseCoinApp::<WalStore<InMemoryStore>>::new();
 
     let app_copy = app.clone();
     let grpc_port = opt.grpc_port;

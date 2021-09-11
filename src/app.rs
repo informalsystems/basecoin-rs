@@ -7,7 +7,7 @@ pub(crate) mod store;
 
 use crate::app::modules::{prefix, Bank, Error, ErrorDetail, Ibc, Module};
 use crate::app::response::ResponseFromErrorExt;
-use crate::app::store::{Height, Path, ProvableStore, SharedSubStore};
+use crate::app::store::{Height, Path, ProvableStore, SharedStore, SharedSubStore};
 use crate::prostgen::cosmos::auth::v1beta1::{
     query_server::Query as AuthQuery, BaseAccount, QueryAccountRequest, QueryAccountResponse,
     QueryAccountsRequest, QueryAccountsResponse, QueryParamsRequest as AuthQueryParamsRequest,
@@ -72,7 +72,7 @@ macro_rules! attempt {
 /// Can be safely cloned and sent across threads, but not shared.
 #[derive(Clone)]
 pub(crate) struct BaseCoinApp<S> {
-    pub(crate) state: Arc<RwLock<S>>,
+    pub(crate) state: SharedStore<S>,
     modules: Arc<RwLock<Vec<Box<dyn Module + Send + Sync>>>>,
 }
 
