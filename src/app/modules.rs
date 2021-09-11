@@ -6,9 +6,10 @@ pub(crate) use self::ibc::Ibc;
 
 use crate::app::store::{self, Height, Path};
 
+use std::fmt::Display;
+
 use flex_error::{define_error, TraceError};
 use prost_types::Any;
-use std::fmt::Display;
 use tendermint_proto::abci::Event;
 
 define_error! {

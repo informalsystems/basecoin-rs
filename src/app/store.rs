@@ -22,6 +22,7 @@ pub struct Path(String);
 
 impl Path {
     // TODO(hu55a1n1): clarify
+    #[inline]
     fn is_valid(s: impl AsRef<str>) -> bool {
         s.as_ref().chars().all(|c| {
             c.is_ascii_alphanumeric()
@@ -219,11 +220,13 @@ pub(crate) struct WalStore<S> {
 impl<S: Store> Store for WalStore<S> {
     type Error = S::Error;
 
+    #[inline]
     fn set(&mut self, path: Path, value: Vec<u8>) -> Result<(), Self::Error> {
         self.op_log.push_back((path, value));
         Ok(())
     }
 
+    #[inline]
     fn get(&self, height: Height, path: Path) -> Option<Vec<u8>> {
         match height {
             Height::Pending => self
@@ -236,15 +239,18 @@ impl<S: Store> Store for WalStore<S> {
         }
     }
 
+    #[inline]
     fn delete(&mut self, path: Path) {
         self.store.delete(path)
     }
 
+    #[inline]
     fn commit(&mut self) -> Result<Vec<u8>, Self::Error> {
         self.apply()?;
         self.store.commit()
     }
 
+    #[inline]
     fn apply(&mut self) -> Result<(), Self::Error> {
         while let Some(op) = self.op_log.pop_back() {
             self.store.set(op.0, op.1)?;
@@ -252,24 +258,29 @@ impl<S: Store> Store for WalStore<S> {
         Ok(())
     }
 
+    #[inline]
     fn reset(&mut self) {
         self.op_log.clear()
     }
 
+    #[inline]
     fn current_height(&self) -> u64 {
         self.store.current_height()
     }
 
+    #[inline]
     fn get_keys(&self, key_prefix: Path) -> Vec<Path> {
         self.store.get_keys(key_prefix)
     }
 }
 
 impl<S: ProvableStore> ProvableStore for WalStore<S> {
+    #[inline]
     fn root_hash(&self) -> Vec<u8> {
         self.store.root_hash()
     }
 
+    #[inline]
     fn get_proof(&self, key: Path) -> Option<CommitmentProof> {
         self.store.get_proof(key)
     }
@@ -289,6 +300,7 @@ pub(crate) trait PrefixedPath: Sized {
 }
 
 impl<T: Identifiable> PrefixedPath for T {
+    #[inline]
     fn prefixed_path(&self, s: Path) -> Path {
         if !s.0.starts_with(&format!("{}/", self.identifier())) {
             format!("{}/{}", self.identifier(), s).try_into().unwrap() // safety - path created by concatenation of two paths must be valid
