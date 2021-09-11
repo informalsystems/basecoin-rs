@@ -142,12 +142,15 @@ pub trait ProvableStore: Store {
 #[derive(Clone)]
 pub(crate) struct SharedSubStore<S, P> {
     store: Arc<RwLock<S>>,
-    path: P,
+    prefix: P,
 }
 
 impl<S, P> SharedSubStore<S, P> {
     pub(crate) fn new(store: Arc<RwLock<S>>, path: P) -> Self {
-        Self { store, path }
+        Self {
+            store,
+            prefix: path,
+        }
     }
 }
 
@@ -160,17 +163,17 @@ where
 
     fn set(&mut self, path: Path, value: Vec<u8>) -> Result<(), Self::Error> {
         let mut store = self.store.write().unwrap();
-        store.set(self.path.prefixed_path(path), value)
+        store.set(self.prefix.prefixed_path(path), value)
     }
 
     fn get(&self, height: Height, path: Path) -> Option<Vec<u8>> {
         let store = self.store.read().unwrap();
-        store.get(height, self.path.prefixed_path(path))
+        store.get(height, self.prefix.prefixed_path(path))
     }
 
     fn delete(&mut self, path: Path) {
         let mut store = self.store.write().unwrap();
-        store.delete(self.path.prefixed_path(path))
+        store.delete(self.prefix.prefixed_path(path))
     }
 
     fn commit(&mut self) -> Result<Vec<u8>, Self::Error> {
@@ -184,7 +187,7 @@ where
 
     fn get_keys(&self, key_prefix: Path) -> Vec<Path> {
         let store = self.store.read().unwrap();
-        store.get_keys(self.path.prefixed_path(key_prefix))
+        store.get_keys(self.prefix.prefixed_path(key_prefix))
     }
 }
 
