@@ -171,11 +171,15 @@ impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
     }
 
     fn query(&self, request: RequestQuery) -> ResponseQuery {
-        let path: Path = attempt!(request.path.try_into(), 1, "invalid path");
+        let path: Option<Path> = request.path.try_into().ok();
 
         let modules = self.modules.read().unwrap();
         for m in modules.iter() {
-            match m.query(&request.data, &path, Height::from(request.height as u64)) {
+            match m.query(
+                &request.data,
+                path.as_ref(),
+                Height::from(request.height as u64),
+            ) {
                 Ok(result) => {
                     let state = self.store.read().unwrap();
                     return ResponseQuery {

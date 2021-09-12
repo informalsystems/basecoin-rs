@@ -401,7 +401,17 @@ impl<S: Store> Module for Ibc<S> {
         }
     }
 
-    fn query(&self, data: &[u8], path: &Path, height: Height) -> Result<Vec<u8>, ModuleError> {
+    fn query(
+        &self,
+        data: &[u8],
+        path: Option<&Path>,
+        height: Height,
+    ) -> Result<Vec<u8>, ModuleError> {
+        if path.is_none() {
+            return Err(ModuleError::not_handled());
+        }
+
+        let path = path.unwrap();
         if path.to_string() != "store/ibc/key" {
             return Err(ModuleError::not_handled());
         }

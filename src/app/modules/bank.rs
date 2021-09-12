@@ -158,7 +158,12 @@ impl<S: Store> Module for Bank<S> {
         }
     }
 
-    fn query(&self, data: &[u8], _path: &Path, height: Height) -> Result<Vec<u8>, ModuleError> {
+    fn query(
+        &self,
+        data: &[u8],
+        _path: Option<&Path>,
+        height: Height,
+    ) -> Result<Vec<u8>, ModuleError> {
         let account_id = match String::from_utf8(data.to_vec()) {
             Ok(s) if s.starts_with("cosmos") => s, // TODO(hu55a1n1): check if valid identifier
             _ => return Err(ModuleError::not_handled()),

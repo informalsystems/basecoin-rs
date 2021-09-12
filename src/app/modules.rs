@@ -52,7 +52,7 @@ pub(crate) trait Module {
     fn init(&mut self, _app_state: serde_json::Value) {}
 
     /// Similar to [ABCI Query method](https://docs.tendermint.com/master/spec/abci/abci.html#query)
-    fn query(&self, _data: &[u8], _path: &Path, _height: Height) -> Result<Vec<u8>, Error> {
+    fn query(&self, _data: &[u8], _path: Option<&Path>, _height: Height) -> Result<Vec<u8>, Error> {
         Err(Error::not_handled())
     }
 }
