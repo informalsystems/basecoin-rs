@@ -62,7 +62,7 @@ impl<S: Store> ClientReader for Ibc<S> {
             .try_into()
             .unwrap(); // safety - path must be valid since ClientId is a valid Identifier
         self.store
-            .get(Height::Pending, path)
+            .get(Height::Pending, &path)
             .map(|v| serde_json::from_str(&String::from_utf8(v).unwrap()).unwrap())
         // safety - data on the store is assumed to be well-formed
     }
@@ -71,7 +71,7 @@ impl<S: Store> ClientReader for Ibc<S> {
         let path = format!("clients/{}/clientState", client_id)
             .try_into()
             .unwrap(); // safety - path must be valid since ClientId is a valid Identifier
-        let value = self.store.get(Height::Pending, path)?;
+        let value = self.store.get(Height::Pending, &path)?;
         let client_state = Any::decode(value.as_slice());
         client_state.ok().map(|v| v.try_into().unwrap()) // safety - data on the store is assumed to be well-formed
     }
@@ -84,7 +84,7 @@ impl<S: Store> ClientReader for Ibc<S> {
         let path = format!("clients/{}/consensusStates/{}", client_id, height)
             .try_into()
             .unwrap(); // safety - path must be valid since ClientId and height are valid Identifiers
-        let value = self.store.get(Height::Pending, path)?;
+        let value = self.store.get(Height::Pending, &path)?;
         let consensus_state = Any::decode(value.as_slice());
         consensus_state.ok().map(|v| v.try_into().unwrap()) // safety - data on the store is assumed to be well-formed
     }
@@ -401,11 +401,11 @@ impl<S: Store> Module for Ibc<S> {
         }
 
         // TODO(hu55a1n1): validate query
-        let path: Path = String::from_utf8(data.to_vec())
+        let path = String::from_utf8(data.to_vec())
             .map_err(|_| Error::ics02_client(ClientError::implementation_specific()))?
             .try_into()?;
 
-        match self.store.get(height, path) {
+        match self.store.get(height, &path) {
             None => Err(Error::ics02_client(ClientError::implementation_specific()).into()),
             Some(client_state) => Ok(client_state),
         }
@@ -465,11 +465,11 @@ impl<S: ProvableStore + 'static> ClientQuery for Ibc<S> {
         &self,
         request: Request<QueryConsensusStatesRequest>,
     ) -> Result<Response<QueryConsensusStatesResponse>, Status> {
-        let path: Path = format!("clients/{}/consensusStates", request.get_ref().client_id)
+        let path = format!("clients/{}/consensusStates", request.get_ref().client_id)
             .try_into()
             .map_err(|e| Status::invalid_argument(format!("{}", e)))?;
 
-        let keys = self.store.get_keys(path);
+        let keys = self.store.get_keys(&path);
         let consensus_states = keys
             .into_iter()
             .map(|path| {
@@ -482,7 +482,7 @@ impl<S: ProvableStore + 'static> ClientQuery for Ibc<S> {
                     .expect("couldn't parse Path as Height"); // safety - data on the store is assumed to be well-formed
 
                 // safety - data on the store is assumed to be well-formed
-                let consensus_state = self.store.get(Height::Pending, path).unwrap();
+                let consensus_state = self.store.get(Height::Pending, &path).unwrap();
                 let consensus_state = Any::decode(consensus_state.as_slice())
                     .expect("failed to decode consensus state");
 

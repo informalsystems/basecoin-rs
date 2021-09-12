@@ -59,7 +59,7 @@ impl TryFrom<String> for Identifier {
 pub struct Path(String);
 
 impl Path {
-    fn append(mut self, path: Path) -> Self {
+    fn append(mut self, path: &Path) -> Self {
         self.0.push('/');
         self.0.push_str(&path.0);
         self
@@ -151,10 +151,10 @@ pub trait Store: Send + Sync + Clone {
     fn set(&mut self, path: Path, value: Vec<u8>) -> Result<(), Self::Error>;
 
     /// Get associated `value` for `path` at specified `height`
-    fn get(&self, height: Height, path: Path) -> Option<Vec<u8>>;
+    fn get(&self, height: Height, path: &Path) -> Option<Vec<u8>>;
 
     /// Delete specified `path`
-    fn delete(&mut self, path: Path);
+    fn delete(&mut self, path: &Path);
 
     /// Commit `Pending` block to canonical chain and create new `Pending`
     fn commit(&mut self) -> Result<Vec<u8>, Self::Error>;
@@ -176,7 +176,7 @@ pub trait Store: Send + Sync + Clone {
     fn current_height(&self) -> RawHeight;
 
     /// Return all keys that start with specified prefix
-    fn get_keys(&self, key_prefix: Path) -> Vec<Path>; // TODO(hu55a1n1): implement support for all heights
+    fn get_keys(&self, key_prefix: &Path) -> Vec<Path>; // TODO(hu55a1n1): implement support for all heights
 }
 
 /// ProvableStore trait
@@ -185,7 +185,7 @@ pub trait ProvableStore: Store {
     fn root_hash(&self) -> Vec<u8>;
 
     /// Return proof of existence for key
-    fn get_proof(&self, key: Path) -> Option<ics23::CommitmentProof>;
+    fn get_proof(&self, key: &Path) -> Option<ics23::CommitmentProof>;
 }
 
 #[derive(Clone)]
@@ -212,17 +212,17 @@ where
 
     fn set(&mut self, path: Path, value: Vec<u8>) -> Result<(), Self::Error> {
         let mut store = self.store.write().unwrap();
-        store.set(self.prefix.prefixed_path(path), value)
+        store.set(self.prefix.prefixed_path(&path), value)
     }
 
-    fn get(&self, height: Height, path: Path) -> Option<Vec<u8>> {
+    fn get(&self, height: Height, path: &Path) -> Option<Vec<u8>> {
         let store = self.store.read().unwrap();
-        store.get(height, self.prefix.prefixed_path(path))
+        store.get(height, &self.prefix.prefixed_path(path))
     }
 
-    fn delete(&mut self, path: Path) {
+    fn delete(&mut self, path: &Path) {
         let mut store = self.store.write().unwrap();
-        store.delete(self.prefix.prefixed_path(path))
+        store.delete(&self.prefix.prefixed_path(path))
     }
 
     fn commit(&mut self) -> Result<Vec<u8>, Self::Error> {
@@ -234,9 +234,11 @@ where
         store.current_height()
     }
 
-    fn get_keys(&self, key_prefix: Path) -> Vec<Path> {
-        let store = self.store.read().unwrap();
-        store.get_keys(self.prefix.prefixed_path(key_prefix))
+    fn get_keys(&self, key_prefix: &Path) -> Vec<Path> {
+        self.store
+            .read()
+            .unwrap()
+            .get_keys(&self.prefix.prefixed_path(key_prefix))
     }
 }
 
@@ -250,7 +252,7 @@ where
         store.root_hash()
     }
 
-    fn get_proof(&self, key: Path) -> Option<CommitmentProof> {
+    fn get_proof(&self, key: &Path) -> Option<CommitmentProof> {
         let store = self.store.read().unwrap();
         store.get_proof(key)
     }
@@ -272,12 +274,12 @@ impl<S: Store> Store for WalStore<S> {
     }
 
     #[inline]
-    fn get(&self, height: Height, path: Path) -> Option<Vec<u8>> {
+    fn get(&self, height: Height, path: &Path) -> Option<Vec<u8>> {
         match height {
             Height::Pending => self
                 .op_log
                 .iter()
-                .find(|op| op.0 == path)
+                .find(|op| &op.0 == path)
                 .map(|op| op.1.clone())
                 .or_else(|| self.store.get(height, path)),
             _ => self.store.get(height, path),
@@ -285,7 +287,7 @@ impl<S: Store> Store for WalStore<S> {
     }
 
     #[inline]
-    fn delete(&mut self, path: Path) {
+    fn delete(&mut self, path: &Path) {
         self.store.delete(path)
     }
 
@@ -314,7 +316,7 @@ impl<S: Store> Store for WalStore<S> {
     }
 
     #[inline]
-    fn get_keys(&self, key_prefix: Path) -> Vec<Path> {
+    fn get_keys(&self, key_prefix: &Path) -> Vec<Path> {
         self.store.get_keys(key_prefix)
     }
 }
@@ -326,7 +328,7 @@ impl<S: ProvableStore> ProvableStore for WalStore<S> {
     }
 
     #[inline]
-    fn get_proof(&self, key: Path) -> Option<CommitmentProof> {
+    fn get_proof(&self, key: &Path) -> Option<CommitmentProof> {
         self.store.get_proof(key)
     }
 }
@@ -341,17 +343,17 @@ impl<S: Default> Default for WalStore<S> {
 }
 
 pub(crate) trait PrefixedPath: Sized {
-    fn prefixed_path(&self, s: Path) -> Path;
+    fn prefixed_path(&self, s: &Path) -> Path;
 }
 
 impl<T: Identifiable> PrefixedPath for T {
     #[inline]
-    fn prefixed_path(&self, s: Path) -> Path {
+    fn prefixed_path(&self, s: &Path) -> Path {
         let prefix = self.identifier().into();
         if !s.as_str().starts_with(&format!("{}/", prefix.as_str())) {
             Path::from(prefix).append(s)
         } else {
-            s
+            s.clone()
         }
     }
 }

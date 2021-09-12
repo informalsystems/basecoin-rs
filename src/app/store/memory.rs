@@ -33,19 +33,19 @@ impl Store for InMemoryStore {
         Ok(())
     }
 
-    fn get(&self, height: Height, path: Path) -> Option<Vec<u8>> {
+    fn get(&self, height: Height, path: &Path) -> Option<Vec<u8>> {
         tracing::trace!("get at path = {} at height = {:?}", path.as_str(), height);
         match height {
             // Request to access the pending blocks
-            Height::Pending => self.pending.get(&path).cloned(),
+            Height::Pending => self.pending.get(path).cloned(),
             // Access the last committed block
-            Height::Latest => self.store.last().and_then(|s| s.get(&path).cloned()),
+            Height::Latest => self.store.last().and_then(|s| s.get(path).cloned()),
             // Access one of the committed blocks
             Height::Stable(height) => {
                 let h = height as usize;
                 if h < self.store.len() {
                     let state = self.store.get(h).unwrap();
-                    state.get(&path).cloned()
+                    state.get(path).cloned()
                 } else {
                     None
                 }
@@ -53,7 +53,7 @@ impl Store for InMemoryStore {
         }
     }
 
-    fn delete(&mut self, _path: Path) {
+    fn delete(&mut self, _path: &Path) {
         todo!()
     }
 
@@ -67,7 +67,7 @@ impl Store for InMemoryStore {
         self.store.len() as u64
     }
 
-    fn get_keys(&self, key_prefix: Path) -> Vec<Path> {
+    fn get_keys(&self, key_prefix: &Path) -> Vec<Path> {
         let key_prefix = key_prefix.as_bytes();
         self.pending
             .get_keys()
@@ -86,7 +86,7 @@ impl ProvableStore for InMemoryStore {
             .to_vec()
     }
 
-    fn get_proof(&self, _key: Path) -> Option<CommitmentProof> {
+    fn get_proof(&self, _key: &Path) -> Option<CommitmentProof> {
         todo!()
     }
 }

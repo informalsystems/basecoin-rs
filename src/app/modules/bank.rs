@@ -89,7 +89,7 @@ impl<S: Store> Module for Bank<S> {
             .collect::<Result<Vec<(u64, String)>, Error>>()?;
 
         let src_path: Path = format!("accounts/{}", message.from_address).try_into()?;
-        let mut src_balances: Balances = match self.store.get(Height::Pending, src_path.clone()) {
+        let mut src_balances: Balances = match self.store.get(Height::Pending, &src_path) {
             Some(sb) => serde_json::from_str(&String::from_utf8(sb).unwrap()).unwrap(), // safety - data on the store is assumed to be well-formed
             None => {
                 return Err(Error::non_existent_account(message.from_address.to_string()).into())
@@ -99,7 +99,7 @@ impl<S: Store> Module for Bank<S> {
         let dst_path: Path = format!("accounts/{}", message.to_address).try_into()?;
         let mut dst_balances: Balances = self
             .store
-            .get(Height::Pending, dst_path.clone())
+            .get(Height::Pending, &dst_path)
             .map(|db| serde_json::from_str(&String::from_utf8(db).unwrap()).unwrap()) // safety - data on the store is assumed to be well-formed
             .unwrap_or_else(Default::default);
 
@@ -164,7 +164,7 @@ impl<S: Store> Module for Bank<S> {
         debug!("Attempting to get account ID: {}", account_id);
 
         let path = format!("accounts/{}", account_id).try_into().unwrap(); // safety - account_id is a valid identifier
-        match self.store.get(height, path) {
+        match self.store.get(height, &path) {
             None => Err(Error::non_existent_account(account_id).into()),
             Some(balance) => Ok(balance),
         }
