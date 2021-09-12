@@ -1,8 +1,6 @@
 use crate::app::store::avl::{AsBytes, AvlTree};
 use crate::app::store::{Height, Path, ProvableStore, Store};
 
-use std::convert::TryInto;
-
 use ics23::CommitmentProof;
 use tendermint::hash::Algorithm;
 use tendermint::Hash;
@@ -30,13 +28,13 @@ impl Store for InMemoryStore {
     type Error = ();
 
     fn set(&mut self, path: Path, value: Vec<u8>) -> Result<(), Self::Error> {
-        tracing::trace!("set at path = {}", path);
+        tracing::trace!("set at path = {}", path.as_str());
         self.pending.insert(path, value);
         Ok(())
     }
 
     fn get(&self, height: Height, path: Path) -> Option<Vec<u8>> {
-        tracing::trace!("get at path = {} at height = {:?}", &path, height);
+        tracing::trace!("get at path = {} at height = {:?}", path.as_str(), height);
         match height {
             // Request to access the pending blocks
             Height::Pending => self.pending.get(&path).cloned(),
@@ -70,15 +68,11 @@ impl Store for InMemoryStore {
     }
 
     fn get_keys(&self, key_prefix: Path) -> Vec<Path> {
-        let key_prefix = key_prefix.0.into_bytes();
+        let key_prefix = key_prefix.as_bytes();
         self.pending
             .get_keys()
             .into_iter()
-            .filter_map(|key| {
-                let key = key.0.as_bytes();
-                key.starts_with(&key_prefix)
-                    .then(|| key.try_into().unwrap())
-            })
+            .filter_map(|key| key.as_bytes().starts_with(key_prefix).then(|| key.clone()))
             .collect()
     }
 }
@@ -99,7 +93,7 @@ impl ProvableStore for InMemoryStore {
 
 impl AsBytes for Path {
     fn as_bytes(&self) -> &[u8] {
-        self.0.as_bytes()
+        self.as_str().as_bytes()
     }
 }
 

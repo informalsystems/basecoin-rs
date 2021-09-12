@@ -7,7 +7,8 @@ use crate::app::modules::{Error as ModuleError, Identifiable};
 
 use std::collections::VecDeque;
 use std::convert::{TryFrom, TryInto};
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::Debug;
+use std::ops::Deref;
 use std::str::{from_utf8, Utf8Error};
 use std::sync::{Arc, RwLock};
 
@@ -16,36 +17,74 @@ use ics23::CommitmentProof;
 
 pub(crate) type SharedStore<S> = Arc<RwLock<S>>;
 
-/// A newtype representing a bytestring used as the key for an object stored in state.
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Clone)]
-pub struct Path(String);
+pub struct Identifier(String);
 
-impl Path {
-    // TODO(hu55a1n1): clarify
+impl Identifier {
     #[inline]
     fn is_valid(s: impl AsRef<str>) -> bool {
-        s.as_ref().chars().all(|c| {
+        let s = s.as_ref();
+        if s.is_empty() {
+            return false;
+        }
+        s.chars().all(|c| {
             c.is_ascii_alphanumeric()
                 || matches!(c, '.' | '_' | '+' | '-' | '#' | '[' | ']' | '<' | '>' | '/')
         })
     }
 }
 
-impl Display for Path {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.0)
+impl Deref for Identifier {
+    type Target = String;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl TryFrom<String> for Identifier {
+    type Error = Error;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        if !Identifier::is_valid(&s) {
+            Err(Error::invalid_identifier(s))
+        } else {
+            Ok(Self(s))
+        }
+    }
+}
+
+/// A newtype representing a bytestring used as the key for an object stored in state.
+#[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Clone)]
+pub struct Path(String);
+
+impl Path {
+    fn append(mut self, path: Path) -> Self {
+        self.0.push('/');
+        self.0.push_str(&path.0);
+        self
+    }
+}
+
+impl Deref for Path {
+    type Target = String;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
 impl TryFrom<String> for Path {
     type Error = Error;
 
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        if Path::is_valid(&value) {
-            Ok(Path(value))
-        } else {
-            Err(Error::invalid_path(value))
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        // split will never return an empty iterator
+        for id in s.split('/') {
+            if !Identifier::is_valid(id) {
+                return Err(Error::invalid_identifier(id.to_owned()));
+            }
         }
+        Ok(Self(s))
     }
 }
 
@@ -58,12 +97,18 @@ impl TryFrom<&[u8]> for Path {
     }
 }
 
+impl From<Identifier> for Path {
+    fn from(id: Identifier) -> Self {
+        Self(id.0)
+    }
+}
+
 define_error! {
     #[derive(Eq, PartialEq)]
     Error {
-        InvalidPath
-            { path_str: String }
-            | e | { format!("'{}' is not a valid path", e.path_str) },
+        InvalidIdentifier
+            { identifier: String }
+            | e | { format!("'{}' is not a valid identifier", e.identifier) },
         MalformedPathString
             [ TraceError<Utf8Error> ]
             | _ | { "path isn't a valid string" },
@@ -302,8 +347,9 @@ pub(crate) trait PrefixedPath: Sized {
 impl<T: Identifiable> PrefixedPath for T {
     #[inline]
     fn prefixed_path(&self, s: Path) -> Path {
-        if !s.0.starts_with(&format!("{}/", self.identifier())) {
-            format!("{}/{}", self.identifier(), s).try_into().unwrap() // safety - path created by concatenation of two paths must be valid
+        let prefix = self.identifier().into();
+        if !s.as_str().starts_with(&format!("{}/", prefix.as_str())) {
+            Path::from(prefix).append(s)
         } else {
             s
         }

@@ -6,8 +6,6 @@ pub(crate) use self::ibc::Ibc;
 
 use crate::app::store::{self, Height, Path};
 
-use std::fmt::Display;
-
 use flex_error::{define_error, TraceError};
 use prost_types::Any;
 use tendermint_proto::abci::Event;
@@ -59,22 +57,24 @@ pub(crate) trait Module {
 }
 
 pub(crate) trait Identifiable {
-    type Identifier: Display;
+    type Identifier: Into<store::Identifier>;
 
     fn identifier(&self) -> Self::Identifier;
 }
 
 pub(crate) mod prefix {
     use super::Identifiable;
+    use crate::app::store;
+    use core::convert::TryInto;
 
     #[derive(Clone)]
     pub(crate) struct Bank;
 
     impl Identifiable for Bank {
-        type Identifier = &'static str;
+        type Identifier = store::Identifier;
 
-        fn identifier(&self) -> &'static str {
-            "bank"
+        fn identifier(&self) -> Self::Identifier {
+            "bank".to_owned().try_into().unwrap()
         }
     }
 
@@ -82,10 +82,10 @@ pub(crate) mod prefix {
     pub(crate) struct Ibc;
 
     impl Identifiable for Ibc {
-        type Identifier = &'static str;
+        type Identifier = store::Identifier;
 
-        fn identifier(&self) -> &'static str {
-            "ibc"
+        fn identifier(&self) -> Self::Identifier {
+            "ibc".to_owned().try_into().unwrap()
         }
     }
 }
