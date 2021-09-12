@@ -27,6 +27,7 @@ define_error! {
     }
 }
 
+/// Module trait
 pub(crate) trait Module {
     /// Tries to decode a protobuf message to a module supported Message`
     /// This is used to determine if a message is handleable by this module or not
@@ -56,9 +57,12 @@ pub(crate) trait Module {
     }
 }
 
+/// Trait for identifying modules
+/// This is used to get `Module` prefixes that are used for creating prefixed key-space proxy-stores
 pub(crate) trait Identifiable {
     type Identifier: Into<store::Identifier>;
 
+    /// Return an identifier
     fn identifier(&self) -> Self::Identifier;
 }
 
@@ -67,6 +71,7 @@ pub(crate) mod prefix {
     use crate::app::store;
     use core::convert::TryInto;
 
+    /// Bank module prefix
     #[derive(Clone)]
     pub(crate) struct Bank;
 
@@ -78,6 +83,7 @@ pub(crate) mod prefix {
         }
     }
 
+    /// Ibc module prefix
     #[derive(Clone)]
     pub(crate) struct Ibc;
 

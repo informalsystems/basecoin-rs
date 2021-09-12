@@ -78,8 +78,9 @@ pub(crate) struct BaseCoinApp<S> {
 
 impl<S: Default + ProvableStore + 'static> BaseCoinApp<S> {
     /// Constructor.
-    pub(crate) fn new() -> Self {
-        let state = Arc::new(RwLock::new(Default::default()));
+    pub(crate) fn new(store: S) -> Self {
+        let state = Arc::new(RwLock::new(store));
+        // `SharedSubStore` guarantees exclusive access to all paths in the store key-space.
         let modules: Vec<Box<dyn Module + Send + Sync>> = vec![
             Box::new(Bank {
                 store: SharedSubStore::new(state.clone(), prefix::Bank),

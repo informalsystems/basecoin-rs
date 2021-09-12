@@ -15,12 +15,20 @@ use std::sync::{Arc, RwLock};
 use flex_error::{define_error, TraceError};
 use ics23::CommitmentProof;
 
+/// Wraps a store to make it shareable by cloning
 pub(crate) type SharedStore<S> = Arc<RwLock<S>>;
 
+/// A newtype representing a valid ICS024 identifier.
+/// Implements `Deref<Target=String>`.
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Clone)]
 pub struct Identifier(String);
 
 impl Identifier {
+    /// Identifiers MUST be non-empty (of positive integer length).
+    /// Identifiers MUST consist of characters in one of the following categories only:
+    /// * Alphanumeric
+    /// * `.`, `_`, `+`, `-`, `#`
+    /// * `[`, `]`, `<`, `>`
     #[inline]
     fn is_valid(s: impl AsRef<str>) -> bool {
         let s = s.as_ref();
@@ -54,7 +62,10 @@ impl TryFrom<String> for Identifier {
     }
 }
 
-/// A newtype representing a bytestring used as the key for an object stored in state.
+/// A newtype representing a valid ICS024 `Path`.
+/// It is mainly used as the key for an object stored in state.
+/// Implements `Deref<Target=String>`.
+/// Paths MUST contain only `Identifier`s, constant strings, and the separator `/`
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Clone)]
 pub struct Path(String);
 
@@ -136,7 +147,7 @@ pub enum Height {
 impl From<RawHeight> for Height {
     fn from(value: u64) -> Self {
         match value {
-            0 => Height::Latest,
+            0 => Height::Latest, // see https://docs.tendermint.com/master/spec/abci/abci.html#query
             _ => Height::Stable(value),
         }
     }
@@ -188,6 +199,7 @@ pub trait ProvableStore: Store {
     fn get_proof(&self, key: &Path) -> Option<ics23::CommitmentProof>;
 }
 
+/// A wrapper store that implements a prefixed key-space for other shared stores
 #[derive(Clone)]
 pub(crate) struct SharedSubStore<S, P> {
     store: SharedStore<S>,
@@ -258,9 +270,13 @@ where
     }
 }
 
+/// A wrapper store that implements rudimentary `apply()`/`reset()` support using write-ahead
+/// logging for other stores
 #[derive(Clone)]
 pub(crate) struct WalStore<S> {
+    /// backing store
     store: S,
+    /// operation log for recording operations in preserved order
     op_log: VecDeque<(Path, Vec<u8>)>,
 }
 
@@ -276,6 +292,8 @@ impl<S: Store> Store for WalStore<S> {
     #[inline]
     fn get(&self, height: Height, path: &Path) -> Option<Vec<u8>> {
         match height {
+            // for pending height first look for the path in the `op_log`
+            // if not found call backing store's `get()`
             Height::Pending => self
                 .op_log
                 .iter()
@@ -293,6 +311,8 @@ impl<S: Store> Store for WalStore<S> {
 
     #[inline]
     fn commit(&mut self) -> Result<Vec<u8>, Self::Error> {
+        // call `apply()` before `commit()` - this is so that users needn't call `apply()`
+        // explicitly, and only need to call `reset()` to rollback
         self.apply()?;
         self.store.commit()
     }
@@ -342,6 +362,8 @@ impl<S: Default> Default for WalStore<S> {
     }
 }
 
+/// Trait for generating a prefixed-path used by `SharedSubStore` methods
+/// A blanket implementation is provided for all `Identifiable` types
 pub(crate) trait PrefixedPath: Sized {
     fn prefixed_path(&self, s: &Path) -> Path;
 }

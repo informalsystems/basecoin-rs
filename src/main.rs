@@ -73,7 +73,7 @@ fn main() {
     };
     tracing_subscriber::fmt().with_max_level(log_level).init();
 
-    let app = BaseCoinApp::<WalStore<InMemoryStore>>::new();
+    let app = BaseCoinApp::new(WalStore::<InMemoryStore>::default());
 
     let app_copy = app.clone();
     let grpc_port = opt.grpc_port;

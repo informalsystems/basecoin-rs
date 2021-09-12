@@ -50,9 +50,15 @@ impl From<Error> for ModuleError {
     }
 }
 
+/// The Ibc module
+/// Implements all ibc-rs `Reader`s and `Keeper`s
+/// Also implements gRPC endpoints required by `hermes`
 #[derive(Clone)]
 pub struct Ibc<S> {
+    /// Handle to store instance.
+    /// The module is guaranteed exclusive access to all paths in the store key-space.
     pub store: S,
+    /// Counter for client identifiers
     pub client_counter: u64,
 }
 

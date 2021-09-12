@@ -57,7 +57,10 @@ impl From<Error> for ModuleError {
 #[serde(transparent)]
 pub struct Balances(HashMap<Denom, u64>);
 
+/// The bank module
 pub struct Bank<S> {
+    /// Handle to store instance
+    /// The module is guaranteed exclusive access to all paths in the store key-space.
     pub store: S,
 }
 

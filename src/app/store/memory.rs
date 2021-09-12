@@ -5,12 +5,16 @@ use ics23::CommitmentProof;
 use tendermint::hash::Algorithm;
 use tendermint::Hash;
 
+// A state type that represents a snapshot of the store at every block.
+// The value is a `Vec<u8>` to allow stored types to choose their own serde.
 type State = AvlTree<Path, Vec<u8>>;
 
 /// An in-memory store backed by an AvlTree.
 #[derive(Clone)]
 pub(crate) struct InMemoryStore {
+    /// collection of states corresponding to every committed block height
     store: Vec<State>,
+    /// pending block state
     pending: State,
 }
 
@@ -25,7 +29,7 @@ impl Default for InMemoryStore {
 }
 
 impl Store for InMemoryStore {
-    type Error = ();
+    type Error = (); // underlying store ops are infallible
 
     fn set(&mut self, path: Path, value: Vec<u8>) -> Result<(), Self::Error> {
         tracing::trace!("set at path = {}", path.as_str());
@@ -36,7 +40,7 @@ impl Store for InMemoryStore {
     fn get(&self, height: Height, path: &Path) -> Option<Vec<u8>> {
         tracing::trace!("get at path = {} at height = {:?}", path.as_str(), height);
         match height {
-            // Request to access the pending blocks
+            // Request to access the pending block
             Height::Pending => self.pending.get(path).cloned(),
             // Access the last committed block
             Height::Latest => self.store.last().and_then(|s| s.get(path).cloned()),
