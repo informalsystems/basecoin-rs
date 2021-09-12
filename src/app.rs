@@ -5,7 +5,7 @@ mod response;
 
 pub(crate) mod store;
 
-use crate::app::modules::{prefix, Bank, Error, ErrorDetail, Ibc, Module};
+use crate::app::modules::{prefix, Bank, Error, ErrorDetail, Ibc, Identifiable, Module};
 use crate::app::response::ResponseFromErrorExt;
 use crate::app::store::{Height, Path, ProvableStore, SharedStore, SharedSubStore};
 use crate::prostgen::cosmos::auth::v1beta1::{
@@ -72,28 +72,32 @@ macro_rules! attempt {
 /// Can be safely cloned and sent across threads, but not shared.
 #[derive(Clone)]
 pub(crate) struct BaseCoinApp<S> {
-    pub(crate) state: SharedStore<S>,
+    store: SharedStore<S>,
     modules: Arc<RwLock<Vec<Box<dyn Module + Send + Sync>>>>,
 }
 
-impl<S: Default + ProvableStore + 'static> BaseCoinApp<S> {
+impl<S: ProvableStore + 'static> BaseCoinApp<S> {
     /// Constructor.
     pub(crate) fn new(store: S) -> Self {
-        let state = Arc::new(RwLock::new(store));
+        let store = Arc::new(RwLock::new(store));
         // `SharedSubStore` guarantees exclusive access to all paths in the store key-space.
         let modules: Vec<Box<dyn Module + Send + Sync>> = vec![
             Box::new(Bank {
-                store: SharedSubStore::new(state.clone(), prefix::Bank),
+                store: SharedSubStore::new(store.clone(), prefix::Bank),
             }),
             Box::new(Ibc {
-                store: SharedSubStore::new(state.clone(), prefix::Ibc),
+                store: SharedSubStore::new(store.clone(), prefix::Ibc),
                 client_counter: 0,
             }),
         ];
         Self {
-            state,
+            store,
             modules: Arc::new(RwLock::new(modules)),
         }
+    }
+
+    pub(crate) fn sub_store<P: Identifiable>(&self, prefix: P) -> SharedSubStore<S, P> {
+        SharedSubStore::new(self.store.clone(), prefix)
     }
 }
 
@@ -126,7 +130,7 @@ impl<S> BaseCoinApp<S> {
 impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
     fn info(&self, request: RequestInfo) -> ResponseInfo {
         let (last_block_height, last_block_app_hash) = {
-            let state = self.state.read().unwrap();
+            let state = self.store.read().unwrap();
             (state.current_height() as i64, state.root_hash())
         };
         debug!(
@@ -156,7 +160,7 @@ impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
         }
 
         // commit genesis state
-        let mut state = self.state.write().unwrap();
+        let mut state = self.store.write().unwrap();
         state.commit().expect("failed to commit genesis state");
 
         ResponseInitChain {
@@ -173,7 +177,7 @@ impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
         for m in modules.iter() {
             match m.query(&request.data, &path, Height::from(request.height as u64)) {
                 Ok(result) => {
-                    let state = self.state.read().unwrap();
+                    let state = self.store.read().unwrap();
                     return ResponseQuery {
                         code: 0,
                         log: "exists".to_string(),
@@ -209,7 +213,7 @@ impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
                     handled = true;
                 }
                 Err(e) => {
-                    let mut state = self.state.write().unwrap();
+                    let mut state = self.store.write().unwrap();
                     state.reset();
                     return ResponseDeliverTx::from_error(
                         2,
@@ -226,14 +230,14 @@ impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
                 ..ResponseDeliverTx::default()
             }
         } else {
-            let mut state = self.state.write().unwrap();
+            let mut state = self.store.write().unwrap();
             state.reset();
             ResponseDeliverTx::from_error(2, "Tx msg not handled")
         }
     }
 
     fn commit(&self) -> ResponseCommit {
-        let mut state = self.state.write().unwrap();
+        let mut state = self.store.write().unwrap();
         let data = state.commit().expect("failed to commit to state");
         info!("Committed height {}", state.current_height());
         ResponseCommit {

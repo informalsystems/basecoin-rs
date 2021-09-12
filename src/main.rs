@@ -4,7 +4,7 @@ mod app;
 mod prostgen;
 
 use crate::app::modules::{prefix, Ibc};
-use crate::app::store::{InMemoryStore, ProvableStore, SharedSubStore, WalStore};
+use crate::app::store::{InMemoryStore, ProvableStore, WalStore};
 use crate::app::BaseCoinApp;
 use crate::prostgen::cosmos::auth::v1beta1::query_server::QueryServer as AuthQueryServer;
 use crate::prostgen::cosmos::base::tendermint::v1beta1::service_server::ServiceServer as HealthServer;
@@ -54,7 +54,7 @@ async fn grpc_serve<S: ProvableStore + 'static>(app: BaseCoinApp<S>, host: Strin
         .add_service(AuthQueryServer::new(app.clone()))
         .add_service(StakingQueryServer::new(app.clone()))
         .add_service(ClientQueryServer::new(Ibc {
-            store: SharedSubStore::new(app.state.clone(), prefix::Ibc),
+            store: app.sub_store(prefix::Ibc),
             client_counter: 0,
         }))
         .serve(addr)
