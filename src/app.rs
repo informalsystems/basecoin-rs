@@ -163,6 +163,8 @@ impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
         let mut state = self.store.write().unwrap();
         state.commit().expect("failed to commit genesis state");
 
+        info!("App initialized");
+
         ResponseInitChain {
             consensus_params: request.consensus_params,
             validators: vec![], // use validator set proposed by tendermint (ie. in the genesis file)
@@ -171,8 +173,9 @@ impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
     }
 
     fn query(&self, request: RequestQuery) -> ResponseQuery {
-        let path: Option<Path> = request.path.try_into().ok();
+        debug!("Got query request: {:?}", request);
 
+        let path: Option<Path> = request.path.try_into().ok();
         let modules = self.modules.read().unwrap();
         for m in modules.iter() {
             match m.query(
@@ -202,6 +205,8 @@ impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
     }
 
     fn deliver_tx(&self, request: RequestDeliverTx) -> ResponseDeliverTx {
+        debug!("Got deliverTx request: {:?}", request);
+
         let tx: Tx = attempt!(
             request.tx.as_slice().try_into(),
             1,
@@ -257,6 +262,8 @@ impl<S: ProvableStore + 'static> HealthService for BaseCoinApp<S> {
         &self,
         _request: Request<GetNodeInfoRequest>,
     ) -> Result<Response<GetNodeInfoResponse>, Status> {
+        debug!("Got node info request");
+
         // TODO(hu55a1n1): generate below info using build script
         Ok(Response::new(GetNodeInfoResponse {
             default_node_info: Some(DefaultNodeInfo {
@@ -339,6 +346,8 @@ impl<S: ProvableStore + 'static> AuthQuery for BaseCoinApp<S> {
         &self,
         _request: Request<QueryAccountRequest>,
     ) -> Result<Response<QueryAccountResponse>, Status> {
+        debug!("Got auth account request");
+
         let account = BaseAccount {
             address: "".to_string(),
             pub_key: None,
@@ -461,6 +470,8 @@ impl<S: ProvableStore + 'static> StakingQuery for BaseCoinApp<S> {
         &self,
         _request: Request<StakingQueryParamsRequest>,
     ) -> Result<Response<StakingQueryParamsResponse>, Status> {
+        debug!("Got staking params request");
+
         Ok(Response::new(StakingQueryParamsResponse {
             params: Some(Params {
                 unbonding_time: Some(Duration {

@@ -4,6 +4,7 @@ use crate::app::store::{Height, Path, ProvableStore, Store};
 use ics23::CommitmentProof;
 use tendermint::hash::Algorithm;
 use tendermint::Hash;
+use tracing::trace;
 
 // A state type that represents a snapshot of the store at every block.
 // The value is a `Vec<u8>` to allow stored types to choose their own serde.
@@ -32,13 +33,13 @@ impl Store for InMemoryStore {
     type Error = (); // underlying store ops are infallible
 
     fn set(&mut self, path: Path, value: Vec<u8>) -> Result<(), Self::Error> {
-        tracing::trace!("set at path = {}", path.as_str());
+        trace!("set at path = {}", path.as_str());
         self.pending.insert(path, value);
         Ok(())
     }
 
     fn get(&self, height: Height, path: &Path) -> Option<Vec<u8>> {
-        tracing::trace!("get at path = {} at height = {:?}", path.as_str(), height);
+        trace!("get at path = {} at height = {:?}", path.as_str(), height);
         match height {
             // Request to access the pending block
             Height::Pending => self.pending.get(path).cloned(),
@@ -62,7 +63,7 @@ impl Store for InMemoryStore {
     }
 
     fn commit(&mut self) -> Result<Vec<u8>, Self::Error> {
-        tracing::trace!("committing height: {}", self.store.len() + 1);
+        trace!("committing height: {}", self.store.len() + 1);
         self.store.push(self.pending.clone());
         Ok(self.root_hash())
     }

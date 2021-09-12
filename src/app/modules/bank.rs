@@ -13,7 +13,7 @@ use prost::{DecodeError, Message};
 use prost_types::Any;
 use serde::{Deserialize, Serialize};
 use tendermint_proto::abci::Event;
-use tracing::debug;
+use tracing::{debug, trace};
 
 /// Unique identifiers for accounts.
 pub type AccountId = String;
@@ -154,7 +154,7 @@ impl<S: Store> Module for Bank<S> {
                 .set(path, serde_json::to_string(&account.1).unwrap().into())
                 .unwrap();
 
-            debug!("Added account ({}) => {:?}", account.0, account.1);
+            trace!("Added account ({}) => {:?}", account.0, account.1);
         }
     }
 
@@ -169,7 +169,7 @@ impl<S: Store> Module for Bank<S> {
             _ => return Err(ModuleError::not_handled()),
         };
 
-        debug!("Attempting to get account ID: {}", account_id);
+        trace!("Attempting to get account ID: {}", account_id);
 
         let path = format!("accounts/{}", account_id).try_into().unwrap(); // safety - account_id is a valid identifier
         match self.store.get(height, &path) {

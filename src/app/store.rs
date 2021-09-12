@@ -14,6 +14,7 @@ use std::sync::{Arc, RwLock};
 
 use flex_error::{define_error, TraceError};
 use ics23::CommitmentProof;
+use tracing::trace;
 
 /// Wraps a store to make it shareable by cloning
 pub(crate) type SharedStore<S> = Arc<RwLock<S>>;
@@ -319,6 +320,7 @@ impl<S: Store> Store for WalStore<S> {
 
     #[inline]
     fn apply(&mut self) -> Result<(), Self::Error> {
+        trace!("Applying operation log");
         while let Some(op) = self.op_log.pop_back() {
             self.store.set(op.0, op.1)?;
         }
@@ -327,6 +329,7 @@ impl<S: Store> Store for WalStore<S> {
 
     #[inline]
     fn reset(&mut self) {
+        trace!("Rollback operation log changes");
         self.op_log.clear()
     }
 

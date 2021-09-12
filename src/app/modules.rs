@@ -29,11 +29,6 @@ define_error! {
 
 /// Module trait
 pub(crate) trait Module {
-    /// Tries to decode a protobuf message to a module supported Message`
-    /// This is used to determine if a message is handleable by this module or not
-    /// Do NOT use for validation!
-    // fn decode<T: Message + Default>(&self, message: Any) -> Result<T, Error>;
-
     /// Similar to [ABCI CheckTx method](https://docs.tendermint.com/master/spec/abci/abci.html#checktx)
     /// > CheckTx need not execute the transaction in full, but rather a light-weight yet
     /// > stateful validation, like checking signatures and account balances, but not running

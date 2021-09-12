@@ -41,6 +41,7 @@ use prost::Message;
 use prost_types::Any;
 use tendermint_proto::abci::{Event, EventAttribute};
 use tonic::{Request, Response, Status};
+use tracing::{debug, trace};
 
 pub(crate) type Error = ibc::ics26_routing::error::Error;
 
@@ -391,7 +392,10 @@ impl<S: Store> Ics26Context for Ibc<S> {}
 
 impl<S: Store> Module for Ibc<S> {
     fn deliver(&mut self, message: Any) -> Result<Vec<Event>, ModuleError> {
-        match dispatch(self, decode(message).map_err(ModuleError::ibc)?) {
+        let msg = decode(message).map_err(|_| ModuleError::not_handled())?;
+
+        debug!("Dispatching message: {:?}", msg);
+        match dispatch(self, msg) {
             Ok(output) => Ok(output
                 .events
                 .into_iter()
@@ -417,9 +421,15 @@ impl<S: Store> Module for Ibc<S> {
         }
 
         // TODO(hu55a1n1): validate query
-        let path = String::from_utf8(data.to_vec())
+        let path: Path = String::from_utf8(data.to_vec())
             .map_err(|_| Error::ics02_client(ClientError::implementation_specific()))?
             .try_into()?;
+
+        debug!(
+            "Querying for path ({}) at height {:?}",
+            path.as_str(),
+            height
+        );
 
         match self.store.get(height, &path) {
             None => Err(Error::ics02_client(ClientError::implementation_specific()).into()),
@@ -481,6 +491,8 @@ impl<S: ProvableStore + 'static> ClientQuery for Ibc<S> {
         &self,
         request: Request<QueryConsensusStatesRequest>,
     ) -> Result<Response<QueryConsensusStatesResponse>, Status> {
+        trace!("Got consensus states request: {:?}", request);
+
         let path = format!("clients/{}/consensusStates", request.get_ref().client_id)
             .try_into()
             .map_err(|e| Status::invalid_argument(format!("{}", e)))?;
