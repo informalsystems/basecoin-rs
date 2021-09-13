@@ -8,16 +8,13 @@ use crate::app::modules::{Error as ModuleError, Identifiable};
 use std::collections::VecDeque;
 use std::convert::{TryFrom, TryInto};
 use std::fmt::Debug;
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 use std::str::{from_utf8, Utf8Error};
 use std::sync::{Arc, RwLock};
 
 use flex_error::{define_error, TraceError};
 use ics23::CommitmentProof;
 use tracing::trace;
-
-/// Wraps a store to make it shareable by cloning
-pub(crate) type SharedStore<S> = Arc<RwLock<S>>;
 
 /// A newtype representing a valid ICS024 identifier.
 /// Implements `Deref<Target=String>`.
@@ -202,72 +199,140 @@ pub trait ProvableStore: Store {
 
 /// A wrapper store that implements a prefixed key-space for other shared stores
 #[derive(Clone)]
-pub(crate) struct SharedSubStore<S, P> {
-    store: SharedStore<S>,
+pub(crate) struct SubStore<S, P> {
+    /// backing store
+    store: S,
+    /// prefix for key-space
     prefix: P,
 }
 
-impl<S, P> SharedSubStore<S, P> {
-    pub(crate) fn new(store: SharedStore<S>, path: P) -> Self {
-        Self {
-            store,
-            prefix: path,
-        }
+impl<S, P> SubStore<S, P> {
+    pub(crate) fn new(store: S, prefix: P) -> Self {
+        Self { store, prefix }
     }
 }
 
-impl<S, P> Store for SharedSubStore<S, P>
+impl<S, P> Store for SubStore<S, P>
 where
     S: Store,
     P: Identifiable + Send + Sync + Clone,
 {
     type Error = S::Error;
 
+    #[inline]
     fn set(&mut self, path: Path, value: Vec<u8>) -> Result<(), Self::Error> {
-        let mut store = self.store.write().unwrap();
-        store.set(self.prefix.prefixed_path(&path), value)
+        self.store.set(self.prefix.prefixed_path(&path), value)
     }
 
+    #[inline]
     fn get(&self, height: Height, path: &Path) -> Option<Vec<u8>> {
-        let store = self.store.read().unwrap();
-        store.get(height, &self.prefix.prefixed_path(path))
+        self.store.get(height, &self.prefix.prefixed_path(path))
     }
 
+    #[inline]
     fn delete(&mut self, path: &Path) {
-        let mut store = self.store.write().unwrap();
-        store.delete(&self.prefix.prefixed_path(path))
+        self.store.delete(&self.prefix.prefixed_path(path))
     }
 
+    #[inline]
     fn commit(&mut self) -> Result<Vec<u8>, Self::Error> {
         panic!("shared sub-stores may not commit!")
     }
 
+    #[inline]
     fn current_height(&self) -> RawHeight {
-        let store = self.store.read().unwrap();
-        store.current_height()
+        self.store.current_height()
     }
 
+    #[inline]
     fn get_keys(&self, key_prefix: &Path) -> Vec<Path> {
-        self.store
-            .read()
-            .unwrap()
-            .get_keys(&self.prefix.prefixed_path(key_prefix))
+        self.store.get_keys(&self.prefix.prefixed_path(key_prefix))
     }
 }
 
-impl<S, P> ProvableStore for SharedSubStore<S, P>
+impl<S, P> ProvableStore for SubStore<S, P>
 where
     S: ProvableStore,
     P: Identifiable + Send + Sync + Clone,
 {
+    #[inline]
     fn root_hash(&self) -> Vec<u8> {
-        let store = self.store.read().unwrap();
-        store.root_hash()
+        self.store.root_hash()
     }
 
+    #[inline]
     fn get_proof(&self, key: &Path) -> Option<CommitmentProof> {
-        let store = self.store.read().unwrap();
-        store.get_proof(key)
+        self.store.get_proof(key)
+    }
+}
+
+/// Wraps a store to make it shareable by cloning
+#[derive(Clone)]
+pub(crate) struct SharedStore<S>(Arc<RwLock<S>>);
+
+impl<S> SharedStore<S> {
+    pub(crate) fn new(store: S) -> Self {
+        Self(Arc::new(RwLock::new(store)))
+    }
+}
+
+impl<S: Store> Store for SharedStore<S> {
+    type Error = S::Error;
+
+    #[inline]
+    fn set(&mut self, path: Path, value: Vec<u8>) -> Result<(), Self::Error> {
+        self.write().unwrap().set(path, value)
+    }
+
+    #[inline]
+    fn get(&self, height: Height, path: &Path) -> Option<Vec<u8>> {
+        self.read().unwrap().get(height, path)
+    }
+
+    #[inline]
+    fn delete(&mut self, path: &Path) {
+        self.write().unwrap().delete(path)
+    }
+
+    #[inline]
+    fn commit(&mut self) -> Result<Vec<u8>, Self::Error> {
+        self.write().unwrap().commit()
+    }
+
+    #[inline]
+    fn current_height(&self) -> RawHeight {
+        self.read().unwrap().current_height()
+    }
+
+    #[inline]
+    fn get_keys(&self, key_prefix: &Path) -> Vec<Path> {
+        self.read().unwrap().get_keys(key_prefix)
+    }
+}
+
+impl<S: ProvableStore> ProvableStore for SharedStore<S> {
+    #[inline]
+    fn root_hash(&self) -> Vec<u8> {
+        self.read().unwrap().root_hash()
+    }
+
+    #[inline]
+    fn get_proof(&self, key: &Path) -> Option<CommitmentProof> {
+        self.read().unwrap().get_proof(key)
+    }
+}
+
+impl<S> Deref for SharedStore<S> {
+    type Target = Arc<RwLock<S>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<S> DerefMut for SharedStore<S> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
 

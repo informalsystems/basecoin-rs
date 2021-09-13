@@ -7,7 +7,7 @@ pub(crate) mod store;
 
 use crate::app::modules::{prefix, Bank, Error, ErrorDetail, Ibc, Identifiable, Module};
 use crate::app::response::ResponseFromErrorExt;
-use crate::app::store::{Height, Path, ProvableStore, SharedStore, SharedSubStore};
+use crate::app::store::{Height, Path, ProvableStore, SharedStore, SubStore};
 use crate::prostgen::cosmos::auth::v1beta1::{
     query_server::Query as AuthQuery, BaseAccount, QueryAccountRequest, QueryAccountResponse,
     QueryAccountsRequest, QueryAccountsResponse, QueryParamsRequest as AuthQueryParamsRequest,
@@ -79,14 +79,14 @@ pub(crate) struct BaseCoinApp<S> {
 impl<S: ProvableStore + 'static> BaseCoinApp<S> {
     /// Constructor.
     pub(crate) fn new(store: S) -> Self {
-        let store = Arc::new(RwLock::new(store));
+        let store = SharedStore::new(store);
         // `SharedSubStore` guarantees exclusive access to all paths in the store key-space.
         let modules: Vec<Box<dyn Module + Send + Sync>> = vec![
             Box::new(Bank {
-                store: SharedSubStore::new(store.clone(), prefix::Bank),
+                store: SubStore::new(store.clone(), prefix::Bank),
             }),
             Box::new(Ibc {
-                store: SharedSubStore::new(store.clone(), prefix::Ibc),
+                store: SubStore::new(store.clone(), prefix::Ibc),
                 client_counter: 0,
             }),
         ];
@@ -96,8 +96,8 @@ impl<S: ProvableStore + 'static> BaseCoinApp<S> {
         }
     }
 
-    pub(crate) fn sub_store<P: Identifiable>(&self, prefix: P) -> SharedSubStore<S, P> {
-        SharedSubStore::new(self.store.clone(), prefix)
+    pub(crate) fn sub_store<I: Identifiable>(&self, prefix: I) -> SubStore<SharedStore<S>, I> {
+        SubStore::new(self.store.clone(), prefix)
     }
 }
 
