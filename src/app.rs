@@ -102,6 +102,12 @@ impl<S: ProvableStore + 'static> BaseCoinApp<S> {
 }
 
 impl<S> BaseCoinApp<S> {
+    // try to deliver the message to all registered modules
+    // if `module.deliver()` returns `Error::not_handled()`, try next module
+    // Return:
+    // * other errors immediately OR
+    // * `Error::not_handled()` if all modules return `Error::not_handled()`
+    // * events from first successful deliver call OR
     fn deliver_msg(&self, message: Msg) -> Result<Vec<Event>, Error> {
         let mut modules = self.modules.write().unwrap();
         let mut handled = false;
@@ -183,6 +189,7 @@ impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
                 path.as_ref(),
                 Height::from(request.height as u64),
             ) {
+                // success - implies query was handled by this module, so return response
                 Ok(result) => {
                     let state = self.store.read().unwrap();
                     return ResponseQuery {
@@ -197,7 +204,10 @@ impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
                         codespace: "".to_string(),
                     };
                 }
+                // `Error::not_handled()` - implies query isn't known or was intercepted but not
+                // responded to by this module, so try with next module
                 Err(Error(ErrorDetail::NotHandled(_), _)) => continue,
+                // Other error - return immediately
                 Err(e) => return ResponseQuery::from_error(1, format!("query error: {:?}", e)),
             }
         }
@@ -216,11 +226,16 @@ impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
         let mut events = vec![];
         let mut handled = false;
         for message in tx.body.messages {
+            // try to deliver message to every module
             match self.deliver_msg(message.clone()) {
+                // success - append events and continue with next message
                 Ok(mut msg_events) => {
                     events.append(&mut msg_events);
                     handled = true;
                 }
+                // return on first error -
+                // could be an error that occurred during execution of this message OR no module
+                // could handle this message
                 Err(e) => {
                     let mut state = self.store.write().unwrap();
                     state.reset();

@@ -40,6 +40,11 @@ pub(crate) trait Module {
     /// Execute specified `Message`, modify state accordingly and return resulting `Events`
     /// Similar to [ABCI DeliverTx method](https://docs.tendermint.com/master/spec/abci/abci.html#delivertx)
     /// *NOTE* - Implementations MUST be deterministic!
+    ///
+    /// ## Return
+    /// * `Error::not_handled()` if message isn't known to OR hasn't been consumed (but possibly intercepted) by this module
+    /// * Other errors iff message was meant to be consumed by module but resulted in an error
+    /// * Resulting events on success
     fn deliver(&mut self, message: Any) -> Result<Vec<Event>, Error>;
 
     /// Similar to [ABCI InitChain method](https://docs.tendermint.com/master/spec/abci/abci.html#initchain)
@@ -47,6 +52,11 @@ pub(crate) trait Module {
     fn init(&mut self, _app_state: serde_json::Value) {}
 
     /// Similar to [ABCI Query method](https://docs.tendermint.com/master/spec/abci/abci.html#query)
+    ///
+    /// ## Return
+    /// * `Error::not_handled()` if message isn't known to OR hasn't been responded to (but possibly intercepted) by this module
+    /// * Other errors iff query was meant to be consumed by module but resulted in an error
+    /// * Query result on success
     fn query(&self, _data: &[u8], _path: Option<&Path>, _height: Height) -> Result<Vec<u8>, Error> {
         Err(Error::not_handled())
     }
