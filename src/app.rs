@@ -222,16 +222,17 @@ impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
             1,
             "failed to decode incoming tx bytes"
         );
+        if tx.body.messages.is_empty() {
+            return ResponseDeliverTx::from_error(2, "Empty Tx");
+        }
 
         let mut events = vec![];
-        let mut handled = false;
         for message in tx.body.messages {
             // try to deliver message to every module
             match self.deliver_msg(message.clone()) {
                 // success - append events and continue with next message
                 Ok(mut msg_events) => {
                     events.append(&mut msg_events);
-                    handled = true;
                 }
                 // return on first error -
                 // could be an error that occurred during execution of this message OR no module
@@ -247,16 +248,10 @@ impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
             }
         }
 
-        if handled {
-            ResponseDeliverTx {
-                log: "success".to_owned(),
-                events,
-                ..ResponseDeliverTx::default()
-            }
-        } else {
-            let mut state = self.store.write().unwrap();
-            state.reset();
-            ResponseDeliverTx::from_error(2, "Tx msg not handled")
+        ResponseDeliverTx {
+            log: "success".to_owned(),
+            events,
+            ..ResponseDeliverTx::default()
         }
     }
 
