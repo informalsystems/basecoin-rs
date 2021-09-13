@@ -430,7 +430,7 @@ impl<S: Default> Default for WalStore<S> {
     }
 }
 
-/// Trait for generating a prefixed-path used by `SharedSubStore` methods
+/// Trait for generating a prefixed-path used by `SubStore` methods
 /// A blanket implementation is provided for all `Identifiable` types
 pub(crate) trait PrefixedPath: Sized {
     fn prefixed_path(&self, s: &Path) -> Path;

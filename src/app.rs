@@ -80,7 +80,7 @@ impl<S: ProvableStore + 'static> BaseCoinApp<S> {
     /// Constructor.
     pub(crate) fn new(store: S) -> Self {
         let store = SharedStore::new(store);
-        // `SharedSubStore` guarantees exclusive access to all paths in the store key-space.
+        // `SubStore` guarantees modules exclusive access to all paths in the store key-space.
         let modules: Vec<Box<dyn Module + Send + Sync>> = vec![
             Box::new(Bank {
                 store: SubStore::new(store.clone(), prefix::Bank),
