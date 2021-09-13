@@ -73,8 +73,9 @@ fn main() {
     };
     tracing_subscriber::fmt().with_max_level(log_level).init();
 
-    let app = BaseCoinApp::new(WalStore::<InMemoryStore>::default());
+    tracing::info!("Starting app and waiting for Tendermint to connect...");
 
+    let app = BaseCoinApp::new(WalStore::<InMemoryStore>::default());
     let app_copy = app.clone();
     let grpc_port = opt.grpc_port;
     let grpc_host = opt.host.clone();

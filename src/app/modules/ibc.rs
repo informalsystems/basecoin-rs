@@ -33,6 +33,7 @@ use ibc::ics05_port::capabilities::Capability;
 use ibc::ics05_port::context::PortReader;
 use ibc::ics23_commitment::commitment::CommitmentPrefix;
 use ibc::ics24_host::identifier::{ChannelId, ClientId, ConnectionId, PortId};
+use ibc::ics24_host::IBC_QUERY_PATH;
 use ibc::ics26_routing::context::Ics26Context;
 use ibc::ics26_routing::handler::{decode, dispatch};
 use ibc::timestamp::Timestamp;
@@ -411,12 +412,8 @@ impl<S: Store> Module for Ibc<S> {
         path: Option<&Path>,
         height: Height,
     ) -> Result<Vec<u8>, ModuleError> {
-        if path.is_none() {
-            return Err(ModuleError::not_handled());
-        }
-
-        let path = path.unwrap();
-        if path.to_string() != "store/ibc/key" {
+        let path = path.ok_or_else(ModuleError::not_handled)?;
+        if path.to_string() != IBC_QUERY_PATH {
             return Err(ModuleError::not_handled());
         }
 
