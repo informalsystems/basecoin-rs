@@ -165,16 +165,12 @@ impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
             m.init(app_state.clone());
         }
 
-        // commit genesis state
-        let mut state = self.store.write().unwrap();
-        state.commit().expect("failed to commit genesis state");
-
         info!("App initialized");
 
         ResponseInitChain {
             consensus_params: request.consensus_params,
             validators: vec![], // use validator set proposed by tendermint (ie. in the genesis file)
-            app_hash: state.root_hash(),
+            app_hash: self.store.write().unwrap().root_hash(),
         }
     }
 
@@ -258,7 +254,7 @@ impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
     fn commit(&self) -> ResponseCommit {
         let mut state = self.store.write().unwrap();
         let data = state.commit().expect("failed to commit to state");
-        info!("Committed height {}", state.current_height());
+        info!("Committed height {}", state.current_height() - 1);
         ResponseCommit {
             data,
             retain_height: 0,

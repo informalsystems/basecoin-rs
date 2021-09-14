@@ -63,7 +63,7 @@ impl Store for InMemoryStore {
     }
 
     fn commit(&mut self) -> Result<Vec<u8>, Self::Error> {
-        trace!("committing height: {}", self.store.len() + 1);
+        trace!("committing height: {}", self.store.len());
         self.store.push(self.pending.clone());
         Ok(self.root_hash())
     }
