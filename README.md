@@ -14,8 +14,8 @@ So far this app has been tested with:
 ## Usage
 
 See the module documentation for more details on usage -
-* [Bank module](src/app/modules/bank/README.md)
-* [Ibc module](src/app/modules/ibc/README.md)
+* [Bank module](docs/modules/bank.md)
+* [Ibc module](docs/modules/ibc.md)
 
 ### Step 1: Reset your local Tendermint node.
 
@@ -105,3 +105,7 @@ cargo run -- -v
 # In another terminal
 tendermint node --consensus.create_empty_blocks=false
 ```
+
+## UML diagram
+
+![UML diagram](docs/images/uml-diagram.png)
