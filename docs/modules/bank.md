@@ -1,30 +1,60 @@
 # Bank module
-
 This module keeps track of different accounts' balances (in-memory only) and facilitates transactions between those accounts.
 
 ## Usage
+### Step 1: Setup 
+Edit your `genesis.json` file (default location `~/.tendermint/config/genesis.json`) to update the `app_state` with initial account balances. This is a
+simple hash map of account IDs to balances (where each balance is a map of denomination and amount). Here's an
+example `genesis.json` file:
 
-### Step 1: Prepare a transfer transaction
+```json
+{
+  "app_state": {
+    "cosmos1snd5m4h0wt5ur55d47vpxla389r2xkf8dl6g9w": {
+      "basecoin": 1000,
+      "othercoin": 1000
+    },
+    "cosmos1t2e0nyjhwn3revunvf2uperhftvhzu4euuzva9": {
+      "basecoin": 250,
+      "othercoin": 5000
+    },
+    "cosmos1uawm90a5xm36kjmaazv89nxmfr8s8cyzkjqytd": {
+      "acidcoin": 500
+    },
+    "cosmos1ny9epydqnr7ymqhmgfvlshp3485cuqlmt7vsmf": {},
+    "cosmos1xwgdxu4ahd9eevtfnq5f7w4td3rqnph4llnngw": {
+      "acidcoin": 500,
+      "basecoin": 0,
+      "othercoin": 100
+    },
+    "cosmos1mac8xqhun2c3y0njptdmmh3vy8nfjmtm6vua9u": {
+      "basecoin": 1000
+    },
+    "cosmos1wkvwnez6fkjn63xaz7nzpm4zxcd9cetqmyh2y8": {
+      "basecoin": 1
+    },
+    "cosmos166vcha998g7tl8j8cq0kwa8rfvm68cqmj88cff": {
+      "basecoin": 18446744073709551615
+    }
+  }
+}
+```
 
+### Step 2: Prepare a transfer transaction
 We want to transfer some money from one of the accounts to the other. See [tx.json](tests/fixtures/tx.json) for an
 example transaction that works with the above genesis `app_state`.
 
-### Step 2: Send the transaction
-
+### Step 3: Send the transaction
 We will be sending our transaction via [gaiad](https://github.com/cosmos/gaia) like so:
-
 ```bash
 gaiad tx broadcast tests/fixtures/tx.json 
 ```
 
-### Step 3: Query the account balances to ensure they've been updated
-
+### Step 4: Query the account balances to ensure they've been updated
 Query balance of receiver's account, i.e. `cosmos1t2e0nyjhwn3revunvf2uperhftvhzu4euuzva9`:
-
 ```bash 
 curl http://localhost:26657/abci_query?data=\"cosmos1t2e0nyjhwn3revunvf2uperhftvhzu4euuzva9\"
 ```
-
 ```json
 {
   "jsonrpc": "2.0",
@@ -50,11 +80,9 @@ balance, which decodes to the string `"{"othercoin":6000,"basecoin":350}"` - thi
 `echo "eyJvdGhlcmNvaW4iOjYwMDAsImJhc2Vjb2luIjozNTB9" | base64 -d`.
 
 Now, we query balance of sender's account (i.e. `cosmos1snd5m4h0wt5ur55d47vpxla389r2xkf8dl6g9w`):
-
 ```bash
 curl http://localhost:26657/abci_query?data=\"cosmos1snd5m4h0wt5ur55d47vpxla389r2xkf8dl6g9w\"
 ```
-
 ```json
 {
   "jsonrpc": "2.0",

@@ -7,9 +7,15 @@ This module has been tested with `hermes`.
 
 ## Usage
 
-### Step 1: Add to `hermes` config.toml
+### Step 1: Setup
+Edit your `genesis.json` file (default location `~/.tendermint/config/genesis.json`) to update the `chain_id`.
+```json
+{
+  "chain_id": "basecoin"
+}
+```
 
-Edit the `config.toml` for `hermes` and add the following:
+Edit the `config.toml` file (default location `~/.hermes/config.toml`) for `hermes` and add an entry for the basecoin chain:
 ```toml
 [[chains]]
 id = 'basecoin'
@@ -28,6 +34,7 @@ trusting_period = '14days'
 numerator = '1'
 denominator = '3'
 ```
+**Note:** The above settings must match the corresponding settings in Tendermint's `config.toml`. 
 
 ### Step 2: Bootstrap a chain with IBC support
 
