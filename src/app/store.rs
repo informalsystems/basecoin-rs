@@ -358,12 +358,13 @@ impl<S: Store> Store for WalStore<S> {
     #[inline]
     fn get(&self, height: Height, path: &Path) -> Option<Vec<u8>> {
         match height {
-            // for pending height first look for the path in the `op_log`
-            // if not found call backing store's `get()`
+            // for pending height first look for path matches in the `op_log` and return the most
+            // recent one. If not found call backing store's `get()`.
             Height::Pending => self
                 .op_log
                 .iter()
-                .find(|op| &op.0 == path)
+                .filter(|op| &op.0 == path)
+                .last()
                 .map(|op| op.1.clone())
                 .or_else(|| self.store.get(height, path)),
             _ => self.store.get(height, path),
@@ -371,8 +372,8 @@ impl<S: Store> Store for WalStore<S> {
     }
 
     #[inline]
-    fn delete(&mut self, path: &Path) {
-        self.store.delete(path)
+    fn delete(&mut self, _path: &Path) {
+        unimplemented!("WALStore doesn't support delete operations yet!")
     }
 
     #[inline]
