@@ -345,6 +345,15 @@ pub(crate) struct WalStore<S> {
     /// operation log for recording operations in preserved order
     op_log: VecDeque<(Path, Vec<u8>)>,
 }
+//
+impl<S: Store> WalStore<S> {
+    pub(crate) fn new(store: S) -> Self {
+        Self {
+            store,
+            op_log: VecDeque::new(),
+        }
+    }
+}
 
 impl<S: Store> Store for WalStore<S> {
     type Error = S::Error;
@@ -378,14 +387,15 @@ impl<S: Store> Store for WalStore<S> {
 
     #[inline]
     fn commit(&mut self) -> Result<Vec<u8>, Self::Error> {
-        // call `apply()` before `commit()` - this is so that users needn't call `apply()`
-        // explicitly, and only need to call `reset()` to rollback
+        // call `apply()` before `commit()` to make sure all operations are applied
         self.apply()?;
         self.store.commit()
     }
 
     #[inline]
     fn apply(&mut self) -> Result<(), Self::Error> {
+        // note that we do NOT call the backing store's apply here - this allows users to create
+        // multilayered `WalStore`s
         trace!("Applying operation log");
         while let Some(op) = self.op_log.pop_back() {
             self.store.set(op.0, op.1)?;
@@ -395,6 +405,8 @@ impl<S: Store> Store for WalStore<S> {
 
     #[inline]
     fn reset(&mut self) {
+        // note that we do NOT call the backing store's reset here - this allows users to create
+        // multilayered `WalStore`s
         trace!("Rollback operation log changes");
         self.op_log.clear()
     }
@@ -419,15 +431,6 @@ impl<S: ProvableStore> ProvableStore for WalStore<S> {
     #[inline]
     fn get_proof(&self, key: &Path) -> Option<CommitmentProof> {
         self.store.get_proof(key)
-    }
-}
-
-impl<S: Default> Default for WalStore<S> {
-    fn default() -> Self {
-        Self {
-            store: S::default(),
-            op_log: Default::default(),
-        }
     }
 }
 

@@ -7,7 +7,7 @@ pub(crate) mod store;
 
 use crate::app::modules::{prefix, Bank, Error, ErrorDetail, Ibc, Identifiable, Module};
 use crate::app::response::ResponseFromErrorExt;
-use crate::app::store::{Height, Path, ProvableStore, SharedStore, SubStore};
+use crate::app::store::{Height, Path, ProvableStore, SharedStore, Store, SubStore, WalStore};
 use crate::prostgen::cosmos::auth::v1beta1::{
     query_server::Query as AuthQuery, BaseAccount, QueryAccountRequest, QueryAccountResponse,
     QueryAccountsRequest, QueryAccountsResponse, QueryParamsRequest as AuthQueryParamsRequest,
@@ -72,14 +72,14 @@ macro_rules! attempt {
 /// Can be safely cloned and sent across threads, but not shared.
 #[derive(Clone)]
 pub(crate) struct BaseCoinApp<S> {
-    store: SharedStore<S>,
+    store: SharedStore<WalStore<S>>,
     modules: Arc<RwLock<Vec<Box<dyn Module + Send + Sync>>>>,
 }
 
 impl<S: ProvableStore + 'static> BaseCoinApp<S> {
     /// Constructor.
     pub(crate) fn new(store: S) -> Self {
-        let store = SharedStore::new(store);
+        let store = SharedStore::new(WalStore::new(store));
         // `SubStore` guarantees modules exclusive access to all paths in the store key-space.
         let modules: Vec<Box<dyn Module + Send + Sync>> = vec![
             Box::new(Bank {
@@ -96,7 +96,10 @@ impl<S: ProvableStore + 'static> BaseCoinApp<S> {
         }
     }
 
-    pub(crate) fn sub_store<I: Identifiable>(&self, prefix: I) -> SubStore<SharedStore<S>, I> {
+    pub(crate) fn sub_store<I: Identifiable>(
+        &self,
+        prefix: I,
+    ) -> SubStore<SharedStore<WalStore<S>>, I> {
         SubStore::new(self.store.clone(), prefix)
     }
 }
@@ -187,7 +190,6 @@ impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
             ) {
                 // success - implies query was handled by this module, so return response
                 Ok(result) => {
-                    let state = self.store.read().unwrap();
                     return ResponseQuery {
                         code: 0,
                         log: "exists".to_string(),
@@ -196,7 +198,7 @@ impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
                         key: request.data,
                         value: result,
                         proof_ops: None,
-                        height: state.current_height() as i64,
+                        height: self.store.read().unwrap().current_height() as i64,
                         codespace: "".to_string(),
                     };
                 }
@@ -231,11 +233,11 @@ impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
                     events.append(&mut msg_events);
                 }
                 // return on first error -
-                // could be an error that occurred during execution of this message OR no module
+                // either an error that occurred during execution of this message OR no module
                 // could handle this message
                 Err(e) => {
-                    let mut state = self.store.write().unwrap();
-                    state.reset();
+                    // reset changes from other messages in this tx
+                    self.store.write().unwrap().reset();
                     return ResponseDeliverTx::from_error(
                         2,
                         format!("deliver failed with error: {}", e),

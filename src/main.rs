@@ -4,7 +4,7 @@ mod app;
 mod prostgen;
 
 use crate::app::modules::{prefix, Ibc};
-use crate::app::store::{InMemoryStore, ProvableStore, WalStore};
+use crate::app::store::{InMemoryStore, ProvableStore};
 use crate::app::BaseCoinApp;
 use crate::prostgen::cosmos::auth::v1beta1::query_server::QueryServer as AuthQueryServer;
 use crate::prostgen::cosmos::base::tendermint::v1beta1::service_server::ServiceServer as HealthServer;
@@ -75,7 +75,7 @@ fn main() {
 
     tracing::info!("Starting app and waiting for Tendermint to connect...");
 
-    let app = BaseCoinApp::new(WalStore::<InMemoryStore>::default());
+    let app = BaseCoinApp::new(InMemoryStore::default());
     let app_copy = app.clone();
     let grpc_port = opt.grpc_port;
     let grpc_host = opt.host.clone();
