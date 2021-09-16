@@ -236,7 +236,7 @@ where
 
     #[inline]
     fn commit(&mut self) -> Result<Vec<u8>, Self::Error> {
-        panic!("shared sub-stores may not commit!")
+        panic!("sub-stores may not commit!")
     }
 
     #[inline]
