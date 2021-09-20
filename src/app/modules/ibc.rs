@@ -31,6 +31,7 @@ use ibc::ics04_channel::error::Error as ChannelError;
 use ibc::ics04_channel::packet::{Receipt, Sequence};
 use ibc::ics05_port::capabilities::Capability;
 use ibc::ics05_port::context::PortReader;
+use ibc::ics05_port::error::Error as PortError;
 use ibc::ics23_commitment::commitment::CommitmentPrefix;
 use ibc::ics24_host::identifier::{ChannelId, ClientId, ConnectionId, PortId};
 use ibc::ics24_host::IBC_QUERY_PATH;
@@ -65,40 +66,51 @@ pub struct Ibc<S> {
 }
 
 impl<S: Store> ClientReader for Ibc<S> {
-    fn client_type(&self, client_id: &ClientId) -> Option<ClientType> {
+    fn client_type(&self, client_id: &ClientId) -> Result<ClientType, ClientError> {
         let path = format!("clients/{}/clientType", client_id)
             .try_into()
             .unwrap(); // safety - path must be valid since ClientId is a valid Identifier
         self.store
             .get(Height::Pending, &path)
             .map(|v| serde_json::from_str(&String::from_utf8(v).unwrap()).unwrap())
+            .ok_or_else(ClientError::implementation_specific)
         // safety - data on the store is assumed to be well-formed
     }
 
-    fn client_state(&self, client_id: &ClientId) -> Option<AnyClientState> {
+    fn client_state(&self, client_id: &ClientId) -> Result<AnyClientState, ClientError> {
         let path = format!("clients/{}/clientState", client_id)
             .try_into()
             .unwrap(); // safety - path must be valid since ClientId is a valid Identifier
-        let value = self.store.get(Height::Pending, &path)?;
+        let value = self
+            .store
+            .get(Height::Pending, &path)
+            .ok_or_else(ClientError::implementation_specific)?;
         let client_state = Any::decode(value.as_slice());
-        client_state.ok().map(|v| v.try_into().unwrap()) // safety - data on the store is assumed to be well-formed
+        client_state
+            .map_err(|_| ClientError::implementation_specific())
+            .map(|v| v.try_into().unwrap()) // safety - data on the store is assumed to be well-formed
     }
 
     fn consensus_state(
         &self,
         client_id: &ClientId,
         height: IbcHeight,
-    ) -> Option<AnyConsensusState> {
+    ) -> Result<AnyConsensusState, ClientError> {
         let path = format!("clients/{}/consensusStates/{}", client_id, height)
             .try_into()
             .unwrap(); // safety - path must be valid since ClientId and height are valid Identifiers
-        let value = self.store.get(Height::Pending, &path)?;
+        let value = self
+            .store
+            .get(Height::Pending, &path)
+            .ok_or_else(ClientError::implementation_specific)?;
         let consensus_state = Any::decode(value.as_slice());
-        consensus_state.ok().map(|v| v.try_into().unwrap()) // safety - data on the store is assumed to be well-formed
+        consensus_state
+            .map_err(|_| ClientError::implementation_specific())
+            .map(|v| v.try_into().unwrap()) // safety - data on the store is assumed to be well-formed
     }
 
-    fn client_counter(&self) -> u64 {
-        self.client_counter
+    fn client_counter(&self) -> Result<u64, ClientError> {
+        Ok(self.client_counter)
     }
 }
 
@@ -162,11 +174,11 @@ impl<S: Store> ClientKeeper for Ibc<S> {
 }
 
 impl<S: Store> ConnectionReader for Ibc<S> {
-    fn connection_end(&self, _conn_id: &ConnectionId) -> Option<ConnectionEnd> {
+    fn connection_end(&self, _conn_id: &ConnectionId) -> Result<ConnectionEnd, ConnectionError> {
         todo!()
     }
 
-    fn client_state(&self, _client_id: &ClientId) -> Option<AnyClientState> {
+    fn client_state(&self, _client_id: &ClientId) -> Result<AnyClientState, ConnectionError> {
         todo!()
     }
 
@@ -186,15 +198,18 @@ impl<S: Store> ConnectionReader for Ibc<S> {
         &self,
         _client_id: &ClientId,
         _height: IbcHeight,
-    ) -> Option<AnyConsensusState> {
+    ) -> Result<AnyConsensusState, ConnectionError> {
         todo!()
     }
 
-    fn host_consensus_state(&self, _height: IbcHeight) -> Option<AnyConsensusState> {
+    fn host_consensus_state(
+        &self,
+        _height: IbcHeight,
+    ) -> Result<AnyConsensusState, ConnectionError> {
         todo!()
     }
 
-    fn connection_counter(&self) -> u64 {
+    fn connection_counter(&self) -> Result<u64, ConnectionError> {
         todo!()
     }
 }
@@ -222,19 +237,25 @@ impl<S: Store> ConnectionKeeper for Ibc<S> {
 }
 
 impl<S: Store> ChannelReader for Ibc<S> {
-    fn channel_end(&self, _port_channel_id: &(PortId, ChannelId)) -> Option<ChannelEnd> {
+    fn channel_end(
+        &self,
+        _port_channel_id: &(PortId, ChannelId),
+    ) -> Result<ChannelEnd, ChannelError> {
         todo!()
     }
 
-    fn connection_end(&self, _connection_id: &ConnectionId) -> Option<ConnectionEnd> {
+    fn connection_end(&self, _connection_id: &ConnectionId) -> Result<ConnectionEnd, ChannelError> {
         todo!()
     }
 
-    fn connection_channels(&self, _cid: &ConnectionId) -> Option<Vec<(PortId, ChannelId)>> {
+    fn connection_channels(
+        &self,
+        _cid: &ConnectionId,
+    ) -> Result<Vec<(PortId, ChannelId)>, ChannelError> {
         todo!()
     }
 
-    fn client_state(&self, _client_id: &ClientId) -> Option<AnyClientState> {
+    fn client_state(&self, _client_id: &ClientId) -> Result<AnyClientState, ChannelError> {
         todo!()
     }
 
@@ -242,7 +263,7 @@ impl<S: Store> ChannelReader for Ibc<S> {
         &self,
         _client_id: &ClientId,
         _height: IbcHeight,
-    ) -> Option<AnyConsensusState> {
+    ) -> Result<AnyConsensusState, ChannelError> {
         todo!()
     }
 
@@ -250,27 +271,45 @@ impl<S: Store> ChannelReader for Ibc<S> {
         todo!()
     }
 
-    fn get_next_sequence_send(&self, _port_channel_id: &(PortId, ChannelId)) -> Option<Sequence> {
+    fn get_next_sequence_send(
+        &self,
+        _port_channel_id: &(PortId, ChannelId),
+    ) -> Result<Sequence, ChannelError> {
         todo!()
     }
 
-    fn get_next_sequence_recv(&self, _port_channel_id: &(PortId, ChannelId)) -> Option<Sequence> {
+    fn get_next_sequence_recv(
+        &self,
+        _port_channel_id: &(PortId, ChannelId),
+    ) -> Result<Sequence, ChannelError> {
         todo!()
     }
 
-    fn get_next_sequence_ack(&self, _port_channel_id: &(PortId, ChannelId)) -> Option<Sequence> {
+    fn get_next_sequence_ack(
+        &self,
+        _port_channel_id: &(PortId, ChannelId),
+    ) -> Result<Sequence, ChannelError> {
         todo!()
     }
 
-    fn get_packet_commitment(&self, _key: &(PortId, ChannelId, Sequence)) -> Option<String> {
+    fn get_packet_commitment(
+        &self,
+        _key: &(PortId, ChannelId, Sequence),
+    ) -> Result<String, ChannelError> {
         todo!()
     }
 
-    fn get_packet_receipt(&self, _key: &(PortId, ChannelId, Sequence)) -> Option<Receipt> {
+    fn get_packet_receipt(
+        &self,
+        _key: &(PortId, ChannelId, Sequence),
+    ) -> Result<Receipt, ChannelError> {
         todo!()
     }
 
-    fn get_packet_acknowledgement(&self, _key: &(PortId, ChannelId, Sequence)) -> Option<String> {
+    fn get_packet_acknowledgement(
+        &self,
+        _key: &(PortId, ChannelId, Sequence),
+    ) -> Result<String, ChannelError> {
         todo!()
     }
 
@@ -286,7 +325,7 @@ impl<S: Store> ChannelReader for Ibc<S> {
         todo!()
     }
 
-    fn channel_counter(&self) -> u64 {
+    fn channel_counter(&self) -> Result<u64, ChannelError> {
         todo!()
     }
 }
@@ -378,7 +417,7 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
 }
 
 impl<S: Store> PortReader for Ibc<S> {
-    fn lookup_module_by_port(&self, _port_id: &PortId) -> Option<Capability> {
+    fn lookup_module_by_port(&self, _port_id: &PortId) -> Result<Capability, PortError> {
         todo!()
     }
 
