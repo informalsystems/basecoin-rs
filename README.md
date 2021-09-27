@@ -59,5 +59,9 @@ $ cargo run -- -v
 $ tendermint node
 ```
 
-## UML diagram
-![UML diagram](docs/images/uml-diagram.png)
+## UML diagrams
+![system diagram](docs/images/system-diagram.png)
+---
+![class diagram](docs/images/class-diagram.png)
+---
+![activity diagram - DeliverTx](docs/images/activity-diagram-deliverTx.png)
