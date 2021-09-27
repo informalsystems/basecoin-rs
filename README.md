@@ -9,18 +9,28 @@ So far this app has been tested with:
 * Tendermint v0.34.10
 
 ## Usage
-### Step 1: Reset your local Tendermint node.
-```bash
-tendermint unsafe-reset-all
+### Step 1: Reset your local Tendermint node
+```shell
+$ tendermint init
+$ tendermint unsafe-reset-all
 ```
 
-### Step 2: Module specific setup
+### Step 2: Modify Tendermint config
+Edit the Tendermint `config.toml` file (default location `~/.tendermint/config/config.toml`) to update the `proxy_app` and P2P `laddr` as follows.
+```toml
+proxy_app = "tcp://127.0.0.1:26358"
+# ...
+[p2p]
+laddr = "tcp://0.0.0.0:26356"
+```
+
+### Step 3: Module specific setup
 See the module documentation for more details -
 * [Bank module](docs/modules/bank.md)
 * [Ibc module](docs/modules/ibc.md)
 
-### Step 3: Run the basecoin app and Tendermint
-```bash
+### Step 4: Run the basecoin app and Tendermint
+```shell
 # See all supported CLI options
 $ cargo run -- --help
 tendermint-basecoin 0.1.0
@@ -43,10 +53,10 @@ OPTIONS:
 
 # Run the ABCI application (from this repo)
 # The -v is to enable trace-level logging
-cargo run -- -v
+$ cargo run -- -v
 
 # In another terminal
-tendermint node 
+$ tendermint node
 ```
 
 ## UML diagram
