@@ -46,5 +46,21 @@ pub mod ibc {
                 include!("prostgen/ibc.core.client.v1.rs");
             }
         }
+
+        pub mod commitment {
+            pub mod v1 {
+                include!("prostgen/ibc.core.commitment.v1.rs");
+            }
+        }
+
+        pub mod connection {
+            pub mod v1 {
+                include!("prostgen/ibc.core.connection.v1.rs");
+            }
+        }
     }
+}
+
+pub mod ics23 {
+    include!("prostgen/ics23.rs");
 }
