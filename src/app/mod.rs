@@ -72,6 +72,7 @@ impl<S: ProvableStore + 'static> BaseCoinApp<S> {
             Box::new(Ibc {
                 store: SubStore::new(store.clone(), prefix::Ibc),
                 client_counter: 0,
+                conn_counter: 0,
             }),
         ];
         Self {

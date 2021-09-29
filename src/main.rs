@@ -56,6 +56,7 @@ async fn grpc_serve<S: ProvableStore + 'static>(app: BaseCoinApp<S>, host: Strin
         .add_service(ClientQueryServer::new(Ibc {
             store: app.sub_store(prefix::Ibc),
             client_counter: 0,
+            conn_counter: 0,
         }))
         .serve(addr)
         .await
