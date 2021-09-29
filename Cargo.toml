@@ -19,6 +19,7 @@ bytes = "1.0.1"
 cosmos_sdk = "0.1.1"
 flex-error = { version = "0.4.2", features = [ "eyre_tracer" ] }
 ibc = "0.7.1"
+ibc-proto = "0.10.1"
 ics23 = "0.6.0"
 prost = "0.7.0"
 prost-types = "0.7.0"

@@ -1504,6 +1504,7 @@ dependencies = [
  "cosmos_sdk",
  "flex-error",
  "ibc",
+ "ibc-proto",
  "ics23",
  "prost",
  "prost-types",
