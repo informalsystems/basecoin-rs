@@ -48,8 +48,8 @@ impl Store for InMemoryStore {
             // Access one of the committed blocks
             Height::Stable(height) => {
                 let h = height as usize;
-                if h < self.store.len() {
-                    let state = self.store.get(h).unwrap();
+                if h <= self.store.len() {
+                    let state = self.store.get(h - 1).unwrap();
                     state.get(path).cloned()
                 } else {
                     None
