@@ -9,11 +9,23 @@ use crate::prostgen::ibc::core::client::v1::{
     QueryUpgradedClientStateRequest, QueryUpgradedClientStateResponse,
     QueryUpgradedConsensusStateRequest, QueryUpgradedConsensusStateResponse,
 };
+use crate::prostgen::ibc::core::connection::v1::{
+    query_server::Query as ConnectionQuery, ConnectionEnd as RawConnectionEnd,
+    Counterparty as RawCounterParty, Version as RawVersion,
+};
+use crate::prostgen::ibc::core::connection::v1::{
+    QueryClientConnectionsRequest, QueryClientConnectionsResponse,
+    QueryConnectionClientStateRequest, QueryConnectionClientStateResponse,
+    QueryConnectionConsensusStateRequest, QueryConnectionConsensusStateResponse,
+    QueryConnectionRequest, QueryConnectionResponse, QueryConnectionsRequest,
+    QueryConnectionsResponse,
+};
 
 use std::convert::TryInto;
 use std::num::ParseIntError;
 use std::str::FromStr;
 
+use crate::prostgen::ibc::core::commitment::v1::MerklePrefix;
 use ibc::application::ics20_fungible_token_transfer::context::Ics20Context;
 use ibc::events::IbcEvent;
 use ibc::ics02_client::client_consensus::AnyConsensusState;
@@ -40,6 +52,7 @@ use ibc::ics26_routing::context::Ics26Context;
 use ibc::ics26_routing::handler::{decode, dispatch};
 use ibc::timestamp::Timestamp;
 use ibc::Height as IbcHeight;
+use ibc_proto::ibc::core::connection::v1::ConnectionEnd as IbcRawConnectionEnd;
 use prost::Message;
 use prost_types::Any;
 use tendermint::{Hash, Time};
@@ -671,6 +684,79 @@ impl<S: ProvableStore + 'static> ClientQuery for Ibc<S> {
         _request: Request<QueryUpgradedConsensusStateRequest>,
     ) -> Result<Response<QueryUpgradedConsensusStateResponse>, Status> {
         unimplemented!()
+    }
+}
+
+#[tonic::async_trait]
+impl<S: ProvableStore + 'static> ConnectionQuery for Ibc<S> {
+    async fn connection(
+        &self,
+        request: Request<QueryConnectionRequest>,
+    ) -> Result<Response<QueryConnectionResponse>, Status> {
+        let conn_id = ConnectionId::from_str(&request.get_ref().connection_id)
+            .map_err(|_| Status::invalid_argument("invalid connection id"))?;
+        let conn = ConnectionReader::connection_end(self, &conn_id).ok();
+        Ok(Response::new(QueryConnectionResponse {
+            connection: conn.map(|c| ConnectionEndWrapper(c.into()).into()),
+            proof: vec![],
+            proof_height: None,
+        }))
+    }
+
+    async fn connections(
+        &self,
+        _request: Request<QueryConnectionsRequest>,
+    ) -> Result<Response<QueryConnectionsResponse>, Status> {
+        todo!()
+    }
+
+    async fn client_connections(
+        &self,
+        _request: Request<QueryClientConnectionsRequest>,
+    ) -> Result<Response<QueryClientConnectionsResponse>, Status> {
+        todo!()
+    }
+
+    async fn connection_client_state(
+        &self,
+        _request: Request<QueryConnectionClientStateRequest>,
+    ) -> Result<Response<QueryConnectionClientStateResponse>, Status> {
+        todo!()
+    }
+
+    async fn connection_consensus_state(
+        &self,
+        _request: Request<QueryConnectionConsensusStateRequest>,
+    ) -> Result<Response<QueryConnectionConsensusStateResponse>, Status> {
+        todo!()
+    }
+}
+
+struct ConnectionEndWrapper(IbcRawConnectionEnd);
+
+impl From<ConnectionEndWrapper> for RawConnectionEnd {
+    fn from(conn: ConnectionEndWrapper) -> Self {
+        Self {
+            client_id: conn.0.client_id,
+            versions: conn
+                .0
+                .versions
+                .into_iter()
+                .map(|v| RawVersion {
+                    identifier: v.identifier,
+                    features: v.features,
+                })
+                .collect(),
+            state: conn.0.state,
+            counterparty: conn.0.counterparty.map(|c| RawCounterParty {
+                client_id: c.client_id,
+                connection_id: c.connection_id,
+                prefix: c.prefix.map(|p| MerklePrefix {
+                    key_prefix: p.key_prefix,
+                }),
+            }),
+            delay_period: 0,
+        }
     }
 }
 

@@ -10,6 +10,7 @@ use crate::prostgen::cosmos::auth::v1beta1::query_server::QueryServer as AuthQue
 use crate::prostgen::cosmos::base::tendermint::v1beta1::service_server::ServiceServer as HealthServer;
 use crate::prostgen::cosmos::staking::v1beta1::query_server::QueryServer as StakingQueryServer;
 use crate::prostgen::ibc::core::client::v1::query_server::QueryServer as ClientQueryServer;
+use crate::prostgen::ibc::core::connection::v1::query_server::QueryServer as ConnectionQueryServer;
 
 use structopt::StructOpt;
 use tendermint_abci::ServerBuilder;
@@ -48,16 +49,19 @@ struct Opt {
 async fn grpc_serve<S: ProvableStore + 'static>(app: BaseCoinApp<S>, host: String, port: u16) {
     let addr = format!("{}:{}", host, port).parse().unwrap();
 
+    let ibc = Ibc {
+        store: app.sub_store(prefix::Ibc),
+        client_counter: 0,
+        conn_counter: 0,
+    };
+
     // TODO(hu55a1n1): implement these services for `auth` and `staking` modules
     Server::builder()
         .add_service(HealthServer::new(app.clone()))
         .add_service(AuthQueryServer::new(app.clone()))
         .add_service(StakingQueryServer::new(app.clone()))
-        .add_service(ClientQueryServer::new(Ibc {
-            store: app.sub_store(prefix::Ibc),
-            client_counter: 0,
-            conn_counter: 0,
-        }))
+        .add_service(ClientQueryServer::new(ibc.clone()))
+        .add_service(ConnectionQueryServer::new(ibc))
         .serve(addr)
         .await
         .unwrap()
