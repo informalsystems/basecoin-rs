@@ -188,12 +188,15 @@ impl<S: Store> ClientKeeper for Ibc<S> {
 
 impl<S: Store> ConnectionReader for Ibc<S> {
     fn connection_end(&self, conn_id: &ConnectionId) -> Result<ConnectionEnd, ConnectionError> {
-        let path = format!("connection/{}", conn_id).try_into().unwrap(); // safety - path must be valid since ClientId is a valid Identifier
-        self.store
+        let path = format!("connections/{}", conn_id).try_into().unwrap(); // safety - path must be valid since ClientId is a valid Identifier
+        let value = self
+            .store
             .get(Height::Pending, &path)
-            // safety - data on the store is assumed to be well-formed
-            .map(|v| serde_json::from_str(&String::from_utf8(v).unwrap()).unwrap())
-            .ok_or_else(ConnectionError::implementation_specific)
+            .ok_or_else(ConnectionError::implementation_specific)?;
+        let connection_end = IbcRawConnectionEnd::decode(value.as_slice());
+        connection_end
+            .map_err(|_| ConnectionError::implementation_specific())
+            .map(|v| v.try_into().unwrap()) // safety - data on the store is assumed to be well-formed
     }
 
     fn client_state(&self, client_id: &ClientId) -> Result<AnyClientState, ConnectionError> {
@@ -244,9 +247,14 @@ impl<S: Store> ConnectionKeeper for Ibc<S> {
         connection_id: ConnectionId,
         connection_end: &ConnectionEnd,
     ) -> Result<(), ConnectionError> {
-        let path = format!("connection/{}", connection_id).try_into().unwrap(); // safety - path must be valid since ClientId is a valid Identifier
+        let data: IbcRawConnectionEnd = connection_end.clone().into();
+        let mut buffer = Vec::new();
+        data.encode(&mut buffer)
+            .map_err(|_| ConnectionError::implementation_specific())?;
+
+        let path = format!("connections/{}", connection_id).try_into().unwrap(); // safety - path must be valid since ClientId is a valid Identifier
         self.store
-            .set(path, serde_json::to_string(&connection_end).unwrap().into()) // safety - cannot fail since ClientType's Serialize impl doesn't fail
+            .set(path, buffer)
             .map_err(|_| ConnectionError::implementation_specific())
     }
 
