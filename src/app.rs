@@ -47,7 +47,7 @@ use tendermint_proto::abci::{
     Event, RequestDeliverTx, RequestInfo, RequestInitChain, RequestQuery, ResponseCommit,
     ResponseDeliverTx, ResponseInfo, ResponseInitChain, ResponseQuery,
 };
-use tendermint_proto::p2p::{DefaultNodeInfo, ProtocolVersion};
+use tendermint_proto::p2p::DefaultNodeInfo;
 use tonic::{Request, Response, Status};
 use tracing::{debug, info};
 
@@ -151,7 +151,7 @@ impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
             version: "0.1.0".to_string(),
             app_version: 1,
             last_block_height,
-            last_block_app_hash: vec![],
+            last_block_app_hash,
         }
     }
 
