@@ -193,13 +193,10 @@ impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
                     return ResponseQuery {
                         code: 0,
                         log: "exists".to_string(),
-                        info: "".to_string(),
-                        index: 0,
                         key: request.data,
                         value: result,
-                        proof_ops: None,
                         height: self.store.read().unwrap().current_height() as i64,
-                        codespace: "".to_string(),
+                        ..ResponseQuery::default()
                     };
                 }
                 // `Error::not_handled()` - implies query isn't known or was intercepted but not
@@ -274,33 +271,18 @@ impl<S: ProvableStore + 'static> HealthService for BaseCoinApp<S> {
 
         // TODO(hu55a1n1): generate below info using build script
         Ok(Response::new(GetNodeInfoResponse {
-            default_node_info: Some(DefaultNodeInfo {
-                protocol_version: Some(ProtocolVersion {
-                    p2p: 0,
-                    block: 0,
-                    app: 0,
-                }),
-                default_node_id: "".to_string(),
-                listen_addr: "".to_string(),
-                network: "".to_string(),
-                version: "".to_string(),
-                channels: vec![],
-                moniker: "".to_string(),
-                other: None,
-            }),
+            default_node_info: Some(DefaultNodeInfo::default()),
             application_version: Some(VersionInfo {
                 name: "basecoin-rs".to_string(),
                 app_name: "basecoind".to_string(),
                 version: "0.1.0".to_string(),
                 git_commit: "209afef7e99ebcb814b25b6738d033aa5e1a932c".to_string(),
-                build_tags: "".to_string(),
-                go_version: "".to_string(),
                 build_deps: vec![VersionInfoModule {
                     path: "github.com/cosmos/cosmos-sdk".to_string(),
                     version: "v0.43.0".to_string(),
                     sum: "h1:ps1QWfvaX6VLNcykA7wzfii/5IwBfYgTIik6NOVDq/c=".to_string(),
                 }],
-                cosmos_sdk_version: "".to_string(),
+                ..VersionInfo::default()
             }),
         }))
     }
@@ -356,12 +338,7 @@ impl<S: ProvableStore + 'static> AuthQuery for BaseCoinApp<S> {
     ) -> Result<Response<QueryAccountResponse>, Status> {
         debug!("Got auth account request");
 
-        let account = BaseAccount {
-            address: "".to_string(),
-            pub_key: None,
-            account_number: 0,
-            sequence: 0,
-        };
+        let account = BaseAccount::default();
         let mut buf = Vec::new();
         account.encode(&mut buf).unwrap(); // safety - cannot fail since buf is a vector
 
@@ -486,10 +463,7 @@ impl<S: ProvableStore + 'static> StakingQuery for BaseCoinApp<S> {
                     seconds: 3 * 7 * 24 * 60 * 60,
                     nanos: 0,
                 }),
-                max_validators: 0,
-                max_entries: 0,
-                historical_entries: 0,
-                bond_denom: "".to_string(),
+                ..Params::default()
             }),
         }))
     }

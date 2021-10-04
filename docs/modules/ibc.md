@@ -18,7 +18,7 @@ Edit your `genesis.json` file (default location `~/.tendermint/config/genesis.js
 Edit the `config.toml` file (default location `~/.hermes/config.toml`) for `hermes` and add an entry for the basecoin chain:
 ```toml
 [[chains]]
-id = 'basecoin-0'
+id = 'basecoin'
 rpc_addr = 'http://127.0.0.1:26357'
 grpc_addr = 'http://127.0.0.1:9093'
 websocket_addr = 'ws://localhost:26357/websocket'
