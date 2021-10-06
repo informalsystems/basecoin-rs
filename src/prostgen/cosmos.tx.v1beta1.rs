@@ -349,7 +349,7 @@ pub mod service_server {
             Self { inner }
         }
     }
-    impl<T, B> Service<http::Request<B>> for ServiceServer<T>
+    impl<T, B> ::tonic::codegen::Service<http::Request<B>> for ServiceServer<T>
     where
         T: Service,
         B: HttpBody + Send + Sync + 'static,

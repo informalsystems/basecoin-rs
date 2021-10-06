@@ -2,7 +2,6 @@
 
 pub(crate) mod modules;
 mod response;
-
 pub(crate) mod store;
 
 use crate::app::modules::{prefix, Bank, Error, ErrorDetail, Ibc, Identifiable, Module};
@@ -33,6 +32,11 @@ use crate::prostgen::cosmos::staking::v1beta1::{
     QueryValidatorDelegationsResponse, QueryValidatorRequest, QueryValidatorResponse,
     QueryValidatorUnbondingDelegationsRequest, QueryValidatorUnbondingDelegationsResponse,
     QueryValidatorsRequest, QueryValidatorsResponse,
+};
+use crate::prostgen::cosmos::tx::v1beta1::service_server::Service as TxService;
+use crate::prostgen::cosmos::tx::v1beta1::{
+    BroadcastTxRequest, BroadcastTxResponse, GetTxRequest, GetTxResponse, GetTxsEventRequest,
+    GetTxsEventResponse, SimulateRequest, SimulateResponse,
 };
 
 use std::convert::{Into, TryInto};
@@ -457,5 +461,46 @@ impl<S: ProvableStore + 'static> StakingQuery for BaseCoinApp<S> {
                 ..Params::default()
             }),
         }))
+    }
+}
+
+#[tonic::async_trait]
+impl<S: ProvableStore + 'static> TxService for BaseCoinApp<S> {
+    async fn simulate(
+        &self,
+        request: Request<SimulateRequest>,
+    ) -> Result<Response<SimulateResponse>, Status> {
+        // TODO(hu55a1n1): implement tx based simulate
+        let _: Tx = request
+            .into_inner()
+            .tx_bytes
+            .as_slice()
+            .try_into()
+            .map_err(|_| Status::invalid_argument("failed to deserialize tx"))?;
+        Ok(Response::new(SimulateResponse {
+            gas_info: None,
+            result: None,
+        }))
+    }
+
+    async fn get_tx(
+        &self,
+        _request: Request<GetTxRequest>,
+    ) -> Result<Response<GetTxResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn broadcast_tx(
+        &self,
+        _request: Request<BroadcastTxRequest>,
+    ) -> Result<Response<BroadcastTxResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn get_txs_event(
+        &self,
+        _request: Request<GetTxsEventRequest>,
+    ) -> Result<Response<GetTxsEventResponse>, Status> {
+        unimplemented!()
     }
 }
