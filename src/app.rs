@@ -200,7 +200,7 @@ impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
             Ok(tx) => tx,
             Err(err) => {
                 return ResponseDeliverTx::from_error(
-                    1, 
+                    1,
                     format!("failed to decode incoming tx bytes: {}", err),
                 );
             }
