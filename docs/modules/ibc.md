@@ -18,7 +18,7 @@ Edit your `genesis.json` file (default location `~/.tendermint/config/genesis.js
 Edit the `config.toml` file (default location `~/.hermes/config.toml`) for `hermes` and add an entry for the basecoin chain:
 ```toml
 [[chains]]
-id = 'basecoin-0'
+id = 'basecoin'
 rpc_addr = 'http://127.0.0.1:26357'
 grpc_addr = 'http://127.0.0.1:9093'
 websocket_addr = 'ws://localhost:26357/websocket'
@@ -45,6 +45,7 @@ $ hermes keys add basecoin-0 -f user_seed.json
 ```
 
 ### Step 4: Create and Update a client
+Assuming the `basecoin-0` chain and tendermint are running (see instructions on [README.md#run-the-basecoin-app-and-tendermint](../../README.md#step-4-run-the-basecoin-app-and-tendermint)). 
 ```shell
 $ hermes tx raw create-client basecoin ibc-0
 $ hermes tx raw update-client basecoin 07-tendermint-0
