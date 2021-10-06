@@ -51,22 +51,6 @@ use tendermint_proto::p2p::DefaultNodeInfo;
 use tonic::{Request, Response, Status};
 use tracing::{debug, info};
 
-// an adaptation of the deprecated `try!()` macro that tries to unwrap a `Result` or returns the
-// error in the form of an ABCI response object
-macro_rules! attempt {
-    ($expr:expr, $code:literal, $msg:literal) => {
-        match $expr {
-            ::core::result::Result::Ok(val) => val,
-            ::core::result::Result::Err(err) => {
-                return $crate::app::response::ResponseFromErrorExt::from_error(
-                    $code,
-                    ::std::format!("{}: {}", $msg, err),
-                );
-            }
-        }
-    };
-}
-
 /// BaseCoin ABCI application.
 ///
 /// Can be safely cloned and sent across threads, but not shared.
@@ -212,11 +196,16 @@ impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
     fn deliver_tx(&self, request: RequestDeliverTx) -> ResponseDeliverTx {
         debug!("Got deliverTx request: {:?}", request);
 
-        let tx: Tx = attempt!(
-            request.tx.as_slice().try_into(),
-            1,
-            "failed to decode incoming tx bytes"
-        );
+        let tx: Tx = match request.tx.as_slice().try_into() {
+            Ok(tx) => tx,
+            Err(err) => {
+                return ResponseDeliverTx::from_error(
+                    1, 
+                    format!("failed to decode incoming tx bytes: {}", err),
+                );
+            }
+        };
+
         if tx.body.messages.is_empty() {
             return ResponseDeliverTx::from_error(2, "Empty Tx");
         }
