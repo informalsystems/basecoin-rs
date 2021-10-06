@@ -9,6 +9,7 @@ use crate::app::BaseCoinApp;
 use crate::prostgen::cosmos::auth::v1beta1::query_server::QueryServer as AuthQueryServer;
 use crate::prostgen::cosmos::base::tendermint::v1beta1::service_server::ServiceServer as HealthServer;
 use crate::prostgen::cosmos::staking::v1beta1::query_server::QueryServer as StakingQueryServer;
+use crate::prostgen::cosmos::tx::v1beta1::service_server::ServiceServer as TxServer;
 use crate::prostgen::ibc::core::client::v1::query_server::QueryServer as ClientQueryServer;
 use crate::prostgen::ibc::core::connection::v1::query_server::QueryServer as ConnectionQueryServer;
 
@@ -60,6 +61,7 @@ async fn grpc_serve<S: ProvableStore + 'static>(app: BaseCoinApp<S>, host: Strin
         .add_service(HealthServer::new(app.clone()))
         .add_service(AuthQueryServer::new(app.clone()))
         .add_service(StakingQueryServer::new(app.clone()))
+        .add_service(TxServer::new(app.clone()))
         .add_service(ClientQueryServer::new(ibc.clone()))
         .add_service(ConnectionQueryServer::new(ibc))
         .serve(addr)
