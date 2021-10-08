@@ -13,6 +13,7 @@ use std::str::{from_utf8, Utf8Error};
 use std::sync::{Arc, RwLock};
 
 use flex_error::{define_error, TraceError};
+use ibc::ics24_host::validate::validate_identifier;
 use ics23::CommitmentProof;
 use tracing::trace;
 
@@ -27,16 +28,8 @@ impl Identifier {
     /// * Alphanumeric
     /// * `.`, `_`, `+`, `-`, `#`
     /// * `[`, `]`, `<`, `>`
-    #[inline]
     fn is_valid(s: impl AsRef<str>) -> bool {
-        let s = s.as_ref();
-        if s.is_empty() {
-            return false;
-        }
-        s.chars().all(|c| {
-            c.is_ascii_alphanumeric()
-                || matches!(c, '.' | '_' | '+' | '-' | '#' | '[' | ']' | '<' | '>' | '/')
-        })
+        validate_identifier(s.as_ref(), usize::MIN, usize::MAX).is_ok()
     }
 }
 
