@@ -345,7 +345,7 @@ pub(crate) struct WalStore<S> {
     /// operation log for recording operations in preserved order
     op_log: VecDeque<(Path, Vec<u8>)>,
 }
-//
+
 impl<S: Store> WalStore<S> {
     pub(crate) fn new(store: S) -> Self {
         Self {

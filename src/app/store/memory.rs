@@ -91,8 +91,8 @@ impl ProvableStore for InMemoryStore {
             .to_vec()
     }
 
-    fn get_proof(&self, _key: &Path) -> Option<CommitmentProof> {
-        todo!()
+    fn get_proof(&self, key: &Path) -> Option<CommitmentProof> {
+        self.store.last().and_then(|v| v.get_proof(key))
     }
 }
 
