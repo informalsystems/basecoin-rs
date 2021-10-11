@@ -1,4 +1,4 @@
-use crate::app::modules::{Error as ModuleError, Module};
+use crate::app::modules::{Error as ModuleError, Module, QueryResult};
 use crate::app::store::{Height, Path, Store};
 
 use std::collections::HashMap;
@@ -163,7 +163,7 @@ impl<S: Store> Module for Bank<S> {
         data: &[u8],
         _path: Option<&Path>,
         height: Height,
-    ) -> Result<Vec<u8>, ModuleError> {
+    ) -> Result<QueryResult, ModuleError> {
         let account_id = match String::from_utf8(data.to_vec()) {
             Ok(s) if s.starts_with("cosmos") => s, // TODO(hu55a1n1): check if valid identifier
             _ => return Err(ModuleError::not_handled()),
@@ -174,7 +174,10 @@ impl<S: Store> Module for Bank<S> {
         let path = format!("accounts/{}", account_id).try_into().unwrap(); // safety - account_id is a valid identifier
         match self.store.get(height, &path) {
             None => Err(Error::non_existent_account(account_id).into()),
-            Some(balance) => Ok(balance),
+            Some(balance) => Ok(QueryResult {
+                data: balance,
+                proof: None,
+            }),
         }
     }
 }
