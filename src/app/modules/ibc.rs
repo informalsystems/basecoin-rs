@@ -1,4 +1,4 @@
-use crate::app::modules::{Error as ModuleError, Identifiable, Module};
+use crate::app::modules::{Error as ModuleError, Identifiable, Module, QueryResult};
 use crate::app::store::{Height, Path, ProvableStore, Store};
 use crate::prostgen::ibc::core::client::v1::{
     query_server::Query as ClientQuery, ConsensusStateWithHeight, Height as RawHeight,
@@ -9,6 +9,7 @@ use crate::prostgen::ibc::core::client::v1::{
     QueryUpgradedClientStateRequest, QueryUpgradedClientStateResponse,
     QueryUpgradedConsensusStateRequest, QueryUpgradedConsensusStateResponse,
 };
+use crate::prostgen::ibc::core::commitment::v1::MerklePrefix;
 use crate::prostgen::ibc::core::connection::v1::{
     query_server::Query as ConnectionQuery, ConnectionEnd as RawConnectionEnd,
     Counterparty as RawCounterParty, Version as RawVersion,
@@ -25,7 +26,6 @@ use std::convert::TryInto;
 use std::num::ParseIntError;
 use std::str::FromStr;
 
-use crate::prostgen::ibc::core::commitment::v1::MerklePrefix;
 use ibc::application::ics20_fungible_token_transfer::context::Ics20Context;
 use ibc::events::IbcEvent;
 use ibc::ics02_client::client_consensus::AnyConsensusState;
@@ -57,6 +57,7 @@ use prost::Message;
 use prost_types::Any;
 use tendermint::{Hash, Time};
 use tendermint_proto::abci::{Event, EventAttribute};
+use tendermint_proto::crypto::ProofOp;
 use tonic::{Request, Response, Status};
 use tracing::{debug, trace};
 
@@ -477,7 +478,7 @@ impl<S: Store> Ics20Context for Ibc<S> {}
 
 impl<S: Store> Ics26Context for Ibc<S> {}
 
-impl<S: Store> Module for Ibc<S> {
+impl<S: ProvableStore> Module for Ibc<S> {
     fn deliver(&mut self, message: Any) -> Result<Vec<Event>, ModuleError> {
         let msg = decode(message).map_err(|_| ModuleError::not_handled())?;
 
@@ -497,7 +498,7 @@ impl<S: Store> Module for Ibc<S> {
         data: &[u8],
         path: Option<&Path>,
         height: Height,
-    ) -> Result<Vec<u8>, ModuleError> {
+    ) -> Result<QueryResult, ModuleError> {
         let path = path.ok_or_else(ModuleError::not_handled)?;
         if path.to_string() != IBC_QUERY_PATH {
             return Err(ModuleError::not_handled());
@@ -514,9 +515,22 @@ impl<S: Store> Module for Ibc<S> {
             height
         );
 
-        match self.store.get(height, &path) {
-            None => Err(Error::ics02_client(ClientError::implementation_specific()).into()),
-            Some(client_state) => Ok(client_state),
+        match (self.store.get(height, &path), self.store.get_proof(&path)) {
+            (Some(client_state), Some(proof)) => {
+                let mut buffer = Vec::new();
+                proof
+                    .encode(&mut buffer)
+                    .map_err(|_| Error::ics02_client(ClientError::implementation_specific()))?;
+                Ok(QueryResult {
+                    data: client_state,
+                    proof: Some(vec![ProofOp {
+                        r#type: "".to_string(),
+                        key: path.to_string().into_bytes(),
+                        data: buffer,
+                    }]),
+                })
+            }
+            _ => Err(Error::ics02_client(ClientError::implementation_specific()).into()),
         }
     }
 }
