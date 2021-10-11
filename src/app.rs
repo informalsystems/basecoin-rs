@@ -51,6 +51,7 @@ use tendermint_proto::abci::{
     Event, RequestDeliverTx, RequestInfo, RequestInitChain, RequestQuery, ResponseCommit,
     ResponseDeliverTx, ResponseInfo, ResponseInitChain, ResponseQuery,
 };
+use tendermint_proto::crypto::ProofOps;
 use tendermint_proto::p2p::DefaultNodeInfo;
 use tonic::{Request, Response, Status};
 use tracing::{debug, info};
@@ -184,9 +185,10 @@ impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
                         code: 0,
                         log: "exists".to_string(),
                         key: request.data,
-                        value: result,
+                        value: result.data,
+                        proof_ops: result.proof.map(|ops| ProofOps { ops }),
                         height: self.store.read().unwrap().current_height() as i64,
-                        ..ResponseQuery::default()
+                        ..Default::default()
                     };
                 }
                 // `Error::not_handled()` - implies query isn't known or was intercepted but not

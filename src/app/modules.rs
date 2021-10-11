@@ -9,6 +9,7 @@ use crate::app::store::{self, Height, Path};
 use flex_error::{define_error, TraceError};
 use prost_types::Any;
 use tendermint_proto::abci::Event;
+use tendermint_proto::crypto::ProofOp;
 
 define_error! {
     #[derive(PartialEq, Eq)]
@@ -56,10 +57,20 @@ pub(crate) trait Module {
     /// ## Return
     /// * `Error::not_handled()` if message isn't known to OR hasn't been responded to (but possibly intercepted) by this module
     /// * Other errors iff query was meant to be consumed by module but resulted in an error
-    /// * Query result on success
-    fn query(&self, _data: &[u8], _path: Option<&Path>, _height: Height) -> Result<Vec<u8>, Error> {
+    /// * Query result  on success
+    fn query(
+        &self,
+        _data: &[u8],
+        _path: Option<&Path>,
+        _height: Height,
+    ) -> Result<QueryResult, Error> {
         Err(Error::not_handled())
     }
+}
+
+pub struct QueryResult {
+    pub data: Vec<u8>,
+    pub proof: Option<Vec<ProofOp>>,
 }
 
 /// Trait for identifying modules
