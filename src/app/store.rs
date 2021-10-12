@@ -262,7 +262,7 @@ where
 
     #[inline]
     fn get_proof(&self, key: &Path) -> Option<CommitmentProof> {
-        self.store.get_proof(key)
+        self.store.get_proof(&self.prefix.prefixed_path(key))
     }
 }
 
