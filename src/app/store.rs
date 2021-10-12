@@ -106,7 +106,7 @@ define_error! {
     Error {
         InvalidIdentifier
             { identifier: String }
-            [ TraceError<ValidationError> ]
+            [ ValidationError ]
             | e | { format!("'{}' is not a valid identifier", e.identifier) },
         MalformedPathString
             [ TraceError<Utf8Error> ]
