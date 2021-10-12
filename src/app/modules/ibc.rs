@@ -575,7 +575,7 @@ impl From<IbcEventWrapper> for Event {
                 attributes: vec![EventAttribute {
                     key: "client_id".as_bytes().to_vec(),
                     value: c.client_id().to_string().as_bytes().to_vec(),
-                    index: false,
+                    index: true,
                 }],
             },
             IbcEvent::UpdateClient(c) => Self {
@@ -583,7 +583,7 @@ impl From<IbcEventWrapper> for Event {
                 attributes: vec![EventAttribute {
                     key: "client_id".as_bytes().to_vec(),
                     value: c.client_id().to_string().as_bytes().to_vec(),
-                    index: false,
+                    index: true,
                 }],
             },
             IbcEvent::OpenInitConnection(conn_open_init) => Self {
@@ -597,7 +597,7 @@ impl From<IbcEventWrapper> for Event {
                         .to_string()
                         .as_bytes()
                         .to_vec(),
-                    index: false,
+                    index: true,
                 }],
             },
             IbcEvent::OpenTryConnection(conn_open_try) => Self {
@@ -611,7 +611,7 @@ impl From<IbcEventWrapper> for Event {
                         .to_string()
                         .as_bytes()
                         .to_vec(),
-                    index: false,
+                    index: true,
                 }],
             },
             IbcEvent::OpenAckConnection(conn_open_ack) => Self {
@@ -625,7 +625,7 @@ impl From<IbcEventWrapper> for Event {
                         .to_string()
                         .as_bytes()
                         .to_vec(),
-                    index: false,
+                    index: true,
                 }],
             },
             IbcEvent::OpenConfirmConnection(conn_open_confirm) => Self {
@@ -639,7 +639,7 @@ impl From<IbcEventWrapper> for Event {
                         .to_string()
                         .as_bytes()
                         .to_vec(),
-                    index: false,
+                    index: true,
                 }],
             },
             _ => todo!(),
