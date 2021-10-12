@@ -13,6 +13,7 @@ use std::str::{from_utf8, Utf8Error};
 use std::sync::{Arc, RwLock};
 
 use flex_error::{define_error, TraceError};
+use ibc::ics24_host::error::ValidationError;
 use ibc::ics24_host::validate::validate_identifier;
 use ics23::CommitmentProof;
 use tracing::trace;
@@ -28,8 +29,10 @@ impl Identifier {
     /// * Alphanumeric
     /// * `.`, `_`, `+`, `-`, `#`
     /// * `[`, `]`, `<`, `>`
-    fn is_valid(s: impl AsRef<str>) -> bool {
-        validate_identifier(s.as_ref(), usize::MIN, usize::MAX).is_ok()
+    fn validate(s: impl AsRef<str>) -> Result<(), Error> {
+        let s = s.as_ref();
+
+        validate_identifier(s, 1, s.len()).map_err(|v| Error::invalid_identifier(s.to_string(), v))
     }
 }
 
@@ -45,11 +48,7 @@ impl TryFrom<String> for Identifier {
     type Error = Error;
 
     fn try_from(s: String) -> Result<Self, Self::Error> {
-        if !Identifier::is_valid(&s) {
-            Err(Error::invalid_identifier(s))
-        } else {
-            Ok(Self(s))
-        }
+        Identifier::validate(&s).map(|_| Self(s))
     }
 }
 
@@ -81,12 +80,9 @@ impl TryFrom<String> for Path {
 
     fn try_from(s: String) -> Result<Self, Self::Error> {
         // split will never return an empty iterator
-        for id in s.split('/') {
-            if !Identifier::is_valid(id) {
-                return Err(Error::invalid_identifier(id.to_owned()));
-            }
-        }
-        Ok(Self(s))
+        let parts: Result<Vec<_>, _> = s.split('/').into_iter().map(Identifier::validate).collect();
+
+        parts.map(|_| Self(s))
     }
 }
 
@@ -110,6 +106,7 @@ define_error! {
     Error {
         InvalidIdentifier
             { identifier: String }
+            [ TraceError<ValidationError> ]
             | e | { format!("'{}' is not a valid identifier", e.identifier) },
         MalformedPathString
             [ TraceError<Utf8Error> ]
