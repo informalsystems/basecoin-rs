@@ -177,10 +177,10 @@ impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
                 &request.data,
                 path.as_ref(),
                 Height::from(request.height as u64),
+                request.prove,
             ) {
                 // success - implies query was handled by this module, so return response
                 Ok(result) => {
-                    // TODO(hu55a1n1): Add proof support
                     return ResponseQuery {
                         code: 0,
                         log: "exists".to_string(),
