@@ -80,6 +80,18 @@ pub struct Ibc<S> {
     pub conn_counter: u64,
 }
 
+impl<S: ProvableStore> Ibc<S> {
+    fn get_proof(&self, path: &Path) -> Option<Vec<u8>> {
+        if let Some(p) = self.store.get_proof(path) {
+            let mut buffer = Vec::new();
+            if p.encode(&mut buffer).is_ok() {
+                return Some(buffer);
+            }
+        }
+        None
+    }
+}
+
 impl<S: Store> ClientReader for Ibc<S> {
     fn client_type(&self, client_id: &ClientId) -> Result<ClientType, ClientError> {
         let path = format!("clients/{}/clientType", client_id)
@@ -511,6 +523,7 @@ impl<S: ProvableStore> Module for Ibc<S> {
         data: &[u8],
         path: Option<&Path>,
         height: Height,
+        prove: bool,
     ) -> Result<QueryResult, ModuleError> {
         let path = path.ok_or_else(ModuleError::not_handled)?;
         if path.to_string() != IBC_QUERY_PATH {
@@ -528,23 +541,27 @@ impl<S: ProvableStore> Module for Ibc<S> {
             height
         );
 
-        match (self.store.get(height, &path), self.store.get_proof(&path)) {
-            (Some(client_state), Some(proof)) => {
-                let mut buffer = Vec::new();
-                proof
-                    .encode(&mut buffer)
-                    .map_err(|_| Error::ics02_client(ClientError::implementation_specific()))?;
-                Ok(QueryResult {
-                    data: client_state,
-                    proof: Some(vec![ProofOp {
-                        r#type: "".to_string(),
-                        key: path.to_string().into_bytes(),
-                        data: buffer,
-                    }]),
-                })
-            }
-            _ => Err(Error::ics02_client(ClientError::implementation_specific()).into()),
-        }
+        let proof = if prove {
+            let proof = self
+                .get_proof(&path)
+                .ok_or_else(|| Error::ics02_client(ClientError::implementation_specific()))?;
+            Some(ProofOp {
+                r#type: "".to_string(),
+                key: path.to_string().into_bytes(),
+                data: proof,
+            })
+        } else {
+            None
+        };
+
+        let data = self
+            .store
+            .get(height, &path)
+            .ok_or_else(|| Error::ics02_client(ClientError::implementation_specific()))?;
+        Ok(QueryResult {
+            data,
+            proof: proof.map(|p| vec![p]),
+        })
     }
 }
 
