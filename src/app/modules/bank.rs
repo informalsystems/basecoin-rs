@@ -163,6 +163,7 @@ impl<S: Store> Module for Bank<S> {
         data: &[u8],
         _path: Option<&Path>,
         height: Height,
+        _prove: bool,
     ) -> Result<QueryResult, ModuleError> {
         let account_id = match String::from_utf8(data.to_vec()) {
             Ok(s) if s.starts_with("cosmos") => s, // TODO(hu55a1n1): check if valid identifier

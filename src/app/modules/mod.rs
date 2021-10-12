@@ -63,6 +63,7 @@ pub(crate) trait Module {
         _data: &[u8],
         _path: Option<&Path>,
         _height: Height,
+        _prove: bool,
     ) -> Result<QueryResult, Error> {
         Err(Error::not_handled())
     }
