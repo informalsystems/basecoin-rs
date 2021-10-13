@@ -20,6 +20,7 @@ cosmos_sdk = "0.1.1"
 flex-error = { version = "0.4.2", features = [ "eyre_tracer" ] }
 ibc = "0.7.1"
 ics23 = "0.6.0"
+lazy_static = "1.4.0"
 prost = "0.7.0"
 prost-types = "0.7.0"
 serde = "1.0"
@@ -34,3 +35,7 @@ tracing = "0.1.26"
 tracing-subscriber = "0.2.18"
 tonic="0.4"
 tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
+
+[dev-dependencies]
+proptest = "*"
+rand = "*"

@@ -449,14 +449,28 @@ impl<T: Identifiable> PrefixedPath for T {
 mod tests {
     #![allow(unused_must_use)]
 
-    use super::Identifier;
+    use super::{Identifier, Path};
     use proptest::prelude::*;
+    use rand::distributions::Standard;
+    use rand::seq::SliceRandom;
+    use std::collections::HashSet;
+    use std::convert::TryFrom;
+
+    const ALLOWED_CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ\
+                                   abcdefghijklmnopqrstuvwxyz\
+                                   ._+-#[]<>";
+
+    lazy_static! {
+        static ref VALID_CHARS: HashSet<char> = {
+            ALLOWED_CHARS
+                .iter()
+                .map(|c| char::from(*c))
+                .collect::<HashSet<_>>()
+        };
+    }
 
     fn gen_valid_identifier(len: usize) -> String {
         let mut rng = rand::thread_rng();
-        const ALLOWED_CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ\
-                                       abcdefghijklmnopqrstuvwxyz\
-                                       ._+-#[]<>";
 
         (0..=len)
             .map(|_| {
@@ -466,18 +480,90 @@ mod tests {
             .collect::<String>()
     }
 
+    fn gen_invalid_identifier(len: usize) -> String {
+        let mut rng = rand::thread_rng();
+
+        (0..=len)
+            .map(|_| loop {
+                let c = rng.sample::<char, _>(Standard) as char;
+
+                if !VALID_CHARS.contains(&c) {
+                    return c;
+                }
+            })
+            .collect::<String>()
+    }
+
     proptest! {
         #[test]
-        fn doesnt_crash(s in "\\PC*") {
+        fn validate_method_doesnt_crash(s in "\\PC*") {
             Identifier::validate(&s);
         }
 
         #[test]
-        fn valid_identifier_is_ok(l in 1usize..=30) {
+        fn valid_identifier_is_ok(l in 1usize..=10) {
             let id = gen_valid_identifier(l);
             let validated = Identifier::validate(&id);
 
             assert!(validated.is_ok())
+        }
+
+        #[test]
+        #[ignore]
+        fn invalid_identifier_errors(l in 1usize..=10) {
+            let id = gen_invalid_identifier(l);
+            let validated = Identifier::validate(&id);
+
+            if validated.is_ok() {
+                println!("Id: {}", id);
+            }
+
+            assert!(validated.is_err())
+        }
+
+        #[test]
+        fn path_with_valid_parts_is_valid(n_parts in 1usize..=10) {
+            let mut rng = rand::thread_rng();
+
+            let parts = (0..n_parts)
+                .map(|_| {
+                    let len = rng.gen_range(1usize..=10);
+                    gen_valid_identifier(len)
+                })
+                .collect::<Vec<_>>();
+
+            let path = parts.join("/");
+
+            assert!(Path::try_from(path).is_ok());
+        }
+
+        #[test]
+        #[ignore]
+        fn path_with_invalid_parts_is_invalid(n_parts in 1usize..=10) {
+            let mut rng = rand::thread_rng();
+            let n_invalid_parts = rng.gen_range(1usize..=n_parts);
+            let n_valid_parts = n_parts - n_invalid_parts;
+
+            let mut parts = (0..n_invalid_parts)
+                .map(|_| {
+                    let len = rng.gen_range(1usize..=10);
+                    gen_invalid_identifier(len)
+                })
+                .collect::<Vec<_>>();
+
+            let mut valid_parts = (0..n_valid_parts)
+                .map(|_| {
+                    let len = rng.gen_range(1usize..=10);
+                    gen_valid_identifier(len)
+                })
+                .collect::<Vec<_>>();
+
+            parts.append(&mut valid_parts);
+            parts.shuffle(&mut rng);
+
+            let path = parts.join("/");
+
+            assert!(Path::try_from(path).is_err());
         }
     }
 }
