@@ -514,10 +514,6 @@ mod tests {
             let id = gen_invalid_identifier(l);
             let validated = Identifier::validate(&id);
 
-            if validated.is_ok() {
-                println!("Id: {}", id);
-            }
-
             assert!(validated.is_err())
         }
 
