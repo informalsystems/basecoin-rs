@@ -32,7 +32,10 @@ impl Identifier {
     fn validate(s: impl AsRef<str>) -> Result<(), Error> {
         let s = s.as_ref();
 
-        validate_identifier(s, 1, s.len()).map_err(|v| Error::invalid_identifier(s.to_string(), v))
+        // give a `min` parameter of 0 here to allow id's of arbitrary
+        // length as inputs; `validate_identifier` itself checks for
+        // empty inputs and returns an error as appropriate
+        validate_identifier(s, 0, s.len()).map_err(|v| Error::invalid_identifier(s.to_string(), v))
     }
 }
 
@@ -438,6 +441,43 @@ impl<T: Identifiable> PrefixedPath for T {
             Path::from(prefix).append(s)
         } else {
             s.clone()
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(unused_must_use)]
+
+    use super::Identifier;
+    use proptest::prelude::*;
+
+    fn gen_valid_identifier(len: usize) -> String {
+        let mut rng = rand::thread_rng();
+        const ALLOWED_CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ\
+                                       abcdefghijklmnopqrstuvwxyz\
+                                       ._+-#[]<>";
+
+        (0..=len)
+            .map(|_| {
+                let idx = rng.gen_range(0..ALLOWED_CHARS.len());
+                ALLOWED_CHARS[idx] as char
+            })
+            .collect::<String>()
+    }
+
+    proptest! {
+        #[test]
+        fn doesnt_crash(s in "\\PC*") {
+            Identifier::validate(&s);
+        }
+
+        #[test]
+        fn valid_identifier_is_ok(l in 1usize..=30) {
+            let id = gen_valid_identifier(l);
+            let validated = Identifier::validate(&id);
+
+            assert!(validated.is_ok())
         }
     }
 }
