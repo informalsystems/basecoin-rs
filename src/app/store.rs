@@ -487,7 +487,7 @@ mod tests {
             .map(|_| loop {
                 let c = rng.sample::<char, _>(Standard) as char;
 
-                if !VALID_CHARS.contains(&c) {
+                if c.is_ascii() && !VALID_CHARS.contains(&c) {
                     return c;
                 }
             })
