@@ -24,6 +24,7 @@ use std::num::ParseIntError;
 use std::str::FromStr;
 
 use ibc::applications::ics20_fungible_token_transfer::context::Ics20Context;
+use ibc::clients::ics07_tendermint::consensus_state::ConsensusState;
 use ibc::core::ics02_client::client_consensus::AnyConsensusState;
 use ibc::core::ics02_client::client_state::AnyClientState;
 use ibc::core::ics02_client::client_type::ClientType;
@@ -40,7 +41,6 @@ use ibc::core::ics04_channel::packet::{Receipt, Sequence};
 use ibc::core::ics05_port::capabilities::Capability;
 use ibc::core::ics05_port::context::PortReader;
 use ibc::core::ics05_port::error::Error as PortError;
-use ibc::core::ics07_tendermint::consensus_state::ConsensusState;
 use ibc::core::ics23_commitment::commitment::{CommitmentPrefix, CommitmentRoot};
 use ibc::core::ics24_host::identifier::{ChannelId, ClientId, ConnectionId, PortId};
 use ibc::core::ics24_host::IBC_QUERY_PATH;
@@ -257,7 +257,7 @@ impl<S: Store> ConnectionReader for Ibc<S> {
     ) -> Result<AnyConsensusState, ConnectionError> {
         Ok(AnyConsensusState::Tendermint(ConsensusState::new(
             CommitmentRoot::from_bytes(&[]),
-            Time::now(),
+            Time::unix_epoch(),
             Hash::None,
         )))
     }
