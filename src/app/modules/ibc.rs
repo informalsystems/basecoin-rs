@@ -137,18 +137,73 @@ impl<S: Store> ClientReader for Ibc<S> {
 
     fn next_consensus_state(
         &self,
-        _client_id: &ClientId,
-        _height: IbcHeight,
+        client_id: &ClientId,
+        height: IbcHeight,
     ) -> Result<Option<AnyConsensusState>, ClientError> {
-        todo!()
+        let path = format!("clients/{}/consensusStates", client_id)
+            .try_into()
+            .unwrap(); // safety - path must be valid since ClientId and height are valid Identifiers
+
+        let keys = self.store.get_keys(&path);
+        let found_path = keys.iter().find(|path| {
+            let cs_height = path
+                .to_string()
+                .split('/')
+                .last()
+                .expect("invalid path") // safety - prefixed paths will have atleast one '/'
+                .parse::<IbcHeightExt>()
+                .expect("couldn't parse Path as Height"); // safety - data on the store is assumed to be well-formed
+
+            height > cs_height.0
+        });
+
+        if let Some(path) = found_path {
+            // safety - data on the store is assumed to be well-formed
+            let consensus_state = self.store.get(Height::Pending, path).unwrap();
+            let consensus_state =
+                Any::decode(consensus_state.as_slice()).expect("failed to decode consensus state");
+
+            Ok(Some(consensus_state.try_into()?))
+        } else {
+            Ok(None)
+        }
     }
 
     fn prev_consensus_state(
         &self,
-        _client_id: &ClientId,
-        _height: IbcHeight,
+        client_id: &ClientId,
+        height: IbcHeight,
     ) -> Result<Option<AnyConsensusState>, ClientError> {
-        todo!()
+        let path = format!("clients/{}/consensusStates", client_id)
+            .try_into()
+            .unwrap(); // safety - path must be valid since ClientId and height are valid Identifiers
+
+        let keys = self.store.get_keys(&path);
+        let pos = keys.iter().position(|path| {
+            let cs_height = path
+                .to_string()
+                .split('/')
+                .last()
+                .expect("invalid path") // safety - prefixed paths will have atleast one '/'
+                .parse::<IbcHeightExt>()
+                .expect("couldn't parse Path as Height"); // safety - data on the store is assumed to be well-formed
+
+            height >= cs_height.0
+        });
+
+        if let Some(pos) = pos {
+            if pos > 0 {
+                let prev_path = &keys[pos - 1];
+                // safety - data on the store is assumed to be well-formed
+                let consensus_state = self.store.get(Height::Pending, prev_path).unwrap();
+                let consensus_state = Any::decode(consensus_state.as_slice())
+                    .expect("failed to decode consensus state");
+
+                return Ok(Some(consensus_state.try_into()?));
+            }
+        }
+
+        Ok(None)
     }
 
     fn client_counter(&self) -> Result<u64, ClientError> {
