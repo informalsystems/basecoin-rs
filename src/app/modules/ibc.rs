@@ -128,11 +128,27 @@ impl<S: Store> ClientReader for Ibc<S> {
         let value = self
             .store
             .get(Height::Pending, &path)
-            .ok_or_else(ClientError::implementation_specific)?;
+            .ok_or_else(|| ClientError::consensus_state_not_found(client_id.clone(), height))?;
         let consensus_state = Any::decode(value.as_slice());
         consensus_state
             .map_err(|_| ClientError::implementation_specific())
             .map(|v| v.try_into().unwrap()) // safety - data on the store is assumed to be well-formed
+    }
+
+    fn next_consensus_state(
+        &self,
+        _client_id: &ClientId,
+        _height: IbcHeight,
+    ) -> Result<Option<AnyConsensusState>, ClientError> {
+        todo!()
+    }
+
+    fn prev_consensus_state(
+        &self,
+        _client_id: &ClientId,
+        _height: IbcHeight,
+    ) -> Result<Option<AnyConsensusState>, ClientError> {
+        todo!()
     }
 
     fn client_counter(&self) -> Result<u64, ClientError> {
