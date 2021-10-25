@@ -63,6 +63,7 @@ use tracing::{debug, info};
 pub(crate) struct BaseCoinApp<S> {
     store: SharedStore<WalStore<S>>,
     modules: Arc<RwLock<Vec<Box<dyn Module + Send + Sync>>>>,
+    account: Arc<RwLock<BaseAccount>>, // TODO(hu55a1n1): get from user and move to provable store
 }
 
 impl<S: ProvableStore + 'static> BaseCoinApp<S> {
@@ -83,6 +84,7 @@ impl<S: ProvableStore + 'static> BaseCoinApp<S> {
         Self {
             store,
             modules: Arc::new(RwLock::new(modules)),
+            account: Default::default(),
         }
     }
 
@@ -335,9 +337,10 @@ impl<S: ProvableStore + 'static> AuthQuery for BaseCoinApp<S> {
     ) -> Result<Response<QueryAccountResponse>, Status> {
         debug!("Got auth account request");
 
-        let account = BaseAccount::default();
+        let mut account = self.account.write().unwrap();
         let mut buf = Vec::new();
         account.encode(&mut buf).unwrap(); // safety - cannot fail since buf is a vector
+        account.sequence += 1;
 
         Ok(Response::new(QueryAccountResponse {
             account: Some(Any {
