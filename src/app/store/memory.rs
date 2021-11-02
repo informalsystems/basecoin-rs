@@ -91,8 +91,20 @@ impl ProvableStore for InMemoryStore {
             .to_vec()
     }
 
-    fn get_proof(&self, key: &Path) -> Option<CommitmentProof> {
-        self.store.last().and_then(|v| v.get_proof(key))
+    fn get_proof(&self, height: Height, key: &Path) -> Option<CommitmentProof> {
+        match height {
+            Height::Pending => self.pending.get_proof(key),
+            Height::Latest => self.store.last().and_then(|v| v.get_proof(key)),
+            Height::Stable(height) => {
+                let h = height as usize;
+                if h <= self.store.len() {
+                    let state = self.store.get(h - 1).unwrap();
+                    state.get_proof(key)
+                } else {
+                    None
+                }
+            }
+        }
     }
 }
 

@@ -135,7 +135,7 @@ impl From<Error> for ModuleError {
 pub(crate) type RawHeight = u64;
 
 /// Store height to query
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum Height {
     Pending,
     Latest,
@@ -194,7 +194,7 @@ pub trait ProvableStore: Store {
     fn root_hash(&self) -> Vec<u8>;
 
     /// Return proof of existence for key
-    fn get_proof(&self, key: &Path) -> Option<ics23::CommitmentProof>;
+    fn get_proof(&self, height: Height, key: &Path) -> Option<ics23::CommitmentProof>;
 }
 
 /// A wrapper store that implements a prefixed key-space for other shared stores
@@ -261,8 +261,9 @@ where
     }
 
     #[inline]
-    fn get_proof(&self, key: &Path) -> Option<CommitmentProof> {
-        self.store.get_proof(&self.prefix.prefixed_path(key))
+    fn get_proof(&self, height: Height, key: &Path) -> Option<CommitmentProof> {
+        self.store
+            .get_proof(height, &self.prefix.prefixed_path(key))
     }
 }
 
@@ -317,8 +318,8 @@ impl<S: ProvableStore> ProvableStore for SharedStore<S> {
     }
 
     #[inline]
-    fn get_proof(&self, key: &Path) -> Option<CommitmentProof> {
-        self.read().unwrap().get_proof(key)
+    fn get_proof(&self, height: Height, key: &Path) -> Option<CommitmentProof> {
+        self.read().unwrap().get_proof(height, key)
     }
 }
 
@@ -429,8 +430,8 @@ impl<S: ProvableStore> ProvableStore for WalStore<S> {
     }
 
     #[inline]
-    fn get_proof(&self, key: &Path) -> Option<CommitmentProof> {
-        self.store.get_proof(key)
+    fn get_proof(&self, height: Height, key: &Path) -> Option<CommitmentProof> {
+        self.store.get_proof(height, key)
     }
 }
 
