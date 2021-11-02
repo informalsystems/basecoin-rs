@@ -84,8 +84,8 @@ pub struct Ibc<S> {
 }
 
 impl<S: ProvableStore> Ibc<S> {
-    fn get_proof(&self, path: &Path) -> Option<Vec<u8>> {
-        if let Some(p) = self.store.get_proof(path) {
+    fn get_proof(&self, height: Height, path: &Path) -> Option<Vec<u8>> {
+        if let Some(p) = self.store.get_proof(height, path) {
             let mut buffer = Vec::new();
             if p.encode(&mut buffer).is_ok() {
                 return Some(buffer);
@@ -601,13 +601,13 @@ impl<S: ProvableStore> Module for Ibc<S> {
 
         let proof = if prove {
             let proof = self
-                .get_proof(&path)
+                .get_proof(height, &path)
                 .ok_or_else(|| Error::ics02_client(ClientError::implementation_specific()))?;
-            Some(ProofOp {
+            Some(vec![ProofOp {
                 r#type: "".to_string(),
                 key: path.to_string().into_bytes(),
                 data: proof,
-            })
+            }])
         } else {
             None
         };
@@ -616,10 +616,7 @@ impl<S: ProvableStore> Module for Ibc<S> {
             .store
             .get(height, &path)
             .ok_or_else(|| Error::ics02_client(ClientError::implementation_specific()))?;
-        Ok(QueryResult {
-            data,
-            proof: proof.map(|p| vec![p]),
-        })
+        Ok(QueryResult { data, proof })
     }
 }
 
