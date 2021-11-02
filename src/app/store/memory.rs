@@ -19,6 +19,24 @@ pub(crate) struct InMemoryStore {
     pending: State,
 }
 
+impl InMemoryStore {
+    #[inline]
+    fn get_state(&self, height: Height) -> Option<&State> {
+        match height {
+            Height::Pending => Some(&self.pending),
+            Height::Latest => self.store.last(),
+            Height::Stable(height) => {
+                let h = height as usize;
+                if h <= self.store.len() {
+                    self.store.get(h - 1)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+}
+
 impl Default for InMemoryStore {
     /// The store starts out with an empty state. We also initialize the pending location as empty.
     fn default() -> Self {
@@ -40,22 +58,7 @@ impl Store for InMemoryStore {
 
     fn get(&self, height: Height, path: &Path) -> Option<Vec<u8>> {
         trace!("get at path = {} at height = {:?}", path.as_str(), height);
-        match height {
-            // Request to access the pending block
-            Height::Pending => self.pending.get(path).cloned(),
-            // Access the last committed block
-            Height::Latest => self.store.last().and_then(|s| s.get(path).cloned()),
-            // Access one of the committed blocks
-            Height::Stable(height) => {
-                let h = height as usize;
-                if h <= self.store.len() {
-                    let state = self.store.get(h - 1).unwrap();
-                    state.get(path).cloned()
-                } else {
-                    None
-                }
-            }
-        }
+        self.get_state(height).and_then(|v| v.get(path).cloned())
     }
 
     fn delete(&mut self, _path: &Path) {
@@ -92,19 +95,7 @@ impl ProvableStore for InMemoryStore {
     }
 
     fn get_proof(&self, height: Height, key: &Path) -> Option<CommitmentProof> {
-        match height {
-            Height::Pending => self.pending.get_proof(key),
-            Height::Latest => self.store.last().and_then(|v| v.get_proof(key)),
-            Height::Stable(height) => {
-                let h = height as usize;
-                if h <= self.store.len() {
-                    let state = self.store.get(h - 1).unwrap();
-                    state.get_proof(key)
-                } else {
-                    None
-                }
-            }
-        }
+        self.get_state(height).and_then(|v| v.get_proof(key))
     }
 }
 
