@@ -252,7 +252,13 @@ impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
     fn commit(&self) -> ResponseCommit {
         let mut state = self.store.write().unwrap();
         let data = state.commit().expect("failed to commit to state");
-        info!("Committed height {}", state.current_height() - 1);
+        info!(
+            "Committed height {} with hash({})",
+            state.current_height() - 1,
+            data.iter()
+                .map(|b| format!("{:02X}", b))
+                .collect::<String>()
+        );
         ResponseCommit {
             data,
             retain_height: 0,
