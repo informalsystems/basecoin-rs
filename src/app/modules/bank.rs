@@ -1,5 +1,5 @@
 use crate::app::modules::{Error as ModuleError, Module, QueryResult};
-use crate::app::store::{Height, Path, Store};
+use crate::app::store::{Height, Identifier, Path, Store};
 
 use std::collections::HashMap;
 use std::convert::TryInto;
@@ -73,7 +73,7 @@ impl<S: Store> Bank<S> {
     }
 }
 
-impl<S: Store> Module for Bank<S> {
+impl<S: Store> Module<S>  for Bank<S> {
     fn deliver(&mut self, message: Any) -> Result<Vec<Event>, ModuleError> {
         let message: MsgSend = Self::decode::<proto::cosmos::bank::v1beta1::MsgSend>(message)?
             .try_into()
@@ -180,5 +180,13 @@ impl<S: Store> Module for Bank<S> {
                 proof: None,
             }),
         }
+    }
+
+    fn commit(&mut self) -> Result<Vec<u8>, S::Error> {
+        self.store.commit()
+    }
+
+    fn store(&self) -> S {
+        self.store.clone()
     }
 }
