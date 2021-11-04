@@ -1,5 +1,5 @@
 use crate::app::modules::{Error as ModuleError, Identifiable, Module, QueryResult};
-use crate::app::store::{Height, Path, ProvableStore, Store};
+use crate::app::store::{Height, Path, ProvableStore, Store, Identifier};
 use crate::prostgen::ibc::core::client::v1::{
     query_server::Query as ClientQuery, ConsensusStateWithHeight, Height as RawHeight,
     QueryClientParamsRequest, QueryClientParamsResponse, QueryClientStateRequest,
@@ -574,7 +574,7 @@ impl<S: Store> Ics20Context for Ibc<S> {}
 
 impl<S: Store> Ics26Context for Ibc<S> {}
 
-impl<S: ProvableStore> Module for Ibc<S> {
+impl<S: ProvableStore> Module<S> for Ibc<S> {
     fn deliver(&mut self, message: Any) -> Result<Vec<Event>, ModuleError> {
         let msg = decode(message).map_err(|_| ModuleError::not_handled())?;
 
@@ -630,6 +630,14 @@ impl<S: ProvableStore> Module for Ibc<S> {
             .get(height, &path)
             .ok_or_else(|| Error::ics02_client(ClientError::implementation_specific()))?;
         Ok(QueryResult { data, proof })
+    }
+
+    fn commit(&mut self) -> Result<Vec<u8>, S::Error> {
+        self.store.commit()
+    }
+
+    fn store(&self) -> S {
+        self.store.clone()
     }
 }
 

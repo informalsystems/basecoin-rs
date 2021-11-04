@@ -4,7 +4,7 @@ mod ibc;
 pub(crate) use self::bank::Bank;
 pub(crate) use self::ibc::Ibc;
 
-use crate::app::store::{self, Height, Path};
+use crate::app::store::{self, Height, Path, SubStore, Store};
 
 use flex_error::{define_error, TraceError};
 use prost_types::Any;
@@ -29,7 +29,7 @@ define_error! {
 }
 
 /// Module trait
-pub(crate) trait Module {
+pub(crate) trait Module<S: Store> {
     /// Similar to [ABCI CheckTx method](https://docs.tendermint.com/master/spec/abci/abci.html#checktx)
     /// > CheckTx need not execute the transaction in full, but rather a light-weight yet
     /// > stateful validation, like checking signatures and account balances, but not running
@@ -67,6 +67,10 @@ pub(crate) trait Module {
     ) -> Result<QueryResult, Error> {
         Err(Error::not_handled())
     }
+
+    fn commit(&mut self) -> Result<Vec<u8>, S::Error>;
+
+    fn store(&self) -> S;
 }
 
 pub struct QueryResult {
