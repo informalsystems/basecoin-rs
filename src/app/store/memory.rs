@@ -95,6 +95,11 @@ impl ProvableStore for InMemoryStore {
     }
 
     fn get_proof(&self, height: Height, key: &Path) -> Option<CommitmentProof> {
+        trace!(
+            "get proof at path = {} at height = {:?}",
+            key.as_str(),
+            height
+        );
         self.get_state(height).and_then(|v| v.get_proof(key))
     }
 }
