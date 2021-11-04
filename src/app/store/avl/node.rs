@@ -53,6 +53,13 @@ where
         }
     }
 
+    /// Set the value of the current node.
+    pub(crate) fn set_value(&mut self, value: V) {
+        let hash = Self::local_hash(&self.key, &value);
+        self.value = value;
+        self.hash = hash;
+    }
+
     /// The left height, or `None` if there is no left child.
     fn left_height(&self) -> Option<u32> {
         self.left.as_ref().map(|left| left.height)
@@ -61,6 +68,16 @@ where
     /// The right height, or `None` if there is no right child.
     fn right_height(&self) -> Option<u32> {
         self.right.as_ref().map(|right| right.height)
+    }
+
+    /// Compute the local hash for a given key and value.
+    fn local_hash(key: &K, value: &V) -> Hash {
+        let mut sha = Sha256::new();
+        sha.update(proof::LEAF_PREFIX);
+        sha.update(key.as_bytes());
+        sha.update(value.borrow());
+        let hash = sha.finalize();
+        Hash::from_bytes(HASH_ALGO, &hash).unwrap()
     }
 
     /// The left merkle hash, if any
