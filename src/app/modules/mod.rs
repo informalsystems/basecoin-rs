@@ -4,7 +4,7 @@ mod ibc;
 pub(crate) use self::bank::Bank;
 pub(crate) use self::ibc::Ibc;
 
-use crate::app::store::{self, Height, Path, SubStore, Store};
+use crate::app::store::{self, Height, Path, Store, SubStore};
 
 use flex_error::{define_error, TraceError};
 use prost_types::Any;

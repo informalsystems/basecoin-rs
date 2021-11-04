@@ -38,6 +38,12 @@ impl Identifier {
                 || matches!(c, '.' | '_' | '+' | '-' | '#' | '[' | ']' | '<' | '>' | '/')
         })
     }
+
+    #[inline]
+    fn unprefixed_path(&self, path: &Path) -> Path {
+        // FIXME(hu55a1n1)
+        path.clone()
+    }
 }
 
 impl Deref for Identifier {
@@ -202,68 +208,92 @@ pub trait ProvableStore: Store {
 pub(crate) struct SubStore<S, P> {
     /// backing store
     store: S,
+    /// sub store
+    sub_store: S,
     /// prefix for key-space
     prefix: P,
+    dirty: bool,
 }
 
-impl<S, P> SubStore<S, P> {
-    pub(crate) fn new(store: S, prefix: P) -> Self {
-        Self { store, prefix }
+impl<S: Default + ProvableStore> SubStore<S, Identifier> {
+    pub(crate) fn new(store: S, prefix: Identifier) -> Result<Self, S::Error> {
+        let mut sub_store = Self {
+            store,
+            sub_store: S::default(),
+            prefix,
+            dirty: false,
+        };
+        sub_store.update_parent_hash()?;
+        Ok(sub_store)
     }
 }
 
-impl<S, P> Store for SubStore<S, P>
+impl<S: Default + ProvableStore> SubStore<S, Identifier> {
+    fn update_parent_hash(&mut self) -> Result<(), S::Error> {
+        self.store
+            .set(Path::from(self.prefix.clone()), self.sub_store.root_hash())
+    }
+}
+
+impl<S> Store for SubStore<S, Identifier>
 where
-    S: Store,
-    P: Identifiable + Send + Sync + Clone,
+    S: Default + ProvableStore,
 {
     type Error = S::Error;
 
     #[inline]
     fn set(&mut self, path: Path, value: Vec<u8>) -> Result<(), Self::Error> {
-        self.store.set(self.prefix.prefixed_path(&path), value)
+        self.dirty = true;
+        self.sub_store
+            .set(self.prefix.unprefixed_path(&path), value)
     }
 
     #[inline]
     fn get(&self, height: Height, path: &Path) -> Option<Vec<u8>> {
-        self.store.get(height, &self.prefix.prefixed_path(path))
+        self.sub_store
+            .get(height, &self.prefix.unprefixed_path(path))
     }
 
     #[inline]
     fn delete(&mut self, path: &Path) {
-        self.store.delete(&self.prefix.prefixed_path(path))
+        self.dirty = true;
+        self.sub_store.delete(&self.prefix.unprefixed_path(path))
     }
 
     #[inline]
     fn commit(&mut self) -> Result<Vec<u8>, Self::Error> {
-        panic!("sub-stores may not commit!")
+        if self.dirty {
+            self.dirty = false;
+            self.update_parent_hash()?;
+        }
+        self.sub_store.commit()
     }
 
     #[inline]
     fn current_height(&self) -> RawHeight {
-        self.store.current_height()
+        self.sub_store.current_height()
     }
 
     #[inline]
     fn get_keys(&self, key_prefix: &Path) -> Vec<Path> {
-        self.store.get_keys(&self.prefix.prefixed_path(key_prefix))
+        self.sub_store
+            .get_keys(&self.prefix.unprefixed_path(key_prefix))
     }
 }
 
-impl<S, P> ProvableStore for SubStore<S, P>
+impl<S> ProvableStore for SubStore<S, Identifier>
 where
-    S: ProvableStore,
-    P: Identifiable + Send + Sync + Clone,
+    S: Default + ProvableStore,
 {
     #[inline]
     fn root_hash(&self) -> Vec<u8> {
-        self.store.root_hash()
+        self.sub_store.root_hash()
     }
 
     #[inline]
     fn get_proof(&self, height: Height, key: &Path) -> Option<CommitmentProof> {
-        self.store
-            .get_proof(height, &self.prefix.prefixed_path(key))
+        self.sub_store
+            .get_proof(height, &self.prefix.unprefixed_path(key))
     }
 }
 
@@ -274,6 +304,12 @@ pub(crate) struct SharedStore<S>(Arc<RwLock<S>>);
 impl<S> SharedStore<S> {
     pub(crate) fn new(store: S) -> Self {
         Self(Arc::new(RwLock::new(store)))
+    }
+}
+
+impl<S: Default + Store> Default for SharedStore<S> {
+    fn default() -> Self {
+        Self::new(S::default())
     }
 }
 
@@ -356,6 +392,12 @@ impl<S: Store> WalStore<S> {
     }
 }
 
+impl<S: Default + Store> Default for WalStore<S> {
+    fn default() -> Self {
+        Self::new(S::default())
+    }
+}
+
 impl<S: Store> Store for WalStore<S> {
     type Error = S::Error;
 
@@ -397,7 +439,7 @@ impl<S: Store> Store for WalStore<S> {
     fn apply(&mut self) -> Result<(), Self::Error> {
         // note that we do NOT call the backing store's apply here - this allows users to create
         // multilayered `WalStore`s
-        trace!("Applying operation log");
+        trace!("Applying operation log if any");
         while let Some(op) = self.op_log.pop_back() {
             self.store.set(op.0, op.1)?;
         }
@@ -432,23 +474,5 @@ impl<S: ProvableStore> ProvableStore for WalStore<S> {
     #[inline]
     fn get_proof(&self, height: Height, key: &Path) -> Option<CommitmentProof> {
         self.store.get_proof(height, key)
-    }
-}
-
-/// Trait for generating a prefixed-path used by `SubStore` methods
-/// A blanket implementation is provided for all `Identifiable` types
-pub(crate) trait PrefixedPath: Sized {
-    fn prefixed_path(&self, s: &Path) -> Path;
-}
-
-impl<T: Identifiable> PrefixedPath for T {
-    #[inline]
-    fn prefixed_path(&self, s: &Path) -> Path {
-        let prefix = self.identifier().into();
-        if !s.as_str().starts_with(&format!("{}/", prefix.as_str())) {
-            Path::from(prefix).append(s)
-        } else {
-            s.clone()
-        }
     }
 }

@@ -3,7 +3,7 @@
 mod app;
 mod prostgen;
 
-use crate::app::modules::{prefix, Ibc};
+use crate::app::modules::{prefix, Ibc, Identifiable};
 use crate::app::store::{InMemoryStore, ProvableStore};
 use crate::app::BaseCoinApp;
 use crate::prostgen::cosmos::auth::v1beta1::query_server::QueryServer as AuthQueryServer;
@@ -47,11 +47,16 @@ struct Opt {
 }
 
 #[tokio::main]
-async fn grpc_serve<S: ProvableStore + 'static>(app: BaseCoinApp<S>, host: String, port: u16) {
+async fn grpc_serve<S: Default + ProvableStore + 'static>(
+    app: BaseCoinApp<S>,
+    host: String,
+    port: u16,
+) {
     let addr = format!("{}:{}", host, port).parse().unwrap();
 
     let ibc = Ibc {
-        store: app.sub_store(prefix::Ibc),
+        // FIXME(hu55a1n1)
+        store: app.modules.clone().read().unwrap().get(1).unwrap().store(),
         client_counter: 0,
         conn_counter: 0,
     };
@@ -82,7 +87,7 @@ fn main() {
 
     tracing::info!("Starting app and waiting for Tendermint to connect...");
 
-    let app = BaseCoinApp::new(InMemoryStore::default());
+    let app = BaseCoinApp::new(InMemoryStore::default()).expect("Failed to init app");
     let app_copy = app.clone();
     let grpc_port = opt.grpc_port;
     let grpc_host = opt.host.clone();

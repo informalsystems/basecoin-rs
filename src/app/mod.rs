@@ -6,7 +6,9 @@ pub(crate) mod store;
 
 use crate::app::modules::{prefix, Bank, Error, ErrorDetail, Ibc, Identifiable, Module};
 use crate::app::response::ResponseFromErrorExt;
-use crate::app::store::{Height, Path, ProvableStore, SharedStore, Store, SubStore, WalStore};
+use crate::app::store::{
+    Height, Identifier, Path, ProvableStore, SharedStore, Store, SubStore, WalStore,
+};
 use crate::prostgen::cosmos::auth::v1beta1::{
     query_server::Query as AuthQuery, BaseAccount, QueryAccountRequest, QueryAccountResponse,
     QueryAccountsRequest, QueryAccountsResponse, QueryParamsRequest as AuthQueryParamsRequest,
@@ -51,6 +53,7 @@ use tendermint_proto::abci::{
     Event, RequestDeliverTx, RequestInfo, RequestInitChain, RequestQuery, ResponseCommit,
     ResponseDeliverTx, ResponseInfo, ResponseInitChain, ResponseQuery,
 };
+use tendermint_proto::crypto::ProofOp;
 use tendermint_proto::crypto::ProofOps;
 use tendermint_proto::p2p::DefaultNodeInfo;
 use tonic::{Request, Response, Status};
@@ -62,41 +65,45 @@ use tracing::{debug, info};
 #[derive(Clone)]
 pub(crate) struct BaseCoinApp<S> {
     store: SharedStore<WalStore<S>>,
-    modules: Arc<RwLock<Vec<Box<dyn Module + Send + Sync>>>>,
+    pub modules: Arc<
+        RwLock<Vec<Box<dyn Module<SubStore<SharedStore<WalStore<S>>, Identifier>> + Send + Sync>>>,
+    >,
     account: Arc<RwLock<BaseAccount>>, // TODO(hu55a1n1): get from user and move to provable store
 }
 
-impl<S: ProvableStore + 'static> BaseCoinApp<S> {
+impl<S: Default + ProvableStore + 'static> BaseCoinApp<S> {
     /// Constructor.
-    pub(crate) fn new(store: S) -> Self {
+    pub(crate) fn new(store: S) -> Result<Self, S::Error> {
         let store = SharedStore::new(WalStore::new(store));
         // `SubStore` guarantees modules exclusive access to all paths in the store key-space.
-        let modules: Vec<Box<dyn Module + Send + Sync>> = vec![
+        let modules: Vec<
+            Box<dyn Module<SubStore<SharedStore<WalStore<S>>, Identifier>> + Send + Sync>,
+        > = vec![
             Box::new(Bank {
-                store: SubStore::new(store.clone(), prefix::Bank),
+                store: SubStore::new(store.clone(), prefix::Bank {}.identifier())?,
             }),
             Box::new(Ibc {
-                store: SubStore::new(store.clone(), prefix::Ibc),
+                store: SubStore::new(store.clone(), prefix::Ibc {}.identifier())?,
                 client_counter: 0,
                 conn_counter: 0,
             }),
         ];
-        Self {
+        Ok(Self {
             store,
             modules: Arc::new(RwLock::new(modules)),
             account: Default::default(),
-        }
+        })
     }
 
-    pub(crate) fn sub_store<I: Identifiable>(
+    pub(crate) fn sub_store(
         &self,
-        prefix: I,
-    ) -> SubStore<SharedStore<WalStore<S>>, I> {
-        SubStore::new(self.store.clone(), prefix)
+        prefix: Identifier,
+    ) -> SubStore<SharedStore<WalStore<S>>, Identifier> {
+        SubStore::new(self.store.clone(), prefix).unwrap()
     }
 }
 
-impl<S> BaseCoinApp<S> {
+impl<S: Default + ProvableStore> BaseCoinApp<S> {
     // try to deliver the message to all registered modules
     // if `module.deliver()` returns `Error::not_handled()`, try next module
     // Return:
@@ -128,7 +135,7 @@ impl<S> BaseCoinApp<S> {
     }
 }
 
-impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
+impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
     fn info(&self, request: RequestInfo) -> ResponseInfo {
         let (last_block_height, last_block_app_hash) = {
             let state = self.store.read().unwrap();
@@ -182,14 +189,40 @@ impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
                 request.prove,
             ) {
                 // success - implies query was handled by this module, so return response
-                Ok(result) => {
+                Ok(mut result) => {
+                    let store = self.store.read().unwrap();
+                    let proof_ops = if request.prove {
+                        let proof = store
+                            .get_proof(
+                                Height::from(request.height as u64),
+                                &"ibc".to_owned().try_into().unwrap(),
+                            )
+                            .unwrap();
+                        let mut buffer = Vec::new();
+                        proof.encode(&mut buffer);
+
+                        let mut ops = vec![];
+                        if let Some(mut proofs) = result.proof {
+                            ops.append(&mut proofs);
+                        }
+                        ops.push(ProofOp {
+                            r#type: "".to_string(),
+                            // FIXME(hu55a1n1)
+                            key: "ibc".to_string().into_bytes(),
+                            data: buffer,
+                        });
+                        Some(ProofOps { ops })
+                    } else {
+                        None
+                    };
+
                     return ResponseQuery {
                         code: 0,
                         log: "exists".to_string(),
                         key: request.data,
                         value: result.data,
-                        proof_ops: result.proof.map(|ops| ProofOps { ops }),
-                        height: self.store.read().unwrap().current_height() as i64,
+                        proof_ops,
+                        height: store.current_height() as i64,
                         ..Default::default()
                     };
                 }
@@ -250,6 +283,11 @@ impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
     }
 
     fn commit(&self) -> ResponseCommit {
+        let mut modules = self.modules.write().unwrap();
+        for m in modules.iter_mut() {
+            m.commit();
+        }
+
         let mut state = self.store.write().unwrap();
         let data = state.commit().expect("failed to commit to state");
         info!(
