@@ -2113,9 +2113,9 @@ dependencies = [
 [[patch.unused]]
 name = "ibc"
 version = "0.7.3"
-source = "git+https://github.com/informalsystems/ibc-rs.git?rev=e578787#e5787877a7f0f8e9a4f5668d744c76c7a2e9fb41"
+source = "git+https://github.com/informalsystems/ibc-rs.git?branch=basecoin/phase-4#e19248d9f81a98deb1e708f8bf008072484bfc06"
 
 [[patch.unused]]
 name = "ibc-proto"
 version = "0.11.0"
-source = "git+https://github.com/informalsystems/ibc-rs.git?rev=e578787#e5787877a7f0f8e9a4f5668d744c76c7a2e9fb41"
+source = "git+https://github.com/informalsystems/ibc-rs.git?branch=basecoin/phase-4#e19248d9f81a98deb1e708f8bf008072484bfc06"
