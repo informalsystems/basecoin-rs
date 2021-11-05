@@ -6,9 +6,7 @@ pub(crate) mod store;
 
 use crate::app::modules::{prefix, Bank, Error, ErrorDetail, Ibc, Identifiable, Module};
 use crate::app::response::ResponseFromErrorExt;
-use crate::app::store::{
-    Height, Identifier, Path, ProvableStore, SharedStore, Store, SubStore, WalStore,
-};
+use crate::app::store::{Height, Path, ProvableStore, SharedStore, Store, SubStore, WalStore};
 use crate::prostgen::cosmos::auth::v1beta1::{
     query_server::Query as AuthQuery, BaseAccount, QueryAccountRequest, QueryAccountResponse,
     QueryAccountsRequest, QueryAccountsResponse, QueryParamsRequest as AuthQueryParamsRequest,
@@ -60,7 +58,7 @@ use tonic::{Request, Response, Status};
 use tracing::{debug, info};
 
 type MainStore<S> = SharedStore<WalStore<S>>;
-type ModuleStore<S> = SubStore<MainStore<S>, Identifier>;
+type ModuleStore<S> = SubStore<MainStore<S>>;
 type Shared<T> = Arc<RwLock<T>>;
 
 /// BaseCoin ABCI application.

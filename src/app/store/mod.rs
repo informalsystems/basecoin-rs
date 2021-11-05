@@ -197,17 +197,17 @@ pub trait ProvableStore: Store {
 
 /// A wrapper store that implements a prefixed key-space for other shared stores
 #[derive(Clone)]
-pub(crate) struct SubStore<S, P> {
+pub(crate) struct SubStore<S> {
     /// backing store
     store: S,
     /// sub store
     sub_store: S,
     /// prefix for key-space
-    prefix: P,
+    prefix: Identifier,
     dirty: bool,
 }
 
-impl<S: Default + ProvableStore> SubStore<S, Identifier> {
+impl<S: Default + ProvableStore> SubStore<S> {
     pub(crate) fn new(store: S, prefix: Identifier) -> Result<Self, S::Error> {
         let mut sub_store = Self {
             store,
@@ -220,14 +220,14 @@ impl<S: Default + ProvableStore> SubStore<S, Identifier> {
     }
 }
 
-impl<S: Default + ProvableStore> SubStore<S, Identifier> {
+impl<S: Default + ProvableStore> SubStore<S> {
     fn update_parent_hash(&mut self) -> Result<(), S::Error> {
         self.store
             .set(Path::from(self.prefix.clone()), self.sub_store.root_hash())
     }
 }
 
-impl<S> Store for SubStore<S, Identifier>
+impl<S> Store for SubStore<S>
 where
     S: Default + ProvableStore,
 {
@@ -273,7 +273,7 @@ where
     }
 }
 
-impl<S> ProvableStore for SubStore<S, Identifier>
+impl<S> ProvableStore for SubStore<S>
 where
     S: Default + ProvableStore,
 {
