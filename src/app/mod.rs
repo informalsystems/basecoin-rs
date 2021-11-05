@@ -59,16 +59,18 @@ use tendermint_proto::p2p::DefaultNodeInfo;
 use tonic::{Request, Response, Status};
 use tracing::{debug, info};
 
+type MainStore<S> = SharedStore<WalStore<S>>;
+type ModuleStore<S> = SubStore<MainStore<S>, Identifier>;
+type Shared<T> = Arc<RwLock<T>>;
+
 /// BaseCoin ABCI application.
 ///
 /// Can be safely cloned and sent across threads, but not shared.
 #[derive(Clone)]
 pub(crate) struct BaseCoinApp<S> {
-    store: SharedStore<WalStore<S>>,
-    pub modules: Arc<
-        RwLock<Vec<Box<dyn Module<SubStore<SharedStore<WalStore<S>>, Identifier>> + Send + Sync>>>,
-    >,
-    account: Arc<RwLock<BaseAccount>>, // TODO(hu55a1n1): get from user and move to provable store
+    store: MainStore<S>,
+    pub modules: Shared<Vec<Box<dyn Module<ModuleStore<S>> + Send + Sync>>>,
+    account: Shared<BaseAccount>, // TODO(hu55a1n1): get from user and move to provable store
 }
 
 impl<S: Default + ProvableStore + 'static> BaseCoinApp<S> {
@@ -76,9 +78,7 @@ impl<S: Default + ProvableStore + 'static> BaseCoinApp<S> {
     pub(crate) fn new(store: S) -> Result<Self, S::Error> {
         let store = SharedStore::new(WalStore::new(store));
         // `SubStore` guarantees modules exclusive access to all paths in the store key-space.
-        let modules: Vec<
-            Box<dyn Module<SubStore<SharedStore<WalStore<S>>, Identifier>> + Send + Sync>,
-        > = vec![
+        let modules: Vec<Box<dyn Module<ModuleStore<S>> + Send + Sync>> = vec![
             Box::new(Bank {
                 store: SubStore::new(store.clone(), prefix::Bank {}.identifier())?,
             }),
@@ -93,13 +93,6 @@ impl<S: Default + ProvableStore + 'static> BaseCoinApp<S> {
             modules: Arc::new(RwLock::new(modules)),
             account: Default::default(),
         })
-    }
-
-    pub(crate) fn sub_store(
-        &self,
-        prefix: Identifier,
-    ) -> SubStore<SharedStore<WalStore<S>>, Identifier> {
-        SubStore::new(self.store.clone(), prefix).unwrap()
     }
 }
 
@@ -189,7 +182,7 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
                 request.prove,
             ) {
                 // success - implies query was handled by this module, so return response
-                Ok(mut result) => {
+                Ok(result) => {
                     let store = self.store.read().unwrap();
                     let proof_ops = if request.prove {
                         let proof = store
@@ -199,7 +192,7 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
                             )
                             .unwrap();
                         let mut buffer = Vec::new();
-                        proof.encode(&mut buffer);
+                        proof.encode(&mut buffer).unwrap(); // safety - cannot fail since buf is a vector
 
                         let mut ops = vec![];
                         if let Some(mut proofs) = result.proof {
@@ -285,7 +278,7 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
     fn commit(&self) -> ResponseCommit {
         let mut modules = self.modules.write().unwrap();
         for m in modules.iter_mut() {
-            m.commit();
+            m.commit().expect("failed to commit to state");
         }
 
         let mut state = self.store.write().unwrap();

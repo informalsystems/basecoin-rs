@@ -1,5 +1,5 @@
 use crate::app::modules::{Error as ModuleError, Module, QueryResult};
-use crate::app::store::{Height, Identifier, Path, Store};
+use crate::app::store::{Height, Path, Store};
 
 use std::collections::HashMap;
 use std::convert::TryInto;

@@ -3,7 +3,7 @@
 mod app;
 mod prostgen;
 
-use crate::app::modules::{prefix, Ibc, Identifiable};
+use crate::app::modules::Ibc;
 use crate::app::store::{InMemoryStore, ProvableStore};
 use crate::app::BaseCoinApp;
 use crate::prostgen::cosmos::auth::v1beta1::query_server::QueryServer as AuthQueryServer;
