@@ -218,6 +218,10 @@ impl<S: Default + ProvableStore> SubStore<S> {
         sub_store.update_parent_hash()?;
         Ok(sub_store)
     }
+
+    pub(crate) fn prefix(&self) -> Identifier {
+        self.prefix.clone()
+    }
 }
 
 impl<S: Default + ProvableStore> SubStore<S> {

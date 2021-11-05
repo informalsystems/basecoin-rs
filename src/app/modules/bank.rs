@@ -61,10 +61,14 @@ pub struct Balances(HashMap<Denom, u64>);
 pub struct Bank<S> {
     /// Handle to store instance
     /// The module is guaranteed exclusive access to all paths in the store key-space.
-    pub store: S,
+    store: S,
 }
 
 impl<S: Store> Bank<S> {
+    pub fn new(store: S) -> Self {
+        Self { store }
+    }
+
     fn decode<T: Message + Default>(message: Any) -> Result<T, ModuleError> {
         if message.type_url != "/cosmos.bank.v1beta1.MsgSend" {
             return Err(ModuleError::not_handled());
@@ -95,7 +99,7 @@ impl<S: Store> Module<S> for Bank<S> {
         let mut src_balances: Balances = match self.store.get(Height::Pending, &src_path) {
             Some(sb) => serde_json::from_str(&String::from_utf8(sb).unwrap()).unwrap(), // safety - data on the store is assumed to be well-formed
             None => {
-                return Err(Error::non_existent_account(message.from_address.to_string()).into())
+                return Err(Error::non_existent_account(message.from_address.to_string()).into());
             }
         };
 

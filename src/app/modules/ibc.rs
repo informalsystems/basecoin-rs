@@ -73,14 +73,22 @@ impl From<Error> for ModuleError {
 pub struct Ibc<S> {
     /// Handle to store instance.
     /// The module is guaranteed exclusive access to all paths in the store key-space.
-    pub store: S,
+    store: S,
     /// Counter for clients
-    pub client_counter: u64,
+    client_counter: u64,
     /// Counter for connections
-    pub conn_counter: u64,
+    conn_counter: u64,
 }
 
 impl<S: ProvableStore> Ibc<S> {
+    pub fn new(store: S) -> Self {
+        Self {
+            store,
+            client_counter: 0,
+            conn_counter: 0,
+        }
+    }
+
     fn get_proof(&self, height: Height, path: &Path) -> Option<Vec<u8>> {
         if let Some(p) = self.store.get_proof(height, path) {
             let mut buffer = Vec::new();

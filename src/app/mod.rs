@@ -6,7 +6,9 @@ pub(crate) mod store;
 
 use crate::app::modules::{prefix, Bank, Error, ErrorDetail, Ibc, Identifiable, Module};
 use crate::app::response::ResponseFromErrorExt;
-use crate::app::store::{Height, Path, ProvableStore, SharedStore, Store, SubStore, WalStore};
+use crate::app::store::{
+    Height, Identifier, Path, ProvableStore, SharedStore, Store, SubStore, WalStore,
+};
 use crate::prostgen::cosmos::auth::v1beta1::{
     query_server::Query as AuthQuery, BaseAccount, QueryAccountRequest, QueryAccountResponse,
     QueryAccountsRequest, QueryAccountsResponse, QueryParamsRequest as AuthQueryParamsRequest,
@@ -77,14 +79,14 @@ impl<S: Default + ProvableStore + 'static> BaseCoinApp<S> {
         let store = SharedStore::new(WalStore::new(store));
         // `SubStore` guarantees modules exclusive access to all paths in the store key-space.
         let modules: Vec<Box<dyn Module<ModuleStore<S>> + Send + Sync>> = vec![
-            Box::new(Bank {
-                store: SubStore::new(store.clone(), prefix::Bank {}.identifier())?,
-            }),
-            Box::new(Ibc {
-                store: SubStore::new(store.clone(), prefix::Ibc {}.identifier())?,
-                client_counter: 0,
-                conn_counter: 0,
-            }),
+            Box::new(Bank::new(SubStore::new(
+                store.clone(),
+                prefix::Bank {}.identifier(),
+            )?)),
+            Box::new(Ibc::new(SubStore::new(
+                store.clone(),
+                prefix::Ibc {}.identifier(),
+            )?)),
         ];
         Ok(Self {
             store,
@@ -95,6 +97,12 @@ impl<S: Default + ProvableStore + 'static> BaseCoinApp<S> {
 }
 
 impl<S: Default + ProvableStore> BaseCoinApp<S> {
+    pub(crate) fn get_store(&self, prefix: Identifier) -> Option<ModuleStore<S>> {
+        let modules = self.modules.read().unwrap();
+        let module = modules.iter().find(|m| m.store().prefix() == prefix);
+        module.map(|m| m.store())
+    }
+
     // try to deliver the message to all registered modules
     // if `module.deliver()` returns `Error::not_handled()`, try next module
     // Return:
