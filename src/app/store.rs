@@ -3,7 +3,7 @@ mod memory;
 
 pub(crate) use memory::InMemoryStore;
 
-use crate::app::modules::{Error as ModuleError, Identifiable};
+use crate::app::modules::Error as ModuleError;
 
 use std::collections::VecDeque;
 use std::convert::{TryFrom, TryInto};
@@ -72,14 +72,6 @@ impl TryFrom<String> for Identifier {
 /// Paths MUST contain only `Identifier`s, constant strings, and the separator `/`
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Clone)]
 pub struct Path(String);
-
-impl Path {
-    fn append(mut self, path: &Path) -> Self {
-        self.0.push('/');
-        self.0.push_str(&path.0);
-        self
-    }
-}
 
 impl Deref for Path {
     type Target = String;
