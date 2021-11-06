@@ -258,11 +258,12 @@ where
 
     #[inline]
     fn commit(&mut self) -> Result<Vec<u8>, Self::Error> {
+        let root_hash = self.sub_store.commit()?;
         if self.dirty {
             self.dirty = false;
             self.update_parent_hash()?;
         }
-        self.sub_store.commit()
+        Ok(root_hash)
     }
 
     #[inline]
