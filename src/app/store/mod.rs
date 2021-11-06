@@ -375,15 +375,15 @@ impl<S> DerefMut for SharedStore<S> {
 pub(crate) struct WalStore<S> {
     /// backing store
     store: S,
-    /// operation log for recording operations in preserved order
-    op_log: VecDeque<(Path, Vec<u8>)>,
+    /// operation log for recording rollback operations in preserved order
+    op_log: Vec<Path>,
 }
 
 impl<S: Store> WalStore<S> {
     pub(crate) fn new(store: S) -> Self {
         Self {
             store,
-            op_log: VecDeque::new(),
+            op_log: vec![],
         }
     }
 }
@@ -399,24 +399,14 @@ impl<S: Store> Store for WalStore<S> {
 
     #[inline]
     fn set(&mut self, path: Path, value: Vec<u8>) -> Result<(), Self::Error> {
-        self.op_log.push_back((path, value));
+        self.store.set(path.clone(), value)?;
+        self.op_log.push(path);
         Ok(())
     }
 
     #[inline]
     fn get(&self, height: Height, path: &Path) -> Option<Vec<u8>> {
-        match height {
-            // for pending height first look for path matches in the `op_log` and return the most
-            // recent one. If not found call backing store's `get()`.
-            Height::Pending => self
-                .op_log
-                .iter()
-                .filter(|op| &op.0 == path)
-                .last()
-                .map(|op| op.1.clone())
-                .or_else(|| self.store.get(height, path)),
-            _ => self.store.get(height, path),
-        }
+        self.store.get(height, path)
     }
 
     #[inline]
@@ -435,10 +425,7 @@ impl<S: Store> Store for WalStore<S> {
     fn apply(&mut self) -> Result<(), Self::Error> {
         // note that we do NOT call the backing store's apply here - this allows users to create
         // multilayered `WalStore`s
-        trace!("Applying operation log if any");
-        while let Some(op) = self.op_log.pop_back() {
-            self.store.set(op.0, op.1)?;
-        }
+        self.op_log.clear();
         Ok(())
     }
 
@@ -447,7 +434,9 @@ impl<S: Store> Store for WalStore<S> {
         // note that we do NOT call the backing store's reset here - this allows users to create
         // multilayered `WalStore`s
         trace!("Rollback operation log changes");
-        self.op_log.clear()
+        while let Some(op) = self.op_log.pop() {
+            self.store.delete(&op);
+        }
     }
 
     #[inline]
