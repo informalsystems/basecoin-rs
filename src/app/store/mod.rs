@@ -5,7 +5,6 @@ pub(crate) use memory::InMemoryStore;
 
 use crate::app::modules::Error as ModuleError;
 
-use std::collections::VecDeque;
 use std::convert::{TryFrom, TryInto};
 use std::fmt::Debug;
 use std::ops::{Deref, DerefMut};
@@ -198,24 +197,25 @@ pub trait ProvableStore: Store {
 /// A wrapper store that implements a prefixed key-space for other shared stores
 #[derive(Clone)]
 pub(crate) struct SubStore<S> {
-    /// backing store
-    store: S,
-    /// sub store
+    /// main store - used to stores a commitment to this sub-store at path `<prefix>`
+    main_store: S,
+    /// sub store - the underlying store that actually holds the KV pairs for this sub-store
     sub_store: S,
     /// prefix for key-space
     prefix: Identifier,
+    /// boolean to keep track of changes to know when to update commitment in main-store
     dirty: bool,
 }
 
 impl<S: Default + ProvableStore> SubStore<S> {
     pub(crate) fn new(store: S, prefix: Identifier) -> Result<Self, S::Error> {
         let mut sub_store = Self {
-            store,
+            main_store: store,
             sub_store: S::default(),
             prefix,
             dirty: false,
         };
-        sub_store.update_parent_hash()?;
+        sub_store.update_main_store_commitment()?;
         Ok(sub_store)
     }
 
@@ -225,8 +225,8 @@ impl<S: Default + ProvableStore> SubStore<S> {
 }
 
 impl<S: Default + ProvableStore> SubStore<S> {
-    fn update_parent_hash(&mut self) -> Result<(), S::Error> {
-        self.store
+    fn update_main_store_commitment(&mut self) -> Result<(), S::Error> {
+        self.main_store
             .set(Path::from(self.prefix.clone()), self.sub_store.root_hash())
     }
 }
@@ -261,7 +261,7 @@ where
         let root_hash = self.sub_store.commit()?;
         if self.dirty {
             self.dirty = false;
-            self.update_parent_hash()?;
+            self.update_main_store_commitment()?;
         }
         Ok(root_hash)
     }
