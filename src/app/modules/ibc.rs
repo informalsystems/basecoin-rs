@@ -15,7 +15,6 @@ use std::num::ParseIntError;
 use std::str::FromStr;
 
 use ibc::applications::ics20_fungible_token_transfer::context::Ics20Context;
-use ibc::events::IbcEvent;
 use ibc::core::ics02_client::client_consensus::AnyConsensusState;
 use ibc::core::ics02_client::client_state::AnyClientState;
 use ibc::core::ics02_client::client_type::ClientType;
@@ -37,6 +36,7 @@ use ibc::core::ics24_host::identifier::{ChannelId, ClientId, ConnectionId, PortI
 use ibc::core::ics24_host::IBC_QUERY_PATH;
 use ibc::core::ics26_routing::context::Ics26Context;
 use ibc::core::ics26_routing::handler::{decode, dispatch};
+use ibc::events::IbcEvent;
 use ibc::timestamp::Timestamp;
 use ibc::Height as IbcHeight;
 use prost::Message;
