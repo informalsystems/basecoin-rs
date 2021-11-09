@@ -411,14 +411,30 @@ impl<S: Store> ChannelReader for Ibc<S> {
         &self,
         cid: &ConnectionId,
     ) -> Result<Vec<(PortId, ChannelId)>, ChannelError> {
-        // FIXME(hu55a1n1): path missing in ICS spec and ics24::path
-        let path = format!("connections/{}/channels", cid).try_into().unwrap(); // safety - path must be valid since ClientId is a valid Identifier
+        let path = "channelEnds".to_owned().try_into().unwrap(); // safety - path must be valid since ClientId is a valid Identifier
+
         let keys = self.store.get_keys(&path);
         let channels = keys
             .into_iter()
-            .map(|path| {
-                let port_channel: PortChannelPair = path.to_string().parse().unwrap(); // safety - data on the store is assumed to be well-formed
-                port_channel.0
+            .flat_map(|path| {
+                let value = self.store.get(Height::Pending, &path)?;
+                let channel_end: ChannelEnd = IbcRawChannelEnd::decode(value.as_slice())
+                    .map(|v| v.try_into().unwrap()) // safety - data on the store is assumed to be well-formed
+                    .ok()?;
+
+                if channel_end.connection_hops.first() == Some(cid) {
+                    let path_parts: Vec<&str> = path.split('/').collect();
+                    assert_eq!(path_parts.len(), 5);
+                    assert_eq!(path_parts[1], "ports");
+                    assert_eq!(path_parts[3], "channels");
+                    // safety - data on the store is assumed to be well-formed
+                    Some((
+                        path_parts[2].parse().unwrap(),
+                        path_parts[4].parse().unwrap(),
+                    ))
+                } else {
+                    None
+                }
             })
             .collect();
         Ok(channels)
