@@ -68,12 +68,11 @@ pub(crate) trait Module<S: Store> {
         Err(Error::not_handled())
     }
 
-    fn commit(&mut self) -> Result<Vec<u8>, S::Error>;
-
-    fn store(&self) -> S;
+    /// Return a mutable reference to the module's sub-store
+    fn store(&mut self) -> &mut S;
 }
 
-pub struct QueryResult {
+pub(crate) struct QueryResult {
     pub data: Vec<u8>,
     pub proof: Option<Vec<ProofOp>>,
 }

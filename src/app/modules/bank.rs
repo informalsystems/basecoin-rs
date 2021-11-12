@@ -186,11 +186,7 @@ impl<S: Store> Module<S> for Bank<S> {
         }
     }
 
-    fn commit(&mut self) -> Result<Vec<u8>, S::Error> {
-        self.store.commit()
-    }
-
-    fn store(&self) -> S {
-        self.store.clone()
+    fn store(&mut self) -> &mut S {
+        &mut self.store
     }
 }

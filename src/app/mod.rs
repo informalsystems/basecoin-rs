@@ -98,9 +98,13 @@ impl<S: Default + ProvableStore + 'static> BaseCoinApp<S> {
 
 impl<S: Default + ProvableStore> BaseCoinApp<S> {
     pub(crate) fn get_store(&self, prefix: Identifier) -> Option<ModuleStore<S>> {
-        let modules = self.modules.read().unwrap();
-        let module = modules.iter().find(|m| m.store().prefix() == prefix);
-        module.map(|m| m.store())
+        let mut modules = self.modules.write().unwrap();
+        for m in modules.iter_mut() {
+            if m.store().prefix() == prefix {
+                return Some(m.store().clone());
+            }
+        }
+        None
     }
 
     // try to deliver the message to all registered modules
@@ -265,6 +269,10 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
                 // could handle this message
                 Err(e) => {
                     // reset changes from other messages in this tx
+                    let mut modules = self.modules.write().unwrap();
+                    for m in modules.iter_mut() {
+                        m.store().reset();
+                    }
                     self.store.write().unwrap().reset();
                     return ResponseDeliverTx::from_error(
                         2,
@@ -284,7 +292,8 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
     fn commit(&self) -> ResponseCommit {
         let mut modules = self.modules.write().unwrap();
         for m in modules.iter_mut() {
-            m.commit().expect("failed to commit to state");
+            // m.commit().expect("failed to commit to state");
+            m.store().commit().expect("failed to commit to state");
         }
 
         let mut state = self.store.write().unwrap();
