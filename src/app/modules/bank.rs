@@ -77,7 +77,9 @@ impl<S: Store> Bank<S> {
     }
 }
 
-impl<S: Store> Module<S> for Bank<S> {
+impl<S: Store> Module for Bank<S> {
+    type Store = S;
+
     fn deliver(&mut self, message: Any) -> Result<Vec<Event>, ModuleError> {
         let message: MsgSend = Self::decode::<proto::cosmos::bank::v1beta1::MsgSend>(message)?
             .try_into()

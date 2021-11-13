@@ -29,7 +29,10 @@ define_error! {
 }
 
 /// Module trait
-pub(crate) trait Module<S: Store> {
+pub(crate) trait Module {
+    /// The module's Store type
+    type Store;
+
     /// Similar to [ABCI CheckTx method](https://docs.tendermint.com/master/spec/abci/abci.html#checktx)
     /// > CheckTx need not execute the transaction in full, but rather a light-weight yet
     /// > stateful validation, like checking signatures and account balances, but not running
@@ -69,7 +72,7 @@ pub(crate) trait Module<S: Store> {
     }
 
     /// Return a mutable reference to the module's sub-store
-    fn store(&mut self) -> &mut S;
+    fn store(&mut self) -> &mut Self::Store;
 }
 
 pub(crate) struct QueryResult {
