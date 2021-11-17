@@ -101,7 +101,7 @@ impl<S> BaseCoinApp<S> {
         let mut events = vec![];
 
         for m in modules.iter_mut() {
-            match m.deliver(message.clone().into()) {
+            match m.deliver(message.clone()) {
                 Ok(mut msg_events) => {
                     events.append(&mut msg_events);
                     handled = true;
