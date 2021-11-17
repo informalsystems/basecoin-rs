@@ -16,7 +16,7 @@ description = """
 
 [dependencies]
 bytes = "1.0.1"
-cosmos_sdk = "0.1.1"
+cosmrs = "0.3.0"
 flex-error = { version = "0.4.2", features = [ "eyre_tracer" ] }
 ibc = "0.8.0"
 ics23 = "0.6.0"

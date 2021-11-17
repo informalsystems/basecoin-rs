@@ -6,8 +6,8 @@ use std::convert::TryInto;
 use std::num::ParseIntError;
 use std::str::FromStr;
 
-use cosmos_sdk::bank::MsgSend;
-use cosmos_sdk::proto;
+use cosmrs::bank::MsgSend;
+use cosmrs::proto;
 use flex_error::{define_error, TraceError};
 use prost::{DecodeError, Message};
 use prost_types::Any;
