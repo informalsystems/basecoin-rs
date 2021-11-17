@@ -252,9 +252,206 @@ pub struct QueryUpgradedConsensusStateResponse {
     #[prost(message, optional, tag = "1")]
     pub upgraded_consensus_state: ::core::option::Option<::prost_types::Any>,
 }
+#[doc = r" Generated client implementations."]
+pub mod query_client {
+    #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
+    use tonic::codegen::*;
+    #[doc = " Query provides defines the gRPC querier service"]
+    #[derive(Debug, Clone)]
+    pub struct QueryClient<T> {
+        inner: tonic::client::Grpc<T>,
+    }
+    impl QueryClient<tonic::transport::Channel> {
+        #[doc = r" Attempt to create a new client by connecting to a given endpoint."]
+        pub async fn connect<D>(dst: D) -> Result<Self, tonic::transport::Error>
+        where
+            D: std::convert::TryInto<tonic::transport::Endpoint>,
+            D::Error: Into<StdError>,
+        {
+            let conn = tonic::transport::Endpoint::new(dst)?.connect().await?;
+            Ok(Self::new(conn))
+        }
+    }
+    impl<T> QueryClient<T>
+    where
+        T: tonic::client::GrpcService<tonic::body::BoxBody>,
+        T::ResponseBody: Body + Send + 'static,
+        T::Error: Into<StdError>,
+        <T::ResponseBody as Body>::Error: Into<StdError> + Send,
+    {
+        pub fn new(inner: T) -> Self {
+            let inner = tonic::client::Grpc::new(inner);
+            Self { inner }
+        }
+        pub fn with_interceptor<F>(
+            inner: T,
+            interceptor: F,
+        ) -> QueryClient<InterceptedService<T, F>>
+        where
+            F: tonic::service::Interceptor,
+            T: tonic::codegen::Service<
+                http::Request<tonic::body::BoxBody>,
+                Response = http::Response<
+                    <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
+                >,
+            >,
+            <T as tonic::codegen::Service<http::Request<tonic::body::BoxBody>>>::Error:
+                Into<StdError> + Send + Sync,
+        {
+            QueryClient::new(InterceptedService::new(inner, interceptor))
+        }
+        #[doc = r" Compress requests with `gzip`."]
+        #[doc = r""]
+        #[doc = r" This requires the server to support it otherwise it might respond with an"]
+        #[doc = r" error."]
+        pub fn send_gzip(mut self) -> Self {
+            self.inner = self.inner.send_gzip();
+            self
+        }
+        #[doc = r" Enable decompressing responses with `gzip`."]
+        pub fn accept_gzip(mut self) -> Self {
+            self.inner = self.inner.accept_gzip();
+            self
+        }
+        #[doc = " ClientState queries an IBC light client."]
+        pub async fn client_state(
+            &mut self,
+            request: impl tonic::IntoRequest<super::QueryClientStateRequest>,
+        ) -> Result<tonic::Response<super::QueryClientStateResponse>, tonic::Status> {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path =
+                http::uri::PathAndQuery::from_static("/ibc.core.client.v1.Query/ClientState");
+            self.inner.unary(request.into_request(), path, codec).await
+        }
+        #[doc = " ClientStates queries all the IBC light clients of a chain."]
+        pub async fn client_states(
+            &mut self,
+            request: impl tonic::IntoRequest<super::QueryClientStatesRequest>,
+        ) -> Result<tonic::Response<super::QueryClientStatesResponse>, tonic::Status> {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path =
+                http::uri::PathAndQuery::from_static("/ibc.core.client.v1.Query/ClientStates");
+            self.inner.unary(request.into_request(), path, codec).await
+        }
+        #[doc = " ConsensusState queries a consensus state associated with a client state at"]
+        #[doc = " a given height."]
+        pub async fn consensus_state(
+            &mut self,
+            request: impl tonic::IntoRequest<super::QueryConsensusStateRequest>,
+        ) -> Result<tonic::Response<super::QueryConsensusStateResponse>, tonic::Status> {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path =
+                http::uri::PathAndQuery::from_static("/ibc.core.client.v1.Query/ConsensusState");
+            self.inner.unary(request.into_request(), path, codec).await
+        }
+        #[doc = " ConsensusStates queries all the consensus state associated with a given"]
+        #[doc = " client."]
+        pub async fn consensus_states(
+            &mut self,
+            request: impl tonic::IntoRequest<super::QueryConsensusStatesRequest>,
+        ) -> Result<tonic::Response<super::QueryConsensusStatesResponse>, tonic::Status> {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path =
+                http::uri::PathAndQuery::from_static("/ibc.core.client.v1.Query/ConsensusStates");
+            self.inner.unary(request.into_request(), path, codec).await
+        }
+        #[doc = " Status queries the status of an IBC client."]
+        pub async fn client_status(
+            &mut self,
+            request: impl tonic::IntoRequest<super::QueryClientStatusRequest>,
+        ) -> Result<tonic::Response<super::QueryClientStatusResponse>, tonic::Status> {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path =
+                http::uri::PathAndQuery::from_static("/ibc.core.client.v1.Query/ClientStatus");
+            self.inner.unary(request.into_request(), path, codec).await
+        }
+        #[doc = " ClientParams queries all parameters of the ibc client."]
+        pub async fn client_params(
+            &mut self,
+            request: impl tonic::IntoRequest<super::QueryClientParamsRequest>,
+        ) -> Result<tonic::Response<super::QueryClientParamsResponse>, tonic::Status> {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path =
+                http::uri::PathAndQuery::from_static("/ibc.core.client.v1.Query/ClientParams");
+            self.inner.unary(request.into_request(), path, codec).await
+        }
+        #[doc = " UpgradedClientState queries an Upgraded IBC light client."]
+        pub async fn upgraded_client_state(
+            &mut self,
+            request: impl tonic::IntoRequest<super::QueryUpgradedClientStateRequest>,
+        ) -> Result<tonic::Response<super::QueryUpgradedClientStateResponse>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/ibc.core.client.v1.Query/UpgradedClientState",
+            );
+            self.inner.unary(request.into_request(), path, codec).await
+        }
+        #[doc = " UpgradedConsensusState queries an Upgraded IBC consensus state."]
+        pub async fn upgraded_consensus_state(
+            &mut self,
+            request: impl tonic::IntoRequest<super::QueryUpgradedConsensusStateRequest>,
+        ) -> Result<tonic::Response<super::QueryUpgradedConsensusStateResponse>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/ibc.core.client.v1.Query/UpgradedConsensusState",
+            );
+            self.inner.unary(request.into_request(), path, codec).await
+        }
+    }
+}
 #[doc = r" Generated server implementations."]
 pub mod query_server {
-    #![allow(unused_variables, dead_code, missing_docs)]
+    #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
     #[doc = "Generated trait containing gRPC methods that should be implemented for use with QueryServer."]
     #[async_trait]
@@ -306,24 +503,31 @@ pub mod query_server {
     #[derive(Debug)]
     pub struct QueryServer<T: Query> {
         inner: _Inner<T>,
+        accept_compression_encodings: (),
+        send_compression_encodings: (),
     }
-    struct _Inner<T>(Arc<T>, Option<tonic::Interceptor>);
+    struct _Inner<T>(Arc<T>);
     impl<T: Query> QueryServer<T> {
         pub fn new(inner: T) -> Self {
             let inner = Arc::new(inner);
-            let inner = _Inner(inner, None);
-            Self { inner }
+            let inner = _Inner(inner);
+            Self {
+                inner,
+                accept_compression_encodings: Default::default(),
+                send_compression_encodings: Default::default(),
+            }
         }
-        pub fn with_interceptor(inner: T, interceptor: impl Into<tonic::Interceptor>) -> Self {
-            let inner = Arc::new(inner);
-            let inner = _Inner(inner, Some(interceptor.into()));
-            Self { inner }
+        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
+        where
+            F: tonic::service::Interceptor,
+        {
+            InterceptedService::new(Self::new(inner), interceptor)
         }
     }
-    impl<T, B> Service<http::Request<B>> for QueryServer<T>
+    impl<T, B> tonic::codegen::Service<http::Request<B>> for QueryServer<T>
     where
         T: Query,
-        B: HttpBody + Send + Sync + 'static,
+        B: Body + Send + 'static,
         B::Error: Into<StdError> + Send + 'static,
     {
         type Response = http::Response<tonic::body::BoxBody>;
@@ -350,17 +554,17 @@ pub mod query_server {
                             Box::pin(fut)
                         }
                     }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
                     let inner = self.inner.clone();
                     let fut = async move {
-                        let interceptor = inner.1.clone();
                         let inner = inner.0;
                         let method = ClientStateSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = if let Some(interceptor) = interceptor {
-                            tonic::server::Grpc::with_interceptor(codec, interceptor)
-                        } else {
-                            tonic::server::Grpc::new(codec)
-                        };
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
@@ -381,17 +585,17 @@ pub mod query_server {
                             Box::pin(fut)
                         }
                     }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
                     let inner = self.inner.clone();
                     let fut = async move {
-                        let interceptor = inner.1.clone();
                         let inner = inner.0;
                         let method = ClientStatesSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = if let Some(interceptor) = interceptor {
-                            tonic::server::Grpc::with_interceptor(codec, interceptor)
-                        } else {
-                            tonic::server::Grpc::new(codec)
-                        };
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
@@ -414,17 +618,17 @@ pub mod query_server {
                             Box::pin(fut)
                         }
                     }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
                     let inner = self.inner.clone();
                     let fut = async move {
-                        let interceptor = inner.1.clone();
                         let inner = inner.0;
                         let method = ConsensusStateSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = if let Some(interceptor) = interceptor {
-                            tonic::server::Grpc::with_interceptor(codec, interceptor)
-                        } else {
-                            tonic::server::Grpc::new(codec)
-                        };
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
@@ -447,17 +651,17 @@ pub mod query_server {
                             Box::pin(fut)
                         }
                     }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
                     let inner = self.inner.clone();
                     let fut = async move {
-                        let interceptor = inner.1.clone();
                         let inner = inner.0;
                         let method = ConsensusStatesSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = if let Some(interceptor) = interceptor {
-                            tonic::server::Grpc::with_interceptor(codec, interceptor)
-                        } else {
-                            tonic::server::Grpc::new(codec)
-                        };
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
@@ -478,17 +682,17 @@ pub mod query_server {
                             Box::pin(fut)
                         }
                     }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
                     let inner = self.inner.clone();
                     let fut = async move {
-                        let interceptor = inner.1.clone();
                         let inner = inner.0;
                         let method = ClientStatusSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = if let Some(interceptor) = interceptor {
-                            tonic::server::Grpc::with_interceptor(codec, interceptor)
-                        } else {
-                            tonic::server::Grpc::new(codec)
-                        };
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
@@ -509,17 +713,17 @@ pub mod query_server {
                             Box::pin(fut)
                         }
                     }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
                     let inner = self.inner.clone();
                     let fut = async move {
-                        let interceptor = inner.1.clone();
                         let inner = inner.0;
                         let method = ClientParamsSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = if let Some(interceptor) = interceptor {
-                            tonic::server::Grpc::with_interceptor(codec, interceptor)
-                        } else {
-                            tonic::server::Grpc::new(codec)
-                        };
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
@@ -543,17 +747,17 @@ pub mod query_server {
                             Box::pin(fut)
                         }
                     }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
                     let inner = self.inner.clone();
                     let fut = async move {
-                        let interceptor = inner.1.clone();
                         let inner = inner.0;
                         let method = UpgradedClientStateSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = if let Some(interceptor) = interceptor {
-                            tonic::server::Grpc::with_interceptor(codec, interceptor)
-                        } else {
-                            tonic::server::Grpc::new(codec)
-                        };
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
@@ -578,17 +782,17 @@ pub mod query_server {
                             Box::pin(fut)
                         }
                     }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
                     let inner = self.inner.clone();
                     let fut = async move {
-                        let interceptor = inner.1.clone();
                         let inner = inner.0;
                         let method = UpgradedConsensusStateSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = if let Some(interceptor) = interceptor {
-                            tonic::server::Grpc::with_interceptor(codec, interceptor)
-                        } else {
-                            tonic::server::Grpc::new(codec)
-                        };
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
@@ -599,7 +803,7 @@ pub mod query_server {
                         .status(200)
                         .header("grpc-status", "12")
                         .header("content-type", "application/grpc")
-                        .body(tonic::body::BoxBody::empty())
+                        .body(empty_body())
                         .unwrap())
                 }),
             }
@@ -608,12 +812,16 @@ pub mod query_server {
     impl<T: Query> Clone for QueryServer<T> {
         fn clone(&self) -> Self {
             let inner = self.inner.clone();
-            Self { inner }
+            Self {
+                inner,
+                accept_compression_encodings: self.accept_compression_encodings,
+                send_compression_encodings: self.send_compression_encodings,
+            }
         }
     }
     impl<T: Query> Clone for _Inner<T> {
         fn clone(&self) -> Self {
-            Self(self.0.clone(), self.1.clone())
+            Self(self.0.clone())
         }
     }
     impl<T: std::fmt::Debug> std::fmt::Debug for _Inner<T> {
@@ -704,9 +912,131 @@ pub struct MsgSubmitMisbehaviour {
 /// type.
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct MsgSubmitMisbehaviourResponse {}
+#[doc = r" Generated client implementations."]
+pub mod msg_client {
+    #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
+    use tonic::codegen::*;
+    #[doc = " Msg defines the ibc/client Msg service."]
+    #[derive(Debug, Clone)]
+    pub struct MsgClient<T> {
+        inner: tonic::client::Grpc<T>,
+    }
+    impl MsgClient<tonic::transport::Channel> {
+        #[doc = r" Attempt to create a new client by connecting to a given endpoint."]
+        pub async fn connect<D>(dst: D) -> Result<Self, tonic::transport::Error>
+        where
+            D: std::convert::TryInto<tonic::transport::Endpoint>,
+            D::Error: Into<StdError>,
+        {
+            let conn = tonic::transport::Endpoint::new(dst)?.connect().await?;
+            Ok(Self::new(conn))
+        }
+    }
+    impl<T> MsgClient<T>
+    where
+        T: tonic::client::GrpcService<tonic::body::BoxBody>,
+        T::ResponseBody: Body + Send + 'static,
+        T::Error: Into<StdError>,
+        <T::ResponseBody as Body>::Error: Into<StdError> + Send,
+    {
+        pub fn new(inner: T) -> Self {
+            let inner = tonic::client::Grpc::new(inner);
+            Self { inner }
+        }
+        pub fn with_interceptor<F>(inner: T, interceptor: F) -> MsgClient<InterceptedService<T, F>>
+        where
+            F: tonic::service::Interceptor,
+            T: tonic::codegen::Service<
+                http::Request<tonic::body::BoxBody>,
+                Response = http::Response<
+                    <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
+                >,
+            >,
+            <T as tonic::codegen::Service<http::Request<tonic::body::BoxBody>>>::Error:
+                Into<StdError> + Send + Sync,
+        {
+            MsgClient::new(InterceptedService::new(inner, interceptor))
+        }
+        #[doc = r" Compress requests with `gzip`."]
+        #[doc = r""]
+        #[doc = r" This requires the server to support it otherwise it might respond with an"]
+        #[doc = r" error."]
+        pub fn send_gzip(mut self) -> Self {
+            self.inner = self.inner.send_gzip();
+            self
+        }
+        #[doc = r" Enable decompressing responses with `gzip`."]
+        pub fn accept_gzip(mut self) -> Self {
+            self.inner = self.inner.accept_gzip();
+            self
+        }
+        #[doc = " CreateClient defines a rpc handler method for MsgCreateClient."]
+        pub async fn create_client(
+            &mut self,
+            request: impl tonic::IntoRequest<super::MsgCreateClient>,
+        ) -> Result<tonic::Response<super::MsgCreateClientResponse>, tonic::Status> {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static("/ibc.core.client.v1.Msg/CreateClient");
+            self.inner.unary(request.into_request(), path, codec).await
+        }
+        #[doc = " UpdateClient defines a rpc handler method for MsgUpdateClient."]
+        pub async fn update_client(
+            &mut self,
+            request: impl tonic::IntoRequest<super::MsgUpdateClient>,
+        ) -> Result<tonic::Response<super::MsgUpdateClientResponse>, tonic::Status> {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static("/ibc.core.client.v1.Msg/UpdateClient");
+            self.inner.unary(request.into_request(), path, codec).await
+        }
+        #[doc = " UpgradeClient defines a rpc handler method for MsgUpgradeClient."]
+        pub async fn upgrade_client(
+            &mut self,
+            request: impl tonic::IntoRequest<super::MsgUpgradeClient>,
+        ) -> Result<tonic::Response<super::MsgUpgradeClientResponse>, tonic::Status> {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path =
+                http::uri::PathAndQuery::from_static("/ibc.core.client.v1.Msg/UpgradeClient");
+            self.inner.unary(request.into_request(), path, codec).await
+        }
+        #[doc = " SubmitMisbehaviour defines a rpc handler method for MsgSubmitMisbehaviour."]
+        pub async fn submit_misbehaviour(
+            &mut self,
+            request: impl tonic::IntoRequest<super::MsgSubmitMisbehaviour>,
+        ) -> Result<tonic::Response<super::MsgSubmitMisbehaviourResponse>, tonic::Status> {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path =
+                http::uri::PathAndQuery::from_static("/ibc.core.client.v1.Msg/SubmitMisbehaviour");
+            self.inner.unary(request.into_request(), path, codec).await
+        }
+    }
+}
 #[doc = r" Generated server implementations."]
 pub mod msg_server {
-    #![allow(unused_variables, dead_code, missing_docs)]
+    #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
     #[doc = "Generated trait containing gRPC methods that should be implemented for use with MsgServer."]
     #[async_trait]
@@ -736,24 +1066,31 @@ pub mod msg_server {
     #[derive(Debug)]
     pub struct MsgServer<T: Msg> {
         inner: _Inner<T>,
+        accept_compression_encodings: (),
+        send_compression_encodings: (),
     }
-    struct _Inner<T>(Arc<T>, Option<tonic::Interceptor>);
+    struct _Inner<T>(Arc<T>);
     impl<T: Msg> MsgServer<T> {
         pub fn new(inner: T) -> Self {
             let inner = Arc::new(inner);
-            let inner = _Inner(inner, None);
-            Self { inner }
+            let inner = _Inner(inner);
+            Self {
+                inner,
+                accept_compression_encodings: Default::default(),
+                send_compression_encodings: Default::default(),
+            }
         }
-        pub fn with_interceptor(inner: T, interceptor: impl Into<tonic::Interceptor>) -> Self {
-            let inner = Arc::new(inner);
-            let inner = _Inner(inner, Some(interceptor.into()));
-            Self { inner }
+        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
+        where
+            F: tonic::service::Interceptor,
+        {
+            InterceptedService::new(Self::new(inner), interceptor)
         }
     }
-    impl<T, B> Service<http::Request<B>> for MsgServer<T>
+    impl<T, B> tonic::codegen::Service<http::Request<B>> for MsgServer<T>
     where
         T: Msg,
-        B: HttpBody + Send + Sync + 'static,
+        B: Body + Send + 'static,
         B::Error: Into<StdError> + Send + 'static,
     {
         type Response = http::Response<tonic::body::BoxBody>;
@@ -780,17 +1117,17 @@ pub mod msg_server {
                             Box::pin(fut)
                         }
                     }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
                     let inner = self.inner.clone();
                     let fut = async move {
-                        let interceptor = inner.1.clone();
                         let inner = inner.0;
                         let method = CreateClientSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = if let Some(interceptor) = interceptor {
-                            tonic::server::Grpc::with_interceptor(codec, interceptor)
-                        } else {
-                            tonic::server::Grpc::new(codec)
-                        };
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
@@ -811,17 +1148,17 @@ pub mod msg_server {
                             Box::pin(fut)
                         }
                     }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
                     let inner = self.inner.clone();
                     let fut = async move {
-                        let interceptor = inner.1.clone();
                         let inner = inner.0;
                         let method = UpdateClientSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = if let Some(interceptor) = interceptor {
-                            tonic::server::Grpc::with_interceptor(codec, interceptor)
-                        } else {
-                            tonic::server::Grpc::new(codec)
-                        };
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
@@ -842,17 +1179,17 @@ pub mod msg_server {
                             Box::pin(fut)
                         }
                     }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
                     let inner = self.inner.clone();
                     let fut = async move {
-                        let interceptor = inner.1.clone();
                         let inner = inner.0;
                         let method = UpgradeClientSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = if let Some(interceptor) = interceptor {
-                            tonic::server::Grpc::with_interceptor(codec, interceptor)
-                        } else {
-                            tonic::server::Grpc::new(codec)
-                        };
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
@@ -875,17 +1212,17 @@ pub mod msg_server {
                             Box::pin(fut)
                         }
                     }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
                     let inner = self.inner.clone();
                     let fut = async move {
-                        let interceptor = inner.1.clone();
                         let inner = inner.0;
                         let method = SubmitMisbehaviourSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = if let Some(interceptor) = interceptor {
-                            tonic::server::Grpc::with_interceptor(codec, interceptor)
-                        } else {
-                            tonic::server::Grpc::new(codec)
-                        };
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
@@ -896,7 +1233,7 @@ pub mod msg_server {
                         .status(200)
                         .header("grpc-status", "12")
                         .header("content-type", "application/grpc")
-                        .body(tonic::body::BoxBody::empty())
+                        .body(empty_body())
                         .unwrap())
                 }),
             }
@@ -905,12 +1242,16 @@ pub mod msg_server {
     impl<T: Msg> Clone for MsgServer<T> {
         fn clone(&self) -> Self {
             let inner = self.inner.clone();
-            Self { inner }
+            Self {
+                inner,
+                accept_compression_encodings: self.accept_compression_encodings,
+                send_compression_encodings: self.send_compression_encodings,
+            }
         }
     }
     impl<T: Msg> Clone for _Inner<T> {
         fn clone(&self) -> Self {
-            Self(self.0.clone(), self.1.clone())
+            Self(self.0.clone())
         }
     }
     impl<T: std::fmt::Debug> std::fmt::Debug for _Inner<T> {

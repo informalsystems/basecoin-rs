@@ -14,6 +14,12 @@ pub mod cosmos {
         }
     }
 
+    // pub mod tx {
+    //     pub mod v1beta1 {
+    //         include!("prostgen/cosmos.tx.v1beta1.rs");
+    //     }
+    // }
+
     pub mod upgrade {
         pub mod v1beta1 {
             include!("prostgen/cosmos.upgrade.v1beta1.rs");
