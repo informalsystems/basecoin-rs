@@ -115,16 +115,16 @@ impl<S: Store> ClientReader for Ibc<S> {
 
     fn next_consensus_state(
         &self,
-        client_id: &ClientId,
-        height: IbcHeight,
+        _client_id: &ClientId,
+        _height: IbcHeight,
     ) -> Result<Option<AnyConsensusState>, ClientError> {
         Ok(None)
     }
 
     fn prev_consensus_state(
         &self,
-        client_id: &ClientId,
-        height: IbcHeight,
+        _client_id: &ClientId,
+        _height: IbcHeight,
     ) -> Result<Option<AnyConsensusState>, ClientError> {
         Ok(None)
     }
