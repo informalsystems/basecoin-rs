@@ -35,7 +35,7 @@ use crate::prostgen::cosmos::staking::v1beta1::{
     QueryValidatorsRequest, QueryValidatorsResponse,
 };
 
-use std::convert::{Into, TryInto};
+use std::convert::TryInto;
 use std::sync::{Arc, RwLock};
 
 use cosmrs::Tx;
