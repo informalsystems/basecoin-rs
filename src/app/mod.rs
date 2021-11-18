@@ -35,10 +35,10 @@ use crate::prostgen::cosmos::staking::v1beta1::{
     QueryValidatorsRequest, QueryValidatorsResponse,
 };
 
-use std::convert::{Into, TryInto};
+use std::convert::TryInto;
 use std::sync::{Arc, RwLock};
 
-use cosmos_sdk::{tx::Msg, Tx};
+use cosmrs::Tx;
 use prost::Message;
 use prost_types::{Any, Duration};
 use serde_json::Value;
@@ -95,13 +95,13 @@ impl<S> BaseCoinApp<S> {
     // * other errors immediately OR
     // * `Error::not_handled()` if all modules return `Error::not_handled()`
     // * events from first successful deliver call OR
-    fn deliver_msg(&self, message: Msg) -> Result<Vec<Event>, Error> {
+    fn deliver_msg(&self, message: Any) -> Result<Vec<Event>, Error> {
         let mut modules = self.modules.write().unwrap();
         let mut handled = false;
         let mut events = vec![];
 
         for m in modules.iter_mut() {
-            match m.deliver(message.clone().into()) {
+            match m.deliver(message.clone()) {
                 Ok(mut msg_events) => {
                     events.append(&mut msg_events);
                     handled = true;
