@@ -217,22 +217,6 @@ impl<S: Store> ClientReader for Ibc<S> {
     fn client_counter(&self) -> Result<u64, ClientError> {
         Ok(self.client_counter)
     }
-
-    fn next_consensus_state(
-        &self,
-        _client_id: &ClientId,
-        _height: IbcHeight,
-    ) -> Result<Option<AnyConsensusState>, ClientError> {
-        Ok(None)
-    }
-
-    fn prev_consensus_state(
-        &self,
-        _client_id: &ClientId,
-        _height: IbcHeight,
-    ) -> Result<Option<AnyConsensusState>, ClientError> {
-        Ok(None)
-    }
 }
 
 impl<S: Store> ClientKeeper for Ibc<S> {
