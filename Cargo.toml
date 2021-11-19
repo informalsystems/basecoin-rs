@@ -35,5 +35,5 @@ tonic="0.6"
 tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
 
 [patch.crates-io]
-ibc = { git = "https://github.com/informalsystems/ibc-rs.git", branch = "basecoin/phase-4" }
-ibc-proto = { git = "https://github.com/informalsystems/ibc-rs.git", branch = "basecoin/phase-4" }
+ibc = { git = "https://github.com/informalsystems/ibc-rs.git", branch = "basecoin/phase-4-1" }
+ibc-proto = { git = "https://github.com/informalsystems/ibc-rs.git", branch = "basecoin/phase-4-1" }
