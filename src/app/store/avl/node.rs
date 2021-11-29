@@ -1,4 +1,4 @@
-use std::borrow::Borrow;
+use std::{borrow::Borrow, mem};
 
 use sha2::{Digest, Sha256};
 use tendermint::hash::Hash;
@@ -54,11 +54,10 @@ where
     }
 
     /// Set the value of the current node.
-    pub(crate) fn set_value(&mut self, mut value: V) -> V {
+    pub(crate) fn set_value(&mut self, value: V) -> V {
         let hash = Self::local_hash(&self.key, &value);
-        std::mem::swap(&mut self.value, &mut value);
         self.hash = hash;
-        value
+        mem::replace(&mut self.value, value)
     }
 
     /// The left height, or `None` if there is no left child.
