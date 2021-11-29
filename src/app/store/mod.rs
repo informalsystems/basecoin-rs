@@ -154,7 +154,7 @@ pub trait Store: Send + Sync + Clone {
     type Error: core::fmt::Debug;
 
     /// Set `value` for `path`
-    fn set(&mut self, path: Path, value: Vec<u8>) -> Result<(), Self::Error>;
+    fn set(&mut self, path: Path, value: Vec<u8>) -> Result<Option<Vec<u8>>, Self::Error>;
 
     /// Get associated `value` for `path` at specified `height`
     fn get(&self, height: Height, path: &Path) -> Option<Vec<u8>>;
@@ -225,7 +225,7 @@ impl<S: Default + ProvableStore> SubStore<S> {
 }
 
 impl<S: Default + ProvableStore> SubStore<S> {
-    fn update_main_store_commitment(&mut self) -> Result<(), S::Error> {
+    fn update_main_store_commitment(&mut self) -> Result<Option<Vec<u8>>, S::Error> {
         self.main_store
             .set(Path::from(self.prefix.clone()), self.sub_store.root_hash())
     }
@@ -238,7 +238,7 @@ where
     type Error = S::Error;
 
     #[inline]
-    fn set(&mut self, path: Path, value: Vec<u8>) -> Result<(), Self::Error> {
+    fn set(&mut self, path: Path, value: Vec<u8>) -> Result<Option<Vec<u8>>, Self::Error> {
         self.dirty = true;
         self.sub_store
             .set(self.prefix.unprefixed_path(&path), value)
@@ -314,7 +314,7 @@ impl<S: Store> Store for SharedStore<S> {
     type Error = S::Error;
 
     #[inline]
-    fn set(&mut self, path: Path, value: Vec<u8>) -> Result<(), Self::Error> {
+    fn set(&mut self, path: Path, value: Vec<u8>) -> Result<Option<Vec<u8>>, Self::Error> {
         self.write().unwrap().set(path, value)
     }
 
@@ -399,10 +399,10 @@ impl<S: Store> Store for WalStore<S> {
     type Error = S::Error;
 
     #[inline]
-    fn set(&mut self, path: Path, value: Vec<u8>) -> Result<(), Self::Error> {
-        self.store.set(path.clone(), value)?;
+    fn set(&mut self, path: Path, value: Vec<u8>) -> Result<Option<Vec<u8>>, Self::Error> {
+        let old_value = self.store.set(path.clone(), value)?;
         self.op_log.push(path);
-        Ok(())
+        Ok(old_value)
     }
 
     #[inline]
