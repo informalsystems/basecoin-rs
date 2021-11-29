@@ -50,10 +50,9 @@ impl Default for InMemoryStore {
 impl Store for InMemoryStore {
     type Error = (); // underlying store ops are infallible
 
-    fn set(&mut self, path: Path, value: Vec<u8>) -> Result<(), Self::Error> {
+    fn set(&mut self, path: Path, value: Vec<u8>) -> Result<Option<Vec<u8>>, Self::Error> {
         trace!("set at path = {}", path.as_str());
-        self.pending.insert(path, value);
-        Ok(())
+        Ok(self.pending.insert(path, value))
     }
 
     fn get(&self, height: Height, path: &Path) -> Option<Vec<u8>> {

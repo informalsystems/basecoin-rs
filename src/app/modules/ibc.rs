@@ -239,7 +239,8 @@ impl<S: Store> ClientKeeper for Ibc<S> {
             .unwrap(); // safety - path must be valid since ClientId is a valid Identifier
         self.store
             .set(path, serde_json::to_string(&client_type).unwrap().into()) // safety - cannot fail since ClientType's Serialize impl doesn't fail
-            .map_err(|_| ClientError::implementation_specific())
+            .map_err(|_| ClientError::implementation_specific())?;
+        Ok(())
     }
 
     fn store_client_state(
@@ -257,7 +258,8 @@ impl<S: Store> ClientKeeper for Ibc<S> {
             .unwrap(); // safety - path must be valid since ClientId is a valid Identifier
         self.store
             .set(path, buffer)
-            .map_err(|_| ClientError::implementation_specific())
+            .map_err(|_| ClientError::implementation_specific())?;
+        Ok(())
     }
 
     fn store_consensus_state(
@@ -276,7 +278,8 @@ impl<S: Store> ClientKeeper for Ibc<S> {
             .unwrap(); // safety - path must be valid since ClientId and height are valid Identifiers
         self.store
             .set(path, buffer)
-            .map_err(|_| ClientError::implementation_specific())
+            .map_err(|_| ClientError::implementation_specific())?;
+        Ok(())
     }
 
     fn increase_client_counter(&mut self) {
@@ -354,7 +357,8 @@ impl<S: Store> ConnectionKeeper for Ibc<S> {
         let path = format!("connections/{}", connection_id).try_into().unwrap(); // safety - path must be valid since ClientId is a valid Identifier
         self.store
             .set(path, buffer)
-            .map_err(|_| ConnectionError::implementation_specific())
+            .map_err(|_| ConnectionError::implementation_specific())?;
+        Ok(())
     }
 
     fn store_connection_to_client(
@@ -374,7 +378,8 @@ impl<S: Store> ConnectionKeeper for Ibc<S> {
         conn_ids.push(connection_id);
         self.store
             .set(path, serde_json::to_string(&conn_ids).unwrap().into()) // safety - cannot fail since ClientType's Serialize impl doesn't fail
-            .map_err(|_| ConnectionError::implementation_specific())
+            .map_err(|_| ConnectionError::implementation_specific())?;
+        Ok(())
     }
 
     fn increase_connection_counter(&mut self) {
