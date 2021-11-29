@@ -598,7 +598,8 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
                 ChannelReader::hash(self, format!("{:?},{:?},{:?}", timestamp, height, data,))
                     .into(),
             ) // safety - cannot fail since ClientType's Serialize impl doesn't fail
-            .map_err(|_| ChannelError::implementation_specific())
+            .map_err(|_| ChannelError::implementation_specific())?;
+        Ok(())
     }
 
     fn delete_packet_commitment(
@@ -628,7 +629,8 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
         .unwrap(); // safety - path must be valid since ClientId is a valid Identifier
         self.store
             .set(path, Vec::default()) // safety - cannot fail since ClientType's Serialize impl doesn't fail
-            .map_err(|_| ChannelError::implementation_specific())
+            .map_err(|_| ChannelError::implementation_specific())?;
+        Ok(())
     }
 
     fn store_packet_acknowledgement(
@@ -644,7 +646,8 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
         .unwrap(); // safety - path must be valid since ClientId is a valid Identifier
         self.store
             .set(path, ack) // safety - cannot fail since ClientType's Serialize impl doesn't fail
-            .map_err(|_| ChannelError::implementation_specific())
+            .map_err(|_| ChannelError::implementation_specific())?;
+        Ok(())
     }
 
     fn delete_packet_acknowledgement(
@@ -674,7 +677,8 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
         .unwrap(); // safety - path must be valid since ClientId is a valid Identifier
         self.store
             .set(path, Vec::default()) // safety - cannot fail since ClientType's Serialize impl doesn't fail
-            .map_err(|_| ChannelError::implementation_specific())
+            .map_err(|_| ChannelError::implementation_specific())?;
+        Ok(())
     }
 
     fn store_channel(
@@ -695,7 +699,8 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
         .unwrap(); // safety - path must be valid since ClientId is a valid Identifier
         self.store
             .set(path, buffer)
-            .map_err(|_| ChannelError::implementation_specific())
+            .map_err(|_| ChannelError::implementation_specific())?;
+        Ok(())
     }
 
     fn store_next_sequence_send(
@@ -711,7 +716,8 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
         .unwrap(); // safety - path must be valid since ClientId is a valid Identifier
         self.store
             .set(path, serde_json::to_string(&seq).unwrap().into()) // safety - cannot fail since ClientType's Serialize impl doesn't fail
-            .map_err(|_| ChannelError::implementation_specific())
+            .map_err(|_| ChannelError::implementation_specific())?;
+        Ok(())
     }
 
     fn store_next_sequence_recv(
@@ -727,7 +733,8 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
         .unwrap(); // safety - path must be valid since ClientId is a valid Identifier
         self.store
             .set(path, serde_json::to_string(&seq).unwrap().into()) // safety - cannot fail since ClientType's Serialize impl doesn't fail
-            .map_err(|_| ChannelError::implementation_specific())
+            .map_err(|_| ChannelError::implementation_specific())?;
+        Ok(())
     }
 
     fn store_next_sequence_ack(
@@ -743,7 +750,8 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
         .unwrap(); // safety - path must be valid since ClientId is a valid Identifier
         self.store
             .set(path, serde_json::to_string(&seq).unwrap().into()) // safety - cannot fail since ClientType's Serialize impl doesn't fail
-            .map_err(|_| ChannelError::implementation_specific())
+            .map_err(|_| ChannelError::implementation_specific())?;
+        Ok(())
     }
 
     fn increase_channel_counter(&mut self) {
