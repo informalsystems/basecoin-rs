@@ -54,10 +54,11 @@ where
     }
 
     /// Set the value of the current node.
-    pub(crate) fn set_value(&mut self, value: V) {
+    pub(crate) fn set_value(&mut self, mut value: V) -> V {
         let hash = Self::local_hash(&self.key, &value);
-        self.value = value;
+        std::mem::swap(&mut self.value, &mut value);
         self.hash = hash;
+        value
     }
 
     /// The left height, or `None` if there is no left child.
