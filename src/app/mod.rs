@@ -7,7 +7,7 @@ pub(crate) mod store;
 use crate::app::modules::{prefix, Bank, Error, ErrorDetail, Ibc, Identifiable, Module};
 use crate::app::response::ResponseFromErrorExt;
 use crate::app::store::{
-    Height, Identifier, Path, ProvableStore, SharedStore, Store, SubStore, WalStore,
+    Height, Identifier, Path, ProvableStore, RevertibleStore, SharedStore, Store, SubStore,
 };
 use crate::prostgen::cosmos::auth::v1beta1::{
     query_server::Query as AuthQuery, BaseAccount, QueryAccountRequest, QueryAccountResponse,
@@ -59,7 +59,7 @@ use tendermint_proto::p2p::DefaultNodeInfo;
 use tonic::{Request, Response, Status};
 use tracing::{debug, info};
 
-type MainStore<S> = SharedStore<WalStore<S>>;
+type MainStore<S> = SharedStore<RevertibleStore<S>>;
 type ModuleStore<S> = SubStore<MainStore<S>>;
 type Shared<T> = Arc<RwLock<T>>;
 
@@ -76,7 +76,7 @@ pub(crate) struct BaseCoinApp<S> {
 impl<S: Default + ProvableStore + 'static> BaseCoinApp<S> {
     /// Constructor.
     pub(crate) fn new(store: S) -> Result<Self, S::Error> {
-        let store = SharedStore::new(WalStore::new(store));
+        let store = SharedStore::new(RevertibleStore::new(store));
         // `SubStore` guarantees modules exclusive access to all paths in the store key-space.
         let modules: Vec<Box<dyn Module<ModuleStore<S>> + Send + Sync>> = vec![
             Box::new(Bank::new(SubStore::new(

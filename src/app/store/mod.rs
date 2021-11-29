@@ -370,17 +370,22 @@ impl<S> DerefMut for SharedStore<S> {
     }
 }
 
-/// A wrapper store that implements rudimentary `apply()`/`reset()` support using write-ahead
-/// logging for other stores
+/// A wrapper store that implements rudimentary `apply()`/`reset()` support for other stores
 #[derive(Clone)]
-pub(crate) struct WalStore<S> {
+pub(crate) struct RevertibleStore<S> {
     /// backing store
     store: S,
     /// operation log for recording rollback operations in preserved order
-    op_log: Vec<Path>,
+    op_log: Vec<RevertOp>,
 }
 
-impl<S: Store> WalStore<S> {
+#[derive(Clone)]
+enum RevertOp {
+    Delete(Path),
+    Set(Path, Vec<u8>),
+}
+
+impl<S: Store> RevertibleStore<S> {
     pub(crate) fn new(store: S) -> Self {
         Self {
             store,
@@ -389,19 +394,25 @@ impl<S: Store> WalStore<S> {
     }
 }
 
-impl<S: Default + Store> Default for WalStore<S> {
+impl<S: Default + Store> Default for RevertibleStore<S> {
     fn default() -> Self {
         Self::new(S::default())
     }
 }
 
-impl<S: Store> Store for WalStore<S> {
+impl<S: Store> Store for RevertibleStore<S> {
     type Error = S::Error;
 
     #[inline]
     fn set(&mut self, path: Path, value: Vec<u8>) -> Result<Option<Vec<u8>>, Self::Error> {
         let old_value = self.store.set(path.clone(), value)?;
-        self.op_log.push(path);
+        match old_value {
+            // None implies this was an insert op, so we record the revert op as delete op
+            None => self.op_log.push(RevertOp::Delete(path)),
+            // Some old value implies this was an update op, so we record the revert op as a set op
+            // with the old value
+            Some(ref old_value) => self.op_log.push(RevertOp::Set(path, old_value.clone())),
+        }
         Ok(old_value)
     }
 
@@ -412,7 +423,7 @@ impl<S: Store> Store for WalStore<S> {
 
     #[inline]
     fn delete(&mut self, _path: &Path) {
-        unimplemented!("WALStore doesn't support delete operations yet!")
+        unimplemented!("RevertibleStore doesn't support delete operations yet!")
     }
 
     #[inline]
@@ -436,7 +447,12 @@ impl<S: Store> Store for WalStore<S> {
         // multilayered `WalStore`s
         trace!("Rollback operation log changes");
         while let Some(op) = self.op_log.pop() {
-            self.store.delete(&op);
+            match op {
+                RevertOp::Delete(path) => self.delete(&path),
+                RevertOp::Set(path, value) => {
+                    self.set(path, value).unwrap(); // safety - reset failures are unrecoverable
+                }
+            }
         }
     }
 
@@ -451,7 +467,7 @@ impl<S: Store> Store for WalStore<S> {
     }
 }
 
-impl<S: ProvableStore> ProvableStore for WalStore<S> {
+impl<S: ProvableStore> ProvableStore for RevertibleStore<S> {
     #[inline]
     fn root_hash(&self) -> Vec<u8> {
         self.store.root_hash()
