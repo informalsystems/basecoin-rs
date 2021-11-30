@@ -50,7 +50,6 @@ use ibc::core::ics24_host::identifier::{ChannelId, ClientId, ConnectionId, PortI
 use ibc::core::ics24_host::IBC_QUERY_PATH;
 use ibc::core::ics26_routing::context::Ics26Context;
 use ibc::core::ics26_routing::handler::{decode, dispatch};
-use ibc::events::IbcEvent;
 use ibc::timestamp::Timestamp;
 use ibc::Height as IbcHeight;
 use ibc_proto::ibc::core::channel::v1::Channel as IbcRawChannelEnd;
@@ -58,7 +57,7 @@ use ibc_proto::ibc::core::connection::v1::ConnectionEnd as IbcRawConnectionEnd;
 use prost::Message;
 use prost_types::Any;
 use sha2::Digest;
-use tendermint::{Hash, Time};
+use tendermint::{abci::responses::Event as TendermintEvent, Hash, Time};
 use tendermint_proto::abci::{Event, EventAttribute};
 use tendermint_proto::crypto::ProofOp;
 use tonic::{Request, Response, Status};
@@ -784,7 +783,7 @@ impl<S: ProvableStore> Module for Ibc<S> {
             Ok(output) => Ok(output
                 .events
                 .into_iter()
-                .map(|ev| IbcEventWrapper(ev).into())
+                .map(|ev| TmEvent(ev.try_into().unwrap()).into())
                 .collect()),
             Err(e) => Err(ModuleError::ibc(e)),
         }
@@ -838,153 +837,22 @@ impl<S: ProvableStore> Module for Ibc<S> {
     }
 }
 
-struct IbcEventWrapper(IbcEvent);
+struct TmEvent(TendermintEvent);
 
-impl From<IbcEventWrapper> for Event {
-    fn from(value: IbcEventWrapper) -> Self {
-        match value.0 {
-            IbcEvent::CreateClient(c) => Self {
-                r#type: "create_client".to_string(),
-                attributes: vec![EventAttribute {
-                    key: "client_id".as_bytes().to_vec(),
-                    value: c.client_id().to_string().as_bytes().to_vec(),
+impl From<TmEvent> for Event {
+    fn from(value: TmEvent) -> Self {
+        Self {
+            r#type: value.0.type_str,
+            attributes: value
+                .0
+                .attributes
+                .into_iter()
+                .map(|attr| EventAttribute {
+                    key: attr.key.as_ref().into(),
+                    value: attr.value.as_ref().into(),
                     index: true,
-                }],
-            },
-            IbcEvent::UpdateClient(c) => Self {
-                r#type: "update_client".to_string(),
-                attributes: vec![EventAttribute {
-                    key: "client_id".as_bytes().to_vec(),
-                    value: c.client_id().to_string().as_bytes().to_vec(),
-                    index: true,
-                }],
-            },
-            IbcEvent::OpenInitConnection(conn_open_init) => Self {
-                r#type: "connection_open_init".to_string(),
-                attributes: vec![EventAttribute {
-                    key: "connection_id".as_bytes().to_vec(),
-                    value: conn_open_init
-                        .connection_id()
-                        .as_ref()
-                        .unwrap()
-                        .to_string()
-                        .as_bytes()
-                        .to_vec(),
-                    index: true,
-                }],
-            },
-            IbcEvent::OpenTryConnection(conn_open_try) => Self {
-                r#type: "connection_open_try".to_string(),
-                attributes: vec![EventAttribute {
-                    key: "connection_id".as_bytes().to_vec(),
-                    value: conn_open_try
-                        .connection_id()
-                        .as_ref()
-                        .unwrap()
-                        .to_string()
-                        .as_bytes()
-                        .to_vec(),
-                    index: true,
-                }],
-            },
-            IbcEvent::OpenAckConnection(conn_open_ack) => Self {
-                r#type: "connection_open_ack".to_string(),
-                attributes: vec![EventAttribute {
-                    key: "connection_id".as_bytes().to_vec(),
-                    value: conn_open_ack
-                        .connection_id()
-                        .as_ref()
-                        .unwrap()
-                        .to_string()
-                        .as_bytes()
-                        .to_vec(),
-                    index: true,
-                }],
-            },
-            IbcEvent::OpenConfirmConnection(conn_open_confirm) => Self {
-                r#type: "connection_open_confirm".to_string(),
-                attributes: vec![EventAttribute {
-                    key: "connection_id".as_bytes().to_vec(),
-                    value: conn_open_confirm
-                        .connection_id()
-                        .as_ref()
-                        .unwrap()
-                        .to_string()
-                        .as_bytes()
-                        .to_vec(),
-                    index: true,
-                }],
-            },
-            IbcEvent::OpenInitChannel(chan_open_init) => Self {
-                r#type: "channel_open_init".to_string(),
-                attributes: vec![EventAttribute {
-                    key: "channel_id".as_bytes().to_vec(),
-                    value: chan_open_init
-                        .channel_id()
-                        .as_ref()
-                        .unwrap()
-                        .to_string()
-                        .as_bytes()
-                        .to_vec(),
-                    index: true,
-                }],
-            },
-            IbcEvent::OpenTryChannel(chan_open_try) => Self {
-                r#type: "channel_open_try".to_string(),
-                attributes: vec![EventAttribute {
-                    key: "channel_id".as_bytes().to_vec(),
-                    value: chan_open_try
-                        .channel_id()
-                        .as_ref()
-                        .unwrap()
-                        .to_string()
-                        .as_bytes()
-                        .to_vec(),
-                    index: true,
-                }],
-            },
-            IbcEvent::OpenAckChannel(chan_open_ack) => Self {
-                r#type: "channel_open_ack".to_string(),
-                attributes: vec![
-                    EventAttribute {
-                        key: "channel_id".as_bytes().to_vec(),
-                        value: chan_open_ack
-                            .channel_id()
-                            .as_ref()
-                            .unwrap()
-                            .to_string()
-                            .as_bytes()
-                            .to_vec(),
-                        index: true,
-                    },
-                    EventAttribute {
-                        key: "counterparty_channel_id".as_bytes().to_vec(),
-                        value: chan_open_ack
-                            .counterparty_channel_id()
-                            .as_ref()
-                            .unwrap()
-                            .to_string()
-                            .as_bytes()
-                            .to_vec(),
-                        index: true,
-                    },
-                ],
-            },
-            IbcEvent::OpenConfirmChannel(chan_open_confirm) => Self {
-                r#type: "chan_open_confirm".to_string(),
-                attributes: vec![EventAttribute {
-                    key: "channel_id".as_bytes().to_vec(),
-                    value: chan_open_confirm
-                        .channel_id()
-                        .as_ref()
-                        .unwrap()
-                        .to_string()
-                        .as_bytes()
-                        .to_vec(),
-                    index: true,
-                }],
-            },
-            _ => todo!(),
+                })
+                .collect(),
         }
     }
 }
