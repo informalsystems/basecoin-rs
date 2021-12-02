@@ -1,4 +1,4 @@
-use crate::app::modules::{Error as ModuleError, Module};
+use crate::app::modules::{Error as ModuleError, Identifiable, Module, QueryResult};
 use crate::app::store::{Height, Path, ProvableStore, Store};
 use crate::prostgen::ibc::core::client::v1::{
     query_server::Query as ClientQuery, ConsensusStateWithHeight, Height as RawHeight,
@@ -9,11 +9,21 @@ use crate::prostgen::ibc::core::client::v1::{
     QueryUpgradedClientStateRequest, QueryUpgradedClientStateResponse,
     QueryUpgradedConsensusStateRequest, QueryUpgradedConsensusStateResponse,
 };
+use crate::prostgen::ibc::core::commitment::v1::MerklePrefix;
+use crate::prostgen::ibc::core::connection::v1::{
+    query_server::Query as ConnectionQuery, ConnectionEnd as RawConnectionEnd,
+    Counterparty as RawCounterParty, QueryClientConnectionsRequest, QueryClientConnectionsResponse,
+    QueryConnectionClientStateRequest, QueryConnectionClientStateResponse,
+    QueryConnectionConsensusStateRequest, QueryConnectionConsensusStateResponse,
+    QueryConnectionRequest, QueryConnectionResponse, QueryConnectionsRequest,
+    QueryConnectionsResponse, Version as RawVersion,
+};
 
 use std::convert::{TryFrom, TryInto};
 use std::str::FromStr;
 
 use ibc::applications::ics20_fungible_token_transfer::context::Ics20Context;
+use ibc::clients::ics07_tendermint::consensus_state::ConsensusState;
 use ibc::core::ics02_client::client_consensus::AnyConsensusState;
 use ibc::core::ics02_client::client_state::AnyClientState;
 use ibc::core::ics02_client::client_type::ClientType;
@@ -29,7 +39,7 @@ use ibc::core::ics04_channel::packet::{Receipt, Sequence};
 use ibc::core::ics05_port::capabilities::Capability;
 use ibc::core::ics05_port::context::PortReader;
 use ibc::core::ics05_port::error::Error as PortError;
-use ibc::core::ics23_commitment::commitment::CommitmentPrefix;
+use ibc::core::ics23_commitment::commitment::{CommitmentPrefix, CommitmentRoot};
 use ibc::core::ics24_host::identifier::{ChannelId, ClientId, ConnectionId, PortId};
 use ibc::core::ics24_host::{path::PathError, Path as IbcPath, IBC_QUERY_PATH};
 use ibc::core::ics26_routing::context::Ics26Context;
@@ -37,9 +47,12 @@ use ibc::core::ics26_routing::handler::{decode, dispatch};
 use ibc::events::IbcEvent;
 use ibc::timestamp::Timestamp;
 use ibc::Height as IbcHeight;
+use ibc_proto::ibc::core::connection::v1::ConnectionEnd as IbcRawConnectionEnd;
 use prost::Message;
 use prost_types::Any;
+use tendermint::{Hash, Time};
 use tendermint_proto::abci::{Event, EventAttribute};
+use tendermint_proto::crypto::ProofOp;
 use tonic::{Request, Response, Status};
 use tracing::{debug, trace};
 
@@ -72,9 +85,31 @@ impl From<IbcPath> for Path {
 pub struct Ibc<S> {
     /// Handle to store instance.
     /// The module is guaranteed exclusive access to all paths in the store key-space.
-    pub store: S,
-    /// Counter for client identifiers
-    pub client_counter: u64,
+    store: S,
+    /// Counter for clients
+    client_counter: u64,
+    /// Counter for connections
+    conn_counter: u64,
+}
+
+impl<S: ProvableStore> Ibc<S> {
+    pub fn new(store: S) -> Self {
+        Self {
+            store,
+            client_counter: 0,
+            conn_counter: 0,
+        }
+    }
+
+    fn get_proof(&self, height: Height, path: &Path) -> Option<Vec<u8>> {
+        if let Some(p) = self.store.get_proof(height, path) {
+            let mut buffer = Vec::new();
+            if p.encode(&mut buffer).is_ok() {
+                return Some(buffer);
+            }
+        }
+        None
+    }
 }
 
 impl<S: Store> ClientReader for Ibc<S> {
@@ -112,31 +147,95 @@ impl<S: Store> ClientReader for Ibc<S> {
         let value = self
             .store
             .get(Height::Pending, &path.into())
-            .ok_or_else(ClientError::implementation_specific)?;
+            .ok_or_else(|| ClientError::consensus_state_not_found(client_id.clone(), height))?;
         let consensus_state = Any::decode(value.as_slice());
         consensus_state
             .map_err(|_| ClientError::implementation_specific())
             .map(|v| v.try_into().unwrap()) // safety - data on the store is assumed to be well-formed
     }
 
-    fn client_counter(&self) -> Result<u64, ClientError> {
-        Ok(self.client_counter)
-    }
-
     fn next_consensus_state(
         &self,
-        _client_id: &ClientId,
-        _height: IbcHeight,
+        client_id: &ClientId,
+        height: IbcHeight,
     ) -> Result<Option<AnyConsensusState>, ClientError> {
-        Ok(None)
+        let path = format!("clients/{}/consensusStates", client_id)
+            .try_into()
+            .unwrap(); // safety - path must be valid since ClientId and height are valid Identifiers
+
+        let keys = self.store.get_keys(&path);
+        let found_path = keys.into_iter().find(|path| {
+            if let Ok(IbcPath::ClientConsensusState {
+                epoch: revision_number,
+                height: revision_height,
+                ..
+            }) = IbcPath::try_from(path.clone())
+            {
+                height
+                    > IbcHeight {
+                        revision_number,
+                        revision_height,
+                    }
+            } else {
+                false
+            }
+        });
+
+        if let Some(path) = found_path {
+            // safety - data on the store is assumed to be well-formed
+            let consensus_state = self.store.get(Height::Pending, &path).unwrap();
+            let consensus_state =
+                Any::decode(consensus_state.as_slice()).expect("failed to decode consensus state");
+            Ok(Some(consensus_state.try_into()?))
+        } else {
+            Ok(None)
+        }
     }
 
     fn prev_consensus_state(
         &self,
-        _client_id: &ClientId,
-        _height: IbcHeight,
+        client_id: &ClientId,
+        height: IbcHeight,
     ) -> Result<Option<AnyConsensusState>, ClientError> {
+        let path = format!("clients/{}/consensusStates", client_id)
+            .try_into()
+            .unwrap(); // safety - path must be valid since ClientId and height are valid Identifiers
+
+        let keys = self.store.get_keys(&path);
+        let pos = keys.iter().position(|path| {
+            if let Ok(IbcPath::ClientConsensusState {
+                epoch: revision_number,
+                height: revision_height,
+                ..
+            }) = IbcPath::try_from(path.clone())
+            {
+                height
+                    >= IbcHeight {
+                        revision_number,
+                        revision_height,
+                    }
+            } else {
+                false
+            }
+        });
+
+        if let Some(pos) = pos {
+            if pos > 0 {
+                let prev_path = &keys[pos - 1];
+                // safety - data on the store is assumed to be well-formed
+                let consensus_state = self.store.get(Height::Pending, prev_path).unwrap();
+                let consensus_state = Any::decode(consensus_state.as_slice())
+                    .expect("failed to decode consensus state");
+
+                return Ok(Some(consensus_state.try_into()?));
+            }
+        }
+
         Ok(None)
+    }
+
+    fn client_counter(&self) -> Result<u64, ClientError> {
+        Ok(self.client_counter)
     }
 }
 
@@ -152,7 +251,8 @@ impl<S: Store> ClientKeeper for Ibc<S> {
                 path.into(),
                 serde_json::to_string(&client_type).unwrap().into(),
             ) // safety - cannot fail since ClientType's Serialize impl doesn't fail
-            .map_err(|_| ClientError::implementation_specific())
+            .map_err(|_| ClientError::implementation_specific())?;
+        Ok(())
     }
 
     fn store_client_state(
@@ -168,7 +268,8 @@ impl<S: Store> ClientKeeper for Ibc<S> {
         let path = IbcPath::ClientState(client_id);
         self.store
             .set(path.into(), buffer)
-            .map_err(|_| ClientError::implementation_specific())
+            .map_err(|_| ClientError::implementation_specific())?;
+        Ok(())
     }
 
     fn store_consensus_state(
@@ -189,7 +290,8 @@ impl<S: Store> ClientKeeper for Ibc<S> {
         };
         self.store
             .set(path.into(), buffer)
-            .map_err(|_| ClientError::implementation_specific())
+            .map_err(|_| ClientError::implementation_specific())?;
+        Ok(())
     }
 
     fn increase_client_counter(&mut self) {
@@ -198,65 +300,99 @@ impl<S: Store> ClientKeeper for Ibc<S> {
 }
 
 impl<S: Store> ConnectionReader for Ibc<S> {
-    fn connection_end(&self, _conn_id: &ConnectionId) -> Result<ConnectionEnd, ConnectionError> {
-        todo!()
+    fn connection_end(&self, conn_id: &ConnectionId) -> Result<ConnectionEnd, ConnectionError> {
+        let path = IbcPath::Connections(conn_id.clone());
+        let value = self
+            .store
+            .get(Height::Pending, &path.into())
+            .ok_or_else(ConnectionError::implementation_specific)?;
+        let connection_end = IbcRawConnectionEnd::decode(value.as_slice());
+        connection_end
+            .map_err(|_| ConnectionError::implementation_specific())
+            .map(|v| v.try_into().unwrap()) // safety - data on the store is assumed to be well-formed
     }
 
-    fn client_state(&self, _client_id: &ClientId) -> Result<AnyClientState, ConnectionError> {
-        todo!()
+    fn client_state(&self, client_id: &ClientId) -> Result<AnyClientState, ConnectionError> {
+        ClientReader::client_state(self, client_id).map_err(ConnectionError::ics02_client)
     }
 
     fn host_current_height(&self) -> IbcHeight {
-        todo!()
+        IbcHeight::new(0, self.store.current_height())
     }
 
     fn host_oldest_height(&self) -> IbcHeight {
-        todo!()
+        IbcHeight::zero()
     }
 
     fn commitment_prefix(&self) -> CommitmentPrefix {
-        todo!()
+        use super::prefix::Ibc as IbcPrefix;
+        CommitmentPrefix::from_bytes(IbcPrefix {}.identifier().as_bytes())
     }
 
     fn client_consensus_state(
         &self,
-        _client_id: &ClientId,
-        _height: IbcHeight,
+        client_id: &ClientId,
+        height: IbcHeight,
     ) -> Result<AnyConsensusState, ConnectionError> {
-        todo!()
+        ClientReader::consensus_state(self, client_id, height)
+            .map_err(ConnectionError::ics02_client)
     }
 
     fn host_consensus_state(
         &self,
         _height: IbcHeight,
     ) -> Result<AnyConsensusState, ConnectionError> {
-        todo!()
+        Ok(AnyConsensusState::Tendermint(ConsensusState::new(
+            CommitmentRoot::from_bytes(&[]),
+            Time::unix_epoch(),
+            Hash::None,
+        )))
     }
 
     fn connection_counter(&self) -> Result<u64, ConnectionError> {
-        todo!()
+        Ok(self.conn_counter)
     }
 }
 
 impl<S: Store> ConnectionKeeper for Ibc<S> {
     fn store_connection(
         &mut self,
-        _connection_id: ConnectionId,
-        _connection_end: &ConnectionEnd,
+        connection_id: ConnectionId,
+        connection_end: &ConnectionEnd,
     ) -> Result<(), ConnectionError> {
-        todo!()
+        let data: IbcRawConnectionEnd = connection_end.clone().into();
+        let mut buffer = Vec::new();
+        data.encode(&mut buffer)
+            .map_err(|_| ConnectionError::implementation_specific())?;
+
+        let path = IbcPath::Connections(connection_id);
+        self.store
+            .set(path.into(), buffer)
+            .map_err(|_| ConnectionError::implementation_specific())?;
+        Ok(())
     }
 
     fn store_connection_to_client(
         &mut self,
-        _connection_id: ConnectionId,
-        _client_id: &ClientId,
+        connection_id: ConnectionId,
+        client_id: &ClientId,
     ) -> Result<(), ConnectionError> {
-        todo!()
+        let path = IbcPath::ClientConnections(client_id.clone()).into();
+        let mut conn_ids: Vec<ConnectionId> = self
+            .store
+            .get(Height::Pending, &path)
+            .map(|v| serde_json::from_str(&String::from_utf8(v).unwrap()).unwrap()) // safety - data on the store is assumed to be well-formed
+            .unwrap_or_default();
+
+        conn_ids.push(connection_id);
+        self.store
+            .set(path, serde_json::to_string(&conn_ids).unwrap().into()) // safety - cannot fail since ClientType's Serialize impl doesn't fail
+            .map_err(|_| ConnectionError::implementation_specific())?;
+        Ok(())
     }
 
     fn increase_connection_counter(&mut self) {
-        todo!()
+        self.conn_counter += 1;
     }
 }
 
@@ -454,7 +590,7 @@ impl<S: Store> Ics20Context for Ibc<S> {}
 
 impl<S: Store> Ics26Context for Ibc<S> {}
 
-impl<S: Store> Module for Ibc<S> {
+impl<S: ProvableStore> Module<S> for Ibc<S> {
     fn deliver(&mut self, message: Any) -> Result<Vec<Event>, ModuleError> {
         let msg = decode(message).map_err(|_| ModuleError::not_handled())?;
 
@@ -474,7 +610,8 @@ impl<S: Store> Module for Ibc<S> {
         data: &[u8],
         path: Option<&Path>,
         height: Height,
-    ) -> Result<Vec<u8>, ModuleError> {
+        prove: bool,
+    ) -> Result<QueryResult, ModuleError> {
         let path = path.ok_or_else(ModuleError::not_handled)?;
         if path.to_string() != IBC_QUERY_PATH {
             return Err(ModuleError::not_handled());
@@ -493,10 +630,32 @@ impl<S: Store> Module for Ibc<S> {
             height
         );
 
-        match self.store.get(height, &path) {
-            None => Err(Error::ics02_client(ClientError::implementation_specific()).into()),
-            Some(client_state) => Ok(client_state),
-        }
+        let proof = if prove {
+            let proof = self
+                .get_proof(height, &path)
+                .ok_or_else(|| Error::ics02_client(ClientError::implementation_specific()))?;
+            Some(vec![ProofOp {
+                r#type: "".to_string(),
+                key: path.to_string().into_bytes(),
+                data: proof,
+            }])
+        } else {
+            None
+        };
+
+        let data = self
+            .store
+            .get(height, &path)
+            .ok_or_else(|| Error::ics02_client(ClientError::implementation_specific()))?;
+        Ok(QueryResult { data, proof })
+    }
+
+    fn commit(&mut self) -> Result<Vec<u8>, S::Error> {
+        self.store.commit()
+    }
+
+    fn store(&self) -> S {
+        self.store.clone()
     }
 }
 
@@ -510,7 +669,7 @@ impl From<IbcEventWrapper> for Event {
                 attributes: vec![EventAttribute {
                     key: "client_id".as_bytes().to_vec(),
                     value: c.client_id().to_string().as_bytes().to_vec(),
-                    index: false,
+                    index: true,
                 }],
             },
             IbcEvent::UpdateClient(c) => Self {
@@ -518,7 +677,63 @@ impl From<IbcEventWrapper> for Event {
                 attributes: vec![EventAttribute {
                     key: "client_id".as_bytes().to_vec(),
                     value: c.client_id().to_string().as_bytes().to_vec(),
-                    index: false,
+                    index: true,
+                }],
+            },
+            IbcEvent::OpenInitConnection(conn_open_init) => Self {
+                r#type: "connection_open_init".to_string(),
+                attributes: vec![EventAttribute {
+                    key: "connection_id".as_bytes().to_vec(),
+                    value: conn_open_init
+                        .connection_id()
+                        .as_ref()
+                        .unwrap()
+                        .to_string()
+                        .as_bytes()
+                        .to_vec(),
+                    index: true,
+                }],
+            },
+            IbcEvent::OpenTryConnection(conn_open_try) => Self {
+                r#type: "connection_open_try".to_string(),
+                attributes: vec![EventAttribute {
+                    key: "connection_id".as_bytes().to_vec(),
+                    value: conn_open_try
+                        .connection_id()
+                        .as_ref()
+                        .unwrap()
+                        .to_string()
+                        .as_bytes()
+                        .to_vec(),
+                    index: true,
+                }],
+            },
+            IbcEvent::OpenAckConnection(conn_open_ack) => Self {
+                r#type: "connection_open_ack".to_string(),
+                attributes: vec![EventAttribute {
+                    key: "connection_id".as_bytes().to_vec(),
+                    value: conn_open_ack
+                        .connection_id()
+                        .as_ref()
+                        .unwrap()
+                        .to_string()
+                        .as_bytes()
+                        .to_vec(),
+                    index: true,
+                }],
+            },
+            IbcEvent::OpenConfirmConnection(conn_open_confirm) => Self {
+                r#type: "connection_open_confirm".to_string(),
+                attributes: vec![EventAttribute {
+                    key: "connection_id".as_bytes().to_vec(),
+                    value: conn_open_confirm
+                        .connection_id()
+                        .as_ref()
+                        .unwrap()
+                        .to_string()
+                        .as_bytes()
+                        .to_vec(),
+                    index: true,
                 }],
             },
             _ => todo!(),
@@ -616,5 +831,78 @@ impl<S: ProvableStore + 'static> ClientQuery for Ibc<S> {
         _request: Request<QueryUpgradedConsensusStateRequest>,
     ) -> Result<Response<QueryUpgradedConsensusStateResponse>, Status> {
         unimplemented!()
+    }
+}
+
+#[tonic::async_trait]
+impl<S: ProvableStore + 'static> ConnectionQuery for Ibc<S> {
+    async fn connection(
+        &self,
+        request: Request<QueryConnectionRequest>,
+    ) -> Result<Response<QueryConnectionResponse>, Status> {
+        let conn_id = ConnectionId::from_str(&request.get_ref().connection_id)
+            .map_err(|_| Status::invalid_argument("invalid connection id"))?;
+        let conn = ConnectionReader::connection_end(self, &conn_id).ok();
+        Ok(Response::new(QueryConnectionResponse {
+            connection: conn.map(|c| ConnectionEndWrapper(c.into()).into()),
+            proof: vec![],
+            proof_height: None,
+        }))
+    }
+
+    async fn connections(
+        &self,
+        _request: Request<QueryConnectionsRequest>,
+    ) -> Result<Response<QueryConnectionsResponse>, Status> {
+        todo!()
+    }
+
+    async fn client_connections(
+        &self,
+        _request: Request<QueryClientConnectionsRequest>,
+    ) -> Result<Response<QueryClientConnectionsResponse>, Status> {
+        todo!()
+    }
+
+    async fn connection_client_state(
+        &self,
+        _request: Request<QueryConnectionClientStateRequest>,
+    ) -> Result<Response<QueryConnectionClientStateResponse>, Status> {
+        todo!()
+    }
+
+    async fn connection_consensus_state(
+        &self,
+        _request: Request<QueryConnectionConsensusStateRequest>,
+    ) -> Result<Response<QueryConnectionConsensusStateResponse>, Status> {
+        todo!()
+    }
+}
+
+struct ConnectionEndWrapper(IbcRawConnectionEnd);
+
+impl From<ConnectionEndWrapper> for RawConnectionEnd {
+    fn from(conn: ConnectionEndWrapper) -> Self {
+        Self {
+            client_id: conn.0.client_id,
+            versions: conn
+                .0
+                .versions
+                .into_iter()
+                .map(|v| RawVersion {
+                    identifier: v.identifier,
+                    features: v.features,
+                })
+                .collect(),
+            state: conn.0.state,
+            counterparty: conn.0.counterparty.map(|c| RawCounterParty {
+                client_id: c.client_id,
+                connection_id: c.connection_id,
+                prefix: c.prefix.map(|p| MerklePrefix {
+                    key_prefix: p.key_prefix,
+                }),
+            }),
+            delay_period: 0,
+        }
     }
 }

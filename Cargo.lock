@@ -706,8 +706,7 @@ dependencies = [
 [[package]]
 name = "ibc"
 version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "93a6044c39dae068cc6bc4a60e678f02b780693f46970a5c80fd19c6cdb0e363"
+source = "git+https://github.com/informalsystems/ibc-rs.git?branch=basecoin/phase-4-1#a5f2fd3b81f94040d298bd3f6a69fe09b7d1c786"
 dependencies = [
  "bytes",
  "chrono",
@@ -720,6 +719,7 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
+ "sha2",
  "subtle-encoding",
  "tendermint",
  "tendermint-light-client",
@@ -731,13 +731,13 @@ dependencies = [
 [[package]]
 name = "ibc-proto"
 version = "0.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1d7650d11886f290bb223d4120eca28c8b2e114cf0362188364303a4c0230e7"
+source = "git+https://github.com/informalsystems/ibc-rs.git?branch=basecoin/phase-4-1#a5f2fd3b81f94040d298bd3f6a69fe09b7d1c786"
 dependencies = [
  "bytes",
  "getrandom 0.2.3",
  "prost",
  "prost-types",
+ "serde",
  "tendermint-proto",
  "tonic",
 ]
@@ -1626,6 +1626,7 @@ dependencies = [
  "cosmrs",
  "flex-error",
  "ibc",
+ "ibc-proto",
  "ics23",
  "lazy_static",
  "proptest",

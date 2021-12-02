@@ -3,9 +3,8 @@ mod memory;
 
 pub(crate) use memory::InMemoryStore;
 
-use crate::app::modules::{Error as ModuleError, Identifiable};
+use crate::app::modules::Error as ModuleError;
 
-use std::collections::VecDeque;
 use std::convert::{TryFrom, TryInto};
 use std::fmt::{Debug, Display, Formatter};
 use std::ops::{Deref, DerefMut};
@@ -36,6 +35,12 @@ impl Identifier {
         // empty inputs and returns an error as appropriate
         validate_identifier(s, 0, s.len()).map_err(|v| Error::invalid_identifier(s.to_string(), v))
     }
+
+    #[inline]
+    fn unprefixed_path(&self, path: &Path) -> Path {
+        // FIXME(hu55a1n1)
+        path.clone()
+    }
 }
 
 impl Deref for Identifier {
@@ -57,13 +62,6 @@ impl TryFrom<String> for Identifier {
 /// A newtype representing a valid ICS024 `Path`.
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Clone)]
 pub struct Path(Vec<Identifier>);
-
-impl Path {
-    fn append(mut self, path: &mut Path) -> Self {
-        self.0.append(&mut path.0);
-        self
-    }
-}
 
 impl TryFrom<String> for Path {
     type Error = Error;
@@ -131,7 +129,7 @@ impl From<Error> for ModuleError {
 pub(crate) type RawHeight = u64;
 
 /// Store height to query
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum Height {
     Pending,
     Latest,
@@ -153,7 +151,7 @@ pub trait Store: Send + Sync + Clone {
     type Error: core::fmt::Debug;
 
     /// Set `value` for `path`
-    fn set(&mut self, path: Path, value: Vec<u8>) -> Result<(), Self::Error>;
+    fn set(&mut self, path: Path, value: Vec<u8>) -> Result<Option<Vec<u8>>, Self::Error>;
 
     /// Get associated `value` for `path` at specified `height`
     fn get(&self, height: Height, path: &Path) -> Option<Vec<u8>>;
@@ -190,75 +188,106 @@ pub trait ProvableStore: Store {
     fn root_hash(&self) -> Vec<u8>;
 
     /// Return proof of existence for key
-    fn get_proof(&self, key: &Path) -> Option<ics23::CommitmentProof>;
+    fn get_proof(&self, height: Height, key: &Path) -> Option<ics23::CommitmentProof>;
 }
 
 /// A wrapper store that implements a prefixed key-space for other shared stores
 #[derive(Clone)]
-pub(crate) struct SubStore<S, P> {
-    /// backing store
-    store: S,
+pub(crate) struct SubStore<S> {
+    /// main store - used to stores a commitment to this sub-store at path `<prefix>`
+    main_store: S,
+    /// sub store - the underlying store that actually holds the KV pairs for this sub-store
+    sub_store: S,
     /// prefix for key-space
-    prefix: P,
+    prefix: Identifier,
+    /// boolean to keep track of changes to know when to update commitment in main-store
+    dirty: bool,
 }
 
-impl<S, P> SubStore<S, P> {
-    pub(crate) fn new(store: S, prefix: P) -> Self {
-        Self { store, prefix }
+impl<S: Default + ProvableStore> SubStore<S> {
+    pub(crate) fn new(store: S, prefix: Identifier) -> Result<Self, S::Error> {
+        let mut sub_store = Self {
+            main_store: store,
+            sub_store: S::default(),
+            prefix,
+            dirty: false,
+        };
+        sub_store.update_main_store_commitment()?;
+        Ok(sub_store)
+    }
+
+    pub(crate) fn prefix(&self) -> Identifier {
+        self.prefix.clone()
     }
 }
 
-impl<S, P> Store for SubStore<S, P>
+impl<S: Default + ProvableStore> SubStore<S> {
+    fn update_main_store_commitment(&mut self) -> Result<Option<Vec<u8>>, S::Error> {
+        self.main_store
+            .set(Path::from(self.prefix.clone()), self.sub_store.root_hash())
+    }
+}
+
+impl<S> Store for SubStore<S>
 where
-    S: Store,
-    P: Identifiable + Send + Sync + Clone,
+    S: Default + ProvableStore,
 {
     type Error = S::Error;
 
     #[inline]
-    fn set(&mut self, path: Path, value: Vec<u8>) -> Result<(), Self::Error> {
-        self.store.set(self.prefix.prefixed_path(&path), value)
+    fn set(&mut self, path: Path, value: Vec<u8>) -> Result<Option<Vec<u8>>, Self::Error> {
+        self.dirty = true;
+        self.sub_store
+            .set(self.prefix.unprefixed_path(&path), value)
     }
 
     #[inline]
     fn get(&self, height: Height, path: &Path) -> Option<Vec<u8>> {
-        self.store.get(height, &self.prefix.prefixed_path(path))
+        self.sub_store
+            .get(height, &self.prefix.unprefixed_path(path))
     }
 
     #[inline]
     fn delete(&mut self, path: &Path) {
-        self.store.delete(&self.prefix.prefixed_path(path))
+        self.dirty = true;
+        self.sub_store.delete(&self.prefix.unprefixed_path(path))
     }
 
     #[inline]
     fn commit(&mut self) -> Result<Vec<u8>, Self::Error> {
-        panic!("sub-stores may not commit!")
+        let root_hash = self.sub_store.commit()?;
+        if self.dirty {
+            self.dirty = false;
+            self.update_main_store_commitment()?;
+        }
+        Ok(root_hash)
     }
 
     #[inline]
     fn current_height(&self) -> RawHeight {
-        self.store.current_height()
+        self.sub_store.current_height()
     }
 
     #[inline]
     fn get_keys(&self, key_prefix: &Path) -> Vec<Path> {
-        self.store.get_keys(&self.prefix.prefixed_path(key_prefix))
+        self.sub_store
+            .get_keys(&self.prefix.unprefixed_path(key_prefix))
     }
 }
 
-impl<S, P> ProvableStore for SubStore<S, P>
+impl<S> ProvableStore for SubStore<S>
 where
-    S: ProvableStore,
-    P: Identifiable + Send + Sync + Clone,
+    S: Default + ProvableStore,
 {
     #[inline]
     fn root_hash(&self) -> Vec<u8> {
-        self.store.root_hash()
+        self.sub_store.root_hash()
     }
 
     #[inline]
-    fn get_proof(&self, key: &Path) -> Option<CommitmentProof> {
-        self.store.get_proof(key)
+    fn get_proof(&self, height: Height, key: &Path) -> Option<CommitmentProof> {
+        self.sub_store
+            .get_proof(height, &self.prefix.unprefixed_path(key))
     }
 }
 
@@ -272,11 +301,17 @@ impl<S> SharedStore<S> {
     }
 }
 
+impl<S: Default + Store> Default for SharedStore<S> {
+    fn default() -> Self {
+        Self::new(S::default())
+    }
+}
+
 impl<S: Store> Store for SharedStore<S> {
     type Error = S::Error;
 
     #[inline]
-    fn set(&mut self, path: Path, value: Vec<u8>) -> Result<(), Self::Error> {
+    fn set(&mut self, path: Path, value: Vec<u8>) -> Result<Option<Vec<u8>>, Self::Error> {
         self.write().unwrap().set(path, value)
     }
 
@@ -313,8 +348,8 @@ impl<S: ProvableStore> ProvableStore for SharedStore<S> {
     }
 
     #[inline]
-    fn get_proof(&self, key: &Path) -> Option<CommitmentProof> {
-        self.read().unwrap().get_proof(key)
+    fn get_proof(&self, height: Height, key: &Path) -> Option<CommitmentProof> {
+        self.read().unwrap().get_proof(height, key)
     }
 }
 
@@ -332,53 +367,60 @@ impl<S> DerefMut for SharedStore<S> {
     }
 }
 
-/// A wrapper store that implements rudimentary `apply()`/`reset()` support using write-ahead
-/// logging for other stores
+/// A wrapper store that implements rudimentary `apply()`/`reset()` support for other stores
 #[derive(Clone)]
-pub(crate) struct WalStore<S> {
+pub(crate) struct RevertibleStore<S> {
     /// backing store
     store: S,
-    /// operation log for recording operations in preserved order
-    op_log: VecDeque<(Path, Vec<u8>)>,
+    /// operation log for recording rollback operations in preserved order
+    op_log: Vec<RevertOp>,
 }
-//
-impl<S: Store> WalStore<S> {
+
+#[derive(Clone)]
+enum RevertOp {
+    Delete(Path),
+    Set(Path, Vec<u8>),
+}
+
+impl<S: Store> RevertibleStore<S> {
     pub(crate) fn new(store: S) -> Self {
         Self {
             store,
-            op_log: VecDeque::new(),
+            op_log: vec![],
         }
     }
 }
 
-impl<S: Store> Store for WalStore<S> {
+impl<S: Default + Store> Default for RevertibleStore<S> {
+    fn default() -> Self {
+        Self::new(S::default())
+    }
+}
+
+impl<S: Store> Store for RevertibleStore<S> {
     type Error = S::Error;
 
     #[inline]
-    fn set(&mut self, path: Path, value: Vec<u8>) -> Result<(), Self::Error> {
-        self.op_log.push_back((path, value));
-        Ok(())
+    fn set(&mut self, path: Path, value: Vec<u8>) -> Result<Option<Vec<u8>>, Self::Error> {
+        let old_value = self.store.set(path.clone(), value)?;
+        match old_value {
+            // None implies this was an insert op, so we record the revert op as delete op
+            None => self.op_log.push(RevertOp::Delete(path)),
+            // Some old value implies this was an update op, so we record the revert op as a set op
+            // with the old value
+            Some(ref old_value) => self.op_log.push(RevertOp::Set(path, old_value.clone())),
+        }
+        Ok(old_value)
     }
 
     #[inline]
     fn get(&self, height: Height, path: &Path) -> Option<Vec<u8>> {
-        match height {
-            // for pending height first look for path matches in the `op_log` and return the most
-            // recent one. If not found call backing store's `get()`.
-            Height::Pending => self
-                .op_log
-                .iter()
-                .filter(|op| &op.0 == path)
-                .last()
-                .map(|op| op.1.clone())
-                .or_else(|| self.store.get(height, path)),
-            _ => self.store.get(height, path),
-        }
+        self.store.get(height, path)
     }
 
     #[inline]
     fn delete(&mut self, _path: &Path) {
-        unimplemented!("WALStore doesn't support delete operations yet!")
+        unimplemented!("RevertibleStore doesn't support delete operations yet!")
     }
 
     #[inline]
@@ -392,10 +434,7 @@ impl<S: Store> Store for WalStore<S> {
     fn apply(&mut self) -> Result<(), Self::Error> {
         // note that we do NOT call the backing store's apply here - this allows users to create
         // multilayered `WalStore`s
-        trace!("Applying operation log");
-        while let Some(op) = self.op_log.pop_back() {
-            self.store.set(op.0, op.1)?;
-        }
+        self.op_log.clear();
         Ok(())
     }
 
@@ -404,7 +443,14 @@ impl<S: Store> Store for WalStore<S> {
         // note that we do NOT call the backing store's reset here - this allows users to create
         // multilayered `WalStore`s
         trace!("Rollback operation log changes");
-        self.op_log.clear()
+        while let Some(op) = self.op_log.pop() {
+            match op {
+                RevertOp::Delete(path) => self.delete(&path),
+                RevertOp::Set(path, value) => {
+                    self.set(path, value).unwrap(); // safety - reset failures are unrecoverable
+                }
+            }
+        }
     }
 
     #[inline]
@@ -418,33 +464,15 @@ impl<S: Store> Store for WalStore<S> {
     }
 }
 
-impl<S: ProvableStore> ProvableStore for WalStore<S> {
+impl<S: ProvableStore> ProvableStore for RevertibleStore<S> {
     #[inline]
     fn root_hash(&self) -> Vec<u8> {
         self.store.root_hash()
     }
 
     #[inline]
-    fn get_proof(&self, key: &Path) -> Option<CommitmentProof> {
-        self.store.get_proof(key)
-    }
-}
-
-/// Trait for generating a prefixed-path used by `SubStore` methods
-/// A blanket implementation is provided for all `Identifiable` types
-pub(crate) trait PrefixedPath: Sized {
-    fn prefixed_path(&self, s: &Path) -> Path;
-}
-
-impl<T: Identifiable> PrefixedPath for T {
-    #[inline]
-    fn prefixed_path(&self, s: &Path) -> Path {
-        let prefix = self.identifier().into();
-        if !s.to_string().starts_with(&format!("{}/", prefix.as_str())) {
-            Path::from(prefix).append(&mut s.clone())
-        } else {
-            s.clone()
-        }
+    fn get_proof(&self, height: Height, key: &Path) -> Option<CommitmentProof> {
+        self.store.get_proof(height, key)
     }
 }
 

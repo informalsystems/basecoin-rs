@@ -19,6 +19,24 @@ pub(crate) struct InMemoryStore {
     pending: State,
 }
 
+impl InMemoryStore {
+    #[inline]
+    fn get_state(&self, height: Height) -> Option<&State> {
+        match height {
+            Height::Pending => Some(&self.pending),
+            Height::Latest => self.store.last(),
+            Height::Stable(height) => {
+                let h = height as usize;
+                if h <= self.store.len() {
+                    self.store.get(h - 1)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+}
+
 impl Default for InMemoryStore {
     /// The store starts out with an empty state. We also initialize the pending location as empty.
     fn default() -> Self {
@@ -32,10 +50,9 @@ impl Default for InMemoryStore {
 impl Store for InMemoryStore {
     type Error = (); // underlying store ops are infallible
 
-    fn set(&mut self, path: Path, value: Vec<u8>) -> Result<(), Self::Error> {
+    fn set(&mut self, path: Path, value: Vec<u8>) -> Result<Option<Vec<u8>>, Self::Error> {
         trace!("set at path = {}", path.to_string());
-        self.pending.insert(path, value);
-        Ok(())
+        Ok(self.pending.insert(path, value))
     }
 
     fn get(&self, height: Height, path: &Path) -> Option<Vec<u8>> {
@@ -44,22 +61,7 @@ impl Store for InMemoryStore {
             path.to_string(),
             height
         );
-        match height {
-            // Request to access the pending block
-            Height::Pending => self.pending.get(path).cloned(),
-            // Access the last committed block
-            Height::Latest => self.store.last().and_then(|s| s.get(path).cloned()),
-            // Access one of the committed blocks
-            Height::Stable(height) => {
-                let h = height as usize;
-                if h < self.store.len() {
-                    let state = self.store.get(h).unwrap();
-                    state.get(path).cloned()
-                } else {
-                    None
-                }
-            }
-        }
+        self.get_state(height).and_then(|v| v.get(path).cloned())
     }
 
     fn delete(&mut self, _path: &Path) {
@@ -100,8 +102,13 @@ impl ProvableStore for InMemoryStore {
             .to_vec()
     }
 
-    fn get_proof(&self, _key: &Path) -> Option<CommitmentProof> {
-        todo!()
+    fn get_proof(&self, height: Height, key: &Path) -> Option<CommitmentProof> {
+        trace!(
+            "get proof at path = {} at height = {:?}",
+            key.to_string(),
+            height
+        );
+        self.get_state(height).and_then(|v| v.get_proof(key))
     }
 }
 

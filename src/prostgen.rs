@@ -36,6 +36,32 @@ pub mod cosmos {
                 include!("prostgen/cosmos.base.query.v1beta1.rs");
             }
         }
+
+        pub mod abci {
+            pub mod v1beta1 {
+                include!("prostgen/cosmos.base.abci.v1beta1.rs");
+            }
+        }
+    }
+
+    pub mod crypto {
+        pub mod multisig {
+            pub mod v1beta1 {
+                include!("prostgen/cosmos.crypto.multisig.v1beta1.rs");
+            }
+        }
+    }
+
+    pub mod tx {
+        pub mod v1beta1 {
+            include!("prostgen/cosmos.tx.v1beta1.rs");
+        }
+
+        pub mod signing {
+            pub mod v1beta1 {
+                include!("prostgen/cosmos.tx.signing.v1beta1.rs");
+            }
+        }
     }
 }
 
@@ -46,5 +72,21 @@ pub mod ibc {
                 include!("prostgen/ibc.core.client.v1.rs");
             }
         }
+
+        pub mod commitment {
+            pub mod v1 {
+                include!("prostgen/ibc.core.commitment.v1.rs");
+            }
+        }
+
+        pub mod connection {
+            pub mod v1 {
+                include!("prostgen/ibc.core.connection.v1.rs");
+            }
+        }
     }
+}
+
+pub mod ics23 {
+    include!("prostgen/ics23.rs");
 }

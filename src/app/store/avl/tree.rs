@@ -51,18 +51,20 @@ where
     }
 
     /// Insert a value into the AVL tree, this operation runs in amortized O(log(n)).
-    pub fn insert(&mut self, key: K, value: V) {
+    pub fn insert(&mut self, key: K, value: V) -> Option<V> {
         let node_ref = &mut self.root;
-        AvlTree::insert_rec(node_ref, key, value);
+        let mut old_value = None;
+        AvlTree::insert_rec(node_ref, key, value, &mut old_value);
+        old_value
     }
 
     /// Insert a value in the tree.
-    fn insert_rec(node_ref: &mut NodeRef<K, V>, key: K, value: V) {
+    fn insert_rec(node_ref: &mut NodeRef<K, V>, key: K, value: V, old_value: &mut Option<V>) {
         if let Some(node) = node_ref {
             match node.key.cmp(&key) {
-                Ordering::Greater => AvlTree::insert_rec(&mut node.left, key, value),
-                Ordering::Less => AvlTree::insert_rec(&mut node.right, key, value),
-                Ordering::Equal => node.value = value,
+                Ordering::Greater => AvlTree::insert_rec(&mut node.left, key, value, old_value),
+                Ordering::Less => AvlTree::insert_rec(&mut node.right, key, value, old_value),
+                Ordering::Equal => *old_value = Some(node.set_value(value)),
             }
             node.update();
             AvlTree::balance_node(node_ref);
