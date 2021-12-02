@@ -14,7 +14,7 @@
 
 use tendermint::hash::Algorithm;
 
-pub use as_bytes::AsBytes;
+pub use as_bytes::{AsBytes, ByteSlice};
 pub use node::AvlNode;
 pub use proof::get_proof_spec;
 pub use tree::AvlTree;

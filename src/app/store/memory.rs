@@ -1,4 +1,4 @@
-use crate::app::store::avl::{AsBytes, AvlTree};
+use crate::app::store::avl::{AsBytes, AvlTree, ByteSlice};
 use crate::app::store::{Height, Path, ProvableStore, Store};
 
 use ics23::CommitmentProof;
@@ -81,7 +81,12 @@ impl Store for InMemoryStore {
         self.pending
             .get_keys()
             .into_iter()
-            .filter_map(|key| key.as_bytes().starts_with(key_prefix).then(|| key.clone()))
+            .filter_map(|key| {
+                key.as_bytes()
+                    .as_ref()
+                    .starts_with(key_prefix.as_ref())
+                    .then(|| key.clone())
+            })
             .collect()
     }
 }
@@ -101,9 +106,8 @@ impl ProvableStore for InMemoryStore {
 }
 
 impl AsBytes for Path {
-    fn as_bytes(&self) -> &[u8] {
-        // self.as_str().as_bytes()
-        todo!()
+    fn as_bytes(&self) -> ByteSlice {
+        ByteSlice::Vector(self.to_string().into_bytes())
     }
 }
 

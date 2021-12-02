@@ -118,7 +118,7 @@ where
                         prefix: proof::LEAF_PREFIX.to_vec(),
                     });
                     let proof = ExistenceProof {
-                        key: node.key.as_bytes().to_owned(),
+                        key: node.key.as_bytes().as_ref().to_owned(),
                         value: node.value.borrow().to_owned(),
                         leaf,
                         path: vec![],
