@@ -106,7 +106,7 @@ impl ProvableStore for InMemoryStore {
 }
 
 impl AsBytes for Path {
-    fn as_bytes(&self) -> ByteSlice {
+    fn as_bytes(&self) -> ByteSlice<'_> {
         ByteSlice::Vector(self.to_string().into_bytes())
     }
 }

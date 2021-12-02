@@ -23,41 +23,41 @@ impl AsRef<[u8]> for ByteSlice<'_> {
 
 /// A trait for objects that can be interpreted as a slice of bytes.
 pub trait AsBytes {
-    fn as_bytes(&self) -> ByteSlice;
+    fn as_bytes(&self) -> ByteSlice<'_>;
 }
 
 impl AsBytes for Vec<u8> {
-    fn as_bytes(&self) -> ByteSlice {
+    fn as_bytes(&self) -> ByteSlice<'_> {
         ByteSlice::Slice(self)
     }
 }
 
 impl AsBytes for [u8] {
-    fn as_bytes(&self) -> ByteSlice {
+    fn as_bytes(&self) -> ByteSlice<'_> {
         ByteSlice::Slice(self)
     }
 }
 
 impl AsBytes for str {
-    fn as_bytes(&self) -> ByteSlice {
+    fn as_bytes(&self) -> ByteSlice<'_> {
         ByteSlice::Slice(self.as_bytes())
     }
 }
 
 impl AsBytes for &str {
-    fn as_bytes(&self) -> ByteSlice {
+    fn as_bytes(&self) -> ByteSlice<'_> {
         ByteSlice::Slice((*self).as_bytes())
     }
 }
 
 impl AsBytes for String {
-    fn as_bytes(&self) -> ByteSlice {
+    fn as_bytes(&self) -> ByteSlice<'_> {
         ByteSlice::Slice(self.as_bytes())
     }
 }
 
 impl AsBytes for [u8; 1] {
-    fn as_bytes(&self) -> ByteSlice {
+    fn as_bytes(&self) -> ByteSlice<'_> {
         ByteSlice::Slice(self)
     }
 }
