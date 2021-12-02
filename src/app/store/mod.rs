@@ -7,7 +7,7 @@ use crate::app::modules::{Error as ModuleError, Identifiable};
 
 use std::collections::VecDeque;
 use std::convert::{TryFrom, TryInto};
-use std::fmt::Debug;
+use std::fmt::{Debug, Display, Formatter};
 use std::ops::{Deref, DerefMut};
 use std::str::{from_utf8, Utf8Error};
 use std::sync::{Arc, RwLock};
@@ -55,25 +55,13 @@ impl TryFrom<String> for Identifier {
 }
 
 /// A newtype representing a valid ICS024 `Path`.
-/// It is mainly used as the key for an object stored in state.
-/// Implements `Deref<Target=String>`.
-/// Paths MUST contain only `Identifier`s, constant strings, and the separator `/`
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Clone)]
-pub struct Path(String);
+pub struct Path(Vec<Identifier>);
 
 impl Path {
-    fn append(mut self, path: &Path) -> Self {
-        self.0.push('/');
-        self.0.push_str(&path.0);
+    fn append(mut self, path: &mut Path) -> Self {
+        self.0.append(&mut path.0);
         self
-    }
-}
-
-impl Deref for Path {
-    type Target = String;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
     }
 }
 
@@ -81,10 +69,12 @@ impl TryFrom<String> for Path {
     type Error = Error;
 
     fn try_from(s: String) -> Result<Self, Self::Error> {
-        // split will never return an empty iterator
-        let parts: Result<Vec<_>, _> = s.split('/').into_iter().map(Identifier::validate).collect();
-
-        parts.map(|_| Self(s))
+        let mut identifiers = vec![];
+        let parts = s.split('/'); // split will never return an empty iterator
+        for part in parts {
+            identifiers.push(Identifier::try_from(part.to_owned())?);
+        }
+        Ok(Self(identifiers))
     }
 }
 
@@ -99,7 +89,19 @@ impl TryFrom<&[u8]> for Path {
 
 impl From<Identifier> for Path {
     fn from(id: Identifier) -> Self {
-        Self(id.0)
+        Self(vec![id])
+    }
+}
+
+impl Display for Path {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        for (i, identifier) in self.0.iter().enumerate() {
+            if i != 0 {
+                write!(f, "/")?;
+            }
+            write!(f, "{}", identifier.as_str())?;
+        }
+        Ok(())
     }
 }
 
@@ -436,8 +438,8 @@ impl<T: Identifiable> PrefixedPath for T {
     #[inline]
     fn prefixed_path(&self, s: &Path) -> Path {
         let prefix = self.identifier().into();
-        if !s.as_str().starts_with(&format!("{}/", prefix.as_str())) {
-            Path::from(prefix).append(s)
+        if !s.to_string().starts_with(&format!("{}/", prefix.as_str())) {
+            Path::from(prefix).append(&mut s.clone())
         } else {
             s.clone()
         }

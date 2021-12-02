@@ -33,13 +33,17 @@ impl Store for InMemoryStore {
     type Error = (); // underlying store ops are infallible
 
     fn set(&mut self, path: Path, value: Vec<u8>) -> Result<(), Self::Error> {
-        trace!("set at path = {}", path.as_str());
+        trace!("set at path = {}", path.to_string());
         self.pending.insert(path, value);
         Ok(())
     }
 
     fn get(&self, height: Height, path: &Path) -> Option<Vec<u8>> {
-        trace!("get at path = {} at height = {:?}", path.as_str(), height);
+        trace!(
+            "get at path = {} at height = {:?}",
+            path.to_string(),
+            height
+        );
         match height {
             // Request to access the pending block
             Height::Pending => self.pending.get(path).cloned(),
@@ -98,7 +102,8 @@ impl ProvableStore for InMemoryStore {
 
 impl AsBytes for Path {
     fn as_bytes(&self) -> &[u8] {
-        self.as_str().as_bytes()
+        // self.as_str().as_bytes()
+        todo!()
     }
 }
 

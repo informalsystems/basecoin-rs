@@ -476,7 +476,7 @@ impl<S: Store> Module for Ibc<S> {
 
         debug!(
             "Querying for path ({}) at height {:?}",
-            path.as_str(),
+            path.to_string(),
             height
         );
 
