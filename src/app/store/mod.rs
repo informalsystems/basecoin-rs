@@ -95,13 +95,15 @@ impl From<Identifier> for Path {
 
 impl Display for Path {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        for (i, identifier) in self.0.iter().enumerate() {
-            if i != 0 {
-                write!(f, "/")?;
-            }
-            write!(f, "{}", identifier.as_str())?;
-        }
-        Ok(())
+        write!(
+            f,
+            "{}",
+            self.0
+                .iter()
+                .map(|iden| iden.as_str().to_owned())
+                .collect::<Vec<String>>()
+                .join("/")
+        )
     }
 }
 
