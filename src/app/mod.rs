@@ -2,12 +2,13 @@
 
 pub(crate) mod modules;
 mod response;
-
 pub(crate) mod store;
 
 use crate::app::modules::{prefix, Bank, Error, ErrorDetail, Ibc, Identifiable, Module};
 use crate::app::response::ResponseFromErrorExt;
-use crate::app::store::{Height, Path, ProvableStore, SharedStore, Store, SubStore, WalStore};
+use crate::app::store::{
+    Height, Identifier, Path, ProvableStore, RevertibleStore, SharedStore, Store, SubStore,
+};
 use crate::prostgen::cosmos::auth::v1beta1::{
     query_server::Query as AuthQuery, BaseAccount, QueryAccountRequest, QueryAccountResponse,
     QueryAccountsRequest, QueryAccountsResponse, QueryParamsRequest as AuthQueryParamsRequest,
@@ -34,6 +35,11 @@ use crate::prostgen::cosmos::staking::v1beta1::{
     QueryValidatorUnbondingDelegationsRequest, QueryValidatorUnbondingDelegationsResponse,
     QueryValidatorsRequest, QueryValidatorsResponse,
 };
+use crate::prostgen::cosmos::tx::v1beta1::service_server::Service as TxService;
+use crate::prostgen::cosmos::tx::v1beta1::{
+    BroadcastTxRequest, BroadcastTxResponse, GetTxRequest, GetTxResponse, GetTxsEventRequest,
+    GetTxsEventResponse, SimulateRequest, SimulateResponse,
+};
 
 use std::convert::TryInto;
 use std::sync::{Arc, RwLock};
@@ -47,48 +53,56 @@ use tendermint_proto::abci::{
     Event, RequestDeliverTx, RequestInfo, RequestInitChain, RequestQuery, ResponseCommit,
     ResponseDeliverTx, ResponseInfo, ResponseInitChain, ResponseQuery,
 };
+use tendermint_proto::crypto::ProofOp;
+use tendermint_proto::crypto::ProofOps;
 use tendermint_proto::p2p::DefaultNodeInfo;
 use tonic::{Request, Response, Status};
 use tracing::{debug, info};
+
+type MainStore<S> = SharedStore<RevertibleStore<S>>;
+type ModuleStore<S> = SubStore<MainStore<S>>;
+type Shared<T> = Arc<RwLock<T>>;
 
 /// BaseCoin ABCI application.
 ///
 /// Can be safely cloned and sent across threads, but not shared.
 #[derive(Clone)]
 pub(crate) struct BaseCoinApp<S> {
-    store: SharedStore<WalStore<S>>,
-    modules: Arc<RwLock<Vec<Box<dyn Module + Send + Sync>>>>,
+    store: MainStore<S>,
+    pub modules: Shared<Vec<Box<dyn Module<ModuleStore<S>> + Send + Sync>>>,
+    account: Shared<BaseAccount>, // TODO(hu55a1n1): get from user and move to provable store
 }
 
-impl<S: ProvableStore + 'static> BaseCoinApp<S> {
+impl<S: Default + ProvableStore + 'static> BaseCoinApp<S> {
     /// Constructor.
-    pub(crate) fn new(store: S) -> Self {
-        let store = SharedStore::new(WalStore::new(store));
+    pub(crate) fn new(store: S) -> Result<Self, S::Error> {
+        let store = SharedStore::new(RevertibleStore::new(store));
         // `SubStore` guarantees modules exclusive access to all paths in the store key-space.
-        let modules: Vec<Box<dyn Module + Send + Sync>> = vec![
-            Box::new(Bank {
-                store: SubStore::new(store.clone(), prefix::Bank),
-            }),
-            Box::new(Ibc {
-                store: SubStore::new(store.clone(), prefix::Ibc),
-                client_counter: 0,
-            }),
+        let modules: Vec<Box<dyn Module<ModuleStore<S>> + Send + Sync>> = vec![
+            Box::new(Bank::new(SubStore::new(
+                store.clone(),
+                prefix::Bank {}.identifier(),
+            )?)),
+            Box::new(Ibc::new(SubStore::new(
+                store.clone(),
+                prefix::Ibc {}.identifier(),
+            )?)),
         ];
-        Self {
+        Ok(Self {
             store,
             modules: Arc::new(RwLock::new(modules)),
-        }
-    }
-
-    pub(crate) fn sub_store<I: Identifiable>(
-        &self,
-        prefix: I,
-    ) -> SubStore<SharedStore<WalStore<S>>, I> {
-        SubStore::new(self.store.clone(), prefix)
+            account: Default::default(),
+        })
     }
 }
 
-impl<S> BaseCoinApp<S> {
+impl<S: Default + ProvableStore> BaseCoinApp<S> {
+    pub(crate) fn get_store(&self, prefix: Identifier) -> Option<ModuleStore<S>> {
+        let modules = self.modules.read().unwrap();
+        let module = modules.iter().find(|m| m.store().prefix() == prefix);
+        module.map(|m| m.store())
+    }
+
     // try to deliver the message to all registered modules
     // if `module.deliver()` returns `Error::not_handled()`, try next module
     // Return:
@@ -120,7 +134,7 @@ impl<S> BaseCoinApp<S> {
     }
 }
 
-impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
+impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
     fn info(&self, request: RequestInfo) -> ResponseInfo {
         let (last_block_height, last_block_app_hash) = {
             let state = self.store.read().unwrap();
@@ -171,16 +185,44 @@ impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
                 &request.data,
                 path.as_ref(),
                 Height::from(request.height as u64),
+                request.prove,
             ) {
                 // success - implies query was handled by this module, so return response
                 Ok(result) => {
+                    let store = self.store.read().unwrap();
+                    let proof_ops = if request.prove {
+                        let proof = store
+                            .get_proof(
+                                Height::from(request.height as u64),
+                                &"ibc".to_owned().try_into().unwrap(),
+                            )
+                            .unwrap();
+                        let mut buffer = Vec::new();
+                        proof.encode(&mut buffer).unwrap(); // safety - cannot fail since buf is a vector
+
+                        let mut ops = vec![];
+                        if let Some(mut proofs) = result.proof {
+                            ops.append(&mut proofs);
+                        }
+                        ops.push(ProofOp {
+                            r#type: "".to_string(),
+                            // FIXME(hu55a1n1)
+                            key: "ibc".to_string().into_bytes(),
+                            data: buffer,
+                        });
+                        Some(ProofOps { ops })
+                    } else {
+                        None
+                    };
+
                     return ResponseQuery {
                         code: 0,
                         log: "exists".to_string(),
                         key: request.data,
-                        value: result,
-                        height: self.store.read().unwrap().current_height() as i64,
-                        ..ResponseQuery::default()
+                        value: result.data,
+                        proof_ops,
+                        height: store.current_height() as i64,
+                        ..Default::default()
                     };
                 }
                 // `Error::not_handled()` - implies query isn't known or was intercepted but not
@@ -240,9 +282,20 @@ impl<S: ProvableStore + 'static> Application for BaseCoinApp<S> {
     }
 
     fn commit(&self) -> ResponseCommit {
+        let mut modules = self.modules.write().unwrap();
+        for m in modules.iter_mut() {
+            m.commit().expect("failed to commit to state");
+        }
+
         let mut state = self.store.write().unwrap();
         let data = state.commit().expect("failed to commit to state");
-        info!("Committed height {}", state.current_height() - 1);
+        info!(
+            "Committed height {} with hash({})",
+            state.current_height() - 1,
+            data.iter()
+                .map(|b| format!("{:02X}", b))
+                .collect::<String>()
+        );
         ResponseCommit {
             data,
             retain_height: 0,
@@ -327,9 +380,10 @@ impl<S: ProvableStore + 'static> AuthQuery for BaseCoinApp<S> {
     ) -> Result<Response<QueryAccountResponse>, Status> {
         debug!("Got auth account request");
 
-        let account = BaseAccount::default();
+        let mut account = self.account.write().unwrap();
         let mut buf = Vec::new();
         account.encode(&mut buf).unwrap(); // safety - cannot fail since buf is a vector
+        account.sequence += 1;
 
         Ok(Response::new(QueryAccountResponse {
             account: Some(Any {
@@ -455,5 +509,46 @@ impl<S: ProvableStore + 'static> StakingQuery for BaseCoinApp<S> {
                 ..Params::default()
             }),
         }))
+    }
+}
+
+#[tonic::async_trait]
+impl<S: ProvableStore + 'static> TxService for BaseCoinApp<S> {
+    async fn simulate(
+        &self,
+        request: Request<SimulateRequest>,
+    ) -> Result<Response<SimulateResponse>, Status> {
+        // TODO(hu55a1n1): implement tx based simulate
+        let _: Tx = request
+            .into_inner()
+            .tx_bytes
+            .as_slice()
+            .try_into()
+            .map_err(|_| Status::invalid_argument("failed to deserialize tx"))?;
+        Ok(Response::new(SimulateResponse {
+            gas_info: None,
+            result: None,
+        }))
+    }
+
+    async fn get_tx(
+        &self,
+        _request: Request<GetTxRequest>,
+    ) -> Result<Response<GetTxResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn broadcast_tx(
+        &self,
+        _request: Request<BroadcastTxRequest>,
+    ) -> Result<Response<BroadcastTxResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn get_txs_event(
+        &self,
+        _request: Request<GetTxsEventRequest>,
+    ) -> Result<Response<GetTxsEventResponse>, Status> {
+        unimplemented!()
     }
 }

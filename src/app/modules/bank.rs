@@ -1,4 +1,4 @@
-use crate::app::modules::{Error as ModuleError, Module};
+use crate::app::modules::{Error as ModuleError, Module, QueryResult};
 use crate::app::store::{Height, Path, Store};
 
 use std::collections::HashMap;
@@ -61,10 +61,14 @@ pub struct Balances(HashMap<Denom, u64>);
 pub struct Bank<S> {
     /// Handle to store instance
     /// The module is guaranteed exclusive access to all paths in the store key-space.
-    pub store: S,
+    store: S,
 }
 
 impl<S: Store> Bank<S> {
+    pub fn new(store: S) -> Self {
+        Self { store }
+    }
+
     fn decode<T: Message + Default>(message: Any) -> Result<T, ModuleError> {
         if message.type_url != "/cosmos.bank.v1beta1.MsgSend" {
             return Err(ModuleError::not_handled());
@@ -73,7 +77,7 @@ impl<S: Store> Bank<S> {
     }
 }
 
-impl<S: Store> Module for Bank<S> {
+impl<S: Store> Module<S> for Bank<S> {
     fn deliver(&mut self, message: Any) -> Result<Vec<Event>, ModuleError> {
         let message: MsgSend = Self::decode::<proto::cosmos::bank::v1beta1::MsgSend>(message)?
             .try_into()
@@ -95,7 +99,7 @@ impl<S: Store> Module for Bank<S> {
         let mut src_balances: Balances = match self.store.get(Height::Pending, &src_path) {
             Some(sb) => serde_json::from_str(&String::from_utf8(sb).unwrap()).unwrap(), // safety - data on the store is assumed to be well-formed
             None => {
-                return Err(Error::non_existent_account(message.from_address.to_string()).into())
+                return Err(Error::non_existent_account(message.from_address.to_string()).into());
             }
         };
 
@@ -163,7 +167,8 @@ impl<S: Store> Module for Bank<S> {
         data: &[u8],
         _path: Option<&Path>,
         height: Height,
-    ) -> Result<Vec<u8>, ModuleError> {
+        _prove: bool,
+    ) -> Result<QueryResult, ModuleError> {
         let account_id = match String::from_utf8(data.to_vec()) {
             Ok(s) if s.starts_with("cosmos") => s, // TODO(hu55a1n1): check if valid identifier
             _ => return Err(ModuleError::not_handled()),
@@ -174,7 +179,18 @@ impl<S: Store> Module for Bank<S> {
         let path = format!("accounts/{}", account_id).try_into().unwrap(); // safety - account_id is a valid identifier
         match self.store.get(height, &path) {
             None => Err(Error::non_existent_account(account_id).into()),
-            Some(balance) => Ok(balance),
+            Some(balance) => Ok(QueryResult {
+                data: balance,
+                proof: None,
+            }),
         }
+    }
+
+    fn commit(&mut self) -> Result<Vec<u8>, S::Error> {
+        self.store.commit()
+    }
+
+    fn store(&self) -> S {
+        self.store.clone()
     }
 }
