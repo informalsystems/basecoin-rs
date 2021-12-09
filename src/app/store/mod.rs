@@ -70,12 +70,6 @@ impl Display for Identifier {
 
 pub struct Path(Vec<Identifier>);
 
-impl Path {
-    pub(crate) fn into_parts(self) -> Vec<Identifier> {
-        self.0
-    }
-}
-
 impl TryFrom<String> for Path {
     type Error = Error;
 

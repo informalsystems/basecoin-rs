@@ -391,7 +391,7 @@ impl<S: Store> ConnectionKeeper for Ibc<S> {
 
         conn_ids.push(connection_id);
         self.store
-            .set(path, serde_json::to_string(&conn_ids).unwrap().into()) // safety - cannot fail since ClientType's Serialize impl doesn't fail
+            .set(path, serde_json::to_string(&conn_ids).unwrap().into()) // safety - cannot fail since Serialize impl doesn't fail
             .map_err(|_| ConnectionError::implementation_specific())?;
         Ok(())
     }
@@ -406,15 +406,10 @@ impl<S: Store> ChannelReader for Ibc<S> {
         &self,
         port_channel_id: &(PortId, ChannelId),
     ) -> Result<ChannelEnd, ChannelError> {
-        let path = format!(
-            "channelEnds/ports/{}/channels/{}",
-            port_channel_id.0, port_channel_id.1
-        )
-        .try_into()
-        .unwrap(); // safety - path must be valid since ClientId is a valid Identifier
+        let path = IbcPath::ChannelEnds(port_channel_id.0.clone(), port_channel_id.1.clone());
         let value = self
             .store
-            .get(Height::Pending, &path)
+            .get(Height::Pending, &path.into())
             .ok_or_else(ChannelError::implementation_specific)?;
         let channel_end = IbcRawChannelEnd::decode(value.as_slice());
         channel_end
@@ -432,33 +427,22 @@ impl<S: Store> ChannelReader for Ibc<S> {
         cid: &ConnectionId,
     ) -> Result<Vec<(PortId, ChannelId)>, ChannelError> {
         let path = "channelEnds".to_owned().try_into().unwrap(); // safety - path must be valid since ClientId is a valid Identifier
-
         let keys = self.store.get_keys(&path);
         let channels = keys
             .into_iter()
-            .flat_map(|path| {
+            .filter_map(|path| {
                 let value = self.store.get(Height::Pending, &path)?;
                 let channel_end: ChannelEnd = IbcRawChannelEnd::decode(value.as_slice())
                     .map(|v| v.try_into().unwrap()) // safety - data on the store is assumed to be well-formed
                     .ok()?;
 
                 if channel_end.connection_hops.first() == Some(cid) {
-                    let path_parts: Vec<String> = path
-                        .into_parts()
-                        .iter_mut()
-                        .map(|i| i.to_string())
-                        .collect();
-                    assert_eq!(path_parts.len(), 5);
-                    assert_eq!(path_parts[1], "ports");
-                    assert_eq!(path_parts[3], "channels");
-                    // safety - data on the store is assumed to be well-formed
-                    Some((
-                        path_parts[2].parse().unwrap(),
-                        path_parts[4].parse().unwrap(),
-                    ))
-                } else {
-                    None
+                    if let Ok(IbcPath::ChannelEnds(port_id, channel_id)) = path.try_into() {
+                        return Some((port_id, channel_id));
+                    }
                 }
+
+                None
             })
             .collect();
         Ok(channels)
@@ -486,14 +470,9 @@ impl<S: Store> ChannelReader for Ibc<S> {
         &self,
         port_channel_id: &(PortId, ChannelId),
     ) -> Result<Sequence, ChannelError> {
-        let path = format!(
-            "nextSequenceSend/ports/{}/channels/{}",
-            port_channel_id.0, port_channel_id.1
-        )
-        .try_into()
-        .unwrap(); // safety - path must be valid since ClientId is a valid Identifier
+        let path = IbcPath::SeqSends(port_channel_id.0.clone(), port_channel_id.1.clone());
         self.store
-            .get(Height::Pending, &path)
+            .get(Height::Pending, &path.into())
             .map(|v| serde_json::from_str(&String::from_utf8(v).unwrap()).unwrap()) // safety - data on the store is assumed to be well-formed
             .ok_or_else(ChannelError::implementation_specific)
     }
@@ -502,14 +481,9 @@ impl<S: Store> ChannelReader for Ibc<S> {
         &self,
         port_channel_id: &(PortId, ChannelId),
     ) -> Result<Sequence, ChannelError> {
-        let path = format!(
-            "nextSequenceRecv/ports/{}/channels/{}",
-            port_channel_id.0, port_channel_id.1
-        )
-        .try_into()
-        .unwrap(); // safety - path must be valid since ClientId is a valid Identifier
+        let path = IbcPath::SeqRecvs(port_channel_id.0.clone(), port_channel_id.1.clone());
         self.store
-            .get(Height::Pending, &path)
+            .get(Height::Pending, &path.into())
             .map(|v| serde_json::from_str(&String::from_utf8(v).unwrap()).unwrap()) // safety - data on the store is assumed to be well-formed
             .ok_or_else(ChannelError::implementation_specific)
     }
@@ -518,14 +492,9 @@ impl<S: Store> ChannelReader for Ibc<S> {
         &self,
         port_channel_id: &(PortId, ChannelId),
     ) -> Result<Sequence, ChannelError> {
-        let path = format!(
-            "nextSequenceAck/ports/{}/channels/{}",
-            port_channel_id.0, port_channel_id.1
-        )
-        .try_into()
-        .unwrap(); // safety - path must be valid since ClientId is a valid Identifier
+        let path = IbcPath::SeqAcks(port_channel_id.0.clone(), port_channel_id.1.clone());
         self.store
-            .get(Height::Pending, &path)
+            .get(Height::Pending, &path.into())
             .map(|v| serde_json::from_str(&String::from_utf8(v).unwrap()).unwrap()) // safety - data on the store is assumed to be well-formed
             .ok_or_else(ChannelError::implementation_specific)
     }
@@ -534,14 +503,13 @@ impl<S: Store> ChannelReader for Ibc<S> {
         &self,
         key: &(PortId, ChannelId, Sequence),
     ) -> Result<String, ChannelError> {
-        let path = format!(
-            "commitments/ports/{}/channels/{}/packets/{}",
-            key.0, key.1, key.2
-        )
-        .try_into()
-        .unwrap(); // safety - path must be valid since ClientId is a valid Identifier
+        let path = IbcPath::Commitments {
+            port_id: key.0.clone(),
+            channel_id: key.1.clone(),
+            sequence: key.2,
+        };
         self.store
-            .get(Height::Pending, &path)
+            .get(Height::Pending, &path.into())
             .map(|v| String::from_utf8(v).unwrap()) // safety - data on the store is assumed to be well-formed
             .ok_or_else(ChannelError::implementation_specific)
     }
@@ -550,14 +518,13 @@ impl<S: Store> ChannelReader for Ibc<S> {
         &self,
         key: &(PortId, ChannelId, Sequence),
     ) -> Result<Receipt, ChannelError> {
-        let path = format!(
-            "receipts/ports/{}/channels/{}/receipts/{}",
-            key.0, key.1, key.2
-        )
-        .try_into()
-        .unwrap(); // safety - path must be valid since ClientId is a valid Identifier
+        let path = IbcPath::Receipts {
+            port_id: key.0.clone(),
+            channel_id: key.1.clone(),
+            sequence: key.2,
+        };
         self.store
-            .get(Height::Pending, &path)
+            .get(Height::Pending, &path.into())
             .map(|_| Receipt::Ok) // safety - data on the store is assumed to be well-formed
             .ok_or_else(ChannelError::implementation_specific)
     }
@@ -566,14 +533,13 @@ impl<S: Store> ChannelReader for Ibc<S> {
         &self,
         key: &(PortId, ChannelId, Sequence),
     ) -> Result<String, ChannelError> {
-        let path = format!(
-            "acks/ports/{}/channels/{}/acknowledgements/{}",
-            key.0, key.1, key.2
-        )
-        .try_into()
-        .unwrap(); // safety - path must be valid since ClientId is a valid Identifier
+        let path = IbcPath::Acks {
+            port_id: key.0.clone(),
+            channel_id: key.1.clone(),
+            sequence: key.2,
+        };
         self.store
-            .get(Height::Pending, &path)
+            .get(Height::Pending, &path.into())
             .map(|v| String::from_utf8(v).unwrap()) // safety - data on the store is assumed to be well-formed
             .ok_or_else(ChannelError::implementation_specific)
     }
@@ -604,18 +570,17 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
         height: IbcHeight,
         data: Vec<u8>,
     ) -> Result<(), ChannelError> {
-        let path = format!(
-            "commitments/ports/{}/channels/{}/packets/{}",
-            key.0, key.1, key.2
-        )
-        .try_into()
-        .unwrap(); // safety - path must be valid since ClientId is a valid Identifier
+        let path = IbcPath::Commitments {
+            port_id: key.0,
+            channel_id: key.1,
+            sequence: key.2,
+        };
         self.store
             .set(
-                path,
+                path.into(),
                 ChannelReader::hash(self, format!("{:?},{:?},{:?}", timestamp, height, data,))
                     .into(),
-            ) // safety - cannot fail since ClientType's Serialize impl doesn't fail
+            )
             .map_err(|_| ChannelError::implementation_specific())?;
         Ok(())
     }
@@ -624,13 +589,12 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
         &mut self,
         key: (PortId, ChannelId, Sequence),
     ) -> Result<(), ChannelError> {
-        let path = format!(
-            "commitments/ports/{}/channels/{}/packets/{}",
-            key.0, key.1, key.2
-        )
-        .try_into()
-        .unwrap(); // safety - path must be valid since ClientId is a valid Identifier
-        self.store.delete(&path);
+        let path = IbcPath::Commitments {
+            port_id: key.0,
+            channel_id: key.1,
+            sequence: key.2,
+        };
+        self.store.delete(&path.into());
         Ok(())
     }
 
@@ -639,14 +603,13 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
         key: (PortId, ChannelId, Sequence),
         _receipt: Receipt,
     ) -> Result<(), ChannelError> {
-        let path = format!(
-            "receipts/ports/{}/channels/{}/receipts/{}",
-            key.0, key.1, key.2
-        )
-        .try_into()
-        .unwrap(); // safety - path must be valid since ClientId is a valid Identifier
+        let path = IbcPath::Receipts {
+            port_id: key.0,
+            channel_id: key.1,
+            sequence: key.2,
+        };
         self.store
-            .set(path, Vec::default()) // safety - cannot fail since ClientType's Serialize impl doesn't fail
+            .set(path.into(), Vec::default())
             .map_err(|_| ChannelError::implementation_specific())?;
         Ok(())
     }
@@ -656,14 +619,13 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
         key: (PortId, ChannelId, Sequence),
         ack: Vec<u8>,
     ) -> Result<(), ChannelError> {
-        let path = format!(
-            "acks/ports/{}/channels/{}/acknowledgements/{}",
-            key.0, key.1, key.2
-        )
-        .try_into()
-        .unwrap(); // safety - path must be valid since ClientId is a valid Identifier
+        let path = IbcPath::Acks {
+            port_id: key.0,
+            channel_id: key.1,
+            sequence: key.2,
+        };
         self.store
-            .set(path, ack) // safety - cannot fail since ClientType's Serialize impl doesn't fail
+            .set(path.into(), ack)
             .map_err(|_| ChannelError::implementation_specific())?;
         Ok(())
     }
@@ -672,13 +634,12 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
         &mut self,
         key: (PortId, ChannelId, Sequence),
     ) -> Result<(), ChannelError> {
-        let path = format!(
-            "acks/ports/{}/channels/{}/acknowledgements/{}",
-            key.0, key.1, key.2
-        )
-        .try_into()
-        .unwrap(); // safety - path must be valid since ClientId is a valid Identifier
-        self.store.delete(&path);
+        let path = IbcPath::Acks {
+            port_id: key.0,
+            channel_id: key.1,
+            sequence: key.2,
+        };
+        self.store.delete(&path.into());
         Ok(())
     }
 
@@ -687,6 +648,7 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
         conn_id: ConnectionId,
         port_channel_id: &(PortId, ChannelId),
     ) -> Result<(), ChannelError> {
+        // FIXME(hu55a1n1): invalid path!
         let path = format!(
             "connections/{}/channels/{}-{}",
             conn_id, port_channel_id.0, port_channel_id.1
@@ -694,7 +656,7 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
         .try_into()
         .unwrap(); // safety - path must be valid since ClientId is a valid Identifier
         self.store
-            .set(path, Vec::default()) // safety - cannot fail since ClientType's Serialize impl doesn't fail
+            .set(path, Vec::default())
             .map_err(|_| ChannelError::implementation_specific())?;
         Ok(())
     }
@@ -709,14 +671,9 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
         data.encode(&mut buffer)
             .map_err(|_| ChannelError::implementation_specific())?;
 
-        let path = format!(
-            "channelEnds/ports/{}/channels/{}",
-            port_channel_id.0, port_channel_id.1
-        )
-        .try_into()
-        .unwrap(); // safety - path must be valid since ClientId is a valid Identifier
+        let path = IbcPath::ChannelEnds(port_channel_id.0, port_channel_id.1);
         self.store
-            .set(path, buffer)
+            .set(path.into(), buffer)
             .map_err(|_| ChannelError::implementation_specific())?;
         Ok(())
     }
@@ -726,14 +683,9 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
         port_channel_id: (PortId, ChannelId),
         seq: Sequence,
     ) -> Result<(), ChannelError> {
-        let path = format!(
-            "nextSequenceSend/ports/{}/channels/{}",
-            port_channel_id.0, port_channel_id.1
-        )
-        .try_into()
-        .unwrap(); // safety - path must be valid since ClientId is a valid Identifier
+        let path = IbcPath::SeqSends(port_channel_id.0, port_channel_id.1);
         self.store
-            .set(path, serde_json::to_string(&seq).unwrap().into()) // safety - cannot fail since ClientType's Serialize impl doesn't fail
+            .set(path.into(), serde_json::to_string(&seq).unwrap().into()) // safety - cannot fail since Serialize impl doesn't fail
             .map_err(|_| ChannelError::implementation_specific())?;
         Ok(())
     }
@@ -743,14 +695,9 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
         port_channel_id: (PortId, ChannelId),
         seq: Sequence,
     ) -> Result<(), ChannelError> {
-        let path = format!(
-            "nextSequenceRecv/ports/{}/channels/{}",
-            port_channel_id.0, port_channel_id.1
-        )
-        .try_into()
-        .unwrap(); // safety - path must be valid since ClientId is a valid Identifier
+        let path = IbcPath::SeqRecvs(port_channel_id.0, port_channel_id.1);
         self.store
-            .set(path, serde_json::to_string(&seq).unwrap().into()) // safety - cannot fail since ClientType's Serialize impl doesn't fail
+            .set(path.into(), serde_json::to_string(&seq).unwrap().into()) // safety - cannot fail since Serialize impl doesn't fail
             .map_err(|_| ChannelError::implementation_specific())?;
         Ok(())
     }
@@ -760,14 +707,9 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
         port_channel_id: (PortId, ChannelId),
         seq: Sequence,
     ) -> Result<(), ChannelError> {
-        let path = format!(
-            "nextSequenceAck/ports/{}/channels/{}",
-            port_channel_id.0, port_channel_id.1
-        )
-        .try_into()
-        .unwrap(); // safety - path must be valid since ClientId is a valid Identifier
+        let path = IbcPath::SeqAcks(port_channel_id.0, port_channel_id.1);
         self.store
-            .set(path, serde_json::to_string(&seq).unwrap().into()) // safety - cannot fail since ClientType's Serialize impl doesn't fail
+            .set(path.into(), serde_json::to_string(&seq).unwrap().into()) // safety - cannot fail since Serialize impl doesn't fail
             .map_err(|_| ChannelError::implementation_specific())?;
         Ok(())
     }
