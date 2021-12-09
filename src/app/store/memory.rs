@@ -1,4 +1,4 @@
-use crate::app::store::avl::{AsBytes, AvlTree};
+use crate::app::store::avl::{AsBytes, AvlTree, ByteSlice};
 use crate::app::store::{Height, Path, ProvableStore, Store};
 
 use ics23::CommitmentProof;
@@ -51,12 +51,16 @@ impl Store for InMemoryStore {
     type Error = (); // underlying store ops are infallible
 
     fn set(&mut self, path: Path, value: Vec<u8>) -> Result<Option<Vec<u8>>, Self::Error> {
-        trace!("set at path = {}", path.as_str());
+        trace!("set at path = {}", path.to_string());
         Ok(self.pending.insert(path, value))
     }
 
     fn get(&self, height: Height, path: &Path) -> Option<Vec<u8>> {
-        trace!("get at path = {} at height = {:?}", path.as_str(), height);
+        trace!(
+            "get at path = {} at height = {:?}",
+            path.to_string(),
+            height
+        );
         self.get_state(height).and_then(|v| v.get(path).cloned())
     }
 
@@ -79,7 +83,12 @@ impl Store for InMemoryStore {
         self.pending
             .get_keys()
             .into_iter()
-            .filter_map(|key| key.as_bytes().starts_with(key_prefix).then(|| key.clone()))
+            .filter_map(|key| {
+                key.as_bytes()
+                    .as_ref()
+                    .starts_with(key_prefix.as_ref())
+                    .then(|| key.clone())
+            })
             .collect()
     }
 }
@@ -96,7 +105,7 @@ impl ProvableStore for InMemoryStore {
     fn get_proof(&self, height: Height, key: &Path) -> Option<CommitmentProof> {
         trace!(
             "get proof at path = {} at height = {:?}",
-            key.as_str(),
+            key.to_string(),
             height
         );
         self.get_state(height).and_then(|v| v.get_proof(key))
@@ -104,8 +113,8 @@ impl ProvableStore for InMemoryStore {
 }
 
 impl AsBytes for Path {
-    fn as_bytes(&self) -> &[u8] {
-        self.as_str().as_bytes()
+    fn as_bytes(&self) -> ByteSlice<'_> {
+        ByteSlice::Vector(self.to_string().into_bytes())
     }
 }
 

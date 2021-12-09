@@ -19,8 +19,7 @@ use crate::prostgen::ibc::core::connection::v1::{
     QueryConnectionsResponse, Version as RawVersion,
 };
 
-use std::convert::TryInto;
-use std::num::ParseIntError;
+use std::convert::{TryFrom, TryInto};
 use std::str::FromStr;
 
 use ibc::applications::ics20_fungible_token_transfer::context::Ics20Context;
@@ -30,7 +29,6 @@ use ibc::core::ics02_client::client_state::AnyClientState;
 use ibc::core::ics02_client::client_type::ClientType;
 use ibc::core::ics02_client::context::{ClientKeeper, ClientReader};
 use ibc::core::ics02_client::error::Error as ClientError;
-use ibc::core::ics02_client::height::Height as IcsHeight;
 use ibc::core::ics03_connection::connection::ConnectionEnd;
 use ibc::core::ics03_connection::context::{ConnectionKeeper, ConnectionReader};
 use ibc::core::ics03_connection::error::Error as ConnectionError;
@@ -43,7 +41,7 @@ use ibc::core::ics05_port::context::PortReader;
 use ibc::core::ics05_port::error::Error as PortError;
 use ibc::core::ics23_commitment::commitment::{CommitmentPrefix, CommitmentRoot};
 use ibc::core::ics24_host::identifier::{ChannelId, ClientId, ConnectionId, PortId};
-use ibc::core::ics24_host::IBC_QUERY_PATH;
+use ibc::core::ics24_host::{path::PathError, Path as IbcPath, IBC_QUERY_PATH};
 use ibc::core::ics26_routing::context::Ics26Context;
 use ibc::core::ics26_routing::handler::{decode, dispatch};
 use ibc::events::IbcEvent;
@@ -63,6 +61,20 @@ pub(crate) type Error = ibc::core::ics26_routing::error::Error;
 impl From<Error> for ModuleError {
     fn from(e: Error) -> Self {
         ModuleError::ibc(e)
+    }
+}
+
+impl TryFrom<Path> for IbcPath {
+    type Error = PathError;
+
+    fn try_from(path: Path) -> Result<Self, Self::Error> {
+        Self::from_str(path.to_string().as_str())
+    }
+}
+
+impl From<IbcPath> for Path {
+    fn from(ibc_path: IbcPath) -> Self {
+        Self::try_from(ibc_path.to_string()).unwrap() // safety - `IbcPath`s are correct-by-construction
     }
 }
 
@@ -102,22 +114,19 @@ impl<S: ProvableStore> Ibc<S> {
 
 impl<S: Store> ClientReader for Ibc<S> {
     fn client_type(&self, client_id: &ClientId) -> Result<ClientType, ClientError> {
-        let path = format!("clients/{}/clientType", client_id)
-            .try_into()
-            .unwrap(); // safety - path must be valid since ClientId is a valid Identifier
+        let path = IbcPath::ClientType(client_id.clone());
         self.store
-            .get(Height::Pending, &path)
-            .map(|v| serde_json::from_str(&String::from_utf8(v).unwrap()).unwrap()) // safety - data on the store is assumed to be well-formed
+            .get(Height::Pending, &path.into())
+            // safety - data on the store is assumed to be well-formed
+            .map(|v| serde_json::from_str(&String::from_utf8(v).unwrap()).unwrap())
             .ok_or_else(ClientError::implementation_specific)
     }
 
     fn client_state(&self, client_id: &ClientId) -> Result<AnyClientState, ClientError> {
-        let path = format!("clients/{}/clientState", client_id)
-            .try_into()
-            .unwrap(); // safety - path must be valid since ClientId is a valid Identifier
+        let path = IbcPath::ClientState(client_id.clone());
         let value = self
             .store
-            .get(Height::Pending, &path)
+            .get(Height::Pending, &path.into())
             .ok_or_else(ClientError::implementation_specific)?;
         let client_state = Any::decode(value.as_slice());
         client_state
@@ -130,12 +139,14 @@ impl<S: Store> ClientReader for Ibc<S> {
         client_id: &ClientId,
         height: IbcHeight,
     ) -> Result<AnyConsensusState, ClientError> {
-        let path = format!("clients/{}/consensusStates/{}", client_id, height)
-            .try_into()
-            .unwrap(); // safety - path must be valid since ClientId and height are valid Identifiers
+        let path = IbcPath::ClientConsensusState {
+            client_id: client_id.clone(),
+            epoch: height.revision_number,
+            height: height.revision_height,
+        };
         let value = self
             .store
-            .get(Height::Pending, &path)
+            .get(Height::Pending, &path.into())
             .ok_or_else(|| ClientError::consensus_state_not_found(client_id.clone(), height))?;
         let consensus_state = Any::decode(value.as_slice());
         consensus_state
@@ -153,24 +164,28 @@ impl<S: Store> ClientReader for Ibc<S> {
             .unwrap(); // safety - path must be valid since ClientId and height are valid Identifiers
 
         let keys = self.store.get_keys(&path);
-        let found_path = keys.iter().find(|path| {
-            let cs_height = path
-                .to_string()
-                .split('/')
-                .last()
-                .expect("invalid path") // safety - prefixed paths will have atleast one '/'
-                .parse::<IbcHeightExt>()
-                .expect("couldn't parse Path as Height"); // safety - data on the store is assumed to be well-formed
-
-            height > cs_height.0
+        let found_path = keys.into_iter().find(|path| {
+            if let Ok(IbcPath::ClientConsensusState {
+                epoch: revision_number,
+                height: revision_height,
+                ..
+            }) = IbcPath::try_from(path.clone())
+            {
+                height
+                    > IbcHeight {
+                        revision_number,
+                        revision_height,
+                    }
+            } else {
+                false
+            }
         });
 
         if let Some(path) = found_path {
             // safety - data on the store is assumed to be well-formed
-            let consensus_state = self.store.get(Height::Pending, path).unwrap();
+            let consensus_state = self.store.get(Height::Pending, &path).unwrap();
             let consensus_state =
                 Any::decode(consensus_state.as_slice()).expect("failed to decode consensus state");
-
             Ok(Some(consensus_state.try_into()?))
         } else {
             Ok(None)
@@ -188,15 +203,20 @@ impl<S: Store> ClientReader for Ibc<S> {
 
         let keys = self.store.get_keys(&path);
         let pos = keys.iter().position(|path| {
-            let cs_height = path
-                .to_string()
-                .split('/')
-                .last()
-                .expect("invalid path") // safety - prefixed paths will have atleast one '/'
-                .parse::<IbcHeightExt>()
-                .expect("couldn't parse Path as Height"); // safety - data on the store is assumed to be well-formed
-
-            height >= cs_height.0
+            if let Ok(IbcPath::ClientConsensusState {
+                epoch: revision_number,
+                height: revision_height,
+                ..
+            }) = IbcPath::try_from(path.clone())
+            {
+                height
+                    >= IbcHeight {
+                        revision_number,
+                        revision_height,
+                    }
+            } else {
+                false
+            }
         });
 
         if let Some(pos) = pos {
@@ -225,11 +245,12 @@ impl<S: Store> ClientKeeper for Ibc<S> {
         client_id: ClientId,
         client_type: ClientType,
     ) -> Result<(), ClientError> {
-        let path = format!("clients/{}/clientType", client_id)
-            .try_into()
-            .unwrap(); // safety - path must be valid since ClientId is a valid Identifier
+        let path = IbcPath::ClientType(client_id);
         self.store
-            .set(path, serde_json::to_string(&client_type).unwrap().into()) // safety - cannot fail since ClientType's Serialize impl doesn't fail
+            .set(
+                path.into(),
+                serde_json::to_string(&client_type).unwrap().into(),
+            ) // safety - cannot fail since ClientType's Serialize impl doesn't fail
             .map_err(|_| ClientError::implementation_specific())?;
         Ok(())
     }
@@ -244,11 +265,9 @@ impl<S: Store> ClientKeeper for Ibc<S> {
         data.encode(&mut buffer)
             .map_err(|e| ClientError::unknown_client_type(e.to_string()))?;
 
-        let path = format!("clients/{}/clientState", client_id)
-            .try_into()
-            .unwrap(); // safety - path must be valid since ClientId is a valid Identifier
+        let path = IbcPath::ClientState(client_id);
         self.store
-            .set(path, buffer)
+            .set(path.into(), buffer)
             .map_err(|_| ClientError::implementation_specific())?;
         Ok(())
     }
@@ -264,11 +283,13 @@ impl<S: Store> ClientKeeper for Ibc<S> {
         data.encode(&mut buffer)
             .map_err(|e| ClientError::unknown_consensus_state_type(e.to_string()))?;
 
-        let path = format!("clients/{}/consensusStates/{}", client_id, height)
-            .try_into()
-            .unwrap(); // safety - path must be valid since ClientId and height are valid Identifiers
+        let path = IbcPath::ClientConsensusState {
+            client_id,
+            epoch: height.revision_number,
+            height: height.revision_height,
+        };
         self.store
-            .set(path, buffer)
+            .set(path.into(), buffer)
             .map_err(|_| ClientError::implementation_specific())?;
         Ok(())
     }
@@ -280,10 +301,10 @@ impl<S: Store> ClientKeeper for Ibc<S> {
 
 impl<S: Store> ConnectionReader for Ibc<S> {
     fn connection_end(&self, conn_id: &ConnectionId) -> Result<ConnectionEnd, ConnectionError> {
-        let path = format!("connections/{}", conn_id).try_into().unwrap(); // safety - path must be valid since ClientId is a valid Identifier
+        let path = IbcPath::Connections(conn_id.clone());
         let value = self
             .store
-            .get(Height::Pending, &path)
+            .get(Height::Pending, &path.into())
             .ok_or_else(ConnectionError::implementation_specific)?;
         let connection_end = IbcRawConnectionEnd::decode(value.as_slice());
         connection_end
@@ -344,9 +365,9 @@ impl<S: Store> ConnectionKeeper for Ibc<S> {
         data.encode(&mut buffer)
             .map_err(|_| ConnectionError::implementation_specific())?;
 
-        let path = format!("connections/{}", connection_id).try_into().unwrap(); // safety - path must be valid since ClientId is a valid Identifier
+        let path = IbcPath::Connections(connection_id);
         self.store
-            .set(path, buffer)
+            .set(path.into(), buffer)
             .map_err(|_| ConnectionError::implementation_specific())?;
         Ok(())
     }
@@ -356,9 +377,7 @@ impl<S: Store> ConnectionKeeper for Ibc<S> {
         connection_id: ConnectionId,
         client_id: &ClientId,
     ) -> Result<(), ConnectionError> {
-        let path = format!("clients/{}/connections", client_id)
-            .try_into()
-            .unwrap(); // safety - path must be valid since ClientId is a valid Identifier
+        let path = IbcPath::ClientConnections(client_id.clone()).into();
         let mut conn_ids: Vec<ConnectionId> = self
             .store
             .get(Height::Pending, &path)
@@ -598,14 +617,16 @@ impl<S: ProvableStore> Module<S> for Ibc<S> {
             return Err(ModuleError::not_handled());
         }
 
-        // TODO(hu55a1n1): validate query
         let path: Path = String::from_utf8(data.to_vec())
             .map_err(|_| Error::ics02_client(ClientError::implementation_specific()))?
             .try_into()?;
 
+        let _ = IbcPath::try_from(path.clone())
+            .map_err(|_| Error::ics02_client(ClientError::implementation_specific()))?;
+
         debug!(
             "Querying for path ({}) at height {:?}",
-            path.as_str(),
+            path.to_string(),
             height
         );
 
@@ -757,22 +778,23 @@ impl<S: ProvableStore + 'static> ClientQuery for Ibc<S> {
         let consensus_states = keys
             .into_iter()
             .map(|path| {
-                let height = path
-                    .to_string()
-                    .split('/')
-                    .last()
-                    .expect("invalid path") // safety - prefixed paths will have atleast one '/'
-                    .parse::<IbcHeightExt>()
-                    .expect("couldn't parse Path as Height"); // safety - data on the store is assumed to be well-formed
+                if let Ok(IbcPath::ClientConsensusState { epoch, height, .. }) =
+                    IbcPath::try_from(path.clone())
+                {
+                    // safety - data on the store is assumed to be well-formed
+                    let consensus_state = self.store.get(Height::Pending, &path).unwrap();
+                    let consensus_state = Any::decode(consensus_state.as_slice())
+                        .expect("failed to decode consensus state");
 
-                // safety - data on the store is assumed to be well-formed
-                let consensus_state = self.store.get(Height::Pending, &path).unwrap();
-                let consensus_state = Any::decode(consensus_state.as_slice())
-                    .expect("failed to decode consensus state");
-
-                ConsensusStateWithHeight {
-                    height: Some(height.into()),
-                    consensus_state: Some(consensus_state),
+                    ConsensusStateWithHeight {
+                        height: Some(RawHeight {
+                            revision_number: epoch,
+                            revision_height: height,
+                        }),
+                        consensus_state: Some(consensus_state),
+                    }
+                } else {
+                    panic!("unexpected path") // safety - store paths are assumed to be well-formed
                 }
             })
             .collect();
@@ -881,40 +903,6 @@ impl From<ConnectionEndWrapper> for RawConnectionEnd {
                 }),
             }),
             delay_period: 0,
-        }
-    }
-}
-
-struct IbcHeightExt(IcsHeight);
-
-#[derive(Debug)]
-enum IbcHeightParseError {
-    Malformed,
-    InvalidNumber(ParseIntError),
-    InvalidHeight(ParseIntError),
-}
-
-impl FromStr for IbcHeightExt {
-    type Err = IbcHeightParseError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let h: Vec<&str> = s.split('-').collect();
-        if h.len() != 2 {
-            Err(IbcHeightParseError::Malformed)
-        } else {
-            Ok(Self(IcsHeight {
-                revision_number: h[0].parse().map_err(IbcHeightParseError::InvalidNumber)?,
-                revision_height: h[1].parse().map_err(IbcHeightParseError::InvalidHeight)?,
-            }))
-        }
-    }
-}
-
-impl From<IbcHeightExt> for RawHeight {
-    fn from(ics_height: IbcHeightExt) -> Self {
-        RawHeight {
-            revision_number: ics_height.0.revision_number,
-            revision_height: ics_height.0.revision_height,
         }
     }
 }

@@ -6,12 +6,13 @@ pub(crate) use memory::InMemoryStore;
 use crate::app::modules::Error as ModuleError;
 
 use std::convert::{TryFrom, TryInto};
-use std::fmt::Debug;
+use std::fmt::{Debug, Display, Formatter};
 use std::ops::{Deref, DerefMut};
 use std::str::{from_utf8, Utf8Error};
 use std::sync::{Arc, RwLock};
 
 use flex_error::{define_error, TraceError};
+use ibc::core::ics24_host::{error::ValidationError, validate::validate_identifier};
 use ics23::CommitmentProof;
 use tracing::trace;
 
@@ -26,16 +27,13 @@ impl Identifier {
     /// * Alphanumeric
     /// * `.`, `_`, `+`, `-`, `#`
     /// * `[`, `]`, `<`, `>`
-    #[inline]
-    fn is_valid(s: impl AsRef<str>) -> bool {
+    fn validate(s: impl AsRef<str>) -> Result<(), Error> {
         let s = s.as_ref();
-        if s.is_empty() {
-            return false;
-        }
-        s.chars().all(|c| {
-            c.is_ascii_alphanumeric()
-                || matches!(c, '.' | '_' | '+' | '-' | '#' | '[' | ']' | '<' | '>' | '/')
-        })
+
+        // give a `min` parameter of 0 here to allow id's of arbitrary
+        // length as inputs; `validate_identifier` itself checks for
+        // empty inputs and returns an error as appropriate
+        validate_identifier(s, 0, s.len()).map_err(|v| Error::invalid_identifier(s.to_string(), v))
     }
 
     #[inline]
@@ -57,40 +55,24 @@ impl TryFrom<String> for Identifier {
     type Error = Error;
 
     fn try_from(s: String) -> Result<Self, Self::Error> {
-        if !Identifier::is_valid(&s) {
-            Err(Error::invalid_identifier(s))
-        } else {
-            Ok(Self(s))
-        }
+        Identifier::validate(&s).map(|_| Self(s))
     }
 }
 
 /// A newtype representing a valid ICS024 `Path`.
-/// It is mainly used as the key for an object stored in state.
-/// Implements `Deref<Target=String>`.
-/// Paths MUST contain only `Identifier`s, constant strings, and the separator `/`
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Clone)]
-pub struct Path(String);
-
-impl Deref for Path {
-    type Target = String;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
+pub struct Path(Vec<Identifier>);
 
 impl TryFrom<String> for Path {
     type Error = Error;
 
     fn try_from(s: String) -> Result<Self, Self::Error> {
-        // split will never return an empty iterator
-        for id in s.split('/') {
-            if !Identifier::is_valid(id) {
-                return Err(Error::invalid_identifier(id.to_owned()));
-            }
+        let mut identifiers = vec![];
+        let parts = s.split('/'); // split will never return an empty iterator
+        for part in parts {
+            identifiers.push(Identifier::try_from(part.to_owned())?);
         }
-        Ok(Self(s))
+        Ok(Self(identifiers))
     }
 }
 
@@ -105,7 +87,21 @@ impl TryFrom<&[u8]> for Path {
 
 impl From<Identifier> for Path {
     fn from(id: Identifier) -> Self {
-        Self(id.0)
+        Self(vec![id])
+    }
+}
+
+impl Display for Path {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            self.0
+                .iter()
+                .map(|iden| iden.as_str().to_owned())
+                .collect::<Vec<String>>()
+                .join("/")
+        )
     }
 }
 
@@ -114,6 +110,7 @@ define_error! {
     Error {
         InvalidIdentifier
             { identifier: String }
+            [ ValidationError ]
             | e | { format!("'{}' is not a valid identifier", e.identifier) },
         MalformedPathString
             [ TraceError<Utf8Error> ]
@@ -476,5 +473,124 @@ impl<S: ProvableStore> ProvableStore for RevertibleStore<S> {
     #[inline]
     fn get_proof(&self, height: Height, key: &Path) -> Option<CommitmentProof> {
         self.store.get_proof(height, key)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(unused_must_use)]
+
+    use super::{Identifier, Path};
+    use proptest::prelude::*;
+    use rand::distributions::Standard;
+    use rand::seq::SliceRandom;
+    use std::collections::HashSet;
+    use std::convert::TryFrom;
+
+    const ALLOWED_CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ\
+                                   abcdefghijklmnopqrstuvwxyz\
+                                   ._+-#[]<>";
+
+    lazy_static! {
+        static ref VALID_CHARS: HashSet<char> = {
+            ALLOWED_CHARS
+                .iter()
+                .map(|c| char::from(*c))
+                .collect::<HashSet<_>>()
+        };
+    }
+
+    fn gen_valid_identifier(len: usize) -> String {
+        let mut rng = rand::thread_rng();
+
+        (0..=len)
+            .map(|_| {
+                let idx = rng.gen_range(0..ALLOWED_CHARS.len());
+                ALLOWED_CHARS[idx] as char
+            })
+            .collect::<String>()
+    }
+
+    fn gen_invalid_identifier(len: usize) -> String {
+        let mut rng = rand::thread_rng();
+
+        (0..=len)
+            .map(|_| loop {
+                let c = rng.sample::<char, _>(Standard) as char;
+
+                if c.is_ascii() && !VALID_CHARS.contains(&c) {
+                    return c;
+                }
+            })
+            .collect::<String>()
+    }
+
+    proptest! {
+        #[test]
+        fn validate_method_doesnt_crash(s in "\\PC*") {
+            Identifier::validate(&s);
+        }
+
+        #[test]
+        fn valid_identifier_is_ok(l in 1usize..=10) {
+            let id = gen_valid_identifier(l);
+            let validated = Identifier::validate(&id);
+
+            assert!(validated.is_ok())
+        }
+
+        #[test]
+        #[ignore]
+        fn invalid_identifier_errors(l in 1usize..=10) {
+            let id = gen_invalid_identifier(l);
+            let validated = Identifier::validate(&id);
+
+            assert!(validated.is_err())
+        }
+
+        #[test]
+        fn path_with_valid_parts_is_valid(n_parts in 1usize..=10) {
+            let mut rng = rand::thread_rng();
+
+            let parts = (0..n_parts)
+                .map(|_| {
+                    let len = rng.gen_range(1usize..=10);
+                    gen_valid_identifier(len)
+                })
+                .collect::<Vec<_>>();
+
+            let path = parts.join("/");
+
+            assert!(Path::try_from(path).is_ok());
+        }
+
+        #[test]
+        #[ignore]
+        fn path_with_invalid_parts_is_invalid(n_parts in 1usize..=10) {
+            let mut rng = rand::thread_rng();
+            let n_invalid_parts = rng.gen_range(1usize..=n_parts);
+            let n_valid_parts = n_parts - n_invalid_parts;
+
+            let mut parts = (0..n_invalid_parts)
+                .map(|_| {
+                    let len = rng.gen_range(1usize..=10);
+                    gen_invalid_identifier(len)
+                })
+                .collect::<Vec<_>>();
+
+            let mut valid_parts = (0..n_valid_parts)
+                .map(|_| {
+                    let len = rng.gen_range(1usize..=10);
+                    gen_valid_identifier(len)
+                })
+                .collect::<Vec<_>>();
+
+            parts.append(&mut valid_parts);
+            parts.shuffle(&mut rng);
+
+            let path = parts.join("/");
+
+            assert!(Path::try_from(path).is_err());
+        }
     }
 }
