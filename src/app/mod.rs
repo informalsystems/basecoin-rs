@@ -292,7 +292,6 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
     fn commit(&self) -> ResponseCommit {
         let mut modules = self.modules.write().unwrap();
         for m in modules.iter_mut() {
-            // m.commit().expect("failed to commit to state");
             m.store().commit().expect("failed to commit to state");
         }
 

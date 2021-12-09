@@ -36,7 +36,7 @@ where
     fn new(key: K, value: V) -> Self {
         let mut sha = Sha256::new();
         sha.update(proof::LEAF_PREFIX);
-        sha.update(key.as_bytes());
+        sha.update(key.as_bytes().as_ref());
         sha.update(value.borrow());
         let hash = sha.finalize();
         let merkle_hash = Hash::from_bytes(HASH_ALGO, &Sha256::digest(&hash)).unwrap();
