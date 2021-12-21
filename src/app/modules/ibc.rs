@@ -51,6 +51,8 @@ use ibc_proto::ibc::core::connection::v1::ConnectionEnd as IbcRawConnectionEnd;
 use prost::Message;
 use prost_types::Any;
 use sha2::Digest;
+use std::collections::HashMap;
+use std::time::Duration;
 use tendermint::{abci::responses::Event as TendermintEvent, Hash, Time};
 use tendermint_proto::abci::{Event, EventAttribute};
 use tendermint_proto::crypto::ProofOp;
@@ -93,6 +95,10 @@ pub struct Ibc<S> {
     conn_counter: u64,
     /// Counter for channels
     channel_counter: u64,
+    /// Tracks the processed time for client updates
+    client_processed_times: HashMap<(ClientId, IbcHeight), Timestamp>,
+    /// Tracks the processed height for client updates
+    client_processed_heights: HashMap<(ClientId, IbcHeight), IbcHeight>,
 }
 
 impl<S: ProvableStore> Ibc<S> {
@@ -102,6 +108,8 @@ impl<S: ProvableStore> Ibc<S> {
             client_counter: 0,
             conn_counter: 0,
             channel_counter: 0,
+            client_processed_times: Default::default(),
+            client_processed_heights: Default::default(),
         }
     }
 
@@ -238,6 +246,10 @@ impl<S: Store> ClientReader for Ibc<S> {
         Ok(None)
     }
 
+    fn host_height(&self) -> IbcHeight {
+        IbcHeight::new(0, self.store.current_height())
+    }
+
     fn client_counter(&self) -> Result<u64, ClientError> {
         Ok(self.client_counter)
     }
@@ -300,6 +312,28 @@ impl<S: Store> ClientKeeper for Ibc<S> {
 
     fn increase_client_counter(&mut self) {
         self.client_counter += 1;
+    }
+
+    fn store_update_time(
+        &mut self,
+        client_id: ClientId,
+        height: IbcHeight,
+    ) -> Result<(), ClientError> {
+        let _ = self
+            .client_processed_times
+            .insert((client_id, height), ChannelReader::host_timestamp(self));
+        Ok(())
+    }
+
+    fn store_update_height(
+        &mut self,
+        client_id: ClientId,
+        height: IbcHeight,
+    ) -> Result<(), ClientError> {
+        let _ = self
+            .client_processed_heights
+            .insert((client_id, height), ClientReader::host_height(self));
+        Ok(())
     }
 }
 
@@ -557,8 +591,34 @@ impl<S: Store> ChannelReader for Ibc<S> {
         Timestamp::now()
     }
 
+    fn client_update_time(
+        &self,
+        client_id: &ClientId,
+        height: IbcHeight,
+    ) -> Result<Timestamp, ChannelError> {
+        self.client_processed_times
+            .get(&(client_id.clone(), height))
+            .cloned()
+            .ok_or_else(ChannelError::implementation_specific)
+    }
+
+    fn client_update_height(
+        &self,
+        client_id: &ClientId,
+        height: IbcHeight,
+    ) -> Result<IbcHeight, ChannelError> {
+        self.client_processed_heights
+            .get(&(client_id.clone(), height))
+            .cloned()
+            .ok_or_else(ChannelError::implementation_specific)
+    }
+
     fn channel_counter(&self) -> Result<u64, ChannelError> {
         Ok(self.channel_counter)
+    }
+
+    fn max_expected_time_per_block(&self) -> Duration {
+        Duration::from_secs(8)
     }
 }
 
