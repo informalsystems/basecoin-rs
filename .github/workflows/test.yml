@@ -41,7 +41,7 @@ jobs:
             ./ci
       - name: Run test
         run: |
-          docker run --rm -it \
+          docker run --rm \
             --env IBC_COMMITISH=basecoin/phase-4-1 \
             -v `pwd`:/src/basecoin-rs \
             informaldev/basecoin-rs-ci
