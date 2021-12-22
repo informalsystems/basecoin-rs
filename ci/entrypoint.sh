@@ -25,6 +25,7 @@ if [ ! -f "${IBC_SRC}/Cargo.toml" ]; then
   echo "No ibc-rs sources detected. Cloning repo..."
   git clone "${IBC_REPO}" "${IBC_SRC}"
   echo "Checking out ${IBC_COMMITISH}..."
+  cd "${IBC_SRC}"
   git checkout "${IBC_COMMITISH}"
   git status
   echo ""
