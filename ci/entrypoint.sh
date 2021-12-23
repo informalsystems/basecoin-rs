@@ -51,7 +51,9 @@ echo "Configuring Hermes..."
     keys add ibc-0 \
     -f "${CHAIN_DATA}/ibc-0/user_seed.json"
 
+echo "Generating user key..."
 gaiad keys add user --keyring-backend="test" --output json > "${HOME}/user_seed.json"
+echo "Adding user key to basecoin-0 chain..."
 "${HERMES_BIN}" -c "${HERMES_CONFIG}" keys add basecoin-0 -f "${HOME}/user_seed.json"
 
 echo ""
