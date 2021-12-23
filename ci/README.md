@@ -22,8 +22,8 @@ docker build -f ci/Dockerfile -t informaldev/basecoin-rs-ci ./ci
 Running the image with appropriate parameters will allow you to test a build of
 basecoin-rs with a particular build of ibc-rs (specifically the relayer,
 Hermes). At present, by default, this executes the
-[`update-channel`](./tests/update-channel.sh) script as a test if no `CMD` is
-supplied to the image when running it.
+[`create-connection`](./tests/create-connection.sh) script as a test if no `CMD`
+is supplied to the image when running it.
 
 From the root of this repository:
 
@@ -39,6 +39,13 @@ docker run --rm -it \
 # the latest ibc-rs code on master from the ibc-rs repository on GitHub.
 docker run --rm -it \
     -v `pwd`:/src/basecoin-rs \
+    informaldev/basecoin-rs-ci
+
+# Specify the branch/tag/commit at which to clone the ibc-rs repository from
+# which to build Hermes. In this case, we use branch "basecoin/phase-4-1":
+docker run --rm -it \
+    -v `pwd`:/src/basecoin-rs \
+    -e IBC_COMMITISH=basecoin/phase-4-1 \
     informaldev/basecoin-rs-ci
 
 # If you don't want to execute the tests, and rather want a BASH prompt from
@@ -67,10 +74,10 @@ container run from this image will:
    will automatically connect to the basecoin-rs binary, providing a chain with
    ID `basecoin-0`).
 7. If no `CMD` arguments are provided for the container, it will automatically
-   execute the [`update-channel.sh`](./tests/update-channel.sh) script, which
-   creates and updates an IBC channel between `basecoin-0` and `ibc-0`. If `CMD`
-   arguments are provided for the container, that test will not be executed and
-   the relevant `CMD` arguments will be executed instead.
+   execute the [`create-connection.sh`](./tests/create-connection.sh) script,
+   which creates and updates an IBC channel between `basecoin-0` and `ibc-0`. If
+   `CMD` arguments are provided for the container, that test will not be
+   executed and the relevant `CMD` arguments will be executed instead.
 
 [ibc-rs-repo]: https://github.com/informalsystems/ibc-rs
 [Gaia]: https://github.com/cosmos/gaia
