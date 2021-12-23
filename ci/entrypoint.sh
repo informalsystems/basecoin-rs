@@ -14,7 +14,7 @@ CHAIN_DATA="${HOME}/data"
 HERMES_CONFIG="${HOME}/.hermes/config.toml"
 LOG_DIR=${LOG_DIR:-/var/log/basecoin-rs}
 TESTS_DIR=${TESTS_DIR:-${HOME}/tests}
-DEFAULT_TEST=${DEFAULT_TEST:-${TESTS_DIR}/update-channel.sh}
+DEFAULT_TEST=${DEFAULT_TEST:-${TESTS_DIR}/create-connection.sh}
 
 if [ ! -f "${BASECOIN_SRC}/Cargo.toml" ]; then
   echo "basecoin-rs sources must be mounted into ${BASECOIN_SRC} for this script to work properly."
@@ -22,7 +22,7 @@ if [ ! -f "${BASECOIN_SRC}/Cargo.toml" ]; then
 fi
 
 if [ ! -f "${IBC_SRC}/Cargo.toml" ]; then
-  echo "No ibc-rs sources detected. Cloning repo..."
+  echo "No ibc-rs sources detected. Cloning repo at ${IBC_COMMITISH}..."
   git clone "${IBC_REPO}" "${IBC_SRC}"
   echo "Checking out ${IBC_COMMITISH}..."
   cd "${IBC_SRC}"
