@@ -50,8 +50,9 @@ use prost_types::{Any, Duration};
 use serde_json::Value;
 use tendermint_abci::Application;
 use tendermint_proto::abci::{
-    Event, RequestDeliverTx, RequestInfo, RequestInitChain, RequestQuery, ResponseCommit,
-    ResponseDeliverTx, ResponseInfo, ResponseInitChain, ResponseQuery,
+    Event, RequestBeginBlock, RequestDeliverTx, RequestInfo, RequestInitChain, RequestQuery,
+    ResponseBeginBlock, ResponseCommit, ResponseDeliverTx, ResponseInfo, ResponseInitChain,
+    ResponseQuery,
 };
 use tendermint_proto::crypto::ProofOp;
 use tendermint_proto::crypto::ProofOps;
@@ -308,6 +309,19 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
             data,
             retain_height: 0,
         }
+    }
+
+    fn begin_block(&self, request: RequestBeginBlock) -> ResponseBeginBlock {
+        debug!("Got begin block request.");
+
+        let mut modules = self.modules.write().unwrap();
+        let mut events = vec![];
+        let header = request.header.unwrap().try_into().unwrap();
+        for m in modules.iter_mut() {
+            events.extend(m.begin_block(&header));
+        }
+
+        ResponseBeginBlock { events }
     }
 }
 

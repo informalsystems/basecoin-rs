@@ -8,6 +8,7 @@ use crate::app::store::{self, Height, Path};
 
 use flex_error::{define_error, TraceError};
 use prost_types::Any;
+use tendermint::block::Header;
 use tendermint_proto::abci::Event;
 use tendermint_proto::crypto::ProofOp;
 
@@ -69,6 +70,15 @@ pub(crate) trait Module {
         _prove: bool,
     ) -> Result<QueryResult, Error> {
         Err(Error::not_handled())
+    }
+
+    /// Similar to [ABCI BeginBlock method](https://docs.tendermint.com/master/spec/abci/abci.html#beginblock)
+    /// *NOTE* - Implementations MUST be deterministic!
+    ///
+    /// ## Return
+    /// * Resulting events if any
+    fn begin_block(&mut self, _header: &Header) -> Vec<Event> {
+        vec![]
     }
 
     /// Return a mutable reference to the module's sub-store
