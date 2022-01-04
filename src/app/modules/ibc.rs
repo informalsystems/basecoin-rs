@@ -53,7 +53,8 @@ use prost_types::Any;
 use sha2::Digest;
 use std::collections::HashMap;
 use std::time::Duration;
-use tendermint::{abci::responses::Event as TendermintEvent, Hash, Time};
+use tendermint::abci::responses::Event as TendermintEvent;
+use tendermint::block::Header;
 use tendermint_proto::abci::{Event, EventAttribute};
 use tendermint_proto::crypto::ProofOp;
 use tonic::{Request, Response, Status};
@@ -99,6 +100,8 @@ pub struct Ibc<S> {
     client_processed_times: HashMap<(ClientId, IbcHeight), Timestamp>,
     /// Tracks the processed height for client updates
     client_processed_heights: HashMap<(ClientId, IbcHeight), IbcHeight>,
+    /// Map of host consensus states
+    consensus_states: HashMap<u64, ConsensusState>,
 }
 
 impl<S: ProvableStore> Ibc<S> {
@@ -110,6 +113,7 @@ impl<S: ProvableStore> Ibc<S> {
             channel_counter: 0,
             client_processed_times: Default::default(),
             client_processed_heights: Default::default(),
+            consensus_states: Default::default(),
         }
     }
 
@@ -378,14 +382,13 @@ impl<S: Store> ConnectionReader for Ibc<S> {
 
     fn host_consensus_state(
         &self,
-        _height: IbcHeight,
+        height: IbcHeight,
     ) -> Result<AnyConsensusState, ConnectionError> {
-        // FIXME: store host consensus state and return it here
-        Ok(AnyConsensusState::Tendermint(ConsensusState::new(
-            CommitmentRoot::from_bytes(&[]),
-            Time::unix_epoch(),
-            Hash::None,
-        )))
+        let consensus_state = self
+            .consensus_states
+            .get(&height.revision_height)
+            .ok_or_else(|| ConnectionError::missing_local_consensus_state(height))?;
+        Ok(AnyConsensusState::Tendermint(consensus_state.clone()))
     }
 
     fn connection_counter(&self) -> Result<u64, ConnectionError> {
@@ -853,6 +856,17 @@ impl<S: ProvableStore> Module for Ibc<S> {
             .get(height, &path)
             .ok_or_else(|| Error::ics02_client(ClientError::implementation_specific()))?;
         Ok(QueryResult { data, proof })
+    }
+
+    fn begin_block(&mut self, header: &Header) -> Vec<Event> {
+        let consensus_state = ConsensusState::new(
+            CommitmentRoot::from_bytes(header.app_hash.as_ref()),
+            header.time,
+            header.next_validators_hash,
+        );
+        self.consensus_states
+            .insert(header.height.value(), consensus_state);
+        vec![]
     }
 
     fn store(&mut self) -> &mut S {
