@@ -724,6 +724,7 @@ dependencies = [
 [[package]]
 name = "ibc"
 version = "0.9.0"
+source = "git+https://github.com/informalsystems/ibc-rs.git?branch=basecoin/phase-5-1#1bffb93805167ef4be487c1c673cc2068f6301cc"
 dependencies = [
  "bytes",
  "flex-error",
@@ -748,6 +749,7 @@ dependencies = [
 [[package]]
 name = "ibc-proto"
 version = "0.13.0"
+source = "git+https://github.com/informalsystems/ibc-rs.git?branch=basecoin/phase-5-1#1bffb93805167ef4be487c1c673cc2068f6301cc"
 dependencies = [
  "bytes",
  "getrandom 0.2.3",
