@@ -4,11 +4,12 @@ mod ibc;
 pub(crate) use self::bank::Bank;
 pub(crate) use self::ibc::Ibc;
 
-use crate::app::store::{self, Height, Path};
+use crate::app::store::{self, Height, Path, Store};
 
 use flex_error::{define_error, TraceError};
 use prost_types::Any;
 use tendermint_proto::abci::Event;
+use tendermint_proto::crypto::ProofOp;
 
 define_error! {
     #[derive(PartialEq, Eq)]
@@ -28,7 +29,7 @@ define_error! {
 }
 
 /// Module trait
-pub(crate) trait Module {
+pub(crate) trait Module<S: Store> {
     /// Similar to [ABCI CheckTx method](https://docs.tendermint.com/master/spec/abci/abci.html#checktx)
     /// > CheckTx need not execute the transaction in full, but rather a light-weight yet
     /// > stateful validation, like checking signatures and account balances, but not running
@@ -56,10 +57,25 @@ pub(crate) trait Module {
     /// ## Return
     /// * `Error::not_handled()` if message isn't known to OR hasn't been responded to (but possibly intercepted) by this module
     /// * Other errors iff query was meant to be consumed by module but resulted in an error
-    /// * Query result on success
-    fn query(&self, _data: &[u8], _path: Option<&Path>, _height: Height) -> Result<Vec<u8>, Error> {
+    /// * Query result  on success
+    fn query(
+        &self,
+        _data: &[u8],
+        _path: Option<&Path>,
+        _height: Height,
+        _prove: bool,
+    ) -> Result<QueryResult, Error> {
         Err(Error::not_handled())
     }
+
+    fn commit(&mut self) -> Result<Vec<u8>, S::Error>;
+
+    fn store(&self) -> S;
+}
+
+pub struct QueryResult {
+    pub data: Vec<u8>,
+    pub proof: Option<Vec<ProofOp>>,
 }
 
 /// Trait for identifying modules
