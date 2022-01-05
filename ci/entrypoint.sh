@@ -14,7 +14,7 @@ CHAIN_DATA="${HOME}/data"
 HERMES_CONFIG="${HOME}/.hermes/config.toml"
 LOG_DIR=${LOG_DIR:-/var/log/basecoin-rs}
 TESTS_DIR=${TESTS_DIR:-${HOME}/tests}
-DEFAULT_TEST=${DEFAULT_TEST:-${TESTS_DIR}/create-connection.sh}
+DEFAULT_TEST=${DEFAULT_TEST:-${TESTS_DIR}/create-channel.sh}
 
 if [ ! -f "${BASECOIN_SRC}/Cargo.toml" ]; then
   echo "basecoin-rs sources must be mounted into ${BASECOIN_SRC} for this script to work properly."
