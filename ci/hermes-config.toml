@@ -1,0 +1,93 @@
+[global]
+log_level = 'trace'
+
+[[chains]]
+id = 'ibc-0'
+rpc_addr = 'http://127.0.0.1:26657'
+grpc_addr = 'http://127.0.0.1:9090'
+websocket_addr = 'ws://localhost:26657/websocket'
+rpc_timeout = '10s'
+account_prefix = 'cosmos'
+key_name = 'testkey'
+store_prefix = 'ibc'
+gas_price = { price = 0.001, denom = 'stake' }
+clock_drift = '5s'
+trusting_period = '14days'
+
+[chains.trust_threshold]
+numerator = '1'
+denominator = '3'
+
+[[chains]]
+id = 'basecoin-0'
+rpc_addr = 'http://127.0.0.1:26357'
+grpc_addr = 'http://127.0.0.1:9093'
+websocket_addr = 'ws://localhost:26357/websocket'
+rpc_timeout = '10s'
+account_prefix = 'cosmos'
+key_name = 'testkey'
+store_prefix = 'ibc'
+gas_price = { price = 0.001, denom = 'stake' }
+clock_drift = '5s'
+trusting_period = '14days'
+proof_specs = '''
+[
+  {
+    "leaf_spec": {
+      "hash": 1,
+      "prehash_key": 0,
+      "prehash_value": 0,
+      "length": 0,
+      "prefix": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    },
+    "inner_spec": {
+      "child_order": [
+        0,
+        1,
+        2
+      ],
+      "child_size": 32,
+      "min_prefix_length": 0,
+      "max_prefix_length": 64,
+      "empty_child": [
+        0,
+        32
+      ],
+      "hash": 1
+    },
+    "max_depth": 0,
+    "min_depth": 0
+  },
+  {
+    "leaf_spec": {
+      "hash": 1,
+      "prehash_key": 0,
+      "prehash_value": 0,
+      "length": 0,
+      "prefix": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    },
+    "inner_spec": {
+      "child_order": [
+        0,
+        1,
+        2
+      ],
+      "child_size": 32,
+      "min_prefix_length": 0,
+      "max_prefix_length": 64,
+      "empty_child": [
+        0,
+        32
+      ],
+      "hash": 1
+    },
+    "max_depth": 0,
+    "min_depth": 0
+  }
+]
+'''
+
+[chains.trust_threshold]
+numerator = '1'
+denominator = '3'
+
