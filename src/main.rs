@@ -16,6 +16,7 @@ use crate::prostgen::cosmos::staking::v1beta1::query_server::QueryServer as Stak
 use crate::prostgen::cosmos::tx::v1beta1::service_server::ServiceServer as TxServer;
 use crate::prostgen::ibc::core::client::v1::query_server::QueryServer as ClientQueryServer;
 use crate::prostgen::ibc::core::connection::v1::query_server::QueryServer as ConnectionQueryServer;
+use crate::prostgen::ibc::core::port::v1::query_server::QueryServer as PortQueryServer;
 
 use structopt::StructOpt;
 use tendermint_abci::ServerBuilder;
@@ -67,7 +68,8 @@ async fn grpc_serve<S: Default + ProvableStore + 'static>(
         .add_service(StakingQueryServer::new(app.clone()))
         .add_service(TxServer::new(app.clone()))
         .add_service(ClientQueryServer::new(ibc.clone()))
-        .add_service(ConnectionQueryServer::new(ibc))
+        .add_service(ConnectionQueryServer::new(ibc.clone()))
+        .add_service(PortQueryServer::new(ibc))
         .serve(addr)
         .await
         .unwrap()

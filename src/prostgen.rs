@@ -84,6 +84,18 @@ pub mod ibc {
                 include!("prostgen/ibc.core.connection.v1.rs");
             }
         }
+
+        pub mod channel {
+            pub mod v1 {
+                include!("prostgen/ibc.core.channel.v1.rs");
+            }
+        }
+
+        pub mod port {
+            pub mod v1 {
+                include!("prostgen/ibc.core.port.v1.rs");
+            }
+        }
     }
 }
 
