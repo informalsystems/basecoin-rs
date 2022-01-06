@@ -1,5 +1,6 @@
 mod bank;
 mod ibc;
+mod staking;
 
 pub(crate) use self::bank::Bank;
 pub(crate) use self::ibc::Ibc;
