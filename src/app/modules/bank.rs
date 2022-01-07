@@ -1,8 +1,8 @@
 use crate::app::modules::{Error as ModuleError, Module, QueryResult};
-use crate::app::store::{Height, Path, Store, TypedStore};
+use crate::app::store::{Codec, Height, JsonCodec, Path, Store, TypedStore};
 
 use std::collections::HashMap;
-use std::convert::{TryFrom, TryInto};
+use std::convert::TryInto;
 use std::num::ParseIntError;
 use std::str::FromStr;
 
@@ -54,25 +54,6 @@ impl From<Error> for ModuleError {
 #[serde(transparent)]
 pub struct Balances(HashMap<Denom, u64>);
 
-impl From<Balances> for Vec<u8> {
-    fn from(value: Balances) -> Self {
-        serde_json::to_string(&value).unwrap().into() // safety - cannot fail since Balances' Serialize impl doesn't fail
-    }
-}
-
-impl TryFrom<Vec<u8>> for Balances {
-    type Error = Error;
-
-    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
-        if let Ok(json_string) = String::from_utf8(value) {
-            if let Ok(balances) = serde_json::from_str(&json_string) {
-                return Ok(balances);
-            }
-        }
-        Err(Error::store("unmarshalling failed".to_owned()))
-    }
-}
-
 #[derive(Clone)]
 struct AccountsPath(AccountId);
 
@@ -87,8 +68,8 @@ pub struct Bank<S> {
     /// Handle to store instance
     /// The module is guaranteed exclusive access to all paths in the store key-space.
     store: S,
-    ///
-    account_store: TypedStore<S, AccountsPath, Balances>,
+    /// A typed-store for accounts
+    account_store: TypedStore<S, JsonCodec<Balances>, AccountsPath, Balances>,
 }
 
 impl<S: Store> Bank<S> {
@@ -208,7 +189,7 @@ impl<S: Store> Module<S> for Bank<S> {
         {
             None => Err(Error::non_existent_account(account_id).into()),
             Some(balance) => Ok(QueryResult {
-                data: balance.into(),
+                data: JsonCodec::encode(balance).unwrap().into_bytes(),
                 proof: None,
             }),
         }

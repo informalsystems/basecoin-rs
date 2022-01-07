@@ -14,6 +14,7 @@ use std::sync::{Arc, RwLock};
 use flex_error::{define_error, TraceError};
 use ibc::core::ics24_host::{error::ValidationError, validate::validate_identifier};
 use ics23::CommitmentProof;
+use serde::{de::DeserializeOwned, Serialize};
 use std::marker::PhantomData;
 use tracing::trace;
 
@@ -477,33 +478,71 @@ impl<S: ProvableStore> ProvableStore for RevertibleStore<S> {
     }
 }
 
-pub(crate) struct TypedStore<S, K, V> {
-    store: S,
-    phantom: PhantomData<(K, V)>,
+/// A trait that defines how types are decoded/encoded.
+pub(crate) trait Codec<'a> {
+    type In;
+    type Encoded: AsRef<[u8]>;
+    type Out;
+
+    fn encode(d: Self::In) -> Option<Self::Encoded>;
+
+    fn decode(bytes: &'a [u8]) -> Option<Self::Out>;
 }
 
-impl<S: Store, K, V> TypedStore<S, K, V> {
+/// A JSON codec that uses `serde_json` to encode/decode as a JSON string
+pub(crate) struct JsonCodec<T>(PhantomData<T>);
+
+impl<'a, T: Serialize + DeserializeOwned> Codec<'a> for JsonCodec<T> {
+    type In = T;
+    type Encoded = String;
+    type Out = T;
+
+    fn encode(d: Self::In) -> Option<Self::Encoded> {
+        serde_json::to_string(&d).ok()
+    }
+
+    fn decode(bytes: &'a [u8]) -> Option<Self::Out> {
+        let json_string = String::from_utf8(bytes.to_vec()).ok()?;
+        serde_json::from_str(&json_string).ok()
+    }
+}
+
+pub(crate) struct TypedStore<S, C, K, V> {
+    store: S,
+    _codec: PhantomData<C>,
+    _key: PhantomData<K>,
+    _value: PhantomData<V>,
+}
+
+impl<S: Store, C, K, V> TypedStore<S, C, K, V> {
     pub(crate) fn new(store: S) -> Self {
         Self {
             store,
-            phantom: PhantomData,
+            _codec: PhantomData,
+            _key: PhantomData,
+            _value: PhantomData,
         }
     }
 }
 
-impl<'a, S: Store, K: Into<Path> + Clone, V: Into<Vec<u8>> + TryFrom<Vec<u8>>> TypedStore<S, K, V> {
+impl<S, C, K, V> TypedStore<S, C, K, V>
+where
+    S: Store,
+    for<'a> C: Codec<'a, In = V, Out = V>,
+    K: Into<Path> + Clone,
+{
     #[inline]
     pub(crate) fn set(&mut self, path: K, value: V) -> Result<Option<V>, S::Error> {
         self.store
-            .set(path.into(), value.into())
-            .map(|prev_val| prev_val.and_then(|v| V::try_from(v).ok()))
+            .set(path.into(), C::encode(value).unwrap().as_ref().to_vec())
+            .map(|prev_val| prev_val.and_then(|v| C::decode(&v)))
     }
 
     #[inline]
     pub(crate) fn get(&self, height: Height, path: &K) -> Option<V> {
         self.store
             .get(height, &path.clone().into())
-            .and_then(|v| V::try_from(v).ok())
+            .and_then(|v| C::decode(&v))
     }
 }
 
