@@ -1,22 +1,19 @@
 use crate::app::modules::{Error as ModuleError, Module, QueryResult};
-use crate::app::store::{Height, Path, Store};
+use crate::app::store::{Height, Path, Store, TypedStore};
 
 use std::collections::HashMap;
-use std::convert::TryInto;
+use std::convert::{TryFrom, TryInto};
 use std::num::ParseIntError;
 use std::str::FromStr;
 
 use cosmrs::bank::MsgSend;
-use cosmrs::proto;
+use cosmrs::{proto, AccountId};
 use flex_error::{define_error, TraceError};
 use prost::{DecodeError, Message};
 use prost_types::Any;
 use serde::{Deserialize, Serialize};
 use tendermint_proto::abci::Event;
 use tracing::{debug, trace};
-
-/// Unique identifiers for accounts.
-pub type AccountId = String;
 
 /// A currency denomination.
 pub type Denom = String;
@@ -42,7 +39,7 @@ define_error! {
             | _ | { "receiver account funds overflow" },
         Store
             { reason: String }
-            | e | { format!("failed to validate message: {}", e.reason) },
+            | e | { format!("Store error: {}", e.reason) },
     }
 }
 
@@ -57,16 +54,49 @@ impl From<Error> for ModuleError {
 #[serde(transparent)]
 pub struct Balances(HashMap<Denom, u64>);
 
+impl From<Balances> for Vec<u8> {
+    fn from(value: Balances) -> Self {
+        serde_json::to_string(&value).unwrap().into() // safety - cannot fail since Balances' Serialize impl doesn't fail
+    }
+}
+
+impl TryFrom<Vec<u8>> for Balances {
+    type Error = Error;
+
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
+        if let Ok(json_string) = String::from_utf8(value) {
+            if let Ok(balances) = serde_json::from_str(&json_string) {
+                return Ok(balances);
+            }
+        }
+        Err(Error::store("unmarshalling failed".to_owned()))
+    }
+}
+
+#[derive(Clone)]
+struct AccountsPath(AccountId);
+
+impl From<AccountsPath> for Path {
+    fn from(path: AccountsPath) -> Self {
+        format!("accounts/{}", path.0).try_into().unwrap() // safety - cannot fail as AccountsPath is correct-by-construction
+    }
+}
+
 /// The bank module
 pub struct Bank<S> {
     /// Handle to store instance
     /// The module is guaranteed exclusive access to all paths in the store key-space.
     store: S,
+    ///
+    account_store: TypedStore<S, AccountsPath, Balances>,
 }
 
 impl<S: Store> Bank<S> {
     pub fn new(store: S) -> Self {
-        Self { store }
+        Self {
+            store: store.clone(),
+            account_store: TypedStore::new(store),
+        }
     }
 
     fn decode<T: Message + Default>(message: Any) -> Result<T, ModuleError> {
@@ -95,20 +125,19 @@ impl<S: Store> Module<S> for Bank<S> {
             })
             .collect::<Result<Vec<(u64, String)>, Error>>()?;
 
-        let src_path: Path = format!("accounts/{}", message.from_address).try_into()?;
-        let mut src_balances: Balances = match self.store.get(Height::Pending, &src_path) {
-            Some(sb) => serde_json::from_str(&String::from_utf8(sb).unwrap()).unwrap(), // safety - data on the store is assumed to be well-formed
+        let src_path = AccountsPath(message.from_address.clone());
+        let mut src_balances: Balances = match self.account_store.get(Height::Pending, &src_path) {
+            Some(sb) => sb,
             None => {
-                return Err(Error::non_existent_account(message.from_address.to_string()).into());
+                return Err(Error::non_existent_account(message.from_address).into());
             }
         };
 
-        let dst_path: Path = format!("accounts/{}", message.to_address).try_into()?;
+        let dst_path = AccountsPath(message.to_address);
         let mut dst_balances: Balances = self
-            .store
+            .account_store
             .get(Height::Pending, &dst_path)
-            .map(|db| serde_json::from_str(&String::from_utf8(db).unwrap()).unwrap()) // safety - data on the store is assumed to be well-formed
-            .unwrap_or_else(Default::default);
+            .unwrap_or_default();
 
         // TODO(hu55a1n1): extract account related code into the `auth` module
         for (amount, denom) in amounts {
@@ -131,17 +160,11 @@ impl<S: Store> Module<S> for Bank<S> {
         }
 
         // Store the updated account balances
-        self.store
-            .set(
-                src_path,
-                serde_json::to_string(&src_balances).unwrap().into(), // safety - cannot fail since Balances' Serialize impl doesn't fail
-            )
+        self.account_store
+            .set(src_path, src_balances)
             .map_err(|e| Error::store(format!("{:?}", e)))?;
-        self.store
-            .set(
-                dst_path,
-                serde_json::to_string(&dst_balances).unwrap().into(), // safety - cannot fail since Balances' Serialize impl doesn't fail
-            )
+        self.account_store
+            .set(dst_path, dst_balances)
             .map_err(|e| Error::store(format!("{:?}", e)))?;
 
         Ok(vec![])
@@ -151,14 +174,14 @@ impl<S: Store> Module<S> for Bank<S> {
         debug!("Initializing bank module");
 
         // safety - we panic on errors to prevent chain creation with invalid genesis config
-        let accounts: HashMap<AccountId, Balances> = serde_json::from_value(app_state).unwrap();
+        let accounts: HashMap<String, Balances> = serde_json::from_value(app_state).unwrap();
         for account in accounts {
-            let path = format!("accounts/{}", account.0).try_into().unwrap();
-            self.store
-                .set(path, serde_json::to_string(&account.1).unwrap().into())
-                .unwrap();
+            trace!("Adding account ({}) => {:?}", account.0, account.1);
 
-            trace!("Added account ({}) => {:?}", account.0, account.1);
+            let account_id = AccountId::from_str(&account.0).unwrap();
+            self.account_store
+                .set(AccountsPath(account_id), account.1)
+                .unwrap();
         }
     }
 
@@ -174,13 +197,18 @@ impl<S: Store> Module<S> for Bank<S> {
             _ => return Err(ModuleError::not_handled()),
         };
 
+        let account_id =
+            AccountId::from_str(&account_id).map_err(|_| ModuleError::not_handled())?;
+
         trace!("Attempting to get account ID: {}", account_id);
 
-        let path = format!("accounts/{}", account_id).try_into().unwrap(); // safety - account_id is a valid identifier
-        match self.store.get(height, &path) {
+        match self
+            .account_store
+            .get(height, &AccountsPath(account_id.clone()))
+        {
             None => Err(Error::non_existent_account(account_id).into()),
             Some(balance) => Ok(QueryResult {
-                data: balance,
+                data: balance.into(),
                 proof: None,
             }),
         }
