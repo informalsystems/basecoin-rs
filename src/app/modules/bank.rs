@@ -1,5 +1,5 @@
 use crate::app::modules::{Error as ModuleError, Module, QueryResult};
-use crate::app::store::{Codec, Height, JsonCodec, Path, Store, TypedStore};
+use crate::app::store::{Codec, Height, JsonCodec, JsonStore, Path, Store};
 
 use std::collections::HashMap;
 use std::convert::TryInto;
@@ -69,14 +69,14 @@ pub struct Bank<S> {
     /// The module is guaranteed exclusive access to all paths in the store key-space.
     store: S,
     /// A typed-store for accounts
-    account_store: TypedStore<S, JsonCodec<Balances>, AccountsPath, Balances>,
+    account_store: JsonStore<S, AccountsPath, Balances>,
 }
 
 impl<S: Store> Bank<S> {
     pub fn new(store: S) -> Self {
         Self {
             store: store.clone(),
-            account_store: TypedStore::new(store),
+            account_store: JsonStore::new(store),
         }
     }
 

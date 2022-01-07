@@ -18,6 +18,9 @@ use serde::{de::DeserializeOwned, Serialize};
 use std::marker::PhantomData;
 use tracing::trace;
 
+/// A `TypedStore` that uses the `JsonCodec`
+pub(crate) type JsonStore<S, K, V> = TypedStore<S, JsonCodec<V>, K, V>;
+
 /// A newtype representing a valid ICS024 identifier.
 /// Implements `Deref<Target=String>`.
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Clone)]
