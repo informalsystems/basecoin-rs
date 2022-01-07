@@ -14,6 +14,7 @@ use std::sync::{Arc, RwLock};
 use flex_error::{define_error, TraceError};
 use ibc::core::ics24_host::{error::ValidationError, validate::validate_identifier};
 use ics23::CommitmentProof;
+use std::marker::PhantomData;
 use tracing::trace;
 
 /// A newtype representing a valid ICS024 identifier.
@@ -473,6 +474,36 @@ impl<S: ProvableStore> ProvableStore for RevertibleStore<S> {
     #[inline]
     fn get_proof(&self, height: Height, key: &Path) -> Option<CommitmentProof> {
         self.store.get_proof(height, key)
+    }
+}
+
+pub(crate) struct TypedStore<S, K, V> {
+    store: S,
+    phantom: PhantomData<(K, V)>,
+}
+
+impl<S: Store, K, V> TypedStore<S, K, V> {
+    pub(crate) fn new(store: S) -> Self {
+        Self {
+            store,
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<'a, S: Store, K: Into<Path> + Clone, V: Into<Vec<u8>> + TryFrom<Vec<u8>>> TypedStore<S, K, V> {
+    #[inline]
+    pub(crate) fn set(&mut self, path: K, value: V) -> Result<Option<V>, S::Error> {
+        self.store
+            .set(path.into(), value.into())
+            .map(|prev_val| prev_val.and_then(|v| V::try_from(v).ok()))
+    }
+
+    #[inline]
+    pub(crate) fn get(&self, height: Height, path: &K) -> Option<V> {
+        self.store
+            .get(height, &path.clone().into())
+            .and_then(|v| V::try_from(v).ok())
     }
 }
 
