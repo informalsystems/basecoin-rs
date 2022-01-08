@@ -492,7 +492,7 @@ pub(crate) trait Codec<'a> {
     type Type;
     type Encoded: AsRef<[u8]>;
 
-    fn encode(d: Self::Type) -> Option<Self::Encoded>;
+    fn encode(d: &'a Self::Type) -> Option<Self::Encoded>;
 
     fn decode(bytes: &'a [u8]) -> Option<Self::Type>;
 }
@@ -504,8 +504,8 @@ impl<'a, T: Serialize + DeserializeOwned> Codec<'a> for JsonCodec<T> {
     type Type = T;
     type Encoded = String;
 
-    fn encode(d: Self::Type) -> Option<Self::Encoded> {
-        serde_json::to_string(&d).ok()
+    fn encode(d: &'a Self::Type) -> Option<Self::Encoded> {
+        serde_json::to_string(d).ok()
     }
 
     fn decode(bytes: &'a [u8]) -> Option<Self::Type> {
@@ -541,7 +541,7 @@ where
     #[inline]
     pub(crate) fn set(&mut self, path: K, value: V) -> Result<Option<V>, S::Error> {
         self.store
-            .set(path.into(), C::encode(value).unwrap().as_ref().to_vec())
+            .set(path.into(), C::encode(&value).unwrap().as_ref().to_vec())
             .map(|prev_val| prev_val.and_then(|v| C::decode(&v)))
     }
 

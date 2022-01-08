@@ -194,7 +194,7 @@ impl<S: Store> Module<S> for Bank<S> {
         {
             None => Err(Error::non_existent_account(account_id).into()),
             Some(balance) => Ok(QueryResult {
-                data: JsonCodec::encode(balance).unwrap().into_bytes(),
+                data: JsonCodec::encode(&balance).unwrap().into_bytes(),
                 proof: None,
             }),
         }
