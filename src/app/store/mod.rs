@@ -489,28 +489,26 @@ impl<S: ProvableStore> ProvableStore for RevertibleStore<S> {
 
 /// A trait that defines how types are decoded/encoded.
 pub(crate) trait Codec<'a> {
-    type In;
+    type Type;
     type Encoded: AsRef<[u8]>;
-    type Out;
 
-    fn encode(d: Self::In) -> Option<Self::Encoded>;
+    fn encode(d: Self::Type) -> Option<Self::Encoded>;
 
-    fn decode(bytes: &'a [u8]) -> Option<Self::Out>;
+    fn decode(bytes: &'a [u8]) -> Option<Self::Type>;
 }
 
 /// A JSON codec that uses `serde_json` to encode/decode as a JSON string
 pub(crate) struct JsonCodec<T>(PhantomData<T>);
 
 impl<'a, T: Serialize + DeserializeOwned> Codec<'a> for JsonCodec<T> {
-    type In = T;
+    type Type = T;
     type Encoded = String;
-    type Out = T;
 
-    fn encode(d: Self::In) -> Option<Self::Encoded> {
+    fn encode(d: Self::Type) -> Option<Self::Encoded> {
         serde_json::to_string(&d).ok()
     }
 
-    fn decode(bytes: &'a [u8]) -> Option<Self::Out> {
+    fn decode(bytes: &'a [u8]) -> Option<Self::Type> {
         let json_string = String::from_utf8(bytes.to_vec()).ok()?;
         serde_json::from_str(&json_string).ok()
     }
@@ -537,7 +535,7 @@ impl<S: Store, C, K, V> TypedStore<S, C, K, V> {
 impl<S, C, K, V> TypedStore<S, C, K, V>
 where
     S: Store,
-    for<'a> C: Codec<'a, In = V, Out = V>,
+    for<'a> C: Codec<'a, Type = V>,
     K: Into<Path> + Clone,
 {
     #[inline]
