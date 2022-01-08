@@ -55,7 +55,7 @@ type Shared<T> = Arc<RwLock<T>>;
 #[derive(Clone)]
 pub(crate) struct BaseCoinApp<S> {
     store: MainStore<S>,
-    pub modules: Shared<Vec<Box<dyn Module<ModuleStore<S>> + Send + Sync>>>,
+    modules: Shared<Vec<Box<dyn Module<ModuleStore<S>>>>>,
     account: Shared<BaseAccount>, // TODO(hu55a1n1): get from user and move to provable store
 }
 
@@ -64,7 +64,7 @@ impl<S: Default + ProvableStore + 'static> BaseCoinApp<S> {
     pub(crate) fn new(store: S) -> Result<Self, S::Error> {
         let store = SharedStore::new(RevertibleStore::new(store));
         // `SubStore` guarantees modules exclusive access to all paths in the store key-space.
-        let modules: Vec<Box<dyn Module<ModuleStore<S>> + Send + Sync>> = vec![
+        let modules: Vec<Box<dyn Module<ModuleStore<S>>>> = vec![
             Box::new(Bank::new(SubStore::new(
                 store.clone(),
                 prefix::Bank {}.identifier(),
@@ -83,9 +83,11 @@ impl<S: Default + ProvableStore + 'static> BaseCoinApp<S> {
 }
 
 impl<S: Default + ProvableStore> BaseCoinApp<S> {
-    pub(crate) fn get_store(&self, prefix: Identifier) -> Option<ModuleStore<S>> {
+    pub(crate) fn get_store(&self, prefix: Identifier) -> Option<SharedStore<ModuleStore<S>>> {
         let modules = self.modules.read().unwrap();
-        let module = modules.iter().find(|m| m.store().prefix() == prefix);
+        let module = modules
+            .iter()
+            .find(|m| m.store().read().unwrap().prefix() == prefix);
         module.map(|m| m.store())
     }
 

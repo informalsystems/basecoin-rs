@@ -1,5 +1,5 @@
 use crate::app::modules::{Error as ModuleError, Identifiable, Module, QueryResult};
-use crate::app::store::{Height, Path, ProvableStore, Store};
+use crate::app::store::{Height, Path, ProvableStore, SharedStore, Store};
 use crate::prostgen::ibc::core::client::v1::{
     query_server::Query as ClientQuery, ConsensusStateWithHeight, Height as RawHeight,
     QueryClientParamsRequest, QueryClientParamsResponse, QueryClientStateRequest,
@@ -85,7 +85,7 @@ impl From<IbcPath> for Path {
 pub struct Ibc<S> {
     /// Handle to store instance.
     /// The module is guaranteed exclusive access to all paths in the store key-space.
-    store: S,
+    store: SharedStore<S>,
     /// Counter for clients
     client_counter: u64,
     /// Counter for connections
@@ -95,7 +95,7 @@ pub struct Ibc<S> {
 impl<S: ProvableStore> Ibc<S> {
     pub fn new(store: S) -> Self {
         Self {
-            store,
+            store: SharedStore::new(store),
             client_counter: 0,
             conn_counter: 0,
         }
@@ -654,7 +654,7 @@ impl<S: ProvableStore> Module<S> for Ibc<S> {
         self.store.commit()
     }
 
-    fn store(&self) -> S {
+    fn store(&self) -> SharedStore<S> {
         self.store.clone()
     }
 }

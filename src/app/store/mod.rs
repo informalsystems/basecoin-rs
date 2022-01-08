@@ -230,8 +230,10 @@ impl<S: Default + ProvableStore> SubStore<S> {
     }
 
     #[inline]
-    pub(crate) fn typed_store<C, K, V>(&self) -> TypedStore<Self, C, K, V> {
-        TypedStore::new(self.clone())
+    pub(crate) fn typed_store<C, K, V>(
+        store: SharedStore<SubStore<S>>,
+    ) -> TypedStore<SharedStore<SubStore<S>>, C, K, V> {
+        TypedStore::new(store)
     }
 
     #[inline]
@@ -542,7 +544,7 @@ pub(crate) struct TypedStore<S, C, K, V> {
     _value: PhantomData<V>,
 }
 
-impl<S: Store, C, K, V> TypedStore<S, C, K, V> {
+impl<S, C, K, V> TypedStore<S, C, K, V> {
     fn new(store: S) -> Self {
         Self {
             store,

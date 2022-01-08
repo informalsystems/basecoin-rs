@@ -1,6 +1,6 @@
 use crate::app::modules::{Error as ModuleError, Module, QueryResult};
 use crate::app::store::{
-    Codec, Height, JsonCodec, JsonStore, Path, ProvableStore, Store, SubStore,
+    Codec, Height, JsonCodec, JsonStore, Path, ProvableStore, SharedStore, Store, SubStore,
 };
 
 use std::collections::HashMap;
@@ -69,17 +69,17 @@ impl From<AccountsPath> for Path {
 pub struct Bank<S> {
     /// Handle to store instance
     /// The module is guaranteed exclusive access to all paths in the store key-space.
-    store: S,
+    store: SharedStore<S>,
     /// A typed-store for accounts
-    account_store: JsonStore<S, AccountsPath, Balances>,
+    account_store: JsonStore<SharedStore<S>, AccountsPath, Balances>,
 }
 
 impl<S: ProvableStore + Default> Bank<SubStore<S>> {
     pub fn new(store: SubStore<S>) -> Self {
-        let account_store = store.typed_store();
+        let store = SharedStore::new(store);
         Self {
-            store,
-            account_store,
+            store: store.clone(),
+            account_store: SubStore::typed_store(store),
         }
     }
 }
@@ -93,7 +93,7 @@ impl<S: Store> Bank<S> {
     }
 }
 
-impl<S: Store> Module<S> for Bank<S> {
+impl<S: ProvableStore> Module<S> for Bank<S> {
     fn deliver(&mut self, message: Any) -> Result<Vec<Event>, ModuleError> {
         let message: MsgSend = Self::decode::<proto::cosmos::bank::v1beta1::MsgSend>(message)?
             .try_into()
@@ -204,7 +204,7 @@ impl<S: Store> Module<S> for Bank<S> {
         self.store.commit()
     }
 
-    fn store(&self) -> S {
+    fn store(&self) -> SharedStore<S> {
         self.store.clone()
     }
 }
