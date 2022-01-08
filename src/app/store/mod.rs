@@ -233,9 +233,8 @@ impl<S: Default + ProvableStore> SubStore<S> {
     pub(crate) fn typed_store<C, K, V>(&self) -> TypedStore<Self, C, K, V> {
         TypedStore::new(self.clone())
     }
-}
 
-impl<S: Default + ProvableStore> SubStore<S> {
+    #[inline]
     fn update_main_store_commitment(&mut self) -> Result<Option<Vec<u8>>, S::Error> {
         self.main_store
             .set(Path::from(self.prefix.clone()), self.sub_store.root_hash())
