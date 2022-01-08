@@ -1,5 +1,7 @@
 use crate::app::modules::{Error as ModuleError, Module, QueryResult};
-use crate::app::store::{Codec, Height, JsonCodec, JsonStore, Path, Store};
+use crate::app::store::{
+    Codec, Height, JsonCodec, JsonStore, Path, ProvableStore, Store, SubStore,
+};
 
 use std::collections::HashMap;
 use std::convert::TryInto;
@@ -72,14 +74,17 @@ pub struct Bank<S> {
     account_store: JsonStore<S, AccountsPath, Balances>,
 }
 
-impl<S: Store> Bank<S> {
-    pub fn new(store: S) -> Self {
+impl<S: ProvableStore + Default> Bank<SubStore<S>> {
+    pub fn new(store: SubStore<S>) -> Self {
+        let account_store = store.typed_store();
         Self {
-            store: store.clone(),
-            account_store: JsonStore::new(store),
+            store,
+            account_store,
         }
     }
+}
 
+impl<S: Store> Bank<S> {
     fn decode<T: Message + Default>(message: Any) -> Result<T, ModuleError> {
         if message.type_url != "/cosmos.bank.v1beta1.MsgSend" {
             return Err(ModuleError::not_handled());

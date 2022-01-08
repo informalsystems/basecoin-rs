@@ -221,8 +221,14 @@ impl<S: Default + ProvableStore> SubStore<S> {
         Ok(sub_store)
     }
 
+    #[inline]
     pub(crate) fn prefix(&self) -> Identifier {
         self.prefix.clone()
+    }
+
+    #[inline]
+    pub(crate) fn typed_store<C, K, V>(&self) -> TypedStore<Self, C, K, V> {
+        TypedStore::new(self.clone())
     }
 }
 
@@ -518,7 +524,7 @@ pub(crate) struct TypedStore<S, C, K, V> {
 }
 
 impl<S: Store, C, K, V> TypedStore<S, C, K, V> {
-    pub(crate) fn new(store: S) -> Self {
+    fn new(store: S) -> Self {
         Self {
             store,
             _codec: PhantomData,
