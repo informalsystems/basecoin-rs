@@ -1,5 +1,5 @@
 use crate::app::modules::{Error as ModuleError, Identifiable, Module, QueryResult};
-use crate::app::store::{Height, Path, ProvableStore, SharedStore, Store};
+use crate::app::store::{Height, JsonStore, Path, ProvableStore, SharedStore, Store, SubStore};
 use crate::prostgen::ibc::core::client::v1::{
     query_server::Query as ClientQuery, ConsensusStateWithHeight, Height as RawHeight,
     QueryClientParamsRequest, QueryClientParamsResponse, QueryClientStateRequest,
@@ -90,17 +90,28 @@ pub struct Ibc<S> {
     client_counter: u64,
     /// Counter for connections
     conn_counter: u64,
+    /// A typed-store for ClientType
+    client_type_store: JsonStore<SharedStore<S>, IbcPath, ClientType>,
+    /// A typed-store for AnyClientState
+    client_state_store: JsonStore<SharedStore<S>, IbcPath, AnyClientState>,
+    /// A typed-store for ConnectionEnd
+    connection_end_store: JsonStore<SharedStore<S>, IbcPath, ConnectionEnd>,
+}
+
+impl<S: ProvableStore + Default> Ibc<SubStore<S>> {
+    pub fn new(store: SharedStore<SubStore<S>>) -> Self {
+        Self {
+            store: store.clone(),
+            client_counter: 0,
+            conn_counter: 0,
+            client_type_store: SubStore::typed_store(store.clone()),
+            client_state_store: SubStore::typed_store(store.clone()),
+            connection_end_store: SubStore::typed_store(store),
+        }
+    }
 }
 
 impl<S: ProvableStore> Ibc<S> {
-    pub fn new(store: S) -> Self {
-        Self {
-            store: SharedStore::new(store),
-            client_counter: 0,
-            conn_counter: 0,
-        }
-    }
-
     fn get_proof(&self, height: Height, path: &Path) -> Option<Vec<u8>> {
         if let Some(p) = self.store.get_proof(height, path) {
             let mut buffer = Vec::new();
@@ -114,24 +125,15 @@ impl<S: ProvableStore> Ibc<S> {
 
 impl<S: Store> ClientReader for Ibc<S> {
     fn client_type(&self, client_id: &ClientId) -> Result<ClientType, ClientError> {
-        let path = IbcPath::ClientType(client_id.clone());
-        self.store
-            .get(Height::Pending, &path.into())
-            // safety - data on the store is assumed to be well-formed
-            .map(|v| serde_json::from_str(&String::from_utf8(v).unwrap()).unwrap())
+        self.client_type_store
+            .get(Height::Pending, &IbcPath::ClientType(client_id.clone()))
             .ok_or_else(ClientError::implementation_specific)
     }
 
     fn client_state(&self, client_id: &ClientId) -> Result<AnyClientState, ClientError> {
-        let path = IbcPath::ClientState(client_id.clone());
-        let value = self
-            .store
-            .get(Height::Pending, &path.into())
-            .ok_or_else(ClientError::implementation_specific)?;
-        let client_state = Any::decode(value.as_slice());
-        client_state
-            .map_err(|_| ClientError::implementation_specific())
-            .map(|v| v.try_into().unwrap()) // safety - data on the store is assumed to be well-formed
+        self.client_state_store
+            .get(Height::Pending, &IbcPath::ClientState(client_id.clone()))
+            .ok_or_else(ClientError::implementation_specific)
     }
 
     fn consensus_state(
@@ -245,14 +247,10 @@ impl<S: Store> ClientKeeper for Ibc<S> {
         client_id: ClientId,
         client_type: ClientType,
     ) -> Result<(), ClientError> {
-        let path = IbcPath::ClientType(client_id);
-        self.store
-            .set(
-                path.into(),
-                serde_json::to_string(&client_type).unwrap().into(),
-            ) // safety - cannot fail since ClientType's Serialize impl doesn't fail
-            .map_err(|_| ClientError::implementation_specific())?;
-        Ok(())
+        self.client_type_store
+            .set(IbcPath::ClientType(client_id), client_type)
+            .map(|_| ())
+            .map_err(|_| ClientError::implementation_specific())
     }
 
     fn store_client_state(
@@ -260,16 +258,10 @@ impl<S: Store> ClientKeeper for Ibc<S> {
         client_id: ClientId,
         client_state: AnyClientState,
     ) -> Result<(), ClientError> {
-        let data: Any = client_state.into();
-        let mut buffer = Vec::new();
-        data.encode(&mut buffer)
-            .map_err(|e| ClientError::unknown_client_type(e.to_string()))?;
-
-        let path = IbcPath::ClientState(client_id);
-        self.store
-            .set(path.into(), buffer)
-            .map_err(|_| ClientError::implementation_specific())?;
-        Ok(())
+        self.client_state_store
+            .set(IbcPath::ClientState(client_id), client_state)
+            .map(|_| ())
+            .map_err(|_| ClientError::implementation_specific())
     }
 
     fn store_consensus_state(
@@ -301,15 +293,9 @@ impl<S: Store> ClientKeeper for Ibc<S> {
 
 impl<S: Store> ConnectionReader for Ibc<S> {
     fn connection_end(&self, conn_id: &ConnectionId) -> Result<ConnectionEnd, ConnectionError> {
-        let path = IbcPath::Connections(conn_id.clone());
-        let value = self
-            .store
-            .get(Height::Pending, &path.into())
-            .ok_or_else(ConnectionError::implementation_specific)?;
-        let connection_end = IbcRawConnectionEnd::decode(value.as_slice());
-        connection_end
-            .map_err(|_| ConnectionError::implementation_specific())
-            .map(|v| v.try_into().unwrap()) // safety - data on the store is assumed to be well-formed
+        self.connection_end_store
+            .get(Height::Pending, &IbcPath::Connections(conn_id.clone()))
+            .ok_or_else(ConnectionError::implementation_specific)
     }
 
     fn client_state(&self, client_id: &ClientId) -> Result<AnyClientState, ConnectionError> {
@@ -360,14 +346,8 @@ impl<S: Store> ConnectionKeeper for Ibc<S> {
         connection_id: ConnectionId,
         connection_end: &ConnectionEnd,
     ) -> Result<(), ConnectionError> {
-        let data: IbcRawConnectionEnd = connection_end.clone().into();
-        let mut buffer = Vec::new();
-        data.encode(&mut buffer)
-            .map_err(|_| ConnectionError::implementation_specific())?;
-
-        let path = IbcPath::Connections(connection_id);
-        self.store
-            .set(path.into(), buffer)
+        self.connection_end_store
+            .set(IbcPath::Connections(connection_id), connection_end.clone())
             .map_err(|_| ConnectionError::implementation_specific())?;
         Ok(())
     }

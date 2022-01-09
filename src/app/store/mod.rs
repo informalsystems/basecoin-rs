@@ -21,9 +21,6 @@ use tracing::trace;
 /// A `TypedStore` that uses the `JsonCodec`
 pub(crate) type JsonStore<S, K, V> = TypedStore<S, JsonCodec<V>, K, V>;
 
-/// A `TypedStore` that uses the `ProtobufCodec`
-pub(crate) type ProtobufStore<S, K, V> = TypedStore<S, ProtobufCodec<V>, K, V>;
-
 /// A newtype representing a valid ICS024 identifier.
 /// Implements `Deref<Target=String>`.
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Clone)]
@@ -516,23 +513,6 @@ impl<'a, T: Serialize + DeserializeOwned> Codec<'a> for JsonCodec<T> {
     fn decode(bytes: &'a [u8]) -> Option<Self::Type> {
         let json_string = String::from_utf8(bytes.to_vec()).ok()?;
         serde_json::from_str(&json_string).ok()
-    }
-}
-
-/// A ProtoBuf codec that uses protobuf for serde
-#[derive(Clone)]
-pub(crate) struct ProtobufCodec<T>(PhantomData<T>);
-
-impl<'a, T: prost::Message + Default> Codec<'a> for ProtobufCodec<T> {
-    type Type = T;
-    type Encoded = Vec<u8>;
-
-    fn encode(d: &'a Self::Type) -> Option<Self::Encoded> {
-        Some(prost::Message::encode_to_vec(d))
-    }
-
-    fn decode(bytes: &'a [u8]) -> Option<Self::Type> {
-        prost::Message::decode(bytes).ok()
     }
 }
 

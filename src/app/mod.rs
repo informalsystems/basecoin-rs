@@ -65,14 +65,14 @@ impl<S: Default + ProvableStore + 'static> BaseCoinApp<S> {
         let store = SharedStore::new(RevertibleStore::new(store));
         // `SubStore` guarantees modules exclusive access to all paths in the store key-space.
         let modules: Vec<Box<dyn Module<ModuleStore<S>>>> = vec![
-            Box::new(Bank::new(SubStore::new(
+            Box::new(Bank::new(SharedStore::new(SubStore::new(
                 store.clone(),
                 prefix::Bank {}.identifier(),
-            )?)),
-            Box::new(Ibc::new(SubStore::new(
+            )?))),
+            Box::new(Ibc::new(SharedStore::new(SubStore::new(
                 store.clone(),
                 prefix::Ibc {}.identifier(),
-            )?)),
+            )?))),
         ];
         Ok(Self {
             store,

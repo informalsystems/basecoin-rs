@@ -75,8 +75,7 @@ pub struct Bank<S> {
 }
 
 impl<S: ProvableStore + Default> Bank<SubStore<S>> {
-    pub fn new(store: SubStore<S>) -> Self {
-        let store = SharedStore::new(store);
+    pub fn new(store: SharedStore<SubStore<S>>) -> Self {
         Self {
             store: store.clone(),
             account_store: SubStore::typed_store(store),
