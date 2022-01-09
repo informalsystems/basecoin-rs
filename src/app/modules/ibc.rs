@@ -1,5 +1,7 @@
 use crate::app::modules::{Error as ModuleError, Identifiable, Module, QueryResult};
-use crate::app::store::{Height, JsonStore, Path, ProvableStore, SharedStore, Store, TypedStore};
+use crate::app::store::{
+    Height, JsonStore, Path, ProtobufStore, ProvableStore, SharedStore, Store, TypedStore,
+};
 use crate::prostgen::ibc::core::client::v1::{
     query_server::Query as ClientQuery, ConsensusStateWithHeight, Height as RawHeight,
     QueryClientParamsRequest, QueryClientParamsResponse, QueryClientStateRequest,
@@ -93,9 +95,10 @@ pub struct Ibc<S> {
     /// A typed-store for ClientType
     client_type_store: JsonStore<SharedStore<S>, IbcPath, ClientType>,
     /// A typed-store for AnyClientState
-    client_state_store: JsonStore<SharedStore<S>, IbcPath, AnyClientState>,
+    client_state_store: ProtobufStore<SharedStore<S>, IbcPath, AnyClientState, Any>,
     /// A typed-store for ConnectionEnd
-    connection_end_store: JsonStore<SharedStore<S>, IbcPath, ConnectionEnd>,
+    connection_end_store:
+        ProtobufStore<SharedStore<S>, IbcPath, ConnectionEnd, IbcRawConnectionEnd>,
 }
 
 impl<S: ProvableStore + Default> Ibc<S> {
