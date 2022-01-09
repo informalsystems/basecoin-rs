@@ -40,12 +40,6 @@ impl Identifier {
         // empty inputs and returns an error as appropriate
         validate_identifier(s, 0, s.len()).map_err(|v| Error::invalid_identifier(s.to_string(), v))
     }
-
-    #[inline]
-    fn unprefixed_path(&self, path: &Path) -> Path {
-        // FIXME(hu55a1n1)
-        path.clone()
-    }
 }
 
 impl Deref for Identifier {
@@ -196,116 +190,9 @@ pub trait ProvableStore: Store {
     fn get_proof(&self, height: Height, key: &Path) -> Option<ics23::CommitmentProof>;
 }
 
-/// A wrapper store that implements a prefixed key-space for other shared stores
-#[derive(Clone)]
-pub(crate) struct SubStore<S> {
-    /// main store - used to stores a commitment to this sub-store at path `<prefix>`
-    main_store: S,
-    /// sub store - the underlying store that actually holds the KV pairs for this sub-store
-    sub_store: S,
-    /// prefix for key-space
-    prefix: Identifier,
-    /// boolean to keep track of changes to know when to update commitment in main-store
-    dirty: bool,
-}
-
-impl<S: Default + ProvableStore> SubStore<S> {
-    pub(crate) fn new(store: S, prefix: Identifier) -> Result<Self, S::Error> {
-        let mut sub_store = Self {
-            main_store: store,
-            sub_store: S::default(),
-            prefix,
-            dirty: false,
-        };
-        sub_store.update_main_store_commitment()?;
-        Ok(sub_store)
-    }
-
-    #[inline]
-    pub(crate) fn prefix(&self) -> Identifier {
-        self.prefix.clone()
-    }
-
-    #[inline]
-    pub(crate) fn typed_store<C, K, V>(
-        store: SharedStore<SubStore<S>>,
-    ) -> TypedStore<SharedStore<SubStore<S>>, C, K, V> {
-        TypedStore::new(store)
-    }
-
-    #[inline]
-    fn update_main_store_commitment(&mut self) -> Result<Option<Vec<u8>>, S::Error> {
-        self.main_store
-            .set(Path::from(self.prefix.clone()), self.sub_store.root_hash())
-    }
-}
-
-impl<S> Store for SubStore<S>
-where
-    S: Default + ProvableStore,
-{
-    type Error = S::Error;
-
-    #[inline]
-    fn set(&mut self, path: Path, value: Vec<u8>) -> Result<Option<Vec<u8>>, Self::Error> {
-        self.dirty = true;
-        self.sub_store
-            .set(self.prefix.unprefixed_path(&path), value)
-    }
-
-    #[inline]
-    fn get(&self, height: Height, path: &Path) -> Option<Vec<u8>> {
-        self.sub_store
-            .get(height, &self.prefix.unprefixed_path(path))
-    }
-
-    #[inline]
-    fn delete(&mut self, path: &Path) {
-        self.dirty = true;
-        self.sub_store.delete(&self.prefix.unprefixed_path(path))
-    }
-
-    #[inline]
-    fn commit(&mut self) -> Result<Vec<u8>, Self::Error> {
-        let root_hash = self.sub_store.commit()?;
-        if self.dirty {
-            self.dirty = false;
-            self.update_main_store_commitment()?;
-        }
-        Ok(root_hash)
-    }
-
-    #[inline]
-    fn current_height(&self) -> RawHeight {
-        self.sub_store.current_height()
-    }
-
-    #[inline]
-    fn get_keys(&self, key_prefix: &Path) -> Vec<Path> {
-        self.sub_store
-            .get_keys(&self.prefix.unprefixed_path(key_prefix))
-    }
-}
-
-impl<S> ProvableStore for SubStore<S>
-where
-    S: Default + ProvableStore,
-{
-    #[inline]
-    fn root_hash(&self) -> Vec<u8> {
-        self.sub_store.root_hash()
-    }
-
-    #[inline]
-    fn get_proof(&self, height: Height, key: &Path) -> Option<CommitmentProof> {
-        self.sub_store
-            .get_proof(height, &self.prefix.unprefixed_path(key))
-    }
-}
-
 /// Wraps a store to make it shareable by cloning
 #[derive(Clone)]
-pub(crate) struct SharedStore<S>(Arc<RwLock<S>>);
+pub struct SharedStore<S>(Arc<RwLock<S>>);
 
 impl<S> SharedStore<S> {
     pub(crate) fn new(store: S) -> Self {
@@ -524,8 +411,14 @@ pub(crate) struct TypedStore<S, C, K, V> {
     _value: PhantomData<V>,
 }
 
-impl<S, C, K, V> TypedStore<S, C, K, V> {
-    fn new(store: S) -> Self {
+impl<S, C, K, V> TypedStore<S, C, K, V>
+where
+    S: Store,
+    for<'a> C: Codec<'a, Type = V>,
+    K: Into<Path> + Clone,
+{
+    #[inline]
+    pub(crate) fn new(store: S) -> Self {
         Self {
             store,
             _codec: PhantomData,
@@ -533,14 +426,7 @@ impl<S, C, K, V> TypedStore<S, C, K, V> {
             _value: PhantomData,
         }
     }
-}
 
-impl<S, C, K, V> TypedStore<S, C, K, V>
-where
-    S: Store,
-    for<'a> C: Codec<'a, Type = V>,
-    K: Into<Path> + Clone,
-{
     #[inline]
     pub(crate) fn set(&mut self, path: K, value: V) -> Result<Option<V>, S::Error> {
         self.store

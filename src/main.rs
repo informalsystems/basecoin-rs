@@ -58,7 +58,7 @@ async fn grpc_serve<S: Default + ProvableStore + 'static>(
 ) {
     let addr = format!("{}:{}", host, port).parse().unwrap();
 
-    let ibc = Ibc::new(app.get_store(prefix::Ibc {}.identifier()).unwrap());
+    let ibc = Ibc::new(app.get_store(&prefix::Ibc {}.identifier()).unwrap());
 
     // TODO(hu55a1n1): implement these services for `auth` and `staking` modules
     Server::builder()

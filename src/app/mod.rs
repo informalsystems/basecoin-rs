@@ -7,7 +7,7 @@ pub(crate) mod store;
 use crate::app::modules::{prefix, Bank, Error, ErrorDetail, Ibc, Identifiable, Module};
 use crate::app::response::ResponseFromErrorExt;
 use crate::app::store::{
-    Height, Identifier, Path, ProvableStore, RevertibleStore, SharedStore, Store, SubStore,
+    Height, Identifier, Path, ProvableStore, RevertibleStore, SharedStore, Store,
 };
 use crate::prostgen::cosmos::auth::v1beta1::{
     query_server::Query as AuthQuery, BaseAccount, QueryAccountRequest, QueryAccountResponse,
@@ -46,7 +46,8 @@ use tonic::{Request, Response, Status};
 use tracing::{debug, info};
 
 type MainStore<S> = SharedStore<RevertibleStore<S>>;
-type ModuleStore<S> = SubStore<MainStore<S>>;
+type ModuleStore<S> = RevertibleStore<S>;
+type ModuleList<S> = Vec<(Identifier, Box<dyn Module<ModuleStore<S>>>)>;
 type Shared<T> = Arc<RwLock<T>>;
 
 /// BaseCoin ABCI application.
@@ -55,7 +56,7 @@ type Shared<T> = Arc<RwLock<T>>;
 #[derive(Clone)]
 pub(crate) struct BaseCoinApp<S> {
     store: MainStore<S>,
-    modules: Shared<Vec<Box<dyn Module<ModuleStore<S>>>>>,
+    modules: Shared<ModuleList<S>>,
     account: Shared<BaseAccount>, // TODO(hu55a1n1): get from user and move to provable store
 }
 
@@ -63,16 +64,16 @@ impl<S: Default + ProvableStore + 'static> BaseCoinApp<S> {
     /// Constructor.
     pub(crate) fn new(store: S) -> Result<Self, S::Error> {
         let store = SharedStore::new(RevertibleStore::new(store));
-        // `SubStore` guarantees modules exclusive access to all paths in the store key-space.
-        let modules: Vec<Box<dyn Module<ModuleStore<S>>>> = vec![
-            Box::new(Bank::new(SharedStore::new(SubStore::new(
-                store.clone(),
+        let module_store = RevertibleStore::new(S::default());
+        let modules: ModuleList<S> = vec![
+            (
                 prefix::Bank {}.identifier(),
-            )?))),
-            Box::new(Ibc::new(SharedStore::new(SubStore::new(
-                store.clone(),
+                Box::new(Bank::new(SharedStore::new(module_store.clone()))),
+            ),
+            (
                 prefix::Ibc {}.identifier(),
-            )?))),
+                Box::new(Ibc::new(SharedStore::new(module_store))),
+            ),
         ];
         Ok(Self {
             store,
@@ -83,12 +84,12 @@ impl<S: Default + ProvableStore + 'static> BaseCoinApp<S> {
 }
 
 impl<S: Default + ProvableStore> BaseCoinApp<S> {
-    pub(crate) fn get_store(&self, prefix: Identifier) -> Option<SharedStore<ModuleStore<S>>> {
+    pub(crate) fn get_store(&self, prefix: &Identifier) -> Option<SharedStore<ModuleStore<S>>> {
         let modules = self.modules.read().unwrap();
-        let module = modules
+        modules
             .iter()
-            .find(|m| m.store().read().unwrap().prefix() == prefix);
-        module.map(|m| m.store())
+            .find(|(p, _)| p == prefix)
+            .map(|(_, m)| m.store())
     }
 
     // try to deliver the message to all registered modules
@@ -102,7 +103,7 @@ impl<S: Default + ProvableStore> BaseCoinApp<S> {
         let mut handled = false;
         let mut events = vec![];
 
-        for m in modules.iter_mut() {
+        for (_, m) in modules.iter_mut() {
             match m.deliver(message.clone()) {
                 Ok(mut msg_events) => {
                     events.append(&mut msg_events);
@@ -150,7 +151,7 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
         )
         .expect("genesis state isn't valid JSON");
         let mut modules = self.modules.write().unwrap();
-        for m in modules.iter_mut() {
+        for (_, m) in modules.iter_mut() {
             m.init(app_state.clone());
         }
 
@@ -168,7 +169,7 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
 
         let path: Option<Path> = request.path.try_into().ok();
         let modules = self.modules.read().unwrap();
-        for m in modules.iter() {
+        for (_, m) in modules.iter() {
             match m.query(
                 &request.data,
                 path.as_ref(),
@@ -271,8 +272,12 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
 
     fn commit(&self) -> ResponseCommit {
         let mut modules = self.modules.write().unwrap();
-        for m in modules.iter_mut() {
+        for (p, m) in modules.iter_mut() {
             m.commit().expect("failed to commit to state");
+            let mut state = self.store.write().unwrap();
+            state
+                .set(p.clone().into(), m.store().root_hash())
+                .expect("failed to update sub-store commitment");
         }
 
         let mut state = self.store.write().unwrap();

@@ -1,6 +1,6 @@
 use crate::app::modules::{Error as ModuleError, Module, QueryResult};
 use crate::app::store::{
-    Codec, Height, JsonCodec, JsonStore, Path, ProvableStore, SharedStore, Store, SubStore,
+    Codec, Height, JsonCodec, JsonStore, Path, ProvableStore, SharedStore, Store, TypedStore,
 };
 
 use std::collections::HashMap;
@@ -74,11 +74,11 @@ pub struct Bank<S> {
     account_store: JsonStore<SharedStore<S>, AccountsPath, Balances>,
 }
 
-impl<S: ProvableStore + Default> Bank<SubStore<S>> {
-    pub fn new(store: SharedStore<SubStore<S>>) -> Self {
+impl<S: ProvableStore + Default> Bank<S> {
+    pub fn new(store: SharedStore<S>) -> Self {
         Self {
             store: store.clone(),
-            account_store: SubStore::typed_store(store),
+            account_store: TypedStore::new(store),
         }
     }
 }
