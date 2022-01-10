@@ -1,11 +1,14 @@
 use crate::app::store::ProvableStore;
 use crate::app::BaseCoinApp;
 use crate::prostgen::cosmos::auth::v1beta1::{
-    query_server::Query as AuthQuery, BaseAccount, QueryAccountRequest, QueryAccountResponse,
+    query_server::Query as AuthQuery, QueryAccountRequest, QueryAccountResponse,
     QueryAccountsRequest, QueryAccountsResponse, QueryParamsRequest as AuthQueryParamsRequest,
     QueryParamsResponse as AuthQueryParamsResponse,
 };
 
+use prost::Message;
+use prost_types::Any;
+use tonic::{Request, Response, Status};
 use tracing::debug;
 
 #[tonic::async_trait]

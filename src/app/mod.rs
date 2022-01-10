@@ -9,11 +9,7 @@ use crate::app::response::ResponseFromErrorExt;
 use crate::app::store::{
     Height, Identifier, Path, ProvableStore, RevertibleStore, SharedStore, Store, SubStore,
 };
-use crate::prostgen::cosmos::auth::v1beta1::{
-    query_server::Query as AuthQuery, BaseAccount, QueryAccountRequest, QueryAccountResponse,
-    QueryAccountsRequest, QueryAccountsResponse, QueryParamsRequest as AuthQueryParamsRequest,
-    QueryParamsResponse as AuthQueryParamsResponse,
-};
+use crate::prostgen::cosmos::auth::v1beta1::BaseAccount;
 use crate::prostgen::cosmos::base::tendermint::v1beta1::{
     service_server::Service as HealthService, GetBlockByHeightRequest, GetBlockByHeightResponse,
     GetLatestBlockRequest, GetLatestBlockResponse, GetLatestValidatorSetRequest,
