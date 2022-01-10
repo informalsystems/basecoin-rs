@@ -96,9 +96,13 @@ pub struct Ibc<S> {
     client_type_store: JsonStore<SharedStore<S>, IbcPath, ClientType>,
     /// A typed-store for AnyClientState
     client_state_store: ProtobufStore<SharedStore<S>, IbcPath, AnyClientState, Any>,
+    /// A typed-store for AnyConsensusState
+    consensus_state_store: ProtobufStore<SharedStore<S>, IbcPath, AnyConsensusState, Any>,
     /// A typed-store for ConnectionEnd
     connection_end_store:
         ProtobufStore<SharedStore<S>, IbcPath, ConnectionEnd, IbcRawConnectionEnd>,
+    /// A typed-store for ConnectionIds
+    connection_ids_store: JsonStore<SharedStore<S>, IbcPath, Vec<ConnectionId>>,
 }
 
 impl<S: ProvableStore + Default> Ibc<S> {
@@ -109,7 +113,9 @@ impl<S: ProvableStore + Default> Ibc<S> {
             conn_counter: 0,
             client_type_store: TypedStore::new(store.clone()),
             client_state_store: TypedStore::new(store.clone()),
-            connection_end_store: TypedStore::new(store),
+            consensus_state_store: TypedStore::new(store.clone()),
+            connection_end_store: TypedStore::new(store.clone()),
+            connection_ids_store: TypedStore::new(store),
         }
     }
 }
@@ -149,14 +155,9 @@ impl<S: Store> ClientReader for Ibc<S> {
             epoch: height.revision_number,
             height: height.revision_height,
         };
-        let value = self
-            .store
-            .get(Height::Pending, &path.into())
-            .ok_or_else(|| ClientError::consensus_state_not_found(client_id.clone(), height))?;
-        let consensus_state = Any::decode(value.as_slice());
-        consensus_state
-            .map_err(|_| ClientError::implementation_specific())
-            .map(|v| v.try_into().unwrap()) // safety - data on the store is assumed to be well-formed
+        self.consensus_state_store
+            .get(Height::Pending, &path)
+            .ok_or_else(|| ClientError::consensus_state_not_found(client_id.clone(), height))
     }
 
     fn next_consensus_state(
@@ -187,11 +188,14 @@ impl<S: Store> ClientReader for Ibc<S> {
         });
 
         if let Some(path) = found_path {
-            // safety - data on the store is assumed to be well-formed
-            let consensus_state = self.store.get(Height::Pending, &path).unwrap();
-            let consensus_state =
-                Any::decode(consensus_state.as_slice()).expect("failed to decode consensus state");
-            Ok(Some(consensus_state.try_into()?))
+            let consensus_state = self
+                .consensus_state_store
+                .get(
+                    Height::Pending,
+                    &IbcPath::try_from(path).expect("path retrieved from store"),
+                )
+                .ok_or_else(|| ClientError::consensus_state_not_found(client_id.clone(), height))?;
+            Ok(Some(consensus_state))
         } else {
             Ok(None)
         }
@@ -227,12 +231,16 @@ impl<S: Store> ClientReader for Ibc<S> {
         if let Some(pos) = pos {
             if pos > 0 {
                 let prev_path = &keys[pos - 1];
-                // safety - data on the store is assumed to be well-formed
-                let consensus_state = self.store.get(Height::Pending, prev_path).unwrap();
-                let consensus_state = Any::decode(consensus_state.as_slice())
-                    .expect("failed to decode consensus state");
-
-                return Ok(Some(consensus_state.try_into()?));
+                let consensus_state = self
+                    .consensus_state_store
+                    .get(
+                        Height::Pending,
+                        &IbcPath::try_from(prev_path.clone()).expect("path retrieved from store"),
+                    )
+                    .ok_or_else(|| {
+                        ClientError::consensus_state_not_found(client_id.clone(), height)
+                    })?;
+                return Ok(Some(consensus_state));
             }
         }
 
@@ -273,20 +281,15 @@ impl<S: Store> ClientKeeper for Ibc<S> {
         height: IbcHeight,
         consensus_state: AnyConsensusState,
     ) -> Result<(), ClientError> {
-        let data: Any = consensus_state.into();
-        let mut buffer = Vec::new();
-        data.encode(&mut buffer)
-            .map_err(|e| ClientError::unknown_consensus_state_type(e.to_string()))?;
-
         let path = IbcPath::ClientConsensusState {
             client_id,
             epoch: height.revision_number,
             height: height.revision_height,
         };
-        self.store
-            .set(path.into(), buffer)
-            .map_err(|_| ClientError::implementation_specific())?;
-        Ok(())
+        self.consensus_state_store
+            .set(path, consensus_state)
+            .map_err(|_| ClientError::implementation_specific())
+            .map(|_| ())
     }
 
     fn increase_client_counter(&mut self) {
@@ -360,18 +363,17 @@ impl<S: Store> ConnectionKeeper for Ibc<S> {
         connection_id: ConnectionId,
         client_id: &ClientId,
     ) -> Result<(), ConnectionError> {
-        let path = IbcPath::ClientConnections(client_id.clone()).into();
+        let path = IbcPath::ClientConnections(client_id.clone());
         let mut conn_ids: Vec<ConnectionId> = self
-            .store
+            .connection_ids_store
             .get(Height::Pending, &path)
-            .map(|v| serde_json::from_str(&String::from_utf8(v).unwrap()).unwrap()) // safety - data on the store is assumed to be well-formed
             .unwrap_or_default();
 
         conn_ids.push(connection_id);
-        self.store
-            .set(path, serde_json::to_string(&conn_ids).unwrap().into()) // safety - cannot fail since ClientType's Serialize impl doesn't fail
-            .map_err(|_| ConnectionError::implementation_specific())?;
-        Ok(())
+        self.connection_ids_store
+            .set(path, conn_ids)
+            .map_err(|_| ConnectionError::implementation_specific())
+            .map(|_| ())
     }
 
     fn increase_connection_counter(&mut self) {
@@ -761,20 +763,17 @@ impl<S: ProvableStore + 'static> ClientQuery for Ibc<S> {
         let consensus_states = keys
             .into_iter()
             .map(|path| {
-                if let Ok(IbcPath::ClientConsensusState { epoch, height, .. }) =
-                    IbcPath::try_from(path.clone())
-                {
-                    // safety - data on the store is assumed to be well-formed
-                    let consensus_state = self.store.get(Height::Pending, &path).unwrap();
-                    let consensus_state = Any::decode(consensus_state.as_slice())
-                        .expect("failed to decode consensus state");
-
+                let path = IbcPath::try_from(path);
+                if let Ok(IbcPath::ClientConsensusState { epoch, height, .. }) = path {
+                    let consensus_state = self
+                        .consensus_state_store
+                        .get(Height::Pending, &path.expect("path retrieved from store"));
                     ConsensusStateWithHeight {
                         height: Some(RawHeight {
                             revision_number: epoch,
                             revision_height: height,
                         }),
-                        consensus_state: Some(consensus_state),
+                        consensus_state: consensus_state.map(|cs| cs.into()),
                     }
                 } else {
                     panic!("unexpected path") // safety - store paths are assumed to be well-formed
