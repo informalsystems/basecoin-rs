@@ -21,20 +21,6 @@ use crate::prostgen::cosmos::base::tendermint::v1beta1::{
     GetSyncingResponse, GetValidatorSetByHeightRequest, GetValidatorSetByHeightResponse,
     Module as VersionInfoModule, VersionInfo,
 };
-use crate::prostgen::cosmos::staking::v1beta1::{
-    query_server::Query as StakingQuery, Params, QueryDelegationRequest, QueryDelegationResponse,
-    QueryDelegatorDelegationsRequest, QueryDelegatorDelegationsResponse,
-    QueryDelegatorUnbondingDelegationsRequest, QueryDelegatorUnbondingDelegationsResponse,
-    QueryDelegatorValidatorRequest, QueryDelegatorValidatorResponse,
-    QueryDelegatorValidatorsRequest, QueryDelegatorValidatorsResponse, QueryHistoricalInfoRequest,
-    QueryHistoricalInfoResponse, QueryParamsRequest as StakingQueryParamsRequest,
-    QueryParamsResponse as StakingQueryParamsResponse, QueryPoolRequest, QueryPoolResponse,
-    QueryRedelegationsRequest, QueryRedelegationsResponse, QueryUnbondingDelegationRequest,
-    QueryUnbondingDelegationResponse, QueryValidatorDelegationsRequest,
-    QueryValidatorDelegationsResponse, QueryValidatorRequest, QueryValidatorResponse,
-    QueryValidatorUnbondingDelegationsRequest, QueryValidatorUnbondingDelegationsResponse,
-    QueryValidatorsRequest, QueryValidatorsResponse,
-};
 use crate::prostgen::cosmos::tx::v1beta1::service_server::Service as TxService;
 use crate::prostgen::cosmos::tx::v1beta1::{
     BroadcastTxRequest, BroadcastTxResponse, GetTxRequest, GetTxResponse, GetTxsEventRequest,
@@ -46,7 +32,7 @@ use std::sync::{Arc, RwLock};
 
 use cosmrs::Tx;
 use prost::Message;
-use prost_types::{Any, Duration};
+use prost_types::Any;
 use serde_json::Value;
 use tendermint_abci::Application;
 use tendermint_proto::abci::{
@@ -398,117 +384,6 @@ impl<S: ProvableStore + 'static> AuthQuery for BaseCoinApp<S> {
         _request: Request<AuthQueryParamsRequest>,
     ) -> Result<Response<AuthQueryParamsResponse>, Status> {
         unimplemented!()
-    }
-}
-
-#[tonic::async_trait]
-impl<S: ProvableStore + 'static> StakingQuery for BaseCoinApp<S> {
-    async fn validators(
-        &self,
-        _request: Request<QueryValidatorsRequest>,
-    ) -> Result<Response<QueryValidatorsResponse>, Status> {
-        unimplemented!()
-    }
-
-    async fn validator(
-        &self,
-        _request: Request<QueryValidatorRequest>,
-    ) -> Result<Response<QueryValidatorResponse>, Status> {
-        unimplemented!()
-    }
-
-    async fn validator_delegations(
-        &self,
-        _request: Request<QueryValidatorDelegationsRequest>,
-    ) -> Result<Response<QueryValidatorDelegationsResponse>, Status> {
-        unimplemented!()
-    }
-
-    async fn validator_unbonding_delegations(
-        &self,
-        _request: Request<QueryValidatorUnbondingDelegationsRequest>,
-    ) -> Result<Response<QueryValidatorUnbondingDelegationsResponse>, Status> {
-        unimplemented!()
-    }
-
-    async fn delegation(
-        &self,
-        _request: Request<QueryDelegationRequest>,
-    ) -> Result<Response<QueryDelegationResponse>, Status> {
-        unimplemented!()
-    }
-
-    async fn unbonding_delegation(
-        &self,
-        _request: Request<QueryUnbondingDelegationRequest>,
-    ) -> Result<Response<QueryUnbondingDelegationResponse>, Status> {
-        unimplemented!()
-    }
-
-    async fn delegator_delegations(
-        &self,
-        _request: Request<QueryDelegatorDelegationsRequest>,
-    ) -> Result<Response<QueryDelegatorDelegationsResponse>, Status> {
-        unimplemented!()
-    }
-
-    async fn delegator_unbonding_delegations(
-        &self,
-        _request: Request<QueryDelegatorUnbondingDelegationsRequest>,
-    ) -> Result<Response<QueryDelegatorUnbondingDelegationsResponse>, Status> {
-        unimplemented!()
-    }
-
-    async fn redelegations(
-        &self,
-        _request: Request<QueryRedelegationsRequest>,
-    ) -> Result<Response<QueryRedelegationsResponse>, Status> {
-        unimplemented!()
-    }
-
-    async fn delegator_validators(
-        &self,
-        _request: Request<QueryDelegatorValidatorsRequest>,
-    ) -> Result<Response<QueryDelegatorValidatorsResponse>, Status> {
-        unimplemented!()
-    }
-
-    async fn delegator_validator(
-        &self,
-        _request: Request<QueryDelegatorValidatorRequest>,
-    ) -> Result<Response<QueryDelegatorValidatorResponse>, Status> {
-        unimplemented!()
-    }
-
-    async fn historical_info(
-        &self,
-        _request: Request<QueryHistoricalInfoRequest>,
-    ) -> Result<Response<QueryHistoricalInfoResponse>, Status> {
-        unimplemented!()
-    }
-
-    async fn pool(
-        &self,
-        _request: Request<QueryPoolRequest>,
-    ) -> Result<Response<QueryPoolResponse>, Status> {
-        unimplemented!()
-    }
-
-    async fn params(
-        &self,
-        _request: Request<StakingQueryParamsRequest>,
-    ) -> Result<Response<StakingQueryParamsResponse>, Status> {
-        debug!("Got staking params request");
-
-        Ok(Response::new(StakingQueryParamsResponse {
-            params: Some(Params {
-                unbonding_time: Some(Duration {
-                    seconds: 3 * 7 * 24 * 60 * 60,
-                    nanos: 0,
-                }),
-                ..Params::default()
-            }),
-        }))
     }
 }
 
