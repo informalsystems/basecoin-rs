@@ -1,3 +1,4 @@
+mod auth;
 mod bank;
 mod ibc;
 mod staking;
