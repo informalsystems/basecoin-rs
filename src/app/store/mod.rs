@@ -331,6 +331,16 @@ impl<S: Store> Store for SharedStore<S> {
     }
 
     #[inline]
+    fn apply(&mut self) -> Result<(), Self::Error> {
+        self.write().unwrap().apply()
+    }
+
+    #[inline]
+    fn reset(&mut self) {
+        self.write().unwrap().reset()
+    }
+
+    #[inline]
     fn current_height(&self) -> RawHeight {
         self.read().unwrap().current_height()
     }
