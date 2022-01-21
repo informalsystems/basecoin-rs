@@ -3,8 +3,10 @@ mod bank;
 mod ibc;
 mod staking;
 
+pub(crate) use self::auth::Auth;
 pub(crate) use self::bank::Bank;
 pub(crate) use self::ibc::Ibc;
+pub(crate) use self::staking::Staking;
 
 use crate::app::store::{self, Height, Path, SharedStore, Store};
 
@@ -115,6 +117,30 @@ pub(crate) mod prefix {
 
         fn identifier(&self) -> Self::Identifier {
             "ibc".to_owned().try_into().unwrap()
+        }
+    }
+
+    /// Auth module prefix
+    #[derive(Clone)]
+    pub(crate) struct Auth;
+
+    impl Identifiable for Auth {
+        type Identifier = store::Identifier;
+
+        fn identifier(&self) -> Self::Identifier {
+            "auth".to_owned().try_into().unwrap()
+        }
+    }
+
+    /// Staking module prefix
+    #[derive(Clone)]
+    pub(crate) struct Staking;
+
+    impl Identifiable for Staking {
+        type Identifier = store::Identifier;
+
+        fn identifier(&self) -> Self::Identifier {
+            "staking".to_owned().try_into().unwrap()
         }
     }
 }

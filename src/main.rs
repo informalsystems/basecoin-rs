@@ -7,18 +7,17 @@ extern crate lazy_static;
 mod app;
 mod prostgen;
 
-use crate::app::modules::{prefix, Ibc, Identifiable};
-use crate::app::store::{InMemoryStore, ProvableStore};
+use crate::app::modules::{prefix, Auth, Bank, Ibc, Identifiable, Staking};
+use crate::app::store::InMemoryStore;
 use crate::app::BaseCoinApp;
-use crate::prostgen::cosmos::auth::v1beta1::query_server::QueryServer as AuthQueryServer;
 use crate::prostgen::cosmos::base::tendermint::v1beta1::service_server::ServiceServer as HealthServer;
-use crate::prostgen::cosmos::staking::v1beta1::query_server::QueryServer as StakingQueryServer;
 use crate::prostgen::cosmos::tx::v1beta1::service_server::ServiceServer as TxServer;
 use crate::prostgen::ibc::core::client::v1::query_server::QueryServer as ClientQueryServer;
 use crate::prostgen::ibc::core::connection::v1::query_server::QueryServer as ConnectionQueryServer;
 
 use structopt::StructOpt;
 use tendermint_abci::ServerBuilder;
+use tokio::runtime::Runtime;
 use tonic::transport::Server;
 use tracing_subscriber::filter::LevelFilter;
 
@@ -50,29 +49,6 @@ struct Opt {
     quiet: bool,
 }
 
-#[tokio::main]
-async fn grpc_serve<S: Default + ProvableStore + 'static>(
-    app: BaseCoinApp<S>,
-    host: String,
-    port: u16,
-) {
-    let addr = format!("{}:{}", host, port).parse().unwrap();
-
-    let ibc = Ibc::new(app.get_store(&prefix::Ibc {}.identifier()).unwrap());
-
-    // TODO(hu55a1n1): implement these services for `auth` and `staking` modules
-    Server::builder()
-        .add_service(HealthServer::new(app.clone()))
-        .add_service(AuthQueryServer::new(app.clone()))
-        .add_service(StakingQueryServer::new(app.clone()))
-        .add_service(TxServer::new(app.clone()))
-        .add_service(ClientQueryServer::new(ibc.clone()))
-        .add_service(ConnectionQueryServer::new(ibc))
-        .serve(addr)
-        .await
-        .unwrap()
-}
-
 fn main() {
     let opt: Opt = Opt::from_args();
     let log_level = if opt.quiet {
@@ -83,17 +59,44 @@ fn main() {
         LevelFilter::INFO
     };
     tracing_subscriber::fmt().with_max_level(log_level).init();
-
     tracing::info!("Starting app and waiting for Tendermint to connect...");
 
+    // instantiate the application with a KV store implementation of choice
     let app = BaseCoinApp::new(InMemoryStore::default()).expect("Failed to init app");
-    let app_copy = app.clone();
-    let grpc_port = opt.grpc_port;
-    let grpc_host = opt.host.clone();
-    std::thread::spawn(move || grpc_serve(app_copy, grpc_host, grpc_port));
 
+    // instantiate modules and setup inter-module communication (if required)
+    let auth = Auth::new(app.module_store(&prefix::Auth {}.identifier()));
+    let bank = Bank::new(
+        app.module_store(&prefix::Bank {}.identifier()),
+        auth.account_reader(),
+        auth.account_keeper(),
+    );
+    let ibc = Ibc::new(app.module_store(&prefix::Ibc {}.identifier()));
+    let staking = Staking::new(app.module_store(&prefix::Staking {}.identifier()));
+
+    // register modules with the app
+    let app = app
+        .add_module(prefix::Bank {}.identifier(), bank)
+        .add_module(prefix::Bank {}.identifier(), ibc.clone());
+
+    // run the blocking ABCI server on a separate thread
     let server = ServerBuilder::new(opt.read_buf_size)
-        .bind(format!("{}:{}", opt.host, opt.port), app)
+        .bind(format!("{}:{}", opt.host, opt.port), app.clone())
         .unwrap();
-    server.listen().unwrap();
+    std::thread::spawn(move || {
+        server.listen().unwrap();
+    });
+
+    // run the gRPC server
+    let grpc_server = Server::builder()
+        .add_service(HealthServer::new(app.clone()))
+        .add_service(TxServer::new(app))
+        .add_service(ClientQueryServer::new(ibc.clone()))
+        .add_service(ConnectionQueryServer::new(ibc))
+        .add_service(auth.query())
+        .add_service(staking.query())
+        .serve(format!("{}:{}", opt.host, opt.grpc_port).parse().unwrap());
+    Runtime::new()
+        .unwrap()
+        .block_on(async { grpc_server.await.unwrap() });
 }

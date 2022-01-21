@@ -4,12 +4,11 @@ pub(crate) mod modules;
 mod response;
 pub(crate) mod store;
 
-use crate::app::modules::{prefix, Bank, Error, ErrorDetail, Ibc, Identifiable, Module};
+use crate::app::modules::{Error, ErrorDetail, Module};
 use crate::app::response::ResponseFromErrorExt;
 use crate::app::store::{
     Height, Identifier, Path, ProvableStore, RevertibleStore, SharedStore, Store,
 };
-use crate::prostgen::cosmos::auth::v1beta1::BaseAccount;
 use crate::prostgen::cosmos::base::tendermint::v1beta1::{
     service_server::Service as HealthService, GetBlockByHeightRequest, GetBlockByHeightResponse,
     GetLatestBlockRequest, GetLatestBlockResponse, GetLatestValidatorSetRequest,
@@ -53,39 +52,38 @@ type Shared<T> = Arc<RwLock<T>>;
 pub(crate) struct BaseCoinApp<S> {
     store: MainStore<S>,
     modules: Shared<ModuleList<S>>,
-    account: Shared<BaseAccount>, // TODO(hu55a1n1): get from user and move to provable store
 }
 
 impl<S: Default + ProvableStore + 'static> BaseCoinApp<S> {
     /// Constructor.
     pub(crate) fn new(store: S) -> Result<Self, S::Error> {
-        let store = SharedStore::new(RevertibleStore::new(store));
-        let module_store = RevertibleStore::new(S::default());
-        let modules: ModuleList<S> = vec![
-            (
-                prefix::Bank {}.identifier(),
-                Box::new(Bank::new(SharedStore::new(module_store.clone()))),
-            ),
-            (
-                prefix::Ibc {}.identifier(),
-                Box::new(Ibc::new(SharedStore::new(module_store))),
-            ),
-        ];
         Ok(Self {
-            store,
-            modules: Arc::new(RwLock::new(modules)),
-            account: Default::default(),
+            store: SharedStore::new(RevertibleStore::new(store)),
+            modules: Arc::new(RwLock::new(vec![])),
         })
+    }
+
+    pub(crate) fn add_module(
+        self,
+        prefix: Identifier,
+        module: impl Module<ModuleStore<S>> + 'static,
+    ) -> Self {
+        self.modules
+            .write()
+            .unwrap()
+            .push((prefix, Box::new(module)));
+        self
     }
 }
 
 impl<S: Default + ProvableStore> BaseCoinApp<S> {
-    pub(crate) fn get_store(&self, prefix: &Identifier) -> Option<SharedStore<ModuleStore<S>>> {
+    pub(crate) fn module_store(&self, prefix: &Identifier) -> SharedStore<ModuleStore<S>> {
         let modules = self.modules.read().unwrap();
         modules
             .iter()
             .find(|(p, _)| p == prefix)
             .map(|(_, m)| m.store())
+            .unwrap_or_else(|| SharedStore::new(ModuleStore::new(S::default())))
     }
 
     // try to deliver the message to all registered modules
