@@ -1,13 +1,12 @@
-use crate::app::store::ProvableStore;
-use crate::app::BaseCoinApp;
+use crate::app::store::{ProvableStore, SharedStore};
 use crate::prostgen::cosmos::staking::v1beta1::{
-    query_server::Query as StakingQuery, Params, QueryDelegationRequest, QueryDelegationResponse,
-    QueryDelegatorDelegationsRequest, QueryDelegatorDelegationsResponse,
-    QueryDelegatorUnbondingDelegationsRequest, QueryDelegatorUnbondingDelegationsResponse,
-    QueryDelegatorValidatorRequest, QueryDelegatorValidatorResponse,
-    QueryDelegatorValidatorsRequest, QueryDelegatorValidatorsResponse, QueryHistoricalInfoRequest,
-    QueryHistoricalInfoResponse, QueryParamsRequest as StakingQueryParamsRequest,
-    QueryParamsResponse as StakingQueryParamsResponse, QueryPoolRequest, QueryPoolResponse,
+    query_server::{Query, QueryServer},
+    Params, QueryDelegationRequest, QueryDelegationResponse, QueryDelegatorDelegationsRequest,
+    QueryDelegatorDelegationsResponse, QueryDelegatorUnbondingDelegationsRequest,
+    QueryDelegatorUnbondingDelegationsResponse, QueryDelegatorValidatorRequest,
+    QueryDelegatorValidatorResponse, QueryDelegatorValidatorsRequest,
+    QueryDelegatorValidatorsResponse, QueryHistoricalInfoRequest, QueryHistoricalInfoResponse,
+    QueryParamsRequest, QueryParamsResponse, QueryPoolRequest, QueryPoolResponse,
     QueryRedelegationsRequest, QueryRedelegationsResponse, QueryUnbondingDelegationRequest,
     QueryUnbondingDelegationResponse, QueryValidatorDelegationsRequest,
     QueryValidatorDelegationsResponse, QueryValidatorRequest, QueryValidatorResponse,
@@ -16,11 +15,26 @@ use crate::prostgen::cosmos::staking::v1beta1::{
 };
 
 use prost_types::Duration;
+use std::marker::PhantomData;
 use tonic::{Request, Response, Status};
 use tracing::debug;
 
+pub struct Staking<S>(PhantomData<S>);
+
+impl<S: 'static + ProvableStore> Staking<S> {
+    pub fn new(_store: SharedStore<S>) -> Self {
+        Self(PhantomData)
+    }
+
+    pub fn query(&self) -> QueryServer<StakingQuery<S>> {
+        QueryServer::new(StakingQuery(PhantomData))
+    }
+}
+
+pub struct StakingQuery<S>(PhantomData<S>);
+
 #[tonic::async_trait]
-impl<S: ProvableStore + 'static> StakingQuery for BaseCoinApp<S> {
+impl<S: ProvableStore + 'static> Query for StakingQuery<S> {
     async fn validators(
         &self,
         _request: Request<QueryValidatorsRequest>,
@@ -114,11 +128,11 @@ impl<S: ProvableStore + 'static> StakingQuery for BaseCoinApp<S> {
 
     async fn params(
         &self,
-        _request: Request<StakingQueryParamsRequest>,
-    ) -> Result<Response<StakingQueryParamsResponse>, Status> {
+        _request: Request<QueryParamsRequest>,
+    ) -> Result<Response<QueryParamsResponse>, Status> {
         debug!("Got staking params request");
 
-        Ok(Response::new(StakingQueryParamsResponse {
+        Ok(Response::new(QueryParamsResponse {
             params: Some(Params {
                 unbonding_time: Some(Duration {
                     seconds: 3 * 7 * 24 * 60 * 60,
