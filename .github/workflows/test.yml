@@ -27,7 +27,7 @@ jobs:
           command: test
           args: --all-features
 
-  # TODO: Remove the IBC_COMMITISH env var once the phase 4 work has been merged
+  # TODO: Remove the IBC_COMMITISH env var once the phase 5 work has been merged
   # to master in ibc-rs.
   ibc-integration:
     runs-on: ubuntu-latest
@@ -42,7 +42,7 @@ jobs:
       - name: Run test
         run: |
           docker run --rm \
-            --env IBC_COMMITISH=basecoin/phase-4-1 \
+            --env IBC_COMMITISH=basecoin/phase-5-1 \
             -v `pwd`:/src/basecoin-rs \
             informaldev/basecoin-rs-ci
 

@@ -59,8 +59,15 @@ impl TryFrom<String> for Identifier {
     }
 }
 
+impl Display for Identifier {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 /// A newtype representing a valid ICS024 `Path`.
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Clone)]
+
 pub struct Path(Vec<Identifier>);
 
 impl TryFrom<String> for Path {

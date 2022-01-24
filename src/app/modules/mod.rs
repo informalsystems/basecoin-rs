@@ -6,10 +6,11 @@ mod staking;
 pub(crate) use self::bank::Bank;
 pub(crate) use self::ibc::Ibc;
 
-use crate::app::store::{self, Height, Path, Store};
+use crate::app::store::{self, Height, Path};
 
 use flex_error::{define_error, TraceError};
 use prost_types::Any;
+use tendermint::block::Header;
 use tendermint_proto::abci::Event;
 use tendermint_proto::crypto::ProofOp;
 
@@ -31,7 +32,10 @@ define_error! {
 }
 
 /// Module trait
-pub(crate) trait Module<S: Store> {
+pub(crate) trait Module {
+    /// The module's Store type
+    type Store;
+
     /// Similar to [ABCI CheckTx method](https://docs.tendermint.com/master/spec/abci/abci.html#checktx)
     /// > CheckTx need not execute the transaction in full, but rather a light-weight yet
     /// > stateful validation, like checking signatures and account balances, but not running
@@ -70,14 +74,22 @@ pub(crate) trait Module<S: Store> {
         Err(Error::not_handled())
     }
 
-    fn commit(&mut self) -> Result<Vec<u8>, S::Error>;
+    /// Similar to [ABCI BeginBlock method](https://docs.tendermint.com/master/spec/abci/abci.html#beginblock)
+    /// *NOTE* - Implementations MUST be deterministic!
+    ///
+    /// ## Return
+    /// * Resulting events if any
+    fn begin_block(&mut self, _header: &Header) -> Vec<Event> {
+        vec![]
+    }
 
-    fn store(&self) -> S;
+    /// Return a mutable reference to the module's sub-store
+    fn store(&mut self) -> &mut Self::Store;
 }
 
-pub struct QueryResult {
-    pub data: Vec<u8>,
-    pub proof: Option<Vec<ProofOp>>,
+pub(crate) struct QueryResult {
+    pub(crate) data: Vec<u8>,
+    pub(crate) proof: Option<Vec<ProofOp>>,
 }
 
 /// Trait for identifying modules

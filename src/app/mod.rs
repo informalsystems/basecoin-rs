@@ -32,8 +32,9 @@ use prost_types::Any;
 use serde_json::Value;
 use tendermint_abci::Application;
 use tendermint_proto::abci::{
-    Event, RequestDeliverTx, RequestInfo, RequestInitChain, RequestQuery, ResponseCommit,
-    ResponseDeliverTx, ResponseInfo, ResponseInitChain, ResponseQuery,
+    Event, RequestBeginBlock, RequestDeliverTx, RequestInfo, RequestInitChain, RequestQuery,
+    ResponseBeginBlock, ResponseCommit, ResponseDeliverTx, ResponseInfo, ResponseInitChain,
+    ResponseQuery,
 };
 use tendermint_proto::crypto::ProofOp;
 use tendermint_proto::crypto::ProofOps;
@@ -51,7 +52,7 @@ type Shared<T> = Arc<RwLock<T>>;
 #[derive(Clone)]
 pub(crate) struct BaseCoinApp<S> {
     store: MainStore<S>,
-    pub modules: Shared<Vec<Box<dyn Module<ModuleStore<S>> + Send + Sync>>>,
+    pub modules: Shared<Vec<Box<dyn Module<Store = ModuleStore<S>> + Send + Sync>>>,
     account: Shared<BaseAccount>, // TODO(hu55a1n1): get from user and move to provable store
 }
 
@@ -60,7 +61,7 @@ impl<S: Default + ProvableStore + 'static> BaseCoinApp<S> {
     pub(crate) fn new(store: S) -> Result<Self, S::Error> {
         let store = SharedStore::new(RevertibleStore::new(store));
         // `SubStore` guarantees modules exclusive access to all paths in the store key-space.
-        let modules: Vec<Box<dyn Module<ModuleStore<S>> + Send + Sync>> = vec![
+        let modules: Vec<Box<dyn Module<Store = ModuleStore<S>> + Send + Sync>> = vec![
             Box::new(Bank::new(SubStore::new(
                 store.clone(),
                 prefix::Bank {}.identifier(),
@@ -80,9 +81,13 @@ impl<S: Default + ProvableStore + 'static> BaseCoinApp<S> {
 
 impl<S: Default + ProvableStore> BaseCoinApp<S> {
     pub(crate) fn get_store(&self, prefix: Identifier) -> Option<ModuleStore<S>> {
-        let modules = self.modules.read().unwrap();
-        let module = modules.iter().find(|m| m.store().prefix() == prefix);
-        module.map(|m| m.store())
+        let mut modules = self.modules.write().unwrap();
+        for m in modules.iter_mut() {
+            if m.store().prefix() == prefix {
+                return Some(m.store().clone());
+            }
+        }
+        None
     }
 
     // try to deliver the message to all registered modules
@@ -247,6 +252,10 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
                 // could handle this message
                 Err(e) => {
                     // reset changes from other messages in this tx
+                    let mut modules = self.modules.write().unwrap();
+                    for m in modules.iter_mut() {
+                        m.store().reset();
+                    }
                     self.store.write().unwrap().reset();
                     return ResponseDeliverTx::from_error(
                         2,
@@ -266,7 +275,7 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
     fn commit(&self) -> ResponseCommit {
         let mut modules = self.modules.write().unwrap();
         for m in modules.iter_mut() {
-            m.commit().expect("failed to commit to state");
+            m.store().commit().expect("failed to commit to state");
         }
 
         let mut state = self.store.write().unwrap();
@@ -282,6 +291,19 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
             data,
             retain_height: 0,
         }
+    }
+
+    fn begin_block(&self, request: RequestBeginBlock) -> ResponseBeginBlock {
+        debug!("Got begin block request.");
+
+        let mut modules = self.modules.write().unwrap();
+        let mut events = vec![];
+        let header = request.header.unwrap().try_into().unwrap();
+        for m in modules.iter_mut() {
+            events.extend(m.begin_block(&header));
+        }
+
+        ResponseBeginBlock { events }
     }
 }
 
