@@ -403,7 +403,9 @@ impl<S: Store> ConnectionReader for Ibc<S> {
         let consensus_state = self
             .consensus_states
             .get(&height.revision_height)
-            .ok_or_else(|| ConnectionError::missing_local_consensus_state(height))?;
+            .ok_or_else(|| {
+                ConnectionError::ics02_client(ClientError::missing_local_consensus_state(height))
+            })?;
         Ok(AnyConsensusState::Tendermint(consensus_state.clone()))
     }
 
