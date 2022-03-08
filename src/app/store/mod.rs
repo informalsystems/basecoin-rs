@@ -173,7 +173,7 @@ pub trait Store: Send + Sync + Clone {
     fn reset(&mut self) {}
 
     /// Prune historic blocks upto specified `height`
-    fn prune(&self, height: RawHeight) -> Result<RawHeight, Self::Error> {
+    fn prune(&mut self, height: RawHeight) -> Result<RawHeight, Self::Error> {
         Ok(height)
     }
 
