@@ -16,9 +16,9 @@ description = """
 bytes = "1.0.1"
 cosmrs = "0.4.1"
 flex-error = { version = "0.4.2", features = [ "eyre_tracer" ] }
-ibc = { path = "../ibc-rs/modules" }
-ibc-proto = { path = "../ibc-rs/proto" }
-ics23 = "=0.6.7"
+ibc = "0.13.0-rc.0"
+ibc-proto = "0.16.0"
+ics23 = "0.7.0"
 prost = "0.9.0"
 prost-types = "0.9.0"
 lazy_static = "1.4.0"
