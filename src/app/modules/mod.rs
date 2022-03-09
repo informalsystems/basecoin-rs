@@ -1,12 +1,14 @@
-mod auth;
+pub mod auth;
 mod bank;
 mod ibc;
 mod staking;
 
+pub(crate) use self::auth::Auth;
 pub(crate) use self::bank::Bank;
 pub(crate) use self::ibc::Ibc;
+pub(crate) use self::staking::Staking;
 
-use crate::app::store::{self, Height, Path};
+use crate::app::store::{self, Height, Path, SharedStore, Store};
 
 use flex_error::{define_error, TraceError};
 use prost_types::Any;
@@ -31,11 +33,7 @@ define_error! {
     }
 }
 
-/// Module trait
-pub(crate) trait Module {
-    /// The module's Store type
-    type Store;
-
+pub(crate) trait Module<S: Store>: Send + Sync {
     /// Similar to [ABCI CheckTx method](https://docs.tendermint.com/master/spec/abci/abci.html#checktx)
     /// > CheckTx need not execute the transaction in full, but rather a light-weight yet
     /// > stateful validation, like checking signatures and account balances, but not running
@@ -83,8 +81,11 @@ pub(crate) trait Module {
         vec![]
     }
 
-    /// Return a mutable reference to the module's sub-store
-    fn store(&mut self) -> &mut Self::Store;
+    /// Return a mutable reference to the module's store
+    fn store_mut(&mut self) -> &mut SharedStore<S>;
+
+    /// Return a reference to the module's store
+    fn store(&self) -> &SharedStore<S>;
 }
 
 pub(crate) struct QueryResult {
@@ -127,6 +128,30 @@ pub(crate) mod prefix {
 
         fn identifier(&self) -> Self::Identifier {
             "ibc".to_owned().try_into().unwrap()
+        }
+    }
+
+    /// Auth module prefix
+    #[derive(Clone)]
+    pub(crate) struct Auth;
+
+    impl Identifiable for Auth {
+        type Identifier = store::Identifier;
+
+        fn identifier(&self) -> Self::Identifier {
+            "auth".to_owned().try_into().unwrap()
+        }
+    }
+
+    /// Staking module prefix
+    #[derive(Clone)]
+    pub(crate) struct Staking;
+
+    impl Identifiable for Staking {
+        type Identifier = store::Identifier;
+
+        fn identifier(&self) -> Self::Identifier {
+            "staking".to_owned().try_into().unwrap()
         }
     }
 }

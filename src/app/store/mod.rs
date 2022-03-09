@@ -14,7 +14,15 @@ use std::sync::{Arc, RwLock};
 use flex_error::{define_error, TraceError};
 use ibc::core::ics24_host::{error::ValidationError, validate::validate_identifier};
 use ics23::CommitmentProof;
+use serde::{de::DeserializeOwned, Serialize};
+use std::marker::PhantomData;
 use tracing::trace;
+
+/// A `TypedStore` that uses the `JsonCodec`
+pub(crate) type JsonStore<S, K, V> = TypedStore<S, JsonCodec<V>, K, V>;
+
+/// A `TypedStore` that uses the `ProtobufCodec`
+pub(crate) type ProtobufStore<S, K, V, R> = TypedStore<S, ProtobufCodec<V, R>, K, V>;
 
 /// A newtype representing a valid ICS024 identifier.
 /// Implements `Deref<Target=String>`.
@@ -34,12 +42,6 @@ impl Identifier {
         // length as inputs; `validate_identifier` itself checks for
         // empty inputs and returns an error as appropriate
         validate_identifier(s, 0, s.len()).map_err(|v| Error::invalid_identifier(s.to_string(), v))
-    }
-
-    #[inline]
-    fn unprefixed_path(&self, path: &Path) -> Path {
-        // FIXME(hu55a1n1)
-        path.clone()
     }
 }
 
@@ -178,7 +180,7 @@ pub trait Store: Send + Sync + Clone {
     fn reset(&mut self) {}
 
     /// Prune historic blocks upto specified `height`
-    fn prune(&self, height: RawHeight) -> Result<RawHeight, Self::Error> {
+    fn prune(&mut self, height: RawHeight) -> Result<RawHeight, Self::Error> {
         Ok(height)
     }
 
@@ -198,109 +200,9 @@ pub trait ProvableStore: Store {
     fn get_proof(&self, height: Height, key: &Path) -> Option<ics23::CommitmentProof>;
 }
 
-/// A wrapper store that implements a prefixed key-space for other shared stores
-#[derive(Clone)]
-pub(crate) struct SubStore<S> {
-    /// main store - used to stores a commitment to this sub-store at path `<prefix>`
-    main_store: S,
-    /// sub store - the underlying store that actually holds the KV pairs for this sub-store
-    sub_store: S,
-    /// prefix for key-space
-    prefix: Identifier,
-    /// boolean to keep track of changes to know when to update commitment in main-store
-    dirty: bool,
-}
-
-impl<S: Default + ProvableStore> SubStore<S> {
-    pub(crate) fn new(store: S, prefix: Identifier) -> Result<Self, S::Error> {
-        let mut sub_store = Self {
-            main_store: store,
-            sub_store: S::default(),
-            prefix,
-            dirty: false,
-        };
-        sub_store.update_main_store_commitment()?;
-        Ok(sub_store)
-    }
-
-    pub(crate) fn prefix(&self) -> Identifier {
-        self.prefix.clone()
-    }
-}
-
-impl<S: Default + ProvableStore> SubStore<S> {
-    fn update_main_store_commitment(&mut self) -> Result<Option<Vec<u8>>, S::Error> {
-        self.main_store
-            .set(Path::from(self.prefix.clone()), self.sub_store.root_hash())
-    }
-}
-
-impl<S> Store for SubStore<S>
-where
-    S: Default + ProvableStore,
-{
-    type Error = S::Error;
-
-    #[inline]
-    fn set(&mut self, path: Path, value: Vec<u8>) -> Result<Option<Vec<u8>>, Self::Error> {
-        self.dirty = true;
-        self.sub_store
-            .set(self.prefix.unprefixed_path(&path), value)
-    }
-
-    #[inline]
-    fn get(&self, height: Height, path: &Path) -> Option<Vec<u8>> {
-        self.sub_store
-            .get(height, &self.prefix.unprefixed_path(path))
-    }
-
-    #[inline]
-    fn delete(&mut self, path: &Path) {
-        self.dirty = true;
-        self.sub_store.delete(&self.prefix.unprefixed_path(path))
-    }
-
-    #[inline]
-    fn commit(&mut self) -> Result<Vec<u8>, Self::Error> {
-        let root_hash = self.sub_store.commit()?;
-        if self.dirty {
-            self.dirty = false;
-            self.update_main_store_commitment()?;
-        }
-        Ok(root_hash)
-    }
-
-    #[inline]
-    fn current_height(&self) -> RawHeight {
-        self.sub_store.current_height()
-    }
-
-    #[inline]
-    fn get_keys(&self, key_prefix: &Path) -> Vec<Path> {
-        self.sub_store
-            .get_keys(&self.prefix.unprefixed_path(key_prefix))
-    }
-}
-
-impl<S> ProvableStore for SubStore<S>
-where
-    S: Default + ProvableStore,
-{
-    #[inline]
-    fn root_hash(&self) -> Vec<u8> {
-        self.sub_store.root_hash()
-    }
-
-    #[inline]
-    fn get_proof(&self, height: Height, key: &Path) -> Option<CommitmentProof> {
-        self.sub_store
-            .get_proof(height, &self.prefix.unprefixed_path(key))
-    }
-}
-
 /// Wraps a store to make it shareable by cloning
 #[derive(Clone)]
-pub(crate) struct SharedStore<S>(Arc<RwLock<S>>);
+pub struct SharedStore<S>(Arc<RwLock<S>>);
 
 impl<S> SharedStore<S> {
     pub(crate) fn new(store: S) -> Self {
@@ -490,6 +392,97 @@ impl<S: ProvableStore> ProvableStore for RevertibleStore<S> {
     #[inline]
     fn get_proof(&self, height: Height, key: &Path) -> Option<CommitmentProof> {
         self.store.get_proof(height, key)
+    }
+}
+
+/// A trait that defines how types are decoded/encoded.
+pub(crate) trait Codec<'a> {
+    type Type;
+    type Encoded: AsRef<[u8]>;
+
+    fn encode(d: &'a Self::Type) -> Option<Self::Encoded>;
+
+    fn decode(bytes: &'a [u8]) -> Option<Self::Type>;
+}
+
+/// A JSON codec that uses `serde_json` to encode/decode as a JSON string
+#[derive(Clone)]
+pub(crate) struct JsonCodec<T>(PhantomData<T>);
+
+impl<'a, T: Serialize + DeserializeOwned> Codec<'a> for JsonCodec<T> {
+    type Type = T;
+    type Encoded = String;
+
+    fn encode(d: &'a Self::Type) -> Option<Self::Encoded> {
+        serde_json::to_string(d).ok()
+    }
+
+    fn decode(bytes: &'a [u8]) -> Option<Self::Type> {
+        let json_string = String::from_utf8(bytes.to_vec()).ok()?;
+        serde_json::from_str(&json_string).ok()
+    }
+}
+
+/// A Protobuf codec that uses `prost` to encode/decode
+#[derive(Clone)]
+pub(crate) struct ProtobufCodec<T, R> {
+    domain_type: PhantomData<T>,
+    raw_type: PhantomData<R>,
+}
+
+impl<'a, T: Into<R> + Clone, R: TryInto<T> + Default + prost::Message> Codec<'a>
+    for ProtobufCodec<T, R>
+{
+    type Type = T;
+    type Encoded = Vec<u8>;
+
+    fn encode(d: &'a Self::Type) -> Option<Self::Encoded> {
+        let r = d.clone().into();
+        Some(r.encode_to_vec())
+    }
+
+    fn decode(bytes: &'a [u8]) -> Option<Self::Type> {
+        let r = R::decode(bytes).ok()?;
+        r.try_into().ok()
+    }
+}
+
+#[derive(Clone)]
+pub(crate) struct TypedStore<S, C, K, V> {
+    store: S,
+    _codec: PhantomData<C>,
+    _key: PhantomData<K>,
+    _value: PhantomData<V>,
+}
+
+impl<S, C, K, V> TypedStore<S, C, K, V>
+where
+    S: Store,
+    for<'a> C: Codec<'a, Type = V>,
+    K: Into<Path> + Clone,
+{
+    #[inline]
+    pub(crate) fn new(store: S) -> Self {
+        Self {
+            store,
+            _codec: PhantomData,
+            _key: PhantomData,
+            _value: PhantomData,
+        }
+    }
+
+    #[inline]
+    pub(crate) fn set(&mut self, path: K, value: V) -> Result<Option<V>, S::Error> {
+        self.store
+            .set(path.into(), C::encode(&value).unwrap().as_ref().to_vec())
+            .map(|prev_val| prev_val.and_then(|v| C::decode(&v)))
+    }
+
+    #[inline]
+    pub(crate) fn get(&self, height: Height, path: &K) -> Option<V> {
+        self.store
+            .get(height, &path.clone().into())
+            .and_then(|v| C::decode(&v))
     }
 }
 

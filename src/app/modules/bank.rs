@@ -1,5 +1,8 @@
+use crate::app::modules::auth::{AccountKeeper, AccountReader, AuthAccount};
 use crate::app::modules::{Error as ModuleError, Module, QueryResult};
-use crate::app::store::{Height, Path, Store};
+use crate::app::store::{
+    Codec, Height, JsonCodec, JsonStore, Path, ProvableStore, SharedStore, Store, TypedStore,
+};
 
 use std::collections::HashMap;
 use std::convert::TryInto;
@@ -7,19 +10,13 @@ use std::num::ParseIntError;
 use std::str::FromStr;
 
 use cosmrs::bank::MsgSend;
-use cosmrs::proto;
+use cosmrs::{proto, AccountId, Coin as MsgCoin};
 use flex_error::{define_error, TraceError};
 use prost::{DecodeError, Message};
 use prost_types::Any;
 use serde::{Deserialize, Serialize};
 use tendermint_proto::abci::Event;
 use tracing::{debug, trace};
-
-/// Unique identifiers for accounts.
-pub type AccountId = String;
-
-/// A currency denomination.
-pub type Denom = String;
 
 define_error! {
     #[derive(Eq, PartialEq)]
@@ -42,7 +39,7 @@ define_error! {
             | _ | { "receiver account funds overflow" },
         Store
             { reason: String }
-            | e | { format!("failed to validate message: {}", e.reason) },
+            | e | { format!("Store error: {}", e.reason) },
     }
 }
 
@@ -52,23 +49,141 @@ impl From<Error> for ModuleError {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, Default, PartialEq, Clone, Hash, Eq)]
+#[serde(transparent)]
+pub struct Denom(String);
+
+#[derive(Serialize, Deserialize, Debug, Default)]
+pub struct Coin {
+    pub denom: Denom,
+    pub amount: u64,
+}
+
+impl From<(Denom, u64)> for Coin {
+    fn from((denom, amount): (Denom, u64)) -> Self {
+        Self { denom, amount }
+    }
+}
+
+impl From<&MsgCoin> for Coin {
+    fn from(coin: &MsgCoin) -> Self {
+        Self {
+            denom: Denom(coin.denom.to_string()),
+            amount: coin.amount.to_string().parse().unwrap(),
+        }
+    }
+}
+
 /// A mapping of currency denomination identifiers to balances.
 #[derive(Serialize, Deserialize, Debug, Default)]
 #[serde(transparent)]
-pub struct Balances(HashMap<Denom, u64>);
+pub struct Balances(Vec<Coin>);
 
-/// The bank module
-pub struct Bank<S> {
-    /// Handle to store instance
-    /// The module is guaranteed exclusive access to all paths in the store key-space.
-    store: S,
+#[derive(Clone)]
+struct BalancesPath(AccountId);
+
+impl From<BalancesPath> for Path {
+    fn from(path: BalancesPath) -> Self {
+        format!("balances/{}", path.0).try_into().unwrap() // safety - cannot fail as AccountsPath is correct-by-construction
+    }
 }
 
-impl<S: Store> Bank<S> {
-    pub fn new(store: S) -> Self {
-        Self { store }
-    }
+pub trait BankReader {
+    type Address;
+    type Denom;
+    type Coin;
+    type Coins: IntoIterator<Item = Self::Coin>;
 
+    fn get_all_balances_at_height(&self, height: Height, address: Self::Address) -> Self::Coins;
+
+    fn get_all_balances(&self, address: Self::Address) -> Self::Coins {
+        self.get_all_balances_at_height(Height::Pending, address)
+    }
+}
+
+pub trait BankKeeper {
+    type Error;
+    type Address;
+    type Denom;
+    type Coin;
+    type Coins: IntoIterator<Item = Self::Coin>;
+
+    fn set_balances(
+        &mut self,
+        address: Self::Address,
+        coins: Self::Coins,
+    ) -> Result<(), Self::Error>;
+}
+
+pub struct BankBalanceReader<S> {
+    balance_store: JsonStore<SharedStore<S>, BalancesPath, Balances>,
+}
+
+impl<S: Store> BankReader for BankBalanceReader<S> {
+    type Address = AccountId;
+    type Denom = Denom;
+    type Coin = Coin;
+    type Coins = Vec<Coin>;
+
+    fn get_all_balances_at_height(&self, height: Height, address: Self::Address) -> Self::Coins {
+        self.balance_store
+            .get(height, &BalancesPath(address))
+            .map(|b| b.0)
+            .unwrap_or_default()
+    }
+}
+
+pub struct BankBalanceKeeper<S> {
+    balance_store: JsonStore<SharedStore<S>, BalancesPath, Balances>,
+}
+
+impl<S: Store> BankKeeper for BankBalanceKeeper<S> {
+    type Error = ();
+    type Address = AccountId;
+    type Denom = Denom;
+    type Coin = Coin;
+    type Coins = Vec<Self::Coin>;
+
+    fn set_balances(
+        &mut self,
+        address: Self::Address,
+        coins: Self::Coins,
+    ) -> Result<(), Self::Error> {
+        self.balance_store
+            .set(BalancesPath(address), Balances(coins))
+            .map(|_| ())
+            .map_err(|_| ())
+    }
+}
+
+/// The bank module
+pub struct Bank<S, AR, AK> {
+    /// Handle to store instance
+    /// The module is guaranteed exclusive access to all paths in the store key-space.
+    store: SharedStore<S>,
+    balance_reader: BankBalanceReader<S>,
+    balance_keeper: BankBalanceKeeper<S>,
+    account_reader: AR,
+    account_keeper: AK,
+}
+
+impl<S: ProvableStore + Default, AR: AccountReader, AK: AccountKeeper> Bank<S, AR, AK> {
+    pub fn new(store: SharedStore<S>, account_reader: AR, account_keeper: AK) -> Self {
+        Self {
+            store: store.clone(),
+            balance_reader: BankBalanceReader {
+                balance_store: TypedStore::new(store.clone()),
+            },
+            balance_keeper: BankBalanceKeeper {
+                balance_store: TypedStore::new(store),
+            },
+            account_reader,
+            account_keeper,
+        }
+    }
+}
+
+impl<S: Store, AR: AccountReader, AK: AccountKeeper> Bank<S, AR, AK> {
     fn decode<T: Message + Default>(message: Any) -> Result<T, ModuleError> {
         if message.type_url != "/cosmos.bank.v1beta1.MsgSend" {
             return Err(ModuleError::not_handled());
@@ -77,73 +192,61 @@ impl<S: Store> Bank<S> {
     }
 }
 
-impl<S: Store> Module for Bank<S> {
-    type Store = S;
-
+impl<S: ProvableStore, AR: AccountReader + Send + Sync, AK: AccountKeeper + Send + Sync> Module<S>
+    for Bank<S, AR, AK>
+where
+    <AR as AccountReader>::Address: From<cosmrs::AccountId>,
+    <AK as AccountKeeper>::Account: From<AuthAccount>,
+{
     fn deliver(&mut self, message: Any) -> Result<Vec<Event>, ModuleError> {
         let message: MsgSend = Self::decode::<proto::cosmos::bank::v1beta1::MsgSend>(message)?
             .try_into()
             .map_err(|e| Error::msg_validation_failure(format!("{:?}", e)))?;
 
-        let amounts = message
-            .amount
-            .iter()
-            .map(|coin| {
-                let amt = coin.amount.to_string();
-                match u64::from_str(&amt) {
-                    Ok(amt) => Ok((amt, coin.denom.to_string())),
-                    Err(e) => Err(Error::invalid_amount(e)),
-                }
-            })
-            .collect::<Result<Vec<(u64, String)>, Error>>()?;
+        let _ = self
+            .account_reader
+            .get_account(message.from_address.clone().into())
+            .map_err(|_| Error::non_existent_account(message.from_address.clone()))?;
 
-        let src_path: Path = format!("accounts/{}", message.from_address).try_into()?;
-        let mut src_balances: Balances = match self.store.get(Height::Pending, &src_path) {
-            Some(sb) => serde_json::from_str(&String::from_utf8(sb).unwrap()).unwrap(), // safety - data on the store is assumed to be well-formed
-            None => {
-                return Err(Error::non_existent_account(message.from_address.to_string()).into());
+        // Note: we allow transfers to non-existent destination accounts
+
+        let mut src_balances = self
+            .balance_reader
+            .get_all_balances(message.from_address.clone());
+        let mut dst_balances = self
+            .balance_reader
+            .get_all_balances(message.to_address.clone());
+
+        let amounts: Vec<Coin> = message.amount.iter().map(|amt| amt.into()).collect();
+        for Coin { denom, amount } in amounts {
+            let mut src_balance = src_balances
+                .iter_mut()
+                .find(|c| c.denom == denom)
+                .ok_or_else(Error::insufficient_source_funds)?;
+
+            if dst_balances.iter().any(|c| c.denom == denom) {
+                dst_balances.push(Coin {
+                    denom: denom.clone(),
+                    amount: 0u64,
+                });
             }
-        };
 
-        let dst_path: Path = format!("accounts/{}", message.to_address).try_into()?;
-        let mut dst_balances: Balances = self
-            .store
-            .get(Height::Pending, &dst_path)
-            .map(|db| serde_json::from_str(&String::from_utf8(db).unwrap()).unwrap()) // safety - data on the store is assumed to be well-formed
-            .unwrap_or_else(Default::default);
+            let mut dst_balance = dst_balances.iter_mut().find(|c| c.denom == denom).unwrap();
 
-        // TODO(hu55a1n1): extract account related code into the `auth` module
-        for (amount, denom) in amounts {
-            let mut src_balance = match src_balances.0.get(&denom) {
-                Some(b) if *b >= amount => *b,
-                _ => return Err(Error::insufficient_source_funds().into()),
-            };
-            let mut dst_balance = dst_balances
-                .0
-                .get(&denom)
-                .map(Clone::clone)
-                .unwrap_or(0_u64);
-            if dst_balance > u64::MAX - amount {
+            if dst_balance.amount > u64::MAX - amount {
                 return Err(Error::dest_fund_overflow().into());
             }
-            src_balance -= amount;
-            dst_balance += amount;
-            src_balances.0.insert(denom.to_owned(), src_balance);
-            dst_balances.0.insert(denom.to_owned(), dst_balance);
+
+            src_balance.amount -= amount;
+            dst_balance.amount += amount;
         }
 
         // Store the updated account balances
-        self.store
-            .set(
-                src_path,
-                serde_json::to_string(&src_balances).unwrap().into(), // safety - cannot fail since Balances' Serialize impl doesn't fail
-            )
+        self.balance_keeper
+            .set_balances(message.from_address, src_balances)
             .map_err(|e| Error::store(format!("{:?}", e)))?;
-        self.store
-            .set(
-                dst_path,
-                serde_json::to_string(&dst_balances).unwrap().into(), // safety - cannot fail since Balances' Serialize impl doesn't fail
-            )
+        self.balance_keeper
+            .set_balances(message.to_address, dst_balances)
             .map_err(|e| Error::store(format!("{:?}", e)))?;
 
         Ok(vec![])
@@ -153,14 +256,19 @@ impl<S: Store> Module for Bank<S> {
         debug!("Initializing bank module");
 
         // safety - we panic on errors to prevent chain creation with invalid genesis config
-        let accounts: HashMap<AccountId, Balances> = serde_json::from_value(app_state).unwrap();
-        for account in accounts {
-            let path = format!("accounts/{}", account.0).try_into().unwrap();
-            self.store
-                .set(path, serde_json::to_string(&account.1).unwrap().into())
-                .unwrap();
+        let accounts: HashMap<String, HashMap<Denom, u64>> =
+            serde_json::from_value(app_state).unwrap();
+        for (account, balances) in accounts {
+            trace!("Adding account ({}) => {:?}", account, balances);
 
-            trace!("Added account ({}) => {:?}", account.0, account.1);
+            let account_id = AccountId::from_str(&account).unwrap();
+            self.account_keeper
+                .set_account(AuthAccount::new(account_id.clone()).into())
+                .map_err(|_| "Failed to create account")
+                .unwrap();
+            self.balance_keeper
+                .set_balances(account_id, balances.into_iter().map(|b| b.into()).collect())
+                .unwrap();
         }
     }
 
@@ -176,19 +284,31 @@ impl<S: Store> Module for Bank<S> {
             _ => return Err(ModuleError::not_handled()),
         };
 
+        let account_id =
+            AccountId::from_str(&account_id).map_err(|_| ModuleError::not_handled())?;
+
         trace!("Attempting to get account ID: {}", account_id);
 
-        let path = format!("accounts/{}", account_id).try_into().unwrap(); // safety - account_id is a valid identifier
-        match self.store.get(height, &path) {
-            None => Err(Error::non_existent_account(account_id).into()),
-            Some(balance) => Ok(QueryResult {
-                data: balance,
-                proof: None,
-            }),
-        }
+        let _ = self
+            .account_reader
+            .get_account(account_id.clone().into())
+            .map_err(|_| Error::non_existent_account(account_id.clone()))?;
+
+        let balance = self
+            .balance_reader
+            .get_all_balances_at_height(height, account_id);
+
+        Ok(QueryResult {
+            data: JsonCodec::encode(&balance).unwrap().into_bytes(),
+            proof: None,
+        })
     }
 
-    fn store(&mut self) -> &mut S {
+    fn store_mut(&mut self) -> &mut SharedStore<S> {
         &mut self.store
+    }
+
+    fn store(&self) -> &SharedStore<S> {
+        &self.store
     }
 }
