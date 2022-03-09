@@ -258,12 +258,21 @@ impl<S: Store> ClientReader for Ibc<S> {
         IbcHeight::new(0, self.store.current_height())
     }
 
-    fn host_consensus_state(&self, _height: IbcHeight) -> Result<AnyConsensusState, ClientError> {
-        todo!()
+    fn host_consensus_state(&self, height: IbcHeight) -> Result<AnyConsensusState, ClientError> {
+        let consensus_state = self
+            .consensus_states
+            .get(&height.revision_height)
+            .ok_or_else(|| ClientError::missing_local_consensus_state(height))?;
+        Ok(AnyConsensusState::Tendermint(consensus_state.clone()))
     }
 
     fn pending_host_consensus_state(&self) -> Result<AnyConsensusState, ClientError> {
-        todo!()
+        let pending_height = {
+            let mut h = ClientReader::host_height(self);
+            h.revision_height += 1;
+            h
+        };
+        ClientReader::host_consensus_state(self, pending_height)
     }
 
     fn client_counter(&self) -> Result<u64, ClientError> {
@@ -400,13 +409,7 @@ impl<S: Store> ConnectionReader for Ibc<S> {
         &self,
         height: IbcHeight,
     ) -> Result<AnyConsensusState, ConnectionError> {
-        let consensus_state = self
-            .consensus_states
-            .get(&height.revision_height)
-            .ok_or_else(|| {
-                ConnectionError::ics02_client(ClientError::missing_local_consensus_state(height))
-            })?;
-        Ok(AnyConsensusState::Tendermint(consensus_state.clone()))
+        ClientReader::host_consensus_state(self, height).map_err(ConnectionError::ics02_client)
     }
 
     fn connection_counter(&self) -> Result<u64, ConnectionError> {
@@ -614,19 +617,19 @@ impl<S: Store> ChannelReader for Ibc<S> {
     }
 
     fn host_height(&self) -> IbcHeight {
-        IbcHeight::new(0, self.store.current_height())
+        ClientReader::host_height(self)
     }
 
-    fn host_timestamp(&self) -> Timestamp {
-        Timestamp::now()
-    }
-
-    fn host_consensus_state(&self, _height: IbcHeight) -> Result<AnyConsensusState, ChannelError> {
-        todo!()
+    fn host_consensus_state(&self, height: IbcHeight) -> Result<AnyConsensusState, ChannelError> {
+        ClientReader::host_consensus_state(self, height)
+            .map_err(ConnectionError::ics02_client)
+            .map_err(ChannelError::ics03_connection)
     }
 
     fn pending_host_consensus_state(&self) -> Result<AnyConsensusState, ChannelError> {
-        todo!()
+        ClientReader::pending_host_consensus_state(self)
+            .map_err(ConnectionError::ics02_client)
+            .map_err(ChannelError::ics03_connection)
     }
 
     fn client_update_time(
