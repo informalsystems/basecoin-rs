@@ -50,7 +50,9 @@ pub(crate) trait Module<S: Store>: Send + Sync {
     /// * `Error::not_handled()` if message isn't known to OR hasn't been consumed (but possibly intercepted) by this module
     /// * Other errors iff message was meant to be consumed by module but resulted in an error
     /// * Resulting events on success
-    fn deliver(&mut self, message: Any) -> Result<Vec<Event>, Error>;
+    fn deliver(&mut self, _message: Any) -> Result<Vec<Event>, Error> {
+        Err(Error::not_handled())
+    }
 
     /// Similar to [ABCI InitChain method](https://docs.tendermint.com/master/spec/abci/abci.html#initchain)
     /// Just as with `InitChain`, implementations are encouraged to panic on error
