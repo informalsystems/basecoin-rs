@@ -1,9 +1,5 @@
 //! In-memory key/value store application for Tendermint.
 
-#[allow(unused_imports)]
-#[macro_use]
-extern crate lazy_static;
-
 mod app;
 mod prostgen;
 
