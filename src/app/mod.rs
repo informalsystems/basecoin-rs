@@ -64,11 +64,21 @@ impl<S: Default + ProvableStore + 'static> BaseCoinApp<S> {
         })
     }
 
+    #[inline]
+    fn is_unique_id(&self, prefix: &Identifier) -> bool {
+        self.modules
+            .read()
+            .unwrap()
+            .iter()
+            .any(|(id, _)| id == prefix)
+    }
+
     pub(crate) fn add_module(
         self,
         prefix: Identifier,
         module: impl Module<ModuleStore<S>> + 'static,
     ) -> Self {
+        assert!(self.is_unique_id(&prefix), "module prefix must be unique");
         self.modules
             .write()
             .unwrap()
