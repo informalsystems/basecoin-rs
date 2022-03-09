@@ -66,7 +66,8 @@ impl<S: Default + ProvableStore + 'static> BaseCoinApp<S> {
 
     #[inline]
     fn is_unique_id(&self, prefix: &Identifier) -> bool {
-        self.modules
+        !self
+            .modules
             .read()
             .unwrap()
             .iter()
