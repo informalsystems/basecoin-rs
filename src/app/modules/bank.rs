@@ -164,6 +164,7 @@ pub struct Bank<S, AR, AK> {
     balance_reader: BankBalanceReader<S>,
     balance_keeper: BankBalanceKeeper<S>,
     account_reader: AR,
+    #[allow(dead_code)]
     account_keeper: AK,
 }
 
@@ -262,10 +263,6 @@ where
             trace!("Adding account ({}) => {:?}", account, balances);
 
             let account_id = AccountId::from_str(&account).unwrap();
-            self.account_keeper
-                .set_account(AuthAccount::new(account_id.clone()).into())
-                .map_err(|_| "Failed to create account")
-                .unwrap();
             self.balance_keeper
                 .set_balances(account_id, balances.into_iter().map(|b| b.into()).collect())
                 .unwrap();

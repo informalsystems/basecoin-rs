@@ -1,3 +1,5 @@
+use crate::app::modules::bank::Denom;
+use crate::app::modules::Module;
 use crate::app::store::{
     Height, Path, ProtobufStore, ProvableStore, SharedStore, Store, TypedStore,
 };
@@ -8,14 +10,19 @@ use crate::prostgen::cosmos::auth::v1beta1::{
     QueryParamsRequest, QueryParamsResponse,
 };
 
+use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
+use std::str::FromStr;
 
 use cosmrs::AccountId;
 use prost::Message;
 use prost_types::Any;
+use serde_json::Value;
 use tendermint_proto::Protobuf;
 use tonic::{Request, Response, Status};
-use tracing::debug;
+use tracing::{debug, trace};
+
+const RELAYER_ACCOUNT: &str = "cosmos1snd5m4h0wt5ur55d47vpxla389r2xkf8dl6g9w";
 
 #[derive(Clone)]
 struct AccountsPath(AccountId);
@@ -129,34 +136,68 @@ pub trait AccountKeeper {
     fn remove_account(&mut self, account: Self::Account) -> Result<(), Self::Error>;
 }
 
+#[derive(Clone)]
 pub struct Auth<S> {
     store: SharedStore<S>,
+    account_reader: AuthAccountReader<S>,
+    account_keeper: AuthAccountKeeper<S>,
 }
 
 impl<S: 'static + ProvableStore> Auth<S> {
     pub fn new(store: SharedStore<S>) -> Self {
-        Self { store }
+        Self {
+            store: store.clone(),
+            account_reader: AuthAccountReader {
+                account_store: TypedStore::new(store.clone()),
+            },
+            account_keeper: AuthAccountKeeper {
+                account_store: TypedStore::new(store),
+            },
+        }
     }
 
     pub fn query(&self) -> QueryServer<AuthQuery<S>> {
         QueryServer::new(AuthQuery {
-            account_reader: self.account_reader(),
+            account_reader: self.account_reader().clone(),
         })
     }
 
-    pub fn account_reader(&self) -> AuthAccountReader<S> {
-        AuthAccountReader {
-            account_store: TypedStore::new(self.store.clone()),
-        }
+    pub fn account_reader(&self) -> &AuthAccountReader<S> {
+        &self.account_reader
     }
 
-    pub fn account_keeper(&self) -> AuthAccountKeeper<S> {
-        AuthAccountKeeper {
-            account_store: TypedStore::new(self.store.clone()),
-        }
+    pub fn account_keeper(&self) -> &AuthAccountKeeper<S> {
+        &self.account_keeper
     }
 }
 
+impl<S: Store> Module<S> for Auth<S> {
+    fn init(&mut self, app_state: Value) {
+        debug!("Initializing auth module");
+        // safety - we panic on errors to prevent chain creation with invalid genesis config
+        let accounts: HashMap<String, HashMap<Denom, u64>> =
+            serde_json::from_value(app_state).unwrap();
+        for (account, balances) in accounts {
+            trace!("Adding account ({}) => {:?}", account, balances);
+
+            let account_id = AccountId::from_str(&account).unwrap();
+            self.account_keeper
+                .set_account(AuthAccount::new(account_id.clone()))
+                .map_err(|_| "Failed to create account")
+                .unwrap();
+        }
+    }
+
+    fn store_mut(&mut self) -> &mut SharedStore<S> {
+        &mut self.store
+    }
+
+    fn store(&self) -> &SharedStore<S> {
+        &self.store
+    }
+}
+
+#[derive(Clone)]
 pub struct AuthAccountReader<S> {
     account_store: ProtobufStore<SharedStore<S>, AccountsPath, AuthAccount, BaseAccount>,
 }
@@ -173,6 +214,7 @@ impl<S: Store> AccountReader for AuthAccountReader<S> {
     }
 }
 
+#[derive(Clone)]
 pub struct AuthAccountKeeper<S> {
     account_store: ProtobufStore<SharedStore<S>, AccountsPath, AuthAccount, BaseAccount>,
 }
@@ -212,7 +254,7 @@ impl<S: ProvableStore + 'static> Query for AuthQuery<S> {
     ) -> Result<Response<QueryAccountResponse>, Status> {
         debug!("Got auth account request");
 
-        let account_id = AccountId::new("basecoin", Default::default()).unwrap();
+        let account_id = RELAYER_ACCOUNT.parse().unwrap();
         let mut account = self.account_reader.get_account(account_id).unwrap();
         account.sequence += 1;
 

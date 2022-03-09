@@ -7,7 +7,6 @@ extern crate lazy_static;
 mod app;
 mod prostgen;
 
-use crate::app::modules::auth::{AccountKeeper, AuthAccount};
 use crate::app::modules::{prefix, Auth, Bank, Ibc, Identifiable, Staking};
 use crate::app::store::InMemoryStore;
 use crate::app::BaseCoinApp;
@@ -17,7 +16,6 @@ use crate::prostgen::ibc::core::client::v1::query_server::QueryServer as ClientQ
 use crate::prostgen::ibc::core::connection::v1::query_server::QueryServer as ConnectionQueryServer;
 use crate::prostgen::ibc::core::port::v1::query_server::QueryServer as PortQueryServer;
 
-use cosmrs::AccountId;
 use structopt::StructOpt;
 use tendermint_abci::ServerBuilder;
 use tokio::runtime::Runtime;
@@ -69,23 +67,19 @@ fn main() {
 
     // instantiate modules and setup inter-module communication (if required)
     let auth = Auth::new(app.module_store(&prefix::Auth {}.identifier()));
-    let relayer_acc = AccountId::new("basecoin", Default::default()).unwrap();
-    auth.account_keeper()
-        .set_account(AuthAccount::new(relayer_acc))
-        .expect("failed to init relayer account");
-
     let bank = Bank::new(
         app.module_store(&prefix::Bank {}.identifier()),
-        auth.account_reader(),
-        auth.account_keeper(),
+        auth.account_reader().clone(),
+        auth.account_keeper().clone(),
     );
     let ibc = Ibc::new(app.module_store(&prefix::Ibc {}.identifier()));
     let staking = Staking::new(app.module_store(&prefix::Staking {}.identifier()));
 
     // register modules with the app
     let app = app
+        .add_module(prefix::Auth {}.identifier(), auth.clone())
         .add_module(prefix::Bank {}.identifier(), bank)
-        .add_module(prefix::Bank {}.identifier(), ibc.clone());
+        .add_module(prefix::Ibc {}.identifier(), ibc.clone());
 
     // run the blocking ABCI server on a separate thread
     let server = ServerBuilder::new(opt.read_buf_size)
