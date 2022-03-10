@@ -196,7 +196,7 @@ impl<S: Store, AR: AccountReader, AK: AccountKeeper> Bank<S, AR, AK> {
 impl<S: ProvableStore, AR: AccountReader + Send + Sync, AK: AccountKeeper + Send + Sync> Module<S>
     for Bank<S, AR, AK>
 where
-    <AR as AccountReader>::Address: From<cosmrs::AccountId>,
+    <AR as AccountReader>::Address: From<AccountId>,
     <AK as AccountKeeper>::Account: From<AuthAccount>,
 {
     fn deliver(&mut self, message: Any) -> Result<Vec<Event>, ModuleError> {

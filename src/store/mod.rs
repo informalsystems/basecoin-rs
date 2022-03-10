@@ -157,7 +157,7 @@ impl From<RawHeight> for Height {
 /// Store trait - maybe provableStore or privateStore
 pub trait Store: Send + Sync + Clone {
     /// Error type - expected to envelope all possible errors in store
-    type Error: core::fmt::Debug;
+    type Error: Debug;
 
     /// Set `value` for `path`
     fn set(&mut self, path: Path, value: Vec<u8>) -> Result<Option<Vec<u8>>, Self::Error>;
@@ -197,7 +197,7 @@ pub trait ProvableStore: Store {
     fn root_hash(&self) -> Vec<u8>;
 
     /// Return proof of existence for key
-    fn get_proof(&self, height: Height, key: &Path) -> Option<ics23::CommitmentProof>;
+    fn get_proof(&self, height: Height, key: &Path) -> Option<CommitmentProof>;
 }
 
 /// Wraps a store to make it shareable by cloning

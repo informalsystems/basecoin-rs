@@ -1,3 +1,5 @@
+#![allow(unused_qualifications)]
+
 #[allow(unused)]
 pub const COSMOS_SDK_VERSION: &str = include_str!("COSMOS_SDK_COMMIT");
 
