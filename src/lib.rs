@@ -12,7 +12,6 @@
 mod application;
 pub mod modules;
 mod prostgen;
-mod response;
 pub mod store;
 
 pub mod prelude {

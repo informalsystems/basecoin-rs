@@ -1,4 +1,6 @@
 //! The basecoin ABCI application.
+mod response;
+use response::ResponseFromErrorExt;
 
 use crate::modules::{Error, ErrorDetail, Module};
 use crate::prostgen::cosmos::base::tendermint::v1beta1::{
@@ -13,7 +15,6 @@ use crate::prostgen::cosmos::tx::v1beta1::{
     BroadcastTxRequest, BroadcastTxResponse, GetTxRequest, GetTxResponse, GetTxsEventRequest,
     GetTxsEventResponse, SimulateRequest, SimulateResponse,
 };
-use crate::response::ResponseFromErrorExt;
 use crate::store::{Height, Identifier, Path, ProvableStore, RevertibleStore, SharedStore, Store};
 
 use std::convert::TryInto;
