@@ -1,5 +1,3 @@
-//! In-memory key/value store application for Tendermint.
-
 mod app;
 mod prostgen;
 

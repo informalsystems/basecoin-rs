@@ -1620,11 +1620,13 @@ dependencies = [
 name = "tendermint-basecoin"
 version = "0.1.0"
 dependencies = [
+ "bytes",
  "cosmrs",
  "flex-error",
  "ibc",
  "ibc-proto",
  "ics23",
+ "lazy_static",
  "proptest",
  "prost",
  "prost-types",

@@ -488,9 +488,9 @@ where
 
 #[cfg(test)]
 mod tests {
-    #![allow(unused_must_use)]
-
     use super::{Identifier, Path};
+
+    use lazy_static::lazy_static;
     use proptest::prelude::*;
     use rand::distributions::Standard;
     use rand::seq::SliceRandom;
@@ -538,7 +538,7 @@ mod tests {
     proptest! {
         #[test]
         fn validate_method_doesnt_crash(s in "\\PC*") {
-            Identifier::validate(&s);
+            let _ = Identifier::validate(&s);
         }
 
         #[test]
