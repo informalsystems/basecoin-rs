@@ -7,6 +7,7 @@
 //!
 //! To add support for a new type in the AVL Tree, simply implement the `AsByte` trait for that type.
 
+// FIXME(hu55a1n1) - use Cow<'_> instead?
 pub enum ByteSlice<'a> {
     Slice(&'a [u8]),
     Vector(Vec<u8>),

@@ -1,6 +1,6 @@
-use crate::app::modules::auth::{AccountKeeper, AccountReader, AuthAccount};
-use crate::app::modules::{Error as ModuleError, Module, QueryResult};
-use crate::app::store::{
+use crate::modules::auth::{AccountKeeper, AccountReader, AuthAccount};
+use crate::modules::{Error as ModuleError, Module, QueryResult};
+use crate::store::{
     Codec, Height, JsonCodec, JsonStore, Path, ProvableStore, SharedStore, Store, TypedStore,
 };
 
@@ -196,7 +196,7 @@ impl<S: Store, AR: AccountReader, AK: AccountKeeper> Bank<S, AR, AK> {
 impl<S: ProvableStore, AR: AccountReader + Send + Sync, AK: AccountKeeper + Send + Sync> Module<S>
     for Bank<S, AR, AK>
 where
-    <AR as AccountReader>::Address: From<cosmrs::AccountId>,
+    <AR as AccountReader>::Address: From<AccountId>,
     <AK as AccountKeeper>::Account: From<AuthAccount>,
 {
     fn deliver(&mut self, message: Any) -> Result<Vec<Event>, ModuleError> {

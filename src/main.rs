@@ -1,14 +1,4 @@
-mod app;
-mod prostgen;
-
-use crate::app::modules::{prefix, Auth, Bank, Ibc, Identifiable, Staking};
-use crate::app::store::InMemoryStore;
-use crate::app::BaseCoinApp;
-use crate::prostgen::cosmos::base::tendermint::v1beta1::service_server::ServiceServer as HealthServer;
-use crate::prostgen::cosmos::tx::v1beta1::service_server::ServiceServer as TxServer;
-use crate::prostgen::ibc::core::client::v1::query_server::QueryServer as ClientQueryServer;
-use crate::prostgen::ibc::core::connection::v1::query_server::QueryServer as ConnectionQueryServer;
-use crate::prostgen::ibc::core::port::v1::query_server::QueryServer as PortQueryServer;
+use tendermint_basecoin::prelude::*;
 
 use structopt::StructOpt;
 use tendermint_abci::ServerBuilder;
@@ -57,7 +47,7 @@ fn main() {
     tracing::info!("Starting app and waiting for Tendermint to connect...");
 
     // instantiate the application with a KV store implementation of choice
-    let app = BaseCoinApp::new(InMemoryStore::default()).expect("Failed to init app");
+    let app = Application::new(MemoryStore::default()).expect("Failed to init app");
 
     // instantiate modules and setup inter-module communication (if required)
     let auth = Auth::new(app.module_store(&prefix::Auth {}.identifier()));
