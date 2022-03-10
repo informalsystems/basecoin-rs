@@ -1,10 +1,17 @@
 pub(crate) mod codec;
 
 use super::{Height, Path, Store};
-use codec::Codec;
+pub(crate) use codec::{json::JsonCodec, protobuf::ProtobufCodec, Codec};
 
 use std::marker::PhantomData;
 
+/// A `TypedStore` that uses the `JsonCodec`
+pub(crate) type JsonStore<S, K, V> = TypedStore<S, JsonCodec<V>, K, V>;
+
+/// A `TypedStore` that uses the `ProtobufCodec`
+pub(crate) type ProtobufStore<S, K, V, R> = TypedStore<S, ProtobufCodec<V, R>, K, V>;
+
+/// A `TypedStore` that provides type safe access and serde for store data.
 #[derive(Clone)]
 pub(crate) struct TypedStore<S, C, K, V> {
     store: S,

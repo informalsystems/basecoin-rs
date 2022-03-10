@@ -6,10 +6,7 @@ mod typed;
 pub use memory::MemoryStore;
 pub use revertible::RevertibleStore;
 pub use shared::SharedStore;
-pub(crate) use typed::{
-    codec::{json::JsonCodec, protobuf::ProtobufCodec, Codec},
-    TypedStore,
-};
+pub(crate) use typed::{Codec, JsonCodec, JsonStore, ProtobufStore, TypedStore};
 
 use crate::modules::Error as ModuleError;
 
@@ -24,12 +21,6 @@ use ics23::CommitmentProof;
 
 /// Type of proof
 pub(crate) type Proof = CommitmentProof;
-
-/// A `TypedStore` that uses the `JsonCodec`
-pub(crate) type JsonStore<S, K, V> = TypedStore<S, JsonCodec<V>, K, V>;
-
-/// A `TypedStore` that uses the `ProtobufCodec`
-pub(crate) type ProtobufStore<S, K, V, R> = TypedStore<S, ProtobufCodec<V, R>, K, V>;
 
 /// A newtype representing a valid ICS024 identifier.
 /// Implements `Deref<Target=String>`.
