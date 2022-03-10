@@ -4,9 +4,9 @@ use ics23::commitment_proof::Proof;
 use ics23::verify_membership;
 use sha2::{Digest, Sha256};
 
-use crate::store::avl::node::{as_node_ref, NodeRef};
-use crate::store::avl::tree::AvlTree;
-use crate::store::avl::*;
+use super::avl::node::{as_node_ref, NodeRef};
+use super::avl::tree::AvlTree;
+use super::avl::*;
 
 #[test]
 fn insert() {

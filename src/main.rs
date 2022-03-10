@@ -47,7 +47,7 @@ fn main() {
     tracing::info!("Starting app and waiting for Tendermint to connect...");
 
     // instantiate the application with a KV store implementation of choice
-    let app = Application::new(InMemoryStore::default()).expect("Failed to init app");
+    let app = Application::new(MemoryStore::default()).expect("Failed to init app");
 
     // instantiate modules and setup inter-module communication (if required)
     let auth = Auth::new(app.module_store(&prefix::Auth {}.identifier()));

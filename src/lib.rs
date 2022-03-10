@@ -25,5 +25,5 @@ pub mod prelude {
     pub use prostgen::ibc::core::client::v1::query_server::QueryServer as ClientQueryServer;
     pub use prostgen::ibc::core::connection::v1::query_server::QueryServer as ConnectionQueryServer;
     pub use prostgen::ibc::core::port::v1::query_server::QueryServer as PortQueryServer;
-    pub use store::InMemoryStore;
+    pub use store::MemoryStore;
 }

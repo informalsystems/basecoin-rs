@@ -1,10 +1,9 @@
-mod avl;
 mod memory;
 mod revertible;
 mod shared;
 mod typed;
 
-pub use memory::InMemoryStore;
+pub use memory::MemoryStore;
 pub use revertible::RevertibleStore;
 pub use shared::SharedStore;
 pub(crate) use typed::{

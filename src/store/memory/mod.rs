@@ -1,5 +1,7 @@
-use crate::store::avl::{AsBytes, AvlTree, ByteSlice};
-use crate::store::{Height, Path, ProvableStore, Store};
+mod avl;
+
+use super::{Height, Path, ProvableStore, Store};
+use avl::{AsBytes, AvlTree, ByteSlice};
 
 use ics23::CommitmentProof;
 use tendermint::hash::Algorithm;
@@ -12,14 +14,14 @@ type State = AvlTree<Path, Vec<u8>>;
 
 /// An in-memory store backed by an AvlTree.
 #[derive(Clone)]
-pub struct InMemoryStore {
+pub struct MemoryStore {
     /// collection of states corresponding to every committed block height
     store: Vec<State>,
     /// pending block state
     pending: State,
 }
 
-impl InMemoryStore {
+impl MemoryStore {
     #[inline]
     fn get_state(&self, height: Height) -> Option<&State> {
         match height {
@@ -37,7 +39,7 @@ impl InMemoryStore {
     }
 }
 
-impl Default for InMemoryStore {
+impl Default for MemoryStore {
     /// The store starts out with an empty state. We also initialize the pending location as empty.
     fn default() -> Self {
         Self {
@@ -47,7 +49,7 @@ impl Default for InMemoryStore {
     }
 }
 
-impl Store for InMemoryStore {
+impl Store for MemoryStore {
     type Error = (); // underlying store ops are infallible
 
     fn set(&mut self, path: Path, value: Vec<u8>) -> Result<Option<Vec<u8>>, Self::Error> {
@@ -93,7 +95,7 @@ impl Store for InMemoryStore {
     }
 }
 
-impl ProvableStore for InMemoryStore {
+impl ProvableStore for MemoryStore {
     fn root_hash(&self) -> Vec<u8> {
         self.pending
             .root_hash()
