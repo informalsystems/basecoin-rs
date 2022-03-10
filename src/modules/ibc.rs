@@ -1,7 +1,4 @@
-use crate::app::modules::{Error as ModuleError, Identifiable, Module, QueryResult};
-use crate::app::store::{
-    Height, JsonStore, Path, ProtobufStore, ProvableStore, SharedStore, Store, TypedStore,
-};
+use crate::modules::{Error as ModuleError, Identifiable, Module, QueryResult};
 use crate::prostgen::ibc::core::client::v1::{
     query_server::Query as ClientQuery, ConsensusStateWithHeight, Height as RawHeight,
     QueryClientParamsRequest, QueryClientParamsResponse, QueryClientStateRequest,
@@ -22,6 +19,9 @@ use crate::prostgen::ibc::core::connection::v1::{
 };
 use crate::prostgen::ibc::core::port::v1::{
     query_server::Query as PortQuery, QueryAppVersionRequest, QueryAppVersionResponse,
+};
+use crate::store::{
+    Height, JsonStore, Path, ProtobufStore, ProvableStore, SharedStore, Store, TypedStore,
 };
 
 use std::convert::{TryFrom, TryInto};

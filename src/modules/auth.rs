@@ -1,14 +1,12 @@
-use crate::app::modules::bank::Denom;
-use crate::app::modules::Module;
-use crate::app::store::{
-    Height, Path, ProtobufStore, ProvableStore, SharedStore, Store, TypedStore,
-};
+use crate::modules::bank::Denom;
+use crate::modules::Module;
 use crate::prostgen::cosmos::auth::v1beta1::BaseAccount;
 use crate::prostgen::cosmos::auth::v1beta1::{
     query_server::{Query, QueryServer},
     QueryAccountRequest, QueryAccountResponse, QueryAccountsRequest, QueryAccountsResponse,
     QueryParamsRequest, QueryParamsResponse,
 };
+use crate::store::{Height, Path, ProtobufStore, ProvableStore, SharedStore, Store, TypedStore};
 
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};

@@ -1,5 +1,5 @@
-use crate::app::store::avl::{AsBytes, AvlTree, ByteSlice};
-use crate::app::store::{Height, Path, ProvableStore, Store};
+use crate::store::avl::{AsBytes, AvlTree, ByteSlice};
+use crate::store::{Height, Path, ProvableStore, Store};
 
 use ics23::CommitmentProof;
 use tendermint::hash::Algorithm;
@@ -12,7 +12,7 @@ type State = AvlTree<Path, Vec<u8>>;
 
 /// An in-memory store backed by an AvlTree.
 #[derive(Clone)]
-pub(crate) struct InMemoryStore {
+pub struct InMemoryStore {
     /// collection of states corresponding to every committed block height
     store: Vec<State>,
     /// pending block state

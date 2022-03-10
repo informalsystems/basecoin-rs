@@ -1,14 +1,11 @@
 //! The basecoin ABCI application.
 
-pub(crate) mod modules;
+pub mod modules;
+pub mod prostgen;
 mod response;
-pub(crate) mod store;
+pub mod store;
 
-use crate::app::modules::{Error, ErrorDetail, Module};
-use crate::app::response::ResponseFromErrorExt;
-use crate::app::store::{
-    Height, Identifier, Path, ProvableStore, RevertibleStore, SharedStore, Store,
-};
+use crate::modules::{Error, ErrorDetail, Module};
 use crate::prostgen::cosmos::base::tendermint::v1beta1::{
     service_server::Service as HealthService, GetBlockByHeightRequest, GetBlockByHeightResponse,
     GetLatestBlockRequest, GetLatestBlockResponse, GetLatestValidatorSetRequest,
@@ -21,6 +18,8 @@ use crate::prostgen::cosmos::tx::v1beta1::{
     BroadcastTxRequest, BroadcastTxResponse, GetTxRequest, GetTxResponse, GetTxsEventRequest,
     GetTxsEventResponse, SimulateRequest, SimulateResponse,
 };
+use crate::response::ResponseFromErrorExt;
+use crate::store::{Height, Identifier, Path, ProvableStore, RevertibleStore, SharedStore, Store};
 
 use std::convert::TryInto;
 use std::sync::{Arc, RwLock};
@@ -50,14 +49,14 @@ type Shared<T> = Arc<RwLock<T>>;
 ///
 /// Can be safely cloned and sent across threads, but not shared.
 #[derive(Clone)]
-pub(crate) struct BaseCoinApp<S> {
+pub struct BaseCoinApp<S> {
     store: MainStore<S>,
     modules: Shared<ModuleList<S>>,
 }
 
 impl<S: Default + ProvableStore + 'static> BaseCoinApp<S> {
     /// Constructor.
-    pub(crate) fn new(store: S) -> Result<Self, S::Error> {
+    pub fn new(store: S) -> Result<Self, S::Error> {
         Ok(Self {
             store: SharedStore::new(RevertibleStore::new(store)),
             modules: Arc::new(RwLock::new(vec![])),
@@ -74,7 +73,7 @@ impl<S: Default + ProvableStore + 'static> BaseCoinApp<S> {
             .any(|(id, _)| id == prefix)
     }
 
-    pub(crate) fn add_module(
+    pub fn add_module(
         self,
         prefix: Identifier,
         module: impl Module<ModuleStore<S>> + 'static,
@@ -89,7 +88,7 @@ impl<S: Default + ProvableStore + 'static> BaseCoinApp<S> {
 }
 
 impl<S: Default + ProvableStore> BaseCoinApp<S> {
-    pub(crate) fn module_store(&self, prefix: &Identifier) -> SharedStore<ModuleStore<S>> {
+    pub fn module_store(&self, prefix: &Identifier) -> SharedStore<ModuleStore<S>> {
         let modules = self.modules.read().unwrap();
         modules
             .iter()

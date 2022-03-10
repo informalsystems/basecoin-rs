@@ -8,8 +8,8 @@ use ics23::commitment_proof::Proof;
 use ics23::{CommitmentProof, ExistenceProof, HashOp, InnerOp, LeafOp, LengthOp};
 use tendermint::hash::Hash;
 
-use crate::app::store::avl::node::{as_node_ref, NodeRef};
-use crate::app::store::avl::{proof, AsBytes};
+use crate::store::avl::node::{as_node_ref, NodeRef};
+use crate::store::avl::{proof, AsBytes};
 
 /// An AVL Tree that supports `get` and `insert` operation and can be used to prove existence of a
 /// given key-value couple.

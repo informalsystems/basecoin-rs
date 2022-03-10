@@ -3,12 +3,12 @@ mod bank;
 mod ibc;
 mod staking;
 
-pub(crate) use self::auth::Auth;
-pub(crate) use self::bank::Bank;
-pub(crate) use self::ibc::Ibc;
-pub(crate) use self::staking::Staking;
+pub use self::auth::Auth;
+pub use self::bank::Bank;
+pub use self::ibc::Ibc;
+pub use self::staking::Staking;
 
-use crate::app::store::{self, Height, Path, SharedStore, Store};
+use crate::store::{self, Height, Path, SharedStore, Store};
 
 use flex_error::{define_error, TraceError};
 use prost_types::Any;
@@ -33,7 +33,7 @@ define_error! {
     }
 }
 
-pub(crate) trait Module<S: Store>: Send + Sync {
+pub trait Module<S: Store>: Send + Sync {
     /// Similar to [ABCI CheckTx method](https://docs.tendermint.com/master/spec/abci/abci.html#checktx)
     /// > CheckTx need not execute the transaction in full, but rather a light-weight yet
     /// > stateful validation, like checking signatures and account balances, but not running
@@ -90,28 +90,28 @@ pub(crate) trait Module<S: Store>: Send + Sync {
     fn store(&self) -> &SharedStore<S>;
 }
 
-pub(crate) struct QueryResult {
-    pub(crate) data: Vec<u8>,
-    pub(crate) proof: Option<Vec<ProofOp>>,
+pub struct QueryResult {
+    pub data: Vec<u8>,
+    pub proof: Option<Vec<ProofOp>>,
 }
 
 /// Trait for identifying modules
 /// This is used to get `Module` prefixes that are used for creating prefixed key-space proxy-stores
-pub(crate) trait Identifiable {
+pub trait Identifiable {
     type Identifier: Into<store::Identifier>;
 
     /// Return an identifier
     fn identifier(&self) -> Self::Identifier;
 }
 
-pub(crate) mod prefix {
+pub mod prefix {
     use super::Identifiable;
-    use crate::app::store;
+    use crate::store;
     use core::convert::TryInto;
 
     /// Bank module prefix
     #[derive(Clone)]
-    pub(crate) struct Bank;
+    pub struct Bank;
 
     impl Identifiable for Bank {
         type Identifier = store::Identifier;
@@ -123,7 +123,7 @@ pub(crate) mod prefix {
 
     /// Ibc module prefix
     #[derive(Clone)]
-    pub(crate) struct Ibc;
+    pub struct Ibc;
 
     impl Identifiable for Ibc {
         type Identifier = store::Identifier;
@@ -135,7 +135,7 @@ pub(crate) mod prefix {
 
     /// Auth module prefix
     #[derive(Clone)]
-    pub(crate) struct Auth;
+    pub struct Auth;
 
     impl Identifiable for Auth {
         type Identifier = store::Identifier;
@@ -147,7 +147,7 @@ pub(crate) mod prefix {
 
     /// Staking module prefix
     #[derive(Clone)]
-    pub(crate) struct Staking;
+    pub struct Staking;
 
     impl Identifiable for Staking {
         type Identifier = store::Identifier;

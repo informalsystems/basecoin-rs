@@ -1,4 +1,3 @@
-use crate::app::store::{ProvableStore, SharedStore};
 use crate::prostgen::cosmos::staking::v1beta1::{
     query_server::{Query, QueryServer},
     Params, QueryDelegationRequest, QueryDelegationResponse, QueryDelegatorDelegationsRequest,
@@ -13,6 +12,7 @@ use crate::prostgen::cosmos::staking::v1beta1::{
     QueryValidatorUnbondingDelegationsRequest, QueryValidatorUnbondingDelegationsResponse,
     QueryValidatorsRequest, QueryValidatorsResponse,
 };
+use crate::store::{ProvableStore, SharedStore};
 
 use prost_types::Duration;
 use std::marker::PhantomData;

@@ -1,6 +1,6 @@
-use crate::app::modules::auth::{AccountKeeper, AccountReader, AuthAccount};
-use crate::app::modules::{Error as ModuleError, Module, QueryResult};
-use crate::app::store::{
+use crate::modules::auth::{AccountKeeper, AccountReader, AuthAccount};
+use crate::modules::{Error as ModuleError, Module, QueryResult};
+use crate::store::{
     Codec, Height, JsonCodec, JsonStore, Path, ProvableStore, SharedStore, Store, TypedStore,
 };
 

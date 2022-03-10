@@ -1,9 +1,9 @@
 mod avl;
 mod memory;
 
-pub(crate) use memory::InMemoryStore;
+pub use memory::InMemoryStore;
 
-use crate::app::modules::Error as ModuleError;
+use crate::modules::Error as ModuleError;
 
 use std::convert::{TryFrom, TryInto};
 use std::fmt::{Debug, Display, Formatter};
@@ -288,7 +288,7 @@ impl<S> DerefMut for SharedStore<S> {
 
 /// A wrapper store that implements rudimentary `apply()`/`reset()` support for other stores
 #[derive(Clone)]
-pub(crate) struct RevertibleStore<S> {
+pub struct RevertibleStore<S> {
     /// backing store
     store: S,
     /// operation log for recording rollback operations in preserved order
