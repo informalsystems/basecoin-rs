@@ -5,7 +5,7 @@ use tendermint_basecoin::prostgen::ibc::core::client::v1::query_server::QuerySer
 use tendermint_basecoin::prostgen::ibc::core::connection::v1::query_server::QueryServer as ConnectionQueryServer;
 use tendermint_basecoin::prostgen::ibc::core::port::v1::query_server::QueryServer as PortQueryServer;
 use tendermint_basecoin::store::InMemoryStore;
-use tendermint_basecoin::BaseCoinApp;
+use tendermint_basecoin::Application;
 
 use structopt::StructOpt;
 use tendermint_abci::ServerBuilder;
@@ -54,7 +54,7 @@ fn main() {
     tracing::info!("Starting app and waiting for Tendermint to connect...");
 
     // instantiate the application with a KV store implementation of choice
-    let app = BaseCoinApp::new(InMemoryStore::default()).expect("Failed to init app");
+    let app = Application::new(InMemoryStore::default()).expect("Failed to init app");
 
     // instantiate modules and setup inter-module communication (if required)
     let auth = Auth::new(app.module_store(&prefix::Auth {}.identifier()));

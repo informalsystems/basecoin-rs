@@ -1,4 +1,4 @@
-//! The basecoin ABCI application.
+//! The basecoin ABCI application library.
 
 pub mod modules;
 pub mod prostgen;
@@ -28,7 +28,7 @@ use cosmrs::Tx;
 use prost::Message;
 use prost_types::Any;
 use serde_json::Value;
-use tendermint_abci::Application;
+use tendermint_abci::Application as AbciApplication;
 use tendermint_proto::abci::{
     Event, RequestBeginBlock, RequestDeliverTx, RequestInfo, RequestInitChain, RequestQuery,
     ResponseBeginBlock, ResponseCommit, ResponseDeliverTx, ResponseInfo, ResponseInitChain,
@@ -49,12 +49,12 @@ type Shared<T> = Arc<RwLock<T>>;
 ///
 /// Can be safely cloned and sent across threads, but not shared.
 #[derive(Clone)]
-pub struct BaseCoinApp<S> {
+pub struct Application<S> {
     store: MainStore<S>,
     modules: Shared<ModuleList<S>>,
 }
 
-impl<S: Default + ProvableStore + 'static> BaseCoinApp<S> {
+impl<S: Default + ProvableStore + 'static> Application<S> {
     /// Constructor.
     pub fn new(store: S) -> Result<Self, S::Error> {
         Ok(Self {
@@ -87,7 +87,7 @@ impl<S: Default + ProvableStore + 'static> BaseCoinApp<S> {
     }
 }
 
-impl<S: Default + ProvableStore> BaseCoinApp<S> {
+impl<S: Default + ProvableStore> Application<S> {
     pub fn module_store(&self, prefix: &Identifier) -> SharedStore<ModuleStore<S>> {
         let modules = self.modules.read().unwrap();
         modules
@@ -128,7 +128,7 @@ impl<S: Default + ProvableStore> BaseCoinApp<S> {
     }
 }
 
-impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
+impl<S: Default + ProvableStore + 'static> AbciApplication for Application<S> {
     fn info(&self, request: RequestInfo) -> ResponseInfo {
         let (last_block_height, last_block_app_hash) = {
             let state = self.store.read().unwrap();
@@ -312,7 +312,7 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
 }
 
 #[tonic::async_trait]
-impl<S: ProvableStore + 'static> HealthService for BaseCoinApp<S> {
+impl<S: ProvableStore + 'static> HealthService for Application<S> {
     async fn get_node_info(
         &self,
         _request: Request<GetNodeInfoRequest>,
@@ -374,7 +374,7 @@ impl<S: ProvableStore + 'static> HealthService for BaseCoinApp<S> {
 }
 
 #[tonic::async_trait]
-impl<S: ProvableStore + 'static> TxService for BaseCoinApp<S> {
+impl<S: ProvableStore + 'static> TxService for Application<S> {
     async fn simulate(
         &self,
         request: Request<SimulateRequest>,
