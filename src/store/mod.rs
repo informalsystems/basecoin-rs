@@ -1,22 +1,30 @@
 mod avl;
 mod memory;
+mod revertible;
+mod shared;
+mod typed;
 
 pub use memory::InMemoryStore;
+pub use revertible::RevertibleStore;
+pub use shared::SharedStore;
+pub(crate) use typed::{
+    codec::{json::JsonCodec, protobuf::ProtobufCodec, Codec},
+    TypedStore,
+};
 
 use crate::modules::Error as ModuleError;
 
 use std::convert::{TryFrom, TryInto};
 use std::fmt::{Debug, Display, Formatter};
-use std::ops::{Deref, DerefMut};
+use std::ops::Deref;
 use std::str::{from_utf8, Utf8Error};
-use std::sync::{Arc, RwLock};
 
 use flex_error::{define_error, TraceError};
 use ibc::core::ics24_host::{error::ValidationError, validate::validate_identifier};
 use ics23::CommitmentProof;
-use serde::{de::DeserializeOwned, Serialize};
-use std::marker::PhantomData;
-use tracing::trace;
+
+/// Type of proof
+pub(crate) type Proof = CommitmentProof;
 
 /// A `TypedStore` that uses the `JsonCodec`
 pub(crate) type JsonStore<S, K, V> = TypedStore<S, JsonCodec<V>, K, V>;
@@ -197,293 +205,7 @@ pub trait ProvableStore: Store {
     fn root_hash(&self) -> Vec<u8>;
 
     /// Return proof of existence for key
-    fn get_proof(&self, height: Height, key: &Path) -> Option<CommitmentProof>;
-}
-
-/// Wraps a store to make it shareable by cloning
-#[derive(Clone)]
-pub struct SharedStore<S>(Arc<RwLock<S>>);
-
-impl<S> SharedStore<S> {
-    pub(crate) fn new(store: S) -> Self {
-        Self(Arc::new(RwLock::new(store)))
-    }
-}
-
-impl<S: Default + Store> Default for SharedStore<S> {
-    fn default() -> Self {
-        Self::new(S::default())
-    }
-}
-
-impl<S: Store> Store for SharedStore<S> {
-    type Error = S::Error;
-
-    #[inline]
-    fn set(&mut self, path: Path, value: Vec<u8>) -> Result<Option<Vec<u8>>, Self::Error> {
-        self.write().unwrap().set(path, value)
-    }
-
-    #[inline]
-    fn get(&self, height: Height, path: &Path) -> Option<Vec<u8>> {
-        self.read().unwrap().get(height, path)
-    }
-
-    #[inline]
-    fn delete(&mut self, path: &Path) {
-        self.write().unwrap().delete(path)
-    }
-
-    #[inline]
-    fn commit(&mut self) -> Result<Vec<u8>, Self::Error> {
-        self.write().unwrap().commit()
-    }
-
-    #[inline]
-    fn apply(&mut self) -> Result<(), Self::Error> {
-        self.write().unwrap().apply()
-    }
-
-    #[inline]
-    fn reset(&mut self) {
-        self.write().unwrap().reset()
-    }
-
-    #[inline]
-    fn current_height(&self) -> RawHeight {
-        self.read().unwrap().current_height()
-    }
-
-    #[inline]
-    fn get_keys(&self, key_prefix: &Path) -> Vec<Path> {
-        self.read().unwrap().get_keys(key_prefix)
-    }
-}
-
-impl<S: ProvableStore> ProvableStore for SharedStore<S> {
-    #[inline]
-    fn root_hash(&self) -> Vec<u8> {
-        self.read().unwrap().root_hash()
-    }
-
-    #[inline]
-    fn get_proof(&self, height: Height, key: &Path) -> Option<CommitmentProof> {
-        self.read().unwrap().get_proof(height, key)
-    }
-}
-
-impl<S> Deref for SharedStore<S> {
-    type Target = Arc<RwLock<S>>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<S> DerefMut for SharedStore<S> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-/// A wrapper store that implements rudimentary `apply()`/`reset()` support for other stores
-#[derive(Clone)]
-pub struct RevertibleStore<S> {
-    /// backing store
-    store: S,
-    /// operation log for recording rollback operations in preserved order
-    op_log: Vec<RevertOp>,
-}
-
-#[derive(Clone)]
-enum RevertOp {
-    Delete(Path),
-    Set(Path, Vec<u8>),
-}
-
-impl<S: Store> RevertibleStore<S> {
-    pub(crate) fn new(store: S) -> Self {
-        Self {
-            store,
-            op_log: vec![],
-        }
-    }
-}
-
-impl<S: Default + Store> Default for RevertibleStore<S> {
-    fn default() -> Self {
-        Self::new(S::default())
-    }
-}
-
-impl<S: Store> Store for RevertibleStore<S> {
-    type Error = S::Error;
-
-    #[inline]
-    fn set(&mut self, path: Path, value: Vec<u8>) -> Result<Option<Vec<u8>>, Self::Error> {
-        let old_value = self.store.set(path.clone(), value)?;
-        match old_value {
-            // None implies this was an insert op, so we record the revert op as delete op
-            None => self.op_log.push(RevertOp::Delete(path)),
-            // Some old value implies this was an update op, so we record the revert op as a set op
-            // with the old value
-            Some(ref old_value) => self.op_log.push(RevertOp::Set(path, old_value.clone())),
-        }
-        Ok(old_value)
-    }
-
-    #[inline]
-    fn get(&self, height: Height, path: &Path) -> Option<Vec<u8>> {
-        self.store.get(height, path)
-    }
-
-    #[inline]
-    fn delete(&mut self, _path: &Path) {
-        unimplemented!("RevertibleStore doesn't support delete operations yet!")
-    }
-
-    #[inline]
-    fn commit(&mut self) -> Result<Vec<u8>, Self::Error> {
-        // call `apply()` before `commit()` to make sure all operations are applied
-        self.apply()?;
-        self.store.commit()
-    }
-
-    #[inline]
-    fn apply(&mut self) -> Result<(), Self::Error> {
-        // note that we do NOT call the backing store's apply here - this allows users to create
-        // multilayered `WalStore`s
-        self.op_log.clear();
-        Ok(())
-    }
-
-    #[inline]
-    fn reset(&mut self) {
-        // note that we do NOT call the backing store's reset here - this allows users to create
-        // multilayered `WalStore`s
-        trace!("Rollback operation log changes");
-        while let Some(op) = self.op_log.pop() {
-            match op {
-                RevertOp::Delete(path) => self.delete(&path),
-                RevertOp::Set(path, value) => {
-                    self.set(path, value).unwrap(); // safety - reset failures are unrecoverable
-                }
-            }
-        }
-    }
-
-    #[inline]
-    fn current_height(&self) -> u64 {
-        self.store.current_height()
-    }
-
-    #[inline]
-    fn get_keys(&self, key_prefix: &Path) -> Vec<Path> {
-        self.store.get_keys(key_prefix)
-    }
-}
-
-impl<S: ProvableStore> ProvableStore for RevertibleStore<S> {
-    #[inline]
-    fn root_hash(&self) -> Vec<u8> {
-        self.store.root_hash()
-    }
-
-    #[inline]
-    fn get_proof(&self, height: Height, key: &Path) -> Option<CommitmentProof> {
-        self.store.get_proof(height, key)
-    }
-}
-
-/// A trait that defines how types are decoded/encoded.
-pub(crate) trait Codec<'a> {
-    type Type;
-    type Encoded: AsRef<[u8]>;
-
-    fn encode(d: &'a Self::Type) -> Option<Self::Encoded>;
-
-    fn decode(bytes: &'a [u8]) -> Option<Self::Type>;
-}
-
-/// A JSON codec that uses `serde_json` to encode/decode as a JSON string
-#[derive(Clone)]
-pub(crate) struct JsonCodec<T>(PhantomData<T>);
-
-impl<'a, T: Serialize + DeserializeOwned> Codec<'a> for JsonCodec<T> {
-    type Type = T;
-    type Encoded = String;
-
-    fn encode(d: &'a Self::Type) -> Option<Self::Encoded> {
-        serde_json::to_string(d).ok()
-    }
-
-    fn decode(bytes: &'a [u8]) -> Option<Self::Type> {
-        let json_string = String::from_utf8(bytes.to_vec()).ok()?;
-        serde_json::from_str(&json_string).ok()
-    }
-}
-
-/// A Protobuf codec that uses `prost` to encode/decode
-#[derive(Clone)]
-pub(crate) struct ProtobufCodec<T, R> {
-    domain_type: PhantomData<T>,
-    raw_type: PhantomData<R>,
-}
-
-impl<'a, T: Into<R> + Clone, R: TryInto<T> + Default + prost::Message> Codec<'a>
-    for ProtobufCodec<T, R>
-{
-    type Type = T;
-    type Encoded = Vec<u8>;
-
-    fn encode(d: &'a Self::Type) -> Option<Self::Encoded> {
-        let r = d.clone().into();
-        Some(r.encode_to_vec())
-    }
-
-    fn decode(bytes: &'a [u8]) -> Option<Self::Type> {
-        let r = R::decode(bytes).ok()?;
-        r.try_into().ok()
-    }
-}
-
-#[derive(Clone)]
-pub(crate) struct TypedStore<S, C, K, V> {
-    store: S,
-    _codec: PhantomData<C>,
-    _key: PhantomData<K>,
-    _value: PhantomData<V>,
-}
-
-impl<S, C, K, V> TypedStore<S, C, K, V>
-where
-    S: Store,
-    for<'a> C: Codec<'a, Type = V>,
-    K: Into<Path> + Clone,
-{
-    #[inline]
-    pub(crate) fn new(store: S) -> Self {
-        Self {
-            store,
-            _codec: PhantomData,
-            _key: PhantomData,
-            _value: PhantomData,
-        }
-    }
-
-    #[inline]
-    pub(crate) fn set(&mut self, path: K, value: V) -> Result<Option<V>, S::Error> {
-        self.store
-            .set(path.into(), C::encode(&value).unwrap().as_ref().to_vec())
-            .map(|prev_val| prev_val.and_then(|v| C::decode(&v)))
-    }
-
-    #[inline]
-    pub(crate) fn get(&self, height: Height, path: &K) -> Option<V> {
-        self.store
-            .get(height, &path.clone().into())
-            .and_then(|v| C::decode(&v))
-    }
+    fn get_proof(&self, height: Height, key: &Path) -> Option<Proof>;
 }
 
 #[cfg(test)]
