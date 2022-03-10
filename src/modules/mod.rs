@@ -1,12 +1,7 @@
-mod auth;
-mod bank;
-mod ibc;
-mod staking;
-
-pub use self::auth::Auth;
-pub use self::bank::Bank;
-pub use self::ibc::Ibc;
-pub use self::staking::Staking;
+pub mod auth;
+pub mod bank;
+pub mod ibc;
+pub mod staking;
 
 use crate::store::{self, Height, Path, SharedStore, Store};
 

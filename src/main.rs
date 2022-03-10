@@ -1,11 +1,4 @@
-use tendermint_basecoin::modules::{prefix, Auth, Bank, Ibc, Identifiable, Staking};
-use tendermint_basecoin::prostgen::cosmos::base::tendermint::v1beta1::service_server::ServiceServer as HealthServer;
-use tendermint_basecoin::prostgen::cosmos::tx::v1beta1::service_server::ServiceServer as TxServer;
-use tendermint_basecoin::prostgen::ibc::core::client::v1::query_server::QueryServer as ClientQueryServer;
-use tendermint_basecoin::prostgen::ibc::core::connection::v1::query_server::QueryServer as ConnectionQueryServer;
-use tendermint_basecoin::prostgen::ibc::core::port::v1::query_server::QueryServer as PortQueryServer;
-use tendermint_basecoin::store::InMemoryStore;
-use tendermint_basecoin::Application;
+use tendermint_basecoin::prelude::*;
 
 use structopt::StructOpt;
 use tendermint_abci::ServerBuilder;
