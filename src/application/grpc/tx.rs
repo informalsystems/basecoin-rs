@@ -1,75 +1,52 @@
 use crate::application::Application;
-use crate::prostgen::cosmos::base::tendermint::v1beta1::{
-    service_server::Service as HealthService, GetBlockByHeightRequest, GetBlockByHeightResponse,
-    GetLatestBlockRequest, GetLatestBlockResponse, GetLatestValidatorSetRequest,
-    GetLatestValidatorSetResponse, GetNodeInfoRequest, GetNodeInfoResponse, GetSyncingRequest,
-    GetSyncingResponse, GetValidatorSetByHeightRequest, GetValidatorSetByHeightResponse,
-    Module as VersionInfoModule, VersionInfo,
+use crate::prostgen::cosmos::tx::v1beta1::{
+    service_server::Service as TxService, BroadcastTxRequest, BroadcastTxResponse, GetTxRequest,
+    GetTxResponse, GetTxsEventRequest, GetTxsEventResponse, SimulateRequest, SimulateResponse,
 };
 use crate::store::ProvableStore;
 
-use tendermint_proto::p2p::DefaultNodeInfo;
+use std::convert::TryInto;
+
+use cosmrs::Tx;
 use tonic::{Request, Response, Status};
-use tracing::debug;
 
 #[tonic::async_trait]
-impl<S: ProvableStore + 'static> HealthService for Application<S> {
-    async fn get_node_info(
+impl<S: ProvableStore + 'static> TxService for Application<S> {
+    async fn simulate(
         &self,
-        _request: Request<GetNodeInfoRequest>,
-    ) -> Result<Response<GetNodeInfoResponse>, Status> {
-        debug!("Got node info request");
-
-        // TODO(hu55a1n1): generate below info using build script
-        Ok(Response::new(GetNodeInfoResponse {
-            default_node_info: Some(DefaultNodeInfo::default()),
-            application_version: Some(VersionInfo {
-                name: "basecoin-rs".to_string(),
-                app_name: "basecoind".to_string(),
-                version: "0.1.0".to_string(),
-                git_commit: "209afef7e99ebcb814b25b6738d033aa5e1a932c".to_string(),
-                build_deps: vec![VersionInfoModule {
-                    path: "github.com/cosmos/cosmos-sdk".to_string(),
-                    version: "v0.43.0".to_string(),
-                    sum: "h1:ps1QWfvaX6VLNcykA7wzfii/5IwBfYgTIik6NOVDq/c=".to_string(),
-                }],
-                ..VersionInfo::default()
-            }),
+        request: Request<SimulateRequest>,
+    ) -> Result<Response<SimulateResponse>, Status> {
+        // TODO(hu55a1n1): implement tx based simulate
+        let _: Tx = request
+            .into_inner()
+            .tx_bytes
+            .as_slice()
+            .try_into()
+            .map_err(|_| Status::invalid_argument("failed to deserialize tx"))?;
+        Ok(Response::new(SimulateResponse {
+            gas_info: None,
+            result: None,
         }))
     }
 
-    async fn get_syncing(
+    async fn get_tx(
         &self,
-        _request: Request<GetSyncingRequest>,
-    ) -> Result<Response<GetSyncingResponse>, Status> {
+        _request: Request<GetTxRequest>,
+    ) -> Result<Response<GetTxResponse>, Status> {
         unimplemented!()
     }
 
-    async fn get_latest_block(
+    async fn broadcast_tx(
         &self,
-        _request: Request<GetLatestBlockRequest>,
-    ) -> Result<Response<GetLatestBlockResponse>, Status> {
+        _request: Request<BroadcastTxRequest>,
+    ) -> Result<Response<BroadcastTxResponse>, Status> {
         unimplemented!()
     }
 
-    async fn get_block_by_height(
+    async fn get_txs_event(
         &self,
-        _request: Request<GetBlockByHeightRequest>,
-    ) -> Result<Response<GetBlockByHeightResponse>, Status> {
-        unimplemented!()
-    }
-
-    async fn get_latest_validator_set(
-        &self,
-        _request: Request<GetLatestValidatorSetRequest>,
-    ) -> Result<Response<GetLatestValidatorSetResponse>, Status> {
-        unimplemented!()
-    }
-
-    async fn get_validator_set_by_height(
-        &self,
-        _request: Request<GetValidatorSetByHeightRequest>,
-    ) -> Result<Response<GetValidatorSetByHeightResponse>, Status> {
+        _request: Request<GetTxsEventRequest>,
+    ) -> Result<Response<GetTxsEventResponse>, Status> {
         unimplemented!()
     }
 }
