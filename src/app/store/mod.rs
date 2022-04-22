@@ -19,10 +19,10 @@ use std::marker::PhantomData;
 use tracing::trace;
 
 /// A `TypedStore` that uses the `JsonCodec`
-pub(crate) type JsonStore<S, K, V> = TypedStore<S, JsonCodec<V>, K, V>;
+pub(crate) type JsonStore<S, K, V> = TypedStore<S, K, JsonCodec<V>>;
 
 /// A `TypedStore` that uses the `ProtobufCodec`
-pub(crate) type ProtobufStore<S, K, V, R> = TypedStore<S, ProtobufCodec<V, R>, K, V>;
+pub(crate) type ProtobufStore<S, K, V, R> = TypedStore<S, K, ProtobufCodec<V, R>>;
 
 /// A newtype representing a valid ICS024 identifier.
 /// Implements `Deref<Target=String>`.
@@ -447,15 +447,20 @@ impl<T: Into<R> + Clone, R: TryInto<T> + Default + prost::Message> Codec
     }
 }
 
+/// The `TypedStore` provides methods to treat the data stored at given store paths as given Rust types.
+/// 
+/// It is designed to be aliased for each concrete codec. For example,
+/// ```rust
+/// type CandyStore<S, K, V> = TypedStore<S, K, CandyCodec<V>>;
+/// ```
 #[derive(Clone)]
-pub(crate) struct TypedStore<S, C, K, V> {
+pub(crate) struct TypedStore<S, K, C> {
     store: S,
-    _codec: PhantomData<C>,
     _key: PhantomData<K>,
-    _value: PhantomData<V>,
+    _codec: PhantomData<C>,
 }
 
-impl<S, C, K, V> TypedStore<S, C, K, V>
+impl<S, K, C, V> TypedStore<S, K, C>
 where
     S: Store,
     C: Codec<Type = V>,
@@ -467,7 +472,6 @@ where
             store,
             _codec: PhantomData,
             _key: PhantomData,
-            _value: PhantomData,
         }
     }
 
