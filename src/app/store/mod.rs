@@ -430,9 +430,7 @@ pub(crate) struct ProtobufCodec<T, R> {
     raw_type: PhantomData<R>,
 }
 
-impl<T: Into<R> + Clone, R: TryInto<T> + Default + prost::Message> Codec
-    for ProtobufCodec<T, R>
-{
+impl<T: Into<R> + Clone, R: TryInto<T> + Default + prost::Message> Codec for ProtobufCodec<T, R> {
     type Type = T;
     type Encoded = Vec<u8>;
 
@@ -448,7 +446,7 @@ impl<T: Into<R> + Clone, R: TryInto<T> + Default + prost::Message> Codec
 }
 
 /// The `TypedStore` provides methods to treat the data stored at given store paths as given Rust types.
-/// 
+///
 /// It is designed to be aliased for each concrete codec. For example,
 /// ```rust
 /// type CandyStore<S, K, V> = TypedStore<S, K, CandyCodec<V>>;
