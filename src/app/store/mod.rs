@@ -396,28 +396,28 @@ impl<S: ProvableStore> ProvableStore for RevertibleStore<S> {
 }
 
 /// A trait that defines how types are decoded/encoded.
-pub(crate) trait Codec<'a> {
+pub(crate) trait Codec {
     type Type;
     type Encoded: AsRef<[u8]>;
 
-    fn encode(d: &'a Self::Type) -> Option<Self::Encoded>;
+    fn encode(d: &Self::Type) -> Option<Self::Encoded>;
 
-    fn decode(bytes: &'a [u8]) -> Option<Self::Type>;
+    fn decode(bytes: &[u8]) -> Option<Self::Type>;
 }
 
 /// A JSON codec that uses `serde_json` to encode/decode as a JSON string
 #[derive(Clone)]
 pub(crate) struct JsonCodec<T>(PhantomData<T>);
 
-impl<'a, T: Serialize + DeserializeOwned> Codec<'a> for JsonCodec<T> {
+impl<T: Serialize + DeserializeOwned> Codec for JsonCodec<T> {
     type Type = T;
     type Encoded = String;
 
-    fn encode(d: &'a Self::Type) -> Option<Self::Encoded> {
+    fn encode(d: &Self::Type) -> Option<Self::Encoded> {
         serde_json::to_string(d).ok()
     }
 
-    fn decode(bytes: &'a [u8]) -> Option<Self::Type> {
+    fn decode(bytes: &[u8]) -> Option<Self::Type> {
         let json_string = String::from_utf8(bytes.to_vec()).ok()?;
         serde_json::from_str(&json_string).ok()
     }
@@ -430,18 +430,18 @@ pub(crate) struct ProtobufCodec<T, R> {
     raw_type: PhantomData<R>,
 }
 
-impl<'a, T: Into<R> + Clone, R: TryInto<T> + Default + prost::Message> Codec<'a>
+impl<T: Into<R> + Clone, R: TryInto<T> + Default + prost::Message> Codec
     for ProtobufCodec<T, R>
 {
     type Type = T;
     type Encoded = Vec<u8>;
 
-    fn encode(d: &'a Self::Type) -> Option<Self::Encoded> {
+    fn encode(d: &Self::Type) -> Option<Self::Encoded> {
         let r = d.clone().into();
         Some(r.encode_to_vec())
     }
 
-    fn decode(bytes: &'a [u8]) -> Option<Self::Type> {
+    fn decode(bytes: &[u8]) -> Option<Self::Type> {
         let r = R::decode(bytes).ok()?;
         r.try_into().ok()
     }
@@ -458,7 +458,7 @@ pub(crate) struct TypedStore<S, C, K, V> {
 impl<S, C, K, V> TypedStore<S, C, K, V>
 where
     S: Store,
-    for<'a> C: Codec<'a, Type = V>,
+    C: Codec<Type = V>,
     K: Into<Path> + Clone,
 {
     #[inline]
