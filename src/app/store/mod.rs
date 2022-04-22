@@ -210,13 +210,19 @@ impl<S> SharedStore<S> {
     }
 }
 
-impl<S: Default + Store> Default for SharedStore<S> {
+impl<S> Default for SharedStore<S>
+where
+    S: Default + Store,
+{
     fn default() -> Self {
         Self::new(S::default())
     }
 }
 
-impl<S: Store> Store for SharedStore<S> {
+impl<S> Store for SharedStore<S>
+where
+    S: Store,
+{
     type Error = S::Error;
 
     #[inline]
@@ -260,7 +266,10 @@ impl<S: Store> Store for SharedStore<S> {
     }
 }
 
-impl<S: ProvableStore> ProvableStore for SharedStore<S> {
+impl<S> ProvableStore for SharedStore<S>
+where
+    S: ProvableStore,
+{
     #[inline]
     fn root_hash(&self) -> Vec<u8> {
         self.read().unwrap().root_hash()
@@ -301,7 +310,10 @@ enum RevertOp {
     Set(Path, Vec<u8>),
 }
 
-impl<S: Store> RevertibleStore<S> {
+impl<S> RevertibleStore<S>
+where
+    S: Store,
+{
     pub(crate) fn new(store: S) -> Self {
         Self {
             store,
@@ -310,13 +322,19 @@ impl<S: Store> RevertibleStore<S> {
     }
 }
 
-impl<S: Default + Store> Default for RevertibleStore<S> {
+impl<S> Default for RevertibleStore<S>
+where
+    S: Default + Store,
+{
     fn default() -> Self {
         Self::new(S::default())
     }
 }
 
-impl<S: Store> Store for RevertibleStore<S> {
+impl<S> Store for RevertibleStore<S>
+where
+    S: Store,
+{
     type Error = S::Error;
 
     #[inline]
@@ -383,7 +401,10 @@ impl<S: Store> Store for RevertibleStore<S> {
     }
 }
 
-impl<S: ProvableStore> ProvableStore for RevertibleStore<S> {
+impl<S> ProvableStore for RevertibleStore<S>
+where
+    S: ProvableStore,
+{
     #[inline]
     fn root_hash(&self) -> Vec<u8> {
         self.store.root_hash()
@@ -409,7 +430,10 @@ pub(crate) trait Codec {
 #[derive(Clone)]
 pub(crate) struct JsonCodec<T>(PhantomData<T>);
 
-impl<T: Serialize + DeserializeOwned> Codec for JsonCodec<T> {
+impl<T> Codec for JsonCodec<T>
+where
+    T: Serialize + DeserializeOwned,
+{
     type Type = T;
     type Encoded = String;
 
@@ -430,7 +454,11 @@ pub(crate) struct ProtobufCodec<T, R> {
     raw_type: PhantomData<R>,
 }
 
-impl<T: Into<R> + Clone, R: TryInto<T> + Default + prost::Message> Codec for ProtobufCodec<T, R> {
+impl<T, R> Codec for ProtobufCodec<T, R>
+where
+    T: Into<R> + Clone,
+    R: TryInto<T> + Default + prost::Message,
+{
     type Type = T;
     type Encoded = Vec<u8>;
 
