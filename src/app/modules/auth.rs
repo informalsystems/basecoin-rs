@@ -177,8 +177,8 @@ impl<S: Store> Module<S> for Auth<S> {
         // safety - we panic on errors to prevent chain creation with invalid genesis config
         let accounts: HashMap<String, HashMap<Denom, u64>> =
             serde_json::from_value(app_state).unwrap();
-        for (account, balances) in accounts {
-            trace!("Adding account ({}) => {:?}", account, balances);
+        for (account, _) in accounts {
+            trace!("Adding account: {}", account);
 
             let account_id = AccountId::from_str(&account).unwrap();
             self.account_keeper
