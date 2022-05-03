@@ -24,6 +24,9 @@ pub(crate) type JsonStore<S, K, V> = TypedStore<S, K, JsonCodec<V>>;
 /// A `TypedStore` that uses the `ProtobufCodec`
 pub(crate) type ProtobufStore<S, K, V, R> = TypedStore<S, K, ProtobufCodec<V, R>>;
 
+/// A `TypedSet` that stores only paths and no values
+pub(crate) type TypedSet<S, K> = TypedStore<S, K, NullCodec>;
+
 /// A newtype representing a valid ICS024 identifier.
 /// Implements `Deref<Target=String>`.
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Clone)]
@@ -444,6 +447,25 @@ where
     fn decode(bytes: &[u8]) -> Option<Self::Type> {
         let json_string = String::from_utf8(bytes.to_vec()).ok()?;
         serde_json::from_str(&json_string).ok()
+    }
+}
+
+/// A Null codec that can be used for paths that are only meant to be set/reset and do not hold any
+/// typed value.
+#[derive(Clone)]
+pub(crate) struct NullCodec;
+
+impl Codec for NullCodec {
+    type Type = ();
+    type Encoded = Vec<u8>;
+
+    fn encode(_d: &Self::Type) -> Option<Self::Encoded> {
+        Some(vec![])
+    }
+
+    fn decode(bytes: &[u8]) -> Option<Self::Type> {
+        assert!(bytes.is_empty());
+        Some(())
     }
 }
 
