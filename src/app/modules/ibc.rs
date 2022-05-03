@@ -87,35 +87,30 @@ impl From<IbcPath> for Path {
     }
 }
 
-impl From<path::ClientTypePath> for Path {
-    fn from(ibc_path: path::ClientTypePath) -> Self {
-        Self::try_from(ibc_path.to_string()).unwrap() // safety - `IbcPath`s are correct-by-construction
-    }
+macro_rules! impl_into_path_for {
+    ($($path:ty),+) => {
+        $(impl From<$path> for Path {
+            fn from(ibc_path: $path) -> Self {
+                Self::try_from(ibc_path.to_string()).unwrap() // safety - `IbcPath`s are correct-by-construction
+            }
+        })+
+    };
 }
 
-impl From<path::ClientStatePath> for Path {
-    fn from(ibc_path: path::ClientStatePath) -> Self {
-        Self::try_from(ibc_path.to_string()).unwrap() // safety - `IbcPath`s are correct-by-construction
-    }
-}
-
-impl From<path::ClientConsensusStatePath> for Path {
-    fn from(ibc_path: path::ClientConsensusStatePath) -> Self {
-        Self::try_from(ibc_path.to_string()).unwrap() // safety - `IbcPath`s are correct-by-construction
-    }
-}
-
-impl From<path::ConnectionsPath> for Path {
-    fn from(ibc_path: path::ConnectionsPath) -> Self {
-        Self::try_from(ibc_path.to_string()).unwrap() // safety - `IbcPath`s are correct-by-construction
-    }
-}
-
-impl From<path::ClientConnectionsPath> for Path {
-    fn from(ibc_path: path::ClientConnectionsPath) -> Self {
-        Self::try_from(ibc_path.to_string()).unwrap() // safety - `IbcPath`s are correct-by-construction
-    }
-}
+impl_into_path_for!(
+    path::ClientTypePath,
+    path::ClientStatePath,
+    path::ClientConsensusStatePath,
+    path::ConnectionsPath,
+    path::ClientConnectionsPath,
+    path::ChannelEndsPath,
+    path::SeqSendsPath,
+    path::SeqRecvsPath,
+    path::SeqAcksPath,
+    path::CommitmentsPath,
+    path::ReceiptsPath,
+    path::AcksPath
+);
 
 /// The Ibc module
 /// Implements all ibc-rs `Reader`s and `Keeper`s
