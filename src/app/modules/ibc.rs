@@ -1,6 +1,6 @@
 use crate::app::modules::{Error as ModuleError, Identifiable, Module, QueryResult};
 use crate::app::store::{
-    Height, JsonStore, Path, ProtobufStore, ProvableStore, SharedStore, Store, TypedStore,
+    Height, JsonStore, Path, ProtobufStore, ProvableStore, SharedStore, Store, TypedSet, TypedStore,
 };
 use crate::prostgen::ibc::core::client::v1::{
     query_server::Query as ClientQuery, ConsensusStateWithHeight, Height as RawHeight,
@@ -144,12 +144,26 @@ pub struct Ibc<S> {
         ProtobufStore<SharedStore<S>, path::ConnectionsPath, ConnectionEnd, IbcRawConnectionEnd>,
     /// A typed-store for ConnectionIds
     connection_ids_store: JsonStore<SharedStore<S>, path::ClientConnectionsPath, Vec<ConnectionId>>,
+    /// A typed-store for ChannelEnd
+    channel_end_store:
+        ProtobufStore<SharedStore<S>, path::ChannelEndsPath, ChannelEnd, IbcRawChannelEnd>,
+    /// A typed-store for send sequences
+    send_sequence_store: JsonStore<SharedStore<S>, path::SeqSendsPath, Sequence>,
+    /// A typed-store for receive sequences
+    recv_sequence_store: JsonStore<SharedStore<S>, path::SeqRecvsPath, Sequence>,
+    /// A typed-store for ack sequences
+    ack_sequence_store: JsonStore<SharedStore<S>, path::SeqAcksPath, Sequence>,
+    /// A typed-store for packet commitments
+    packet_commitment_store: JsonStore<SharedStore<S>, path::CommitmentsPath, String>,
+    /// A typed-store for packet receipts
+    packet_receipt_store: TypedSet<SharedStore<S>, path::ReceiptsPath>,
+    /// A typed-store for packet ack
+    packet_ack_store: JsonStore<SharedStore<S>, path::AcksPath, String>,
 }
 
 impl<S: ProvableStore + Default> Ibc<S> {
     pub fn new(store: SharedStore<S>) -> Self {
         Self {
-            store: store.clone(),
             client_counter: 0,
             conn_counter: 0,
             channel_counter: 0,
@@ -160,7 +174,15 @@ impl<S: ProvableStore + Default> Ibc<S> {
             client_state_store: TypedStore::new(store.clone()),
             consensus_state_store: TypedStore::new(store.clone()),
             connection_end_store: TypedStore::new(store.clone()),
-            connection_ids_store: TypedStore::new(store),
+            connection_ids_store: TypedStore::new(store.clone()),
+            channel_end_store: TypedStore::new(store.clone()),
+            send_sequence_store: TypedStore::new(store.clone()),
+            recv_sequence_store: TypedStore::new(store.clone()),
+            ack_sequence_store: TypedStore::new(store.clone()),
+            packet_commitment_store: TypedStore::new(store.clone()),
+            packet_receipt_store: TypedStore::new(store.clone()),
+            packet_ack_store: TypedStore::new(store.clone()),
+            store,
         }
     }
 }
@@ -452,18 +474,14 @@ impl<S: Store> ConnectionKeeper for Ibc<S> {
 impl<S: Store> ChannelReader for Ibc<S> {
     fn channel_end(
         &self,
-        port_channel_id: &(PortId, ChannelId),
+        (port_id, chan_id): &(PortId, ChannelId),
     ) -> Result<ChannelEnd, ChannelError> {
-        let path: IbcPath =
-            path::ChannelEndsPath(port_channel_id.0.clone(), port_channel_id.1.clone()).into();
-        let value = self
-            .store
-            .get(Height::Pending, &path.into())
-            .ok_or_else(ChannelError::implementation_specific)?;
-        let channel_end = IbcRawChannelEnd::decode(value.as_slice());
-        channel_end
-            .map_err(|_| ChannelError::implementation_specific())
-            .map(|v| v.try_into().unwrap()) // safety - data on the store is assumed to be well-formed
+        self.channel_end_store
+            .get(
+                Height::Pending,
+                &path::ChannelEndsPath(port_id.clone(), chan_id.clone()),
+            )
+            .ok_or_else(ChannelError::implementation_specific)
     }
 
     fn connection_end(&self, connection_id: &ConnectionId) -> Result<ConnectionEnd, ChannelError> {
@@ -480,16 +498,10 @@ impl<S: Store> ChannelReader for Ibc<S> {
         let channels = keys
             .into_iter()
             .filter_map(|path| {
-                let value = self.store.get(Height::Pending, &path)?;
-                let channel_end: ChannelEnd = IbcRawChannelEnd::decode(value.as_slice())
-                    .map(|v| v.try_into().unwrap()) // safety - data on the store is assumed to be well-formed
-                    .ok()?;
-
-                if channel_end.connection_hops.first() == Some(cid) {
-                    if let Ok(IbcPath::ChannelEnds(path::ChannelEndsPath(port_id, channel_id))) =
-                        path.try_into()
-                    {
-                        return Some((port_id, channel_id));
+                if let Ok(IbcPath::ChannelEnds(path)) = path.try_into() {
+                    let channel_end = self.channel_end_store.get(Height::Pending, &path)?;
+                    if channel_end.connection_hops.first() == Some(cid) {
+                        return Some((path.0, path.1));
                     }
                 }
 
@@ -519,37 +531,37 @@ impl<S: Store> ChannelReader for Ibc<S> {
 
     fn get_next_sequence_send(
         &self,
-        port_channel_id: &(PortId, ChannelId),
+        (port_id, chan_id): &(PortId, ChannelId),
     ) -> Result<Sequence, ChannelError> {
-        let path: IbcPath =
-            path::SeqSendsPath(port_channel_id.0.clone(), port_channel_id.1.clone()).into();
-        self.store
-            .get(Height::Pending, &path.into())
-            .map(|v| serde_json::from_str(&String::from_utf8(v).unwrap()).unwrap()) // safety - data on the store is assumed to be well-formed
+        self.send_sequence_store
+            .get(
+                Height::Pending,
+                &path::SeqSendsPath(port_id.clone(), chan_id.clone()),
+            )
             .ok_or_else(ChannelError::implementation_specific)
     }
 
     fn get_next_sequence_recv(
         &self,
-        port_channel_id: &(PortId, ChannelId),
+        (port_id, chan_id): &(PortId, ChannelId),
     ) -> Result<Sequence, ChannelError> {
-        let path: IbcPath =
-            path::SeqRecvsPath(port_channel_id.0.clone(), port_channel_id.1.clone()).into();
-        self.store
-            .get(Height::Pending, &path.into())
-            .map(|v| serde_json::from_str(&String::from_utf8(v).unwrap()).unwrap()) // safety - data on the store is assumed to be well-formed
+        self.recv_sequence_store
+            .get(
+                Height::Pending,
+                &path::SeqRecvsPath(port_id.clone(), chan_id.clone()),
+            )
             .ok_or_else(ChannelError::implementation_specific)
     }
 
     fn get_next_sequence_ack(
         &self,
-        port_channel_id: &(PortId, ChannelId),
+        (port_id, chan_id): &(PortId, ChannelId),
     ) -> Result<Sequence, ChannelError> {
-        let path: IbcPath =
-            path::SeqAcksPath(port_channel_id.0.clone(), port_channel_id.1.clone()).into();
-        self.store
-            .get(Height::Pending, &path.into())
-            .map(|v| serde_json::from_str(&String::from_utf8(v).unwrap()).unwrap()) // safety - data on the store is assumed to be well-formed
+        self.ack_sequence_store
+            .get(
+                Height::Pending,
+                &path::SeqAcksPath(port_id.clone(), chan_id.clone()),
+            )
             .ok_or_else(ChannelError::implementation_specific)
     }
 
@@ -557,15 +569,15 @@ impl<S: Store> ChannelReader for Ibc<S> {
         &self,
         key: &(PortId, ChannelId, Sequence),
     ) -> Result<String, ChannelError> {
-        let path: IbcPath = path::CommitmentsPath {
-            port_id: key.0.clone(),
-            channel_id: key.1.clone(),
-            sequence: key.2,
-        }
-        .into();
-        self.store
-            .get(Height::Pending, &path.into())
-            .map(|v| String::from_utf8(v).unwrap()) // safety - data on the store is assumed to be well-formed
+        self.packet_commitment_store
+            .get(
+                Height::Pending,
+                &path::CommitmentsPath {
+                    port_id: key.0.clone(),
+                    channel_id: key.1.clone(),
+                    sequence: key.2,
+                },
+            )
             .ok_or_else(ChannelError::implementation_specific)
     }
 
@@ -573,15 +585,16 @@ impl<S: Store> ChannelReader for Ibc<S> {
         &self,
         key: &(PortId, ChannelId, Sequence),
     ) -> Result<Receipt, ChannelError> {
-        let path: IbcPath = path::ReceiptsPath {
-            port_id: key.0.clone(),
-            channel_id: key.1.clone(),
-            sequence: key.2,
-        }
-        .into();
-        self.store
-            .get(Height::Pending, &path.into())
-            .map(|_| Receipt::Ok) // safety - data on the store is assumed to be well-formed
+        self.packet_receipt_store
+            .is_path_set(
+                Height::Pending,
+                &path::ReceiptsPath {
+                    port_id: key.0.clone(),
+                    channel_id: key.1.clone(),
+                    sequence: key.2,
+                },
+            )
+            .then(|| Receipt::Ok)
             .ok_or_else(ChannelError::implementation_specific)
     }
 
@@ -589,15 +602,15 @@ impl<S: Store> ChannelReader for Ibc<S> {
         &self,
         key: &(PortId, ChannelId, Sequence),
     ) -> Result<String, ChannelError> {
-        let path: IbcPath = path::AcksPath {
-            port_id: key.0.clone(),
-            channel_id: key.1.clone(),
-            sequence: key.2,
-        }
-        .into();
-        self.store
-            .get(Height::Pending, &path.into())
-            .map(|v| String::from_utf8(v).unwrap()) // safety - data on the store is assumed to be well-formed
+        self.packet_ack_store
+            .get(
+                Height::Pending,
+                &path::AcksPath {
+                    port_id: key.0.clone(),
+                    channel_id: key.1.clone(),
+                    sequence: key.2,
+                },
+            )
             .ok_or_else(ChannelError::implementation_specific)
     }
 
@@ -661,33 +674,30 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
         height: IbcHeight,
         data: Vec<u8>,
     ) -> Result<(), ChannelError> {
-        let path: IbcPath = path::CommitmentsPath {
-            port_id: key.0,
-            channel_id: key.1,
-            sequence: key.2,
-        }
-        .into();
-        self.store
+        let commitment =
+            ChannelReader::hash(self, format!("{:?},{:?},{:?}", timestamp, height, data));
+        self.packet_commitment_store
             .set(
-                path.into(),
-                ChannelReader::hash(self, format!("{:?},{:?},{:?}", timestamp, height, data,))
-                    .into(),
+                path::CommitmentsPath {
+                    port_id: key.0,
+                    channel_id: key.1,
+                    sequence: key.2,
+                },
+                commitment,
             )
-            .map_err(|_| ChannelError::implementation_specific())?;
-        Ok(())
+            .map(|_| ())
+            .map_err(|_| ChannelError::implementation_specific())
     }
 
     fn delete_packet_commitment(
         &mut self,
         key: (PortId, ChannelId, Sequence),
     ) -> Result<(), ChannelError> {
-        let path: IbcPath = path::CommitmentsPath {
+        self.packet_commitment_store.delete(&path::CommitmentsPath {
             port_id: key.0,
             channel_id: key.1,
             sequence: key.2,
-        }
-        .into();
-        self.store.delete(&path.into());
+        });
         Ok(())
     }
 
@@ -696,14 +706,12 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
         key: (PortId, ChannelId, Sequence),
         _receipt: Receipt,
     ) -> Result<(), ChannelError> {
-        let path: IbcPath = path::ReceiptsPath {
-            port_id: key.0,
-            channel_id: key.1,
-            sequence: key.2,
-        }
-        .into();
-        self.store
-            .set(path.into(), Vec::default())
+        self.packet_receipt_store
+            .set_path(path::ReceiptsPath {
+                port_id: key.0,
+                channel_id: key.1,
+                sequence: key.2,
+            })
             .map_err(|_| ChannelError::implementation_specific())?;
         Ok(())
     }
@@ -713,29 +721,29 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
         key: (PortId, ChannelId, Sequence),
         ack: Vec<u8>,
     ) -> Result<(), ChannelError> {
-        let path: IbcPath = path::AcksPath {
-            port_id: key.0,
-            channel_id: key.1,
-            sequence: key.2,
-        }
-        .into();
-        self.store
-            .set(path.into(), ack)
-            .map_err(|_| ChannelError::implementation_specific())?;
-        Ok(())
+        let commitment = ChannelReader::hash(self, format!("{:?}", ack));
+        self.packet_ack_store
+            .set(
+                path::AcksPath {
+                    port_id: key.0,
+                    channel_id: key.1,
+                    sequence: key.2,
+                },
+                commitment,
+            )
+            .map(|_| ())
+            .map_err(|_| ChannelError::implementation_specific())
     }
 
     fn delete_packet_acknowledgement(
         &mut self,
         key: (PortId, ChannelId, Sequence),
     ) -> Result<(), ChannelError> {
-        let path: IbcPath = path::AcksPath {
+        self.packet_ack_store.delete(&path::AcksPath {
             port_id: key.0,
             channel_id: key.1,
             sequence: key.2,
-        }
-        .into();
-        self.store.delete(&path.into());
+        });
         Ok(())
     }
 
@@ -759,55 +767,46 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
 
     fn store_channel(
         &mut self,
-        port_channel_id: (PortId, ChannelId),
+        (port_id, chan_id): (PortId, ChannelId),
         channel_end: &ChannelEnd,
     ) -> Result<(), ChannelError> {
-        let data: IbcRawChannelEnd = channel_end.clone().into();
-        let mut buffer = Vec::new();
-        data.encode(&mut buffer)
-            .map_err(|_| ChannelError::implementation_specific())?;
-
-        let path: IbcPath = path::ChannelEndsPath(port_channel_id.0, port_channel_id.1).into();
-        self.store
-            .set(path.into(), buffer)
-            .map_err(|_| ChannelError::implementation_specific())?;
-        Ok(())
+        self.channel_end_store
+            .set(path::ChannelEndsPath(port_id, chan_id), channel_end.clone())
+            .map(|_| ())
+            .map_err(|_| ChannelError::implementation_specific())
     }
 
     fn store_next_sequence_send(
         &mut self,
-        port_channel_id: (PortId, ChannelId),
+        (port_id, chan_id): (PortId, ChannelId),
         seq: Sequence,
     ) -> Result<(), ChannelError> {
-        let path: IbcPath = path::SeqSendsPath(port_channel_id.0, port_channel_id.1).into();
-        self.store
-            .set(path.into(), serde_json::to_string(&seq).unwrap().into()) // safety - cannot fail since Serialize impl doesn't fail
-            .map_err(|_| ChannelError::implementation_specific())?;
-        Ok(())
+        self.send_sequence_store
+            .set(path::SeqSendsPath(port_id, chan_id), seq)
+            .map(|_| ())
+            .map_err(|_| ChannelError::implementation_specific())
     }
 
     fn store_next_sequence_recv(
         &mut self,
-        port_channel_id: (PortId, ChannelId),
+        (port_id, chan_id): (PortId, ChannelId),
         seq: Sequence,
     ) -> Result<(), ChannelError> {
-        let path: IbcPath = path::SeqRecvsPath(port_channel_id.0, port_channel_id.1).into();
-        self.store
-            .set(path.into(), serde_json::to_string(&seq).unwrap().into()) // safety - cannot fail since Serialize impl doesn't fail
-            .map_err(|_| ChannelError::implementation_specific())?;
-        Ok(())
+        self.recv_sequence_store
+            .set(path::SeqRecvsPath(port_id, chan_id), seq)
+            .map(|_| ())
+            .map_err(|_| ChannelError::implementation_specific())
     }
 
     fn store_next_sequence_ack(
         &mut self,
-        port_channel_id: (PortId, ChannelId),
+        (port_id, chan_id): (PortId, ChannelId),
         seq: Sequence,
     ) -> Result<(), ChannelError> {
-        let path: IbcPath = path::SeqAcksPath(port_channel_id.0, port_channel_id.1).into();
-        self.store
-            .set(path.into(), serde_json::to_string(&seq).unwrap().into()) // safety - cannot fail since Serialize impl doesn't fail
-            .map_err(|_| ChannelError::implementation_specific())?;
-        Ok(())
+        self.ack_sequence_store
+            .set(path::SeqAcksPath(port_id, chan_id), seq)
+            .map(|_| ())
+            .map_err(|_| ChannelError::implementation_specific())
     }
 
     fn increase_channel_counter(&mut self) {
