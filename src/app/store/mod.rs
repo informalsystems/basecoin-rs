@@ -536,6 +536,11 @@ where
             .get(height, &path.clone().into())
             .and_then(|v| C::decode(&v))
     }
+
+    #[inline]
+    pub(crate) fn delete(&mut self, path: &K) {
+        self.store.delete(&path.clone().into())
+    }
 }
 
 impl<S, K> TypedStore<S, K, NullCodec>
