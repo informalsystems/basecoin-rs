@@ -538,6 +538,22 @@ where
     }
 }
 
+impl<S, K> TypedStore<S, K, NullCodec>
+where
+    S: Store,
+    K: Into<Path> + Clone,
+{
+    #[inline]
+    pub(crate) fn set_path(&mut self, path: K) -> Result<(), S::Error> {
+        self.store.set(path.into(), vec![]).map(|_| ())
+    }
+
+    #[inline]
+    pub(crate) fn is_path_set(&self, height: Height, path: &K) -> bool {
+        self.store.get(height, &path.clone().into()).is_some()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{Identifier, Path};
