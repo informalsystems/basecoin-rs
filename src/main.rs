@@ -23,7 +23,7 @@ struct Opt {
     host: String,
 
     /// Bind the TCP server to this port.
-    #[structopt(short, long, default_value = "26658")]
+    #[structopt(short, long, default_value = "26358")]
     port: u16,
 
     /// Bind the gRPC server to this port.
