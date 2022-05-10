@@ -43,8 +43,13 @@ use tracing::{debug, info};
 
 type MainStore<S> = SharedStore<RevertibleStore<S>>;
 type ModuleStore<S> = RevertibleStore<S>;
-type ModuleList<S> = Vec<(Identifier, Box<dyn Module<Store = ModuleStore<S>>>)>;
+type ModuleList<S> = Vec<IdentifiedModule<S>>;
 type SharedRw<T> = Arc<RwLock<T>>;
+
+struct IdentifiedModule<S> {
+    id: Identifier,
+    module: Box<dyn Module<Store = ModuleStore<S>>>,
+}
 
 /// BaseCoin ABCI application.
 ///
@@ -66,12 +71,7 @@ impl<S: Default + ProvableStore + 'static> BaseCoinApp<S> {
 
     #[inline]
     fn is_unique_id(&self, prefix: &Identifier) -> bool {
-        !self
-            .modules
-            .read()
-            .unwrap()
-            .iter()
-            .any(|(id, _)| id == prefix)
+        !self.modules.read().unwrap().iter().any(|m| &m.id == prefix)
     }
 
     pub(crate) fn add_module(
@@ -80,10 +80,10 @@ impl<S: Default + ProvableStore + 'static> BaseCoinApp<S> {
         module: impl Module<Store = ModuleStore<S>> + 'static,
     ) -> Self {
         assert!(self.is_unique_id(&prefix), "module prefix must be unique");
-        self.modules
-            .write()
-            .unwrap()
-            .push((prefix, Box::new(module)));
+        self.modules.write().unwrap().push(IdentifiedModule {
+            id: prefix,
+            module: Box::new(module),
+        });
         self
     }
 }
@@ -93,8 +93,8 @@ impl<S: Default + ProvableStore> BaseCoinApp<S> {
         let modules = self.modules.read().unwrap();
         modules
             .iter()
-            .find(|(p, _)| p == prefix)
-            .map(|(_, m)| m.store().clone())
+            .find(|m| &m.id == prefix)
+            .map(|IdentifiedModule { module, .. }| module.store().clone())
             .unwrap_or_else(|| SharedStore::new(ModuleStore::new(S::default())))
     }
 
@@ -109,8 +109,8 @@ impl<S: Default + ProvableStore> BaseCoinApp<S> {
         let mut handled = false;
         let mut events = vec![];
 
-        for (_, m) in modules.iter_mut() {
-            match m.deliver(message.clone()) {
+        for IdentifiedModule { module, .. } in modules.iter_mut() {
+            match module.deliver(message.clone()) {
                 Ok(mut msg_events) => {
                     events.append(&mut msg_events);
                     handled = true;
@@ -157,8 +157,8 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
         )
         .expect("genesis state isn't valid JSON");
         let mut modules = self.modules.write().unwrap();
-        for (_, m) in modules.iter_mut() {
-            m.init(app_state.clone());
+        for IdentifiedModule { module, .. } in modules.iter_mut() {
+            module.init(app_state.clone());
         }
 
         info!("App initialized");
@@ -176,8 +176,8 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
         let path: Option<Path> = request.path.try_into().ok();
         let modules = self.modules.read().unwrap();
         let height = Height::from(request.height as u64);
-        for (_, m) in modules.iter() {
-            match m.query(&request.data, path.as_ref(), height, request.prove) {
+        for IdentifiedModule { module, .. } in modules.iter() {
+            match module.query(&request.data, path.as_ref(), height, request.prove) {
                 // success - implies query was handled by this module, so return response
                 Ok(result) => {
                     let store = self.store.read().unwrap();
@@ -254,8 +254,8 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
                 Err(e) => {
                     // reset changes from other messages in this tx
                     let mut modules = self.modules.write().unwrap();
-                    for (_, m) in modules.iter_mut() {
-                        m.store_mut().reset();
+                    for IdentifiedModule { module, .. } in modules.iter_mut() {
+                        module.store_mut().reset();
                     }
                     self.store.write().unwrap().reset();
                     return ResponseDeliverTx::from_error(
@@ -275,11 +275,14 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
 
     fn commit(&self) -> ResponseCommit {
         let mut modules = self.modules.write().unwrap();
-        for (p, m) in modules.iter_mut() {
-            m.store_mut().commit().expect("failed to commit to state");
+        for IdentifiedModule { id, module } in modules.iter_mut() {
+            module
+                .store_mut()
+                .commit()
+                .expect("failed to commit to state");
             let mut state = self.store.write().unwrap();
             state
-                .set(p.clone().into(), m.store().root_hash())
+                .set(id.clone().into(), module.store().root_hash())
                 .expect("failed to update sub-store commitment");
         }
 
@@ -304,8 +307,8 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
         let mut modules = self.modules.write().unwrap();
         let mut events = vec![];
         let header = request.header.unwrap().try_into().unwrap();
-        for (_, m) in modules.iter_mut() {
-            events.extend(m.begin_block(&header));
+        for IdentifiedModule { module, .. } in modules.iter_mut() {
+            events.extend(module.begin_block(&header));
         }
 
         ResponseBeginBlock { events }
