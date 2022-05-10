@@ -34,12 +34,18 @@ impl From<AccountsPath> for Path {
 }
 
 pub trait Account {
+    /// Account address type
     type Address;
+    /// Account public key type
     type PubKey;
 
+    /// Returns the account's address.
     fn address(&self) -> &Self::Address;
+
+    /// Returns the account's public key.
     fn pub_key(&self) -> &Self::PubKey;
-    fn number(&self) -> u64;
+
+    /// Returns the account's sequence. (used for replay protection)
     fn sequence(&self) -> u64;
 }
 
@@ -70,10 +76,6 @@ impl Account for AuthAccount {
 
     fn pub_key(&self) -> &Self::PubKey {
         unimplemented!()
-    }
-
-    fn number(&self) -> u64 {
-        self.number
     }
 
     fn sequence(&self) -> u64 {
