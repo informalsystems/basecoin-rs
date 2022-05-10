@@ -44,7 +44,7 @@ use tracing::{debug, info};
 type MainStore<S> = SharedStore<RevertibleStore<S>>;
 type ModuleStore<S> = RevertibleStore<S>;
 type ModuleList<S> = Vec<(Identifier, Box<dyn Module<Store = ModuleStore<S>>>)>;
-type Shared<T> = Arc<RwLock<T>>;
+type SharedRw<T> = Arc<RwLock<T>>;
 
 /// BaseCoin ABCI application.
 ///
@@ -52,7 +52,7 @@ type Shared<T> = Arc<RwLock<T>>;
 #[derive(Clone)]
 pub(crate) struct BaseCoinApp<S> {
     store: MainStore<S>,
-    modules: Shared<ModuleList<S>>,
+    modules: SharedRw<ModuleList<S>>,
 }
 
 impl<S: Default + ProvableStore + 'static> BaseCoinApp<S> {
