@@ -847,7 +847,9 @@ impl<S: Store> Ics20Context for Ibc<S> {}
 
 impl<S: Store> Ics26Context for Ibc<S> {}
 
-impl<S: ProvableStore> Module<S> for Ibc<S> {
+impl<S: ProvableStore> Module for Ibc<S> {
+    type Store = S;
+
     fn deliver(&mut self, message: Any) -> Result<Vec<Event>, ModuleError> {
         let msg = decode(message).map_err(|_| ModuleError::not_handled())?;
 

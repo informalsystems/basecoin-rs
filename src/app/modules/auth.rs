@@ -171,7 +171,9 @@ impl<S: 'static + ProvableStore> Auth<S> {
     }
 }
 
-impl<S: Store> Module<S> for Auth<S> {
+impl<S: Store> Module for Auth<S> {
+    type Store = S;
+
     fn init(&mut self, app_state: Value) {
         debug!("Initializing auth module");
         // safety - we panic on errors to prevent chain creation with invalid genesis config

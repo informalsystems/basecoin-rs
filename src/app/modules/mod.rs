@@ -8,7 +8,7 @@ pub(crate) use self::bank::Bank;
 pub(crate) use self::ibc::Ibc;
 pub(crate) use self::staking::Staking;
 
-use crate::app::store::{self, Height, Path, SharedStore, Store};
+use crate::app::store::{self, Height, Path, SharedStore};
 
 use flex_error::{define_error, TraceError};
 use prost_types::Any;
@@ -33,7 +33,10 @@ define_error! {
     }
 }
 
-pub(crate) trait Module<S: Store>: Send + Sync {
+pub(crate) trait Module: Send + Sync {
+    /// The module's store type.
+    type Store;
+
     /// Similar to [ABCI CheckTx method](https://docs.tendermint.com/master/spec/abci/abci.html#checktx)
     /// > CheckTx need not execute the transaction in full, but rather a light-weight yet
     /// > stateful validation, like checking signatures and account balances, but not running
@@ -84,10 +87,10 @@ pub(crate) trait Module<S: Store>: Send + Sync {
     }
 
     /// Return a mutable reference to the module's store
-    fn store_mut(&mut self) -> &mut SharedStore<S>;
+    fn store_mut(&mut self) -> &mut SharedStore<Self::Store>;
 
     /// Return a reference to the module's store
-    fn store(&self) -> &SharedStore<S>;
+    fn store(&self) -> &SharedStore<Self::Store>;
 }
 
 pub(crate) struct QueryResult {

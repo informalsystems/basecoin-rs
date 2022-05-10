@@ -43,7 +43,7 @@ use tracing::{debug, info};
 
 type MainStore<S> = SharedStore<RevertibleStore<S>>;
 type ModuleStore<S> = RevertibleStore<S>;
-type ModuleList<S> = Vec<(Identifier, Box<dyn Module<ModuleStore<S>>>)>;
+type ModuleList<S> = Vec<(Identifier, Box<dyn Module<Store = ModuleStore<S>>>)>;
 type Shared<T> = Arc<RwLock<T>>;
 
 /// BaseCoin ABCI application.
@@ -77,7 +77,7 @@ impl<S: Default + ProvableStore + 'static> BaseCoinApp<S> {
     pub(crate) fn add_module(
         self,
         prefix: Identifier,
-        module: impl Module<ModuleStore<S>> + 'static,
+        module: impl Module<Store = ModuleStore<S>> + 'static,
     ) -> Self {
         assert!(self.is_unique_id(&prefix), "module prefix must be unique");
         self.modules

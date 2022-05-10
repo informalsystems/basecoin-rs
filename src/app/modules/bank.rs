@@ -193,12 +193,14 @@ impl<S: Store, AR: AccountReader, AK: AccountKeeper> Bank<S, AR, AK> {
     }
 }
 
-impl<S: ProvableStore, AR: AccountReader + Send + Sync, AK: AccountKeeper + Send + Sync> Module<S>
+impl<S: ProvableStore, AR: AccountReader + Send + Sync, AK: AccountKeeper + Send + Sync> Module
     for Bank<S, AR, AK>
 where
     <AR as AccountReader>::Address: From<cosmrs::AccountId>,
     <AK as AccountKeeper>::Account: From<AuthAccount>,
 {
+    type Store = S;
+
     fn deliver(&mut self, message: Any) -> Result<Vec<Event>, ModuleError> {
         let message: MsgSend = Self::decode::<proto::cosmos::bank::v1beta1::MsgSend>(message)?
             .try_into()
