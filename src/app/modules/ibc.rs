@@ -20,9 +20,6 @@ use crate::prostgen::ibc::core::connection::v1::{
     QueryConnectionRequest, QueryConnectionResponse, QueryConnectionsRequest,
     QueryConnectionsResponse, Version as RawVersion,
 };
-use crate::prostgen::ibc::core::port::v1::{
-    query_server::Query as PortQuery, QueryAppVersionRequest, QueryAppVersionResponse,
-};
 
 use std::convert::{TryFrom, TryInto};
 use std::str::FromStr;
@@ -1079,20 +1076,6 @@ impl<S: ProvableStore + 'static> ConnectionQuery for Ibc<S> {
         _request: Request<QueryConnectionConsensusStateRequest>,
     ) -> Result<Response<QueryConnectionConsensusStateResponse>, Status> {
         todo!()
-    }
-}
-
-#[tonic::async_trait]
-impl<S: ProvableStore + 'static> PortQuery for Ibc<S> {
-    async fn app_version(
-        &self,
-        request: Request<QueryAppVersionRequest>,
-    ) -> Result<Response<QueryAppVersionResponse>, Status> {
-        let request = request.into_inner();
-        Ok(Response::new(QueryAppVersionResponse {
-            port_id: request.port_id,
-            version: request.proposed_version,
-        }))
     }
 }
 

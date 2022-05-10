@@ -8,7 +8,6 @@ use crate::prostgen::cosmos::base::tendermint::v1beta1::service_server::ServiceS
 use crate::prostgen::cosmos::tx::v1beta1::service_server::ServiceServer as TxServer;
 use crate::prostgen::ibc::core::client::v1::query_server::QueryServer as ClientQueryServer;
 use crate::prostgen::ibc::core::connection::v1::query_server::QueryServer as ConnectionQueryServer;
-use crate::prostgen::ibc::core::port::v1::query_server::QueryServer as PortQueryServer;
 
 use structopt::StructOpt;
 use tendermint_abci::ServerBuilder;
@@ -88,8 +87,7 @@ fn main() {
         .add_service(HealthServer::new(app.clone()))
         .add_service(TxServer::new(app))
         .add_service(ClientQueryServer::new(ibc.clone()))
-        .add_service(ConnectionQueryServer::new(ibc.clone()))
-        .add_service(PortQueryServer::new(ibc))
+        .add_service(ConnectionQueryServer::new(ibc))
         .add_service(auth.query())
         .add_service(staking.query())
         .serve(format!("{}:{}", opt.host, opt.grpc_port).parse().unwrap());
