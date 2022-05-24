@@ -25,7 +25,7 @@ websocket_addr = 'ws://localhost:26357/websocket'
 rpc_timeout = '10s'
 account_prefix = 'cosmos'
 key_name = 'testkey'
-store_prefix = 'basecoin'
+store_prefix = 'ibc'
 gas_price = { price = 0.001, denom = 'stake' }
 clock_drift = '5s'
 trusting_period = '14days'
