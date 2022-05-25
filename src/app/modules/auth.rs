@@ -22,6 +22,8 @@ use tendermint_proto::Protobuf;
 use tonic::{Request, Response, Status};
 use tracing::{debug, trace};
 
+/// Address of the account that the relayer uses to sign basecoin transactions.
+/// This is hardcoded as we don't verify signatures currently.
 const RELAYER_ACCOUNT: &str = "cosmos1snd5m4h0wt5ur55d47vpxla389r2xkf8dl6g9w";
 
 #[derive(Clone)]
