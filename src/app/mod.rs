@@ -94,7 +94,7 @@ impl<S: Default + ProvableStore> BaseCoinApp<S> {
         modules
             .iter()
             .find(|m| &m.id == prefix)
-            .map(|IdentifiedModule { module, .. }| module.store().clone())
+            .map(|IdentifiedModule { module, .. }| module.store().share())
             .unwrap_or_else(|| SharedStore::new(ModuleStore::new(S::default())))
     }
 

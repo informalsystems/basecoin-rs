@@ -211,6 +211,10 @@ impl<S> SharedStore<S> {
     pub(crate) fn new(store: S) -> Self {
         Self(Arc::new(RwLock::new(store)))
     }
+
+    pub(crate) fn share(&self) -> Self {
+        Self(self.0.clone())
+    }
 }
 
 impl<S> Default for SharedStore<S>
