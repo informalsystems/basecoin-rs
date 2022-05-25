@@ -38,21 +38,14 @@ proof_specs = '''
       "prehash_key": 0,
       "prehash_value": 0,
       "length": 0,
-      "prefix": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      "prefix": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
     },
     "inner_spec": {
-      "child_order": [
-        0,
-        1,
-        2
-      ],
+      "child_order": [0, 1, 2],
       "child_size": 32,
       "min_prefix_length": 0,
       "max_prefix_length": 64,
-      "empty_child": [
-        0,
-        32
-      ],
+      "empty_child": "ACA=",
       "hash": 1
     },
     "max_depth": 0,
@@ -64,21 +57,14 @@ proof_specs = '''
       "prehash_key": 0,
       "prehash_value": 0,
       "length": 0,
-      "prefix": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      "prefix": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
     },
     "inner_spec": {
-      "child_order": [
-        0,
-        1,
-        2
-      ],
+      "child_order": [0, 1, 2],
       "child_size": 32,
       "min_prefix_length": 0,
       "max_prefix_length": 64,
-      "empty_child": [
-        0,
-        32
-      ],
+      "empty_child": "ACA=",
       "hash": 1
     },
     "max_depth": 0,
