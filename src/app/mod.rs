@@ -60,13 +60,29 @@ pub(crate) struct BaseCoinApp<S> {
     modules: SharedRw<ModuleList<S>>,
 }
 
-impl<S: Default + ProvableStore + 'static> BaseCoinApp<S> {
+pub(crate) struct Builder<S> {
+    store: MainStore<S>,
+    modules: SharedRw<ModuleList<S>>,
+}
+
+impl<S: Default + ProvableStore + 'static> Builder<S> {
     /// Constructor.
-    pub(crate) fn new(store: S) -> Result<Self, S::Error> {
-        Ok(Self {
+    pub(crate) fn new(store: S) -> Self {
+        Self {
             store: SharedStore::new(RevertibleStore::new(store)),
             modules: Arc::new(RwLock::new(vec![])),
-        })
+        }
+    }
+
+    /// Returns a share to the module's store if a module with specified identifier was previously
+    /// added, otherwise creates a new module store and returns it.
+    pub(crate) fn module_store(&self, prefix: &Identifier) -> SharedStore<ModuleStore<S>> {
+        let modules = self.modules.read().unwrap();
+        modules
+            .iter()
+            .find(|m| &m.id == prefix)
+            .map(|IdentifiedModule { module, .. }| module.store().share())
+            .unwrap_or_else(|| SharedStore::new(ModuleStore::new(S::default())))
     }
 
     #[inline]
@@ -74,6 +90,7 @@ impl<S: Default + ProvableStore + 'static> BaseCoinApp<S> {
         !self.modules.read().unwrap().iter().any(|m| &m.id == prefix)
     }
 
+    /// Adds a new module. Panics if a module with the specified identifier was previously added.
     pub(crate) fn add_module(
         self,
         prefix: Identifier,
@@ -86,18 +103,16 @@ impl<S: Default + ProvableStore + 'static> BaseCoinApp<S> {
         });
         self
     }
+
+    pub(crate) fn build(self) -> BaseCoinApp<S> {
+        BaseCoinApp {
+            store: self.store,
+            modules: self.modules,
+        }
+    }
 }
 
 impl<S: Default + ProvableStore> BaseCoinApp<S> {
-    pub(crate) fn module_store(&self, prefix: &Identifier) -> SharedStore<ModuleStore<S>> {
-        let modules = self.modules.read().unwrap();
-        modules
-            .iter()
-            .find(|m| &m.id == prefix)
-            .map(|IdentifiedModule { module, .. }| module.store().share())
-            .unwrap_or_else(|| SharedStore::new(ModuleStore::new(S::default())))
-    }
-
     // try to deliver the message to all registered modules
     // if `module.deliver()` returns `Error::not_handled()`, try next module
     // Return:

@@ -3,7 +3,7 @@ mod prostgen;
 
 use crate::app::modules::{prefix, Auth, Bank, Ibc, Identifiable, Staking};
 use crate::app::store::InMemoryStore;
-use crate::app::BaseCoinApp;
+use crate::app::Builder;
 use crate::prostgen::cosmos::base::tendermint::v1beta1::service_server::ServiceServer as HealthServer;
 use crate::prostgen::cosmos::tx::v1beta1::service_server::ServiceServer as TxServer;
 use crate::prostgen::ibc::core::client::v1::query_server::QueryServer as ClientQueryServer;
@@ -56,23 +56,24 @@ fn main() {
     tracing::info!("Starting app and waiting for Tendermint to connect...");
 
     // instantiate the application with a KV store implementation of choice
-    let app = BaseCoinApp::new(InMemoryStore::default()).expect("Failed to init app");
+    let app_builder = Builder::new(InMemoryStore::default());
 
     // instantiate modules and setup inter-module communication (if required)
-    let auth = Auth::new(app.module_store(&prefix::Auth {}.identifier()));
+    let auth = Auth::new(app_builder.module_store(&prefix::Auth {}.identifier()));
     let bank = Bank::new(
-        app.module_store(&prefix::Bank {}.identifier()),
+        app_builder.module_store(&prefix::Bank {}.identifier()),
         auth.account_reader().clone(),
         auth.account_keeper().clone(),
     );
-    let ibc = Ibc::new(app.module_store(&prefix::Ibc {}.identifier()));
-    let staking = Staking::new(app.module_store(&prefix::Staking {}.identifier()));
+    let ibc = Ibc::new(app_builder.module_store(&prefix::Ibc {}.identifier()));
+    let staking = Staking::new(app_builder.module_store(&prefix::Staking {}.identifier()));
 
     // register modules with the app
-    let app = app
+    let app = app_builder
         .add_module(prefix::Auth {}.identifier(), auth.clone())
         .add_module(prefix::Bank {}.identifier(), bank)
-        .add_module(prefix::Ibc {}.identifier(), ibc.clone());
+        .add_module(prefix::Ibc {}.identifier(), ibc.clone())
+        .build();
 
     // run the blocking ABCI server on a separate thread
     let server = ServerBuilder::new(opt.read_buf_size)
