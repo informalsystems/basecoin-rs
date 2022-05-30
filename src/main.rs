@@ -1,4 +1,5 @@
 mod app;
+mod base64;
 mod prostgen;
 
 use crate::app::modules::{prefix, Auth, Bank, Ibc, Identifiable, Staking};
