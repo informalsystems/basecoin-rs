@@ -1,308 +1,245 @@
-/// WeightedVoteOption defines a unit of vote for vote split.
+/// SendAuthorization allows the grantee to spend up to spend_limit coins from
+/// the granter's account.
 ///
 /// Since: cosmos-sdk 0.43
+#[derive(::serde::Serialize, ::serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct WeightedVoteOption {
-    #[prost(enumeration="VoteOption", tag="1")]
-    pub option: i32,
-    #[prost(string, tag="2")]
-    pub weight: ::prost::alloc::string::String,
+pub struct SendAuthorization {
+    #[prost(message, repeated, tag="1")]
+    pub spend_limit: ::prost::alloc::vec::Vec<super::super::base::v1beta1::Coin>,
 }
-/// TextProposal defines a standard text proposal whose changes need to be
-/// manually updated in case of approval.
+/// Params defines the parameters for the bank module.
+#[derive(::serde::Serialize, ::serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct TextProposal {
+pub struct Params {
+    #[prost(message, repeated, tag="1")]
+    pub send_enabled: ::prost::alloc::vec::Vec<SendEnabled>,
+    #[prost(bool, tag="2")]
+    pub default_send_enabled: bool,
+}
+/// SendEnabled maps coin denom to a send_enabled status (whether a denom is
+/// sendable).
+#[derive(::serde::Serialize, ::serde::Deserialize)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SendEnabled {
     #[prost(string, tag="1")]
-    pub title: ::prost::alloc::string::String,
-    #[prost(string, tag="2")]
+    pub denom: ::prost::alloc::string::String,
+    #[prost(bool, tag="2")]
+    pub enabled: bool,
+}
+/// Input models transaction input.
+#[derive(::serde::Serialize, ::serde::Deserialize)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Input {
+    #[prost(string, tag="1")]
+    pub address: ::prost::alloc::string::String,
+    #[prost(message, repeated, tag="2")]
+    pub coins: ::prost::alloc::vec::Vec<super::super::base::v1beta1::Coin>,
+}
+/// Output models transaction outputs.
+#[derive(::serde::Serialize, ::serde::Deserialize)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Output {
+    #[prost(string, tag="1")]
+    pub address: ::prost::alloc::string::String,
+    #[prost(message, repeated, tag="2")]
+    pub coins: ::prost::alloc::vec::Vec<super::super::base::v1beta1::Coin>,
+}
+/// Supply represents a struct that passively keeps track of the total supply
+/// amounts in the network.
+/// This message is deprecated now that supply is indexed by denom.
+#[derive(::serde::Serialize, ::serde::Deserialize)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Supply {
+    #[prost(message, repeated, tag="1")]
+    pub total: ::prost::alloc::vec::Vec<super::super::base::v1beta1::Coin>,
+}
+/// DenomUnit represents a struct that describes a given
+/// denomination unit of the basic token.
+#[derive(::serde::Serialize, ::serde::Deserialize)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct DenomUnit {
+    /// denom represents the string name of the given denom unit (e.g uatom).
+    #[prost(string, tag="1")]
+    pub denom: ::prost::alloc::string::String,
+    /// exponent represents power of 10 exponent that one must
+    /// raise the base_denom to in order to equal the given DenomUnit's denom
+    /// 1 denom = 1^exponent base_denom
+    /// (e.g. with a base_denom of uatom, one can create a DenomUnit of 'atom' with
+    /// exponent = 6, thus: 1 atom = 10^6 uatom).
+    #[prost(uint32, tag="2")]
+    pub exponent: u32,
+    /// aliases is a list of string aliases for the given denom
+    #[prost(string, repeated, tag="3")]
+    pub aliases: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+}
+/// Metadata represents a struct that describes
+/// a basic token.
+#[derive(::serde::Serialize, ::serde::Deserialize)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Metadata {
+    #[prost(string, tag="1")]
     pub description: ::prost::alloc::string::String,
-}
-/// Deposit defines an amount deposited by an account address to an active
-/// proposal.
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct Deposit {
-    #[prost(uint64, tag="1")]
-    pub proposal_id: u64,
-    #[prost(string, tag="2")]
-    pub depositor: ::prost::alloc::string::String,
-    #[prost(message, repeated, tag="3")]
-    pub amount: ::prost::alloc::vec::Vec<super::super::base::v1beta1::Coin>,
-}
-/// Proposal defines the core field members of a governance proposal.
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct Proposal {
-    #[prost(uint64, tag="1")]
-    pub proposal_id: u64,
-    #[prost(message, optional, tag="2")]
-    pub content: ::core::option::Option<super::super::super::google::protobuf::Any>,
-    #[prost(enumeration="ProposalStatus", tag="3")]
-    pub status: i32,
-    #[prost(message, optional, tag="4")]
-    pub final_tally_result: ::core::option::Option<TallyResult>,
-    #[prost(message, optional, tag="5")]
-    pub submit_time: ::core::option::Option<super::super::super::google::protobuf::Timestamp>,
-    #[prost(message, optional, tag="6")]
-    pub deposit_end_time: ::core::option::Option<super::super::super::google::protobuf::Timestamp>,
-    #[prost(message, repeated, tag="7")]
-    pub total_deposit: ::prost::alloc::vec::Vec<super::super::base::v1beta1::Coin>,
-    #[prost(message, optional, tag="8")]
-    pub voting_start_time: ::core::option::Option<super::super::super::google::protobuf::Timestamp>,
-    #[prost(message, optional, tag="9")]
-    pub voting_end_time: ::core::option::Option<super::super::super::google::protobuf::Timestamp>,
-}
-/// TallyResult defines a standard tally for a governance proposal.
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct TallyResult {
-    #[prost(string, tag="1")]
-    pub yes: ::prost::alloc::string::String,
-    #[prost(string, tag="2")]
-    pub abstain: ::prost::alloc::string::String,
+    /// denom_units represents the list of DenomUnit's for a given coin
+    #[prost(message, repeated, tag="2")]
+    pub denom_units: ::prost::alloc::vec::Vec<DenomUnit>,
+    /// base represents the base denom (should be the DenomUnit with exponent = 0).
     #[prost(string, tag="3")]
-    pub no: ::prost::alloc::string::String,
+    pub base: ::prost::alloc::string::String,
+    /// display indicates the suggested denom that should be
+    /// displayed in clients.
     #[prost(string, tag="4")]
-    pub no_with_veto: ::prost::alloc::string::String,
-}
-/// Vote defines a vote on a governance proposal.
-/// A Vote consists of a proposal ID, the voter, and the vote option.
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct Vote {
-    #[prost(uint64, tag="1")]
-    pub proposal_id: u64,
-    #[prost(string, tag="2")]
-    pub voter: ::prost::alloc::string::String,
-    /// Deprecated: Prefer to use `options` instead. This field is set in queries
-    /// if and only if `len(options) == 1` and that option has weight 1. In all
-    /// other cases, this field will default to VOTE_OPTION_UNSPECIFIED.
-    #[deprecated]
-    #[prost(enumeration="VoteOption", tag="3")]
-    pub option: i32,
+    pub display: ::prost::alloc::string::String,
+    /// name defines the name of the token (eg: Cosmos Atom)
+    ///
     /// Since: cosmos-sdk 0.43
-    #[prost(message, repeated, tag="4")]
-    pub options: ::prost::alloc::vec::Vec<WeightedVoteOption>,
+    #[prost(string, tag="5")]
+    pub name: ::prost::alloc::string::String,
+    /// symbol is the token symbol usually shown on exchanges (eg: ATOM). This can
+    /// be the same as the display.
+    ///
+    /// Since: cosmos-sdk 0.43
+    #[prost(string, tag="6")]
+    pub symbol: ::prost::alloc::string::String,
 }
-/// DepositParams defines the params for deposits on governance proposals.
+/// QueryBalanceRequest is the request type for the Query/Balance RPC method.
+#[derive(::serde::Serialize, ::serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct DepositParams {
-    ///  Minimum deposit for a proposal to enter voting period.
-    #[prost(message, repeated, tag="1")]
-    pub min_deposit: ::prost::alloc::vec::Vec<super::super::base::v1beta1::Coin>,
-    ///  Maximum period for Atom holders to deposit on a proposal. Initial value: 2
-    ///  months.
-    #[prost(message, optional, tag="2")]
-    pub max_deposit_period: ::core::option::Option<super::super::super::google::protobuf::Duration>,
-}
-/// VotingParams defines the params for voting on governance proposals.
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct VotingParams {
-    ///  Length of the voting period.
-    #[prost(message, optional, tag="1")]
-    pub voting_period: ::core::option::Option<super::super::super::google::protobuf::Duration>,
-}
-/// TallyParams defines the params for tallying votes on governance proposals.
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct TallyParams {
-    ///  Minimum percentage of total stake needed to vote for a result to be
-    ///  considered valid.
-    #[prost(bytes="vec", tag="1")]
-    pub quorum: ::prost::alloc::vec::Vec<u8>,
-    ///  Minimum proportion of Yes votes for proposal to pass. Default value: 0.5.
-    #[prost(bytes="vec", tag="2")]
-    pub threshold: ::prost::alloc::vec::Vec<u8>,
-    ///  Minimum value of Veto votes to Total votes ratio for proposal to be
-    ///  vetoed. Default value: 1/3.
-    #[prost(bytes="vec", tag="3")]
-    pub veto_threshold: ::prost::alloc::vec::Vec<u8>,
-}
-/// VoteOption enumerates the valid vote options for a given governance proposal.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
-#[repr(i32)]
-pub enum VoteOption {
-    /// VOTE_OPTION_UNSPECIFIED defines a no-op vote option.
-    Unspecified = 0,
-    /// VOTE_OPTION_YES defines a yes vote option.
-    Yes = 1,
-    /// VOTE_OPTION_ABSTAIN defines an abstain vote option.
-    Abstain = 2,
-    /// VOTE_OPTION_NO defines a no vote option.
-    No = 3,
-    /// VOTE_OPTION_NO_WITH_VETO defines a no with veto vote option.
-    NoWithVeto = 4,
-}
-/// ProposalStatus enumerates the valid statuses of a proposal.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
-#[repr(i32)]
-pub enum ProposalStatus {
-    /// PROPOSAL_STATUS_UNSPECIFIED defines the default propopsal status.
-    Unspecified = 0,
-    /// PROPOSAL_STATUS_DEPOSIT_PERIOD defines a proposal status during the deposit
-    /// period.
-    DepositPeriod = 1,
-    /// PROPOSAL_STATUS_VOTING_PERIOD defines a proposal status during the voting
-    /// period.
-    VotingPeriod = 2,
-    /// PROPOSAL_STATUS_PASSED defines a proposal status of a proposal that has
-    /// passed.
-    Passed = 3,
-    /// PROPOSAL_STATUS_REJECTED defines a proposal status of a proposal that has
-    /// been rejected.
-    Rejected = 4,
-    /// PROPOSAL_STATUS_FAILED defines a proposal status of a proposal that has
-    /// failed.
-    Failed = 5,
-}
-/// QueryProposalRequest is the request type for the Query/Proposal RPC method.
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct QueryProposalRequest {
-    /// proposal_id defines the unique id of the proposal.
-    #[prost(uint64, tag="1")]
-    pub proposal_id: u64,
-}
-/// QueryProposalResponse is the response type for the Query/Proposal RPC method.
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct QueryProposalResponse {
-    #[prost(message, optional, tag="1")]
-    pub proposal: ::core::option::Option<Proposal>,
-}
-/// QueryProposalsRequest is the request type for the Query/Proposals RPC method.
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct QueryProposalsRequest {
-    /// proposal_status defines the status of the proposals.
-    #[prost(enumeration="ProposalStatus", tag="1")]
-    pub proposal_status: i32,
-    /// voter defines the voter address for the proposals.
+pub struct QueryBalanceRequest {
+    /// address is the address to query balances for.
+    #[prost(string, tag="1")]
+    pub address: ::prost::alloc::string::String,
+    /// denom is the coin denom to query balances for.
     #[prost(string, tag="2")]
-    pub voter: ::prost::alloc::string::String,
-    /// depositor defines the deposit addresses from the proposals.
-    #[prost(string, tag="3")]
-    pub depositor: ::prost::alloc::string::String,
+    pub denom: ::prost::alloc::string::String,
+}
+/// QueryBalanceResponse is the response type for the Query/Balance RPC method.
+#[derive(::serde::Serialize, ::serde::Deserialize)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct QueryBalanceResponse {
+    /// balance is the balance of the coin.
+    #[prost(message, optional, tag="1")]
+    pub balance: ::core::option::Option<super::super::base::v1beta1::Coin>,
+}
+/// QueryBalanceRequest is the request type for the Query/AllBalances RPC method.
+#[derive(::serde::Serialize, ::serde::Deserialize)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct QueryAllBalancesRequest {
+    /// address is the address to query balances for.
+    #[prost(string, tag="1")]
+    pub address: ::prost::alloc::string::String,
     /// pagination defines an optional pagination for the request.
-    #[prost(message, optional, tag="4")]
+    #[prost(message, optional, tag="2")]
     pub pagination: ::core::option::Option<super::super::base::query::v1beta1::PageRequest>,
 }
-/// QueryProposalsResponse is the response type for the Query/Proposals RPC
+/// QueryAllBalancesResponse is the response type for the Query/AllBalances RPC
 /// method.
+#[derive(::serde::Serialize, ::serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct QueryProposalsResponse {
+pub struct QueryAllBalancesResponse {
+    /// balances is the balances of all the coins.
     #[prost(message, repeated, tag="1")]
-    pub proposals: ::prost::alloc::vec::Vec<Proposal>,
+    pub balances: ::prost::alloc::vec::Vec<super::super::base::v1beta1::Coin>,
     /// pagination defines the pagination in the response.
     #[prost(message, optional, tag="2")]
     pub pagination: ::core::option::Option<super::super::base::query::v1beta1::PageResponse>,
 }
-/// QueryVoteRequest is the request type for the Query/Vote RPC method.
+/// QueryTotalSupplyRequest is the request type for the Query/TotalSupply RPC
+/// method.
+#[derive(::serde::Serialize, ::serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct QueryVoteRequest {
-    /// proposal_id defines the unique id of the proposal.
-    #[prost(uint64, tag="1")]
-    pub proposal_id: u64,
-    /// voter defines the oter address for the proposals.
-    #[prost(string, tag="2")]
-    pub voter: ::prost::alloc::string::String,
-}
-/// QueryVoteResponse is the response type for the Query/Vote RPC method.
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct QueryVoteResponse {
-    /// vote defined the queried vote.
-    #[prost(message, optional, tag="1")]
-    pub vote: ::core::option::Option<Vote>,
-}
-/// QueryVotesRequest is the request type for the Query/Votes RPC method.
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct QueryVotesRequest {
-    /// proposal_id defines the unique id of the proposal.
-    #[prost(uint64, tag="1")]
-    pub proposal_id: u64,
+pub struct QueryTotalSupplyRequest {
     /// pagination defines an optional pagination for the request.
-    #[prost(message, optional, tag="2")]
+    ///
+    /// Since: cosmos-sdk 0.43
+    #[prost(message, optional, tag="1")]
     pub pagination: ::core::option::Option<super::super::base::query::v1beta1::PageRequest>,
 }
-/// QueryVotesResponse is the response type for the Query/Votes RPC method.
+/// QueryTotalSupplyResponse is the response type for the Query/TotalSupply RPC
+/// method
+#[derive(::serde::Serialize, ::serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct QueryVotesResponse {
-    /// votes defined the queried votes.
+pub struct QueryTotalSupplyResponse {
+    /// supply is the supply of the coins
     #[prost(message, repeated, tag="1")]
-    pub votes: ::prost::alloc::vec::Vec<Vote>,
+    pub supply: ::prost::alloc::vec::Vec<super::super::base::v1beta1::Coin>,
     /// pagination defines the pagination in the response.
+    ///
+    /// Since: cosmos-sdk 0.43
     #[prost(message, optional, tag="2")]
     pub pagination: ::core::option::Option<super::super::base::query::v1beta1::PageResponse>,
 }
-/// QueryParamsRequest is the request type for the Query/Params RPC method.
+/// QuerySupplyOfRequest is the request type for the Query/SupplyOf RPC method.
+#[derive(::serde::Serialize, ::serde::Deserialize)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct QuerySupplyOfRequest {
+    /// denom is the coin denom to query balances for.
+    #[prost(string, tag="1")]
+    pub denom: ::prost::alloc::string::String,
+}
+/// QuerySupplyOfResponse is the response type for the Query/SupplyOf RPC method.
+#[derive(::serde::Serialize, ::serde::Deserialize)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct QuerySupplyOfResponse {
+    /// amount is the supply of the coin.
+    #[prost(message, optional, tag="1")]
+    pub amount: ::core::option::Option<super::super::base::v1beta1::Coin>,
+}
+/// QueryParamsRequest defines the request type for querying x/bank parameters.
+#[derive(::serde::Serialize, ::serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct QueryParamsRequest {
-    /// params_type defines which parameters to query for, can be one of "voting",
-    /// "tallying" or "deposit".
-    #[prost(string, tag="1")]
-    pub params_type: ::prost::alloc::string::String,
 }
-/// QueryParamsResponse is the response type for the Query/Params RPC method.
+/// QueryParamsResponse defines the response type for querying x/bank parameters.
+#[derive(::serde::Serialize, ::serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct QueryParamsResponse {
-    /// voting_params defines the parameters related to voting.
     #[prost(message, optional, tag="1")]
-    pub voting_params: ::core::option::Option<VotingParams>,
-    /// deposit_params defines the parameters related to deposit.
-    #[prost(message, optional, tag="2")]
-    pub deposit_params: ::core::option::Option<DepositParams>,
-    /// tally_params defines the parameters related to tally.
-    #[prost(message, optional, tag="3")]
-    pub tally_params: ::core::option::Option<TallyParams>,
+    pub params: ::core::option::Option<Params>,
 }
-/// QueryDepositRequest is the request type for the Query/Deposit RPC method.
+/// QueryDenomsMetadataRequest is the request type for the Query/DenomsMetadata RPC method.
+#[derive(::serde::Serialize, ::serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct QueryDepositRequest {
-    /// proposal_id defines the unique id of the proposal.
-    #[prost(uint64, tag="1")]
-    pub proposal_id: u64,
-    /// depositor defines the deposit addresses from the proposals.
-    #[prost(string, tag="2")]
-    pub depositor: ::prost::alloc::string::String,
-}
-/// QueryDepositResponse is the response type for the Query/Deposit RPC method.
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct QueryDepositResponse {
-    /// deposit defines the requested deposit.
-    #[prost(message, optional, tag="1")]
-    pub deposit: ::core::option::Option<Deposit>,
-}
-/// QueryDepositsRequest is the request type for the Query/Deposits RPC method.
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct QueryDepositsRequest {
-    /// proposal_id defines the unique id of the proposal.
-    #[prost(uint64, tag="1")]
-    pub proposal_id: u64,
+pub struct QueryDenomsMetadataRequest {
     /// pagination defines an optional pagination for the request.
-    #[prost(message, optional, tag="2")]
+    #[prost(message, optional, tag="1")]
     pub pagination: ::core::option::Option<super::super::base::query::v1beta1::PageRequest>,
 }
-/// QueryDepositsResponse is the response type for the Query/Deposits RPC method.
+/// QueryDenomsMetadataResponse is the response type for the Query/DenomsMetadata RPC
+/// method.
+#[derive(::serde::Serialize, ::serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct QueryDepositsResponse {
+pub struct QueryDenomsMetadataResponse {
+    /// metadata provides the client information for all the registered tokens.
     #[prost(message, repeated, tag="1")]
-    pub deposits: ::prost::alloc::vec::Vec<Deposit>,
+    pub metadatas: ::prost::alloc::vec::Vec<Metadata>,
     /// pagination defines the pagination in the response.
     #[prost(message, optional, tag="2")]
     pub pagination: ::core::option::Option<super::super::base::query::v1beta1::PageResponse>,
 }
-/// QueryTallyResultRequest is the request type for the Query/Tally RPC method.
+/// QueryDenomMetadataRequest is the request type for the Query/DenomMetadata RPC method.
+#[derive(::serde::Serialize, ::serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct QueryTallyResultRequest {
-    /// proposal_id defines the unique id of the proposal.
-    #[prost(uint64, tag="1")]
-    pub proposal_id: u64,
+pub struct QueryDenomMetadataRequest {
+    /// denom is the coin denom to query the metadata for.
+    #[prost(string, tag="1")]
+    pub denom: ::prost::alloc::string::String,
 }
-/// QueryTallyResultResponse is the response type for the Query/Tally RPC method.
+/// QueryDenomMetadataResponse is the response type for the Query/DenomMetadata RPC
+/// method.
+#[derive(::serde::Serialize, ::serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct QueryTallyResultResponse {
-    /// tally defines the requested tally.
+pub struct QueryDenomMetadataResponse {
+    /// metadata describes and provides all the client information for the requested token.
     #[prost(message, optional, tag="1")]
-    pub tally: ::core::option::Option<TallyResult>,
+    pub metadata: ::core::option::Option<Metadata>,
 }
 /// Generated client implementations.
 #[cfg(feature = "client")]
 pub mod query_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
-    /// Query defines the gRPC querier service for gov module
+    /// Query defines the gRPC querier service.
     #[derive(Debug, Clone)]
     pub struct QueryClient<T> {
         inner: tonic::client::Grpc<T>,
@@ -362,11 +299,11 @@ pub mod query_client {
             self.inner = self.inner.accept_gzip();
             self
         }
-        /// Proposal queries proposal details based on ProposalID.
-        pub async fn proposal(
+        /// Balance queries the balance of a single coin for a single account.
+        pub async fn balance(
             &mut self,
-            request: impl tonic::IntoRequest<super::QueryProposalRequest>,
-        ) -> Result<tonic::Response<super::QueryProposalResponse>, tonic::Status> {
+            request: impl tonic::IntoRequest<super::QueryBalanceRequest>,
+        ) -> Result<tonic::Response<super::QueryBalanceResponse>, tonic::Status> {
             self.inner
                 .ready()
                 .await
@@ -378,15 +315,15 @@ pub mod query_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/cosmos.gov.v1beta1.Query/Proposal",
+                "/cosmos.bank.v1beta1.Query/Balance",
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
-        /// Proposals queries all proposals based on given status.
-        pub async fn proposals(
+        /// AllBalances queries the balance of all coins for a single account.
+        pub async fn all_balances(
             &mut self,
-            request: impl tonic::IntoRequest<super::QueryProposalsRequest>,
-        ) -> Result<tonic::Response<super::QueryProposalsResponse>, tonic::Status> {
+            request: impl tonic::IntoRequest<super::QueryAllBalancesRequest>,
+        ) -> Result<tonic::Response<super::QueryAllBalancesResponse>, tonic::Status> {
             self.inner
                 .ready()
                 .await
@@ -398,15 +335,15 @@ pub mod query_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/cosmos.gov.v1beta1.Query/Proposals",
+                "/cosmos.bank.v1beta1.Query/AllBalances",
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
-        /// Vote queries voted information based on proposalID, voterAddr.
-        pub async fn vote(
+        /// TotalSupply queries the total supply of all coins.
+        pub async fn total_supply(
             &mut self,
-            request: impl tonic::IntoRequest<super::QueryVoteRequest>,
-        ) -> Result<tonic::Response<super::QueryVoteResponse>, tonic::Status> {
+            request: impl tonic::IntoRequest<super::QueryTotalSupplyRequest>,
+        ) -> Result<tonic::Response<super::QueryTotalSupplyResponse>, tonic::Status> {
             self.inner
                 .ready()
                 .await
@@ -418,15 +355,15 @@ pub mod query_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/cosmos.gov.v1beta1.Query/Vote",
+                "/cosmos.bank.v1beta1.Query/TotalSupply",
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
-        /// Votes queries votes of a given proposal.
-        pub async fn votes(
+        /// SupplyOf queries the supply of a single coin.
+        pub async fn supply_of(
             &mut self,
-            request: impl tonic::IntoRequest<super::QueryVotesRequest>,
-        ) -> Result<tonic::Response<super::QueryVotesResponse>, tonic::Status> {
+            request: impl tonic::IntoRequest<super::QuerySupplyOfRequest>,
+        ) -> Result<tonic::Response<super::QuerySupplyOfResponse>, tonic::Status> {
             self.inner
                 .ready()
                 .await
@@ -438,11 +375,11 @@ pub mod query_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/cosmos.gov.v1beta1.Query/Votes",
+                "/cosmos.bank.v1beta1.Query/SupplyOf",
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
-        /// Params queries all parameters of the gov module.
+        /// Params queries the parameters of x/bank module.
         pub async fn params(
             &mut self,
             request: impl tonic::IntoRequest<super::QueryParamsRequest>,
@@ -458,15 +395,15 @@ pub mod query_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/cosmos.gov.v1beta1.Query/Params",
+                "/cosmos.bank.v1beta1.Query/Params",
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
-        /// Deposit queries single deposit information based proposalID, depositAddr.
-        pub async fn deposit(
+        /// DenomsMetadata queries the client metadata of a given coin denomination.
+        pub async fn denom_metadata(
             &mut self,
-            request: impl tonic::IntoRequest<super::QueryDepositRequest>,
-        ) -> Result<tonic::Response<super::QueryDepositResponse>, tonic::Status> {
+            request: impl tonic::IntoRequest<super::QueryDenomMetadataRequest>,
+        ) -> Result<tonic::Response<super::QueryDenomMetadataResponse>, tonic::Status> {
             self.inner
                 .ready()
                 .await
@@ -478,15 +415,15 @@ pub mod query_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/cosmos.gov.v1beta1.Query/Deposit",
+                "/cosmos.bank.v1beta1.Query/DenomMetadata",
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
-        /// Deposits queries all deposits of a single proposal.
-        pub async fn deposits(
+        /// DenomsMetadata queries the client metadata for all registered coin denominations.
+        pub async fn denoms_metadata(
             &mut self,
-            request: impl tonic::IntoRequest<super::QueryDepositsRequest>,
-        ) -> Result<tonic::Response<super::QueryDepositsResponse>, tonic::Status> {
+            request: impl tonic::IntoRequest<super::QueryDenomsMetadataRequest>,
+        ) -> Result<tonic::Response<super::QueryDenomsMetadataResponse>, tonic::Status> {
             self.inner
                 .ready()
                 .await
@@ -498,27 +435,7 @@ pub mod query_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/cosmos.gov.v1beta1.Query/Deposits",
-            );
-            self.inner.unary(request.into_request(), path, codec).await
-        }
-        /// TallyResult queries the tally of a proposal vote.
-        pub async fn tally_result(
-            &mut self,
-            request: impl tonic::IntoRequest<super::QueryTallyResultRequest>,
-        ) -> Result<tonic::Response<super::QueryTallyResultResponse>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
-            let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/cosmos.gov.v1beta1.Query/TallyResult",
+                "/cosmos.bank.v1beta1.Query/DenomsMetadata",
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
@@ -531,48 +448,43 @@ pub mod query_server {
     ///Generated trait containing gRPC methods that should be implemented for use with QueryServer.
     #[async_trait]
     pub trait Query: Send + Sync + 'static {
-        /// Proposal queries proposal details based on ProposalID.
-        async fn proposal(
+        /// Balance queries the balance of a single coin for a single account.
+        async fn balance(
             &self,
-            request: tonic::Request<super::QueryProposalRequest>,
-        ) -> Result<tonic::Response<super::QueryProposalResponse>, tonic::Status>;
-        /// Proposals queries all proposals based on given status.
-        async fn proposals(
+            request: tonic::Request<super::QueryBalanceRequest>,
+        ) -> Result<tonic::Response<super::QueryBalanceResponse>, tonic::Status>;
+        /// AllBalances queries the balance of all coins for a single account.
+        async fn all_balances(
             &self,
-            request: tonic::Request<super::QueryProposalsRequest>,
-        ) -> Result<tonic::Response<super::QueryProposalsResponse>, tonic::Status>;
-        /// Vote queries voted information based on proposalID, voterAddr.
-        async fn vote(
+            request: tonic::Request<super::QueryAllBalancesRequest>,
+        ) -> Result<tonic::Response<super::QueryAllBalancesResponse>, tonic::Status>;
+        /// TotalSupply queries the total supply of all coins.
+        async fn total_supply(
             &self,
-            request: tonic::Request<super::QueryVoteRequest>,
-        ) -> Result<tonic::Response<super::QueryVoteResponse>, tonic::Status>;
-        /// Votes queries votes of a given proposal.
-        async fn votes(
+            request: tonic::Request<super::QueryTotalSupplyRequest>,
+        ) -> Result<tonic::Response<super::QueryTotalSupplyResponse>, tonic::Status>;
+        /// SupplyOf queries the supply of a single coin.
+        async fn supply_of(
             &self,
-            request: tonic::Request<super::QueryVotesRequest>,
-        ) -> Result<tonic::Response<super::QueryVotesResponse>, tonic::Status>;
-        /// Params queries all parameters of the gov module.
+            request: tonic::Request<super::QuerySupplyOfRequest>,
+        ) -> Result<tonic::Response<super::QuerySupplyOfResponse>, tonic::Status>;
+        /// Params queries the parameters of x/bank module.
         async fn params(
             &self,
             request: tonic::Request<super::QueryParamsRequest>,
         ) -> Result<tonic::Response<super::QueryParamsResponse>, tonic::Status>;
-        /// Deposit queries single deposit information based proposalID, depositAddr.
-        async fn deposit(
+        /// DenomsMetadata queries the client metadata of a given coin denomination.
+        async fn denom_metadata(
             &self,
-            request: tonic::Request<super::QueryDepositRequest>,
-        ) -> Result<tonic::Response<super::QueryDepositResponse>, tonic::Status>;
-        /// Deposits queries all deposits of a single proposal.
-        async fn deposits(
+            request: tonic::Request<super::QueryDenomMetadataRequest>,
+        ) -> Result<tonic::Response<super::QueryDenomMetadataResponse>, tonic::Status>;
+        /// DenomsMetadata queries the client metadata for all registered coin denominations.
+        async fn denoms_metadata(
             &self,
-            request: tonic::Request<super::QueryDepositsRequest>,
-        ) -> Result<tonic::Response<super::QueryDepositsResponse>, tonic::Status>;
-        /// TallyResult queries the tally of a proposal vote.
-        async fn tally_result(
-            &self,
-            request: tonic::Request<super::QueryTallyResultRequest>,
-        ) -> Result<tonic::Response<super::QueryTallyResultResponse>, tonic::Status>;
+            request: tonic::Request<super::QueryDenomsMetadataRequest>,
+        ) -> Result<tonic::Response<super::QueryDenomsMetadataResponse>, tonic::Status>;
     }
-    /// Query defines the gRPC querier service for gov module
+    /// Query defines the gRPC querier service.
     #[derive(Debug)]
     pub struct QueryServer<T: Query> {
         inner: _Inner<T>,
@@ -620,24 +532,24 @@ pub mod query_server {
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
             let inner = self.inner.clone();
             match req.uri().path() {
-                "/cosmos.gov.v1beta1.Query/Proposal" => {
+                "/cosmos.bank.v1beta1.Query/Balance" => {
                     #[allow(non_camel_case_types)]
-                    struct ProposalSvc<T: Query>(pub Arc<T>);
+                    struct BalanceSvc<T: Query>(pub Arc<T>);
                     impl<
                         T: Query,
-                    > tonic::server::UnaryService<super::QueryProposalRequest>
-                    for ProposalSvc<T> {
-                        type Response = super::QueryProposalResponse;
+                    > tonic::server::UnaryService<super::QueryBalanceRequest>
+                    for BalanceSvc<T> {
+                        type Response = super::QueryBalanceResponse;
                         type Future = BoxFuture<
                             tonic::Response<Self::Response>,
                             tonic::Status,
                         >;
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::QueryProposalRequest>,
+                            request: tonic::Request<super::QueryBalanceRequest>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
-                            let fut = async move { (*inner).proposal(request).await };
+                            let fut = async move { (*inner).balance(request).await };
                             Box::pin(fut)
                         }
                     }
@@ -646,7 +558,7 @@ pub mod query_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let inner = inner.0;
-                        let method = ProposalSvc(inner);
+                        let method = BalanceSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(
@@ -658,24 +570,26 @@ pub mod query_server {
                     };
                     Box::pin(fut)
                 }
-                "/cosmos.gov.v1beta1.Query/Proposals" => {
+                "/cosmos.bank.v1beta1.Query/AllBalances" => {
                     #[allow(non_camel_case_types)]
-                    struct ProposalsSvc<T: Query>(pub Arc<T>);
+                    struct AllBalancesSvc<T: Query>(pub Arc<T>);
                     impl<
                         T: Query,
-                    > tonic::server::UnaryService<super::QueryProposalsRequest>
-                    for ProposalsSvc<T> {
-                        type Response = super::QueryProposalsResponse;
+                    > tonic::server::UnaryService<super::QueryAllBalancesRequest>
+                    for AllBalancesSvc<T> {
+                        type Response = super::QueryAllBalancesResponse;
                         type Future = BoxFuture<
                             tonic::Response<Self::Response>,
                             tonic::Status,
                         >;
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::QueryProposalsRequest>,
+                            request: tonic::Request<super::QueryAllBalancesRequest>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
-                            let fut = async move { (*inner).proposals(request).await };
+                            let fut = async move {
+                                (*inner).all_balances(request).await
+                            };
                             Box::pin(fut)
                         }
                     }
@@ -684,7 +598,7 @@ pub mod query_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let inner = inner.0;
-                        let method = ProposalsSvc(inner);
+                        let method = AllBalancesSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(
@@ -696,22 +610,26 @@ pub mod query_server {
                     };
                     Box::pin(fut)
                 }
-                "/cosmos.gov.v1beta1.Query/Vote" => {
+                "/cosmos.bank.v1beta1.Query/TotalSupply" => {
                     #[allow(non_camel_case_types)]
-                    struct VoteSvc<T: Query>(pub Arc<T>);
-                    impl<T: Query> tonic::server::UnaryService<super::QueryVoteRequest>
-                    for VoteSvc<T> {
-                        type Response = super::QueryVoteResponse;
+                    struct TotalSupplySvc<T: Query>(pub Arc<T>);
+                    impl<
+                        T: Query,
+                    > tonic::server::UnaryService<super::QueryTotalSupplyRequest>
+                    for TotalSupplySvc<T> {
+                        type Response = super::QueryTotalSupplyResponse;
                         type Future = BoxFuture<
                             tonic::Response<Self::Response>,
                             tonic::Status,
                         >;
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::QueryVoteRequest>,
+                            request: tonic::Request<super::QueryTotalSupplyRequest>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
-                            let fut = async move { (*inner).vote(request).await };
+                            let fut = async move {
+                                (*inner).total_supply(request).await
+                            };
                             Box::pin(fut)
                         }
                     }
@@ -720,7 +638,7 @@ pub mod query_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let inner = inner.0;
-                        let method = VoteSvc(inner);
+                        let method = TotalSupplySvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(
@@ -732,22 +650,24 @@ pub mod query_server {
                     };
                     Box::pin(fut)
                 }
-                "/cosmos.gov.v1beta1.Query/Votes" => {
+                "/cosmos.bank.v1beta1.Query/SupplyOf" => {
                     #[allow(non_camel_case_types)]
-                    struct VotesSvc<T: Query>(pub Arc<T>);
-                    impl<T: Query> tonic::server::UnaryService<super::QueryVotesRequest>
-                    for VotesSvc<T> {
-                        type Response = super::QueryVotesResponse;
+                    struct SupplyOfSvc<T: Query>(pub Arc<T>);
+                    impl<
+                        T: Query,
+                    > tonic::server::UnaryService<super::QuerySupplyOfRequest>
+                    for SupplyOfSvc<T> {
+                        type Response = super::QuerySupplyOfResponse;
                         type Future = BoxFuture<
                             tonic::Response<Self::Response>,
                             tonic::Status,
                         >;
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::QueryVotesRequest>,
+                            request: tonic::Request<super::QuerySupplyOfRequest>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
-                            let fut = async move { (*inner).votes(request).await };
+                            let fut = async move { (*inner).supply_of(request).await };
                             Box::pin(fut)
                         }
                     }
@@ -756,7 +676,7 @@ pub mod query_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let inner = inner.0;
-                        let method = VotesSvc(inner);
+                        let method = SupplyOfSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(
@@ -768,7 +688,7 @@ pub mod query_server {
                     };
                     Box::pin(fut)
                 }
-                "/cosmos.gov.v1beta1.Query/Params" => {
+                "/cosmos.bank.v1beta1.Query/Params" => {
                     #[allow(non_camel_case_types)]
                     struct ParamsSvc<T: Query>(pub Arc<T>);
                     impl<T: Query> tonic::server::UnaryService<super::QueryParamsRequest>
@@ -804,101 +724,25 @@ pub mod query_server {
                     };
                     Box::pin(fut)
                 }
-                "/cosmos.gov.v1beta1.Query/Deposit" => {
+                "/cosmos.bank.v1beta1.Query/DenomMetadata" => {
                     #[allow(non_camel_case_types)]
-                    struct DepositSvc<T: Query>(pub Arc<T>);
+                    struct DenomMetadataSvc<T: Query>(pub Arc<T>);
                     impl<
                         T: Query,
-                    > tonic::server::UnaryService<super::QueryDepositRequest>
-                    for DepositSvc<T> {
-                        type Response = super::QueryDepositResponse;
+                    > tonic::server::UnaryService<super::QueryDenomMetadataRequest>
+                    for DenomMetadataSvc<T> {
+                        type Response = super::QueryDenomMetadataResponse;
                         type Future = BoxFuture<
                             tonic::Response<Self::Response>,
                             tonic::Status,
                         >;
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::QueryDepositRequest>,
-                        ) -> Self::Future {
-                            let inner = self.0.clone();
-                            let fut = async move { (*inner).deposit(request).await };
-                            Box::pin(fut)
-                        }
-                    }
-                    let accept_compression_encodings = self.accept_compression_encodings;
-                    let send_compression_encodings = self.send_compression_encodings;
-                    let inner = self.inner.clone();
-                    let fut = async move {
-                        let inner = inner.0;
-                        let method = DepositSvc(inner);
-                        let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            );
-                        let res = grpc.unary(method, req).await;
-                        Ok(res)
-                    };
-                    Box::pin(fut)
-                }
-                "/cosmos.gov.v1beta1.Query/Deposits" => {
-                    #[allow(non_camel_case_types)]
-                    struct DepositsSvc<T: Query>(pub Arc<T>);
-                    impl<
-                        T: Query,
-                    > tonic::server::UnaryService<super::QueryDepositsRequest>
-                    for DepositsSvc<T> {
-                        type Response = super::QueryDepositsResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
-                        fn call(
-                            &mut self,
-                            request: tonic::Request<super::QueryDepositsRequest>,
-                        ) -> Self::Future {
-                            let inner = self.0.clone();
-                            let fut = async move { (*inner).deposits(request).await };
-                            Box::pin(fut)
-                        }
-                    }
-                    let accept_compression_encodings = self.accept_compression_encodings;
-                    let send_compression_encodings = self.send_compression_encodings;
-                    let inner = self.inner.clone();
-                    let fut = async move {
-                        let inner = inner.0;
-                        let method = DepositsSvc(inner);
-                        let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            );
-                        let res = grpc.unary(method, req).await;
-                        Ok(res)
-                    };
-                    Box::pin(fut)
-                }
-                "/cosmos.gov.v1beta1.Query/TallyResult" => {
-                    #[allow(non_camel_case_types)]
-                    struct TallyResultSvc<T: Query>(pub Arc<T>);
-                    impl<
-                        T: Query,
-                    > tonic::server::UnaryService<super::QueryTallyResultRequest>
-                    for TallyResultSvc<T> {
-                        type Response = super::QueryTallyResultResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
-                        fn call(
-                            &mut self,
-                            request: tonic::Request<super::QueryTallyResultRequest>,
+                            request: tonic::Request<super::QueryDenomMetadataRequest>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
                             let fut = async move {
-                                (*inner).tally_result(request).await
+                                (*inner).denom_metadata(request).await
                             };
                             Box::pin(fut)
                         }
@@ -908,7 +752,47 @@ pub mod query_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let inner = inner.0;
-                        let method = TallyResultSvc(inner);
+                        let method = DenomMetadataSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/cosmos.bank.v1beta1.Query/DenomsMetadata" => {
+                    #[allow(non_camel_case_types)]
+                    struct DenomsMetadataSvc<T: Query>(pub Arc<T>);
+                    impl<
+                        T: Query,
+                    > tonic::server::UnaryService<super::QueryDenomsMetadataRequest>
+                    for DenomsMetadataSvc<T> {
+                        type Response = super::QueryDenomsMetadataResponse;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::QueryDenomsMetadataRequest>,
+                        ) -> Self::Future {
+                            let inner = self.0.clone();
+                            let fut = async move {
+                                (*inner).denoms_metadata(request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = DenomsMetadataSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(
@@ -956,71 +840,38 @@ pub mod query_server {
         }
     }
     impl<T: Query> tonic::transport::NamedService for QueryServer<T> {
-        const NAME: &'static str = "cosmos.gov.v1beta1.Query";
+        const NAME: &'static str = "cosmos.bank.v1beta1.Query";
     }
 }
-/// MsgSubmitProposal defines an sdk.Msg type that supports submitting arbitrary
-/// proposal Content.
+/// MsgSend represents a message to send coins from one account to another.
+#[derive(::serde::Serialize, ::serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct MsgSubmitProposal {
-    #[prost(message, optional, tag="1")]
-    pub content: ::core::option::Option<super::super::super::google::protobuf::Any>,
-    #[prost(message, repeated, tag="2")]
-    pub initial_deposit: ::prost::alloc::vec::Vec<super::super::base::v1beta1::Coin>,
-    #[prost(string, tag="3")]
-    pub proposer: ::prost::alloc::string::String,
-}
-/// MsgSubmitProposalResponse defines the Msg/SubmitProposal response type.
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct MsgSubmitProposalResponse {
-    #[prost(uint64, tag="1")]
-    pub proposal_id: u64,
-}
-/// MsgVote defines a message to cast a vote.
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct MsgVote {
-    #[prost(uint64, tag="1")]
-    pub proposal_id: u64,
+pub struct MsgSend {
+    #[prost(string, tag="1")]
+    pub from_address: ::prost::alloc::string::String,
     #[prost(string, tag="2")]
-    pub voter: ::prost::alloc::string::String,
-    #[prost(enumeration="VoteOption", tag="3")]
-    pub option: i32,
-}
-/// MsgVoteResponse defines the Msg/Vote response type.
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct MsgVoteResponse {
-}
-/// MsgVoteWeighted defines a message to cast a vote.
-///
-/// Since: cosmos-sdk 0.43
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct MsgVoteWeighted {
-    #[prost(uint64, tag="1")]
-    pub proposal_id: u64,
-    #[prost(string, tag="2")]
-    pub voter: ::prost::alloc::string::String,
-    #[prost(message, repeated, tag="3")]
-    pub options: ::prost::alloc::vec::Vec<WeightedVoteOption>,
-}
-/// MsgVoteWeightedResponse defines the Msg/VoteWeighted response type.
-///
-/// Since: cosmos-sdk 0.43
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct MsgVoteWeightedResponse {
-}
-/// MsgDeposit defines a message to submit a deposit to an existing proposal.
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct MsgDeposit {
-    #[prost(uint64, tag="1")]
-    pub proposal_id: u64,
-    #[prost(string, tag="2")]
-    pub depositor: ::prost::alloc::string::String,
+    pub to_address: ::prost::alloc::string::String,
     #[prost(message, repeated, tag="3")]
     pub amount: ::prost::alloc::vec::Vec<super::super::base::v1beta1::Coin>,
 }
-/// MsgDepositResponse defines the Msg/Deposit response type.
+/// MsgSendResponse defines the Msg/Send response type.
+#[derive(::serde::Serialize, ::serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct MsgDepositResponse {
+pub struct MsgSendResponse {
+}
+/// MsgMultiSend represents an arbitrary multi-in, multi-out send message.
+#[derive(::serde::Serialize, ::serde::Deserialize)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct MsgMultiSend {
+    #[prost(message, repeated, tag="1")]
+    pub inputs: ::prost::alloc::vec::Vec<Input>,
+    #[prost(message, repeated, tag="2")]
+    pub outputs: ::prost::alloc::vec::Vec<Output>,
+}
+/// MsgMultiSendResponse defines the Msg/MultiSend response type.
+#[derive(::serde::Serialize, ::serde::Deserialize)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct MsgMultiSendResponse {
 }
 /// Generated client implementations.
 #[cfg(feature = "client")]
@@ -1087,11 +938,11 @@ pub mod msg_client {
             self.inner = self.inner.accept_gzip();
             self
         }
-        /// SubmitProposal defines a method to create new proposal given a content.
-        pub async fn submit_proposal(
+        /// Send defines a method for sending coins from one account to another account.
+        pub async fn send(
             &mut self,
-            request: impl tonic::IntoRequest<super::MsgSubmitProposal>,
-        ) -> Result<tonic::Response<super::MsgSubmitProposalResponse>, tonic::Status> {
+            request: impl tonic::IntoRequest<super::MsgSend>,
+        ) -> Result<tonic::Response<super::MsgSendResponse>, tonic::Status> {
             self.inner
                 .ready()
                 .await
@@ -1103,15 +954,15 @@ pub mod msg_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/cosmos.gov.v1beta1.Msg/SubmitProposal",
+                "/cosmos.bank.v1beta1.Msg/Send",
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
-        /// Vote defines a method to add a vote on a specific proposal.
-        pub async fn vote(
+        /// MultiSend defines a method for sending coins from some accounts to other accounts.
+        pub async fn multi_send(
             &mut self,
-            request: impl tonic::IntoRequest<super::MsgVote>,
-        ) -> Result<tonic::Response<super::MsgVoteResponse>, tonic::Status> {
+            request: impl tonic::IntoRequest<super::MsgMultiSend>,
+        ) -> Result<tonic::Response<super::MsgMultiSendResponse>, tonic::Status> {
             self.inner
                 .ready()
                 .await
@@ -1123,49 +974,7 @@ pub mod msg_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/cosmos.gov.v1beta1.Msg/Vote",
-            );
-            self.inner.unary(request.into_request(), path, codec).await
-        }
-        /// VoteWeighted defines a method to add a weighted vote on a specific proposal.
-        ///
-        /// Since: cosmos-sdk 0.43
-        pub async fn vote_weighted(
-            &mut self,
-            request: impl tonic::IntoRequest<super::MsgVoteWeighted>,
-        ) -> Result<tonic::Response<super::MsgVoteWeightedResponse>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
-            let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/cosmos.gov.v1beta1.Msg/VoteWeighted",
-            );
-            self.inner.unary(request.into_request(), path, codec).await
-        }
-        /// Deposit defines a method to add deposit on a specific proposal.
-        pub async fn deposit(
-            &mut self,
-            request: impl tonic::IntoRequest<super::MsgDeposit>,
-        ) -> Result<tonic::Response<super::MsgDepositResponse>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
-            let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/cosmos.gov.v1beta1.Msg/Deposit",
+                "/cosmos.bank.v1beta1.Msg/MultiSend",
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
@@ -1178,28 +987,16 @@ pub mod msg_server {
     ///Generated trait containing gRPC methods that should be implemented for use with MsgServer.
     #[async_trait]
     pub trait Msg: Send + Sync + 'static {
-        /// SubmitProposal defines a method to create new proposal given a content.
-        async fn submit_proposal(
+        /// Send defines a method for sending coins from one account to another account.
+        async fn send(
             &self,
-            request: tonic::Request<super::MsgSubmitProposal>,
-        ) -> Result<tonic::Response<super::MsgSubmitProposalResponse>, tonic::Status>;
-        /// Vote defines a method to add a vote on a specific proposal.
-        async fn vote(
+            request: tonic::Request<super::MsgSend>,
+        ) -> Result<tonic::Response<super::MsgSendResponse>, tonic::Status>;
+        /// MultiSend defines a method for sending coins from some accounts to other accounts.
+        async fn multi_send(
             &self,
-            request: tonic::Request<super::MsgVote>,
-        ) -> Result<tonic::Response<super::MsgVoteResponse>, tonic::Status>;
-        /// VoteWeighted defines a method to add a weighted vote on a specific proposal.
-        ///
-        /// Since: cosmos-sdk 0.43
-        async fn vote_weighted(
-            &self,
-            request: tonic::Request<super::MsgVoteWeighted>,
-        ) -> Result<tonic::Response<super::MsgVoteWeightedResponse>, tonic::Status>;
-        /// Deposit defines a method to add deposit on a specific proposal.
-        async fn deposit(
-            &self,
-            request: tonic::Request<super::MsgDeposit>,
-        ) -> Result<tonic::Response<super::MsgDepositResponse>, tonic::Status>;
+            request: tonic::Request<super::MsgMultiSend>,
+        ) -> Result<tonic::Response<super::MsgMultiSendResponse>, tonic::Status>;
     }
     /// Msg defines the bank Msg service.
     #[derive(Debug)]
@@ -1249,24 +1046,22 @@ pub mod msg_server {
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
             let inner = self.inner.clone();
             match req.uri().path() {
-                "/cosmos.gov.v1beta1.Msg/SubmitProposal" => {
+                "/cosmos.bank.v1beta1.Msg/Send" => {
                     #[allow(non_camel_case_types)]
-                    struct SubmitProposalSvc<T: Msg>(pub Arc<T>);
-                    impl<T: Msg> tonic::server::UnaryService<super::MsgSubmitProposal>
-                    for SubmitProposalSvc<T> {
-                        type Response = super::MsgSubmitProposalResponse;
+                    struct SendSvc<T: Msg>(pub Arc<T>);
+                    impl<T: Msg> tonic::server::UnaryService<super::MsgSend>
+                    for SendSvc<T> {
+                        type Response = super::MsgSendResponse;
                         type Future = BoxFuture<
                             tonic::Response<Self::Response>,
                             tonic::Status,
                         >;
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::MsgSubmitProposal>,
+                            request: tonic::Request<super::MsgSend>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
-                            let fut = async move {
-                                (*inner).submit_proposal(request).await
-                            };
+                            let fut = async move { (*inner).send(request).await };
                             Box::pin(fut)
                         }
                     }
@@ -1275,7 +1070,7 @@ pub mod msg_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let inner = inner.0;
-                        let method = SubmitProposalSvc(inner);
+                        let method = SendSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(
@@ -1287,22 +1082,22 @@ pub mod msg_server {
                     };
                     Box::pin(fut)
                 }
-                "/cosmos.gov.v1beta1.Msg/Vote" => {
+                "/cosmos.bank.v1beta1.Msg/MultiSend" => {
                     #[allow(non_camel_case_types)]
-                    struct VoteSvc<T: Msg>(pub Arc<T>);
-                    impl<T: Msg> tonic::server::UnaryService<super::MsgVote>
-                    for VoteSvc<T> {
-                        type Response = super::MsgVoteResponse;
+                    struct MultiSendSvc<T: Msg>(pub Arc<T>);
+                    impl<T: Msg> tonic::server::UnaryService<super::MsgMultiSend>
+                    for MultiSendSvc<T> {
+                        type Response = super::MsgMultiSendResponse;
                         type Future = BoxFuture<
                             tonic::Response<Self::Response>,
                             tonic::Status,
                         >;
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::MsgVote>,
+                            request: tonic::Request<super::MsgMultiSend>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
-                            let fut = async move { (*inner).vote(request).await };
+                            let fut = async move { (*inner).multi_send(request).await };
                             Box::pin(fut)
                         }
                     }
@@ -1311,81 +1106,7 @@ pub mod msg_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let inner = inner.0;
-                        let method = VoteSvc(inner);
-                        let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            );
-                        let res = grpc.unary(method, req).await;
-                        Ok(res)
-                    };
-                    Box::pin(fut)
-                }
-                "/cosmos.gov.v1beta1.Msg/VoteWeighted" => {
-                    #[allow(non_camel_case_types)]
-                    struct VoteWeightedSvc<T: Msg>(pub Arc<T>);
-                    impl<T: Msg> tonic::server::UnaryService<super::MsgVoteWeighted>
-                    for VoteWeightedSvc<T> {
-                        type Response = super::MsgVoteWeightedResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
-                        fn call(
-                            &mut self,
-                            request: tonic::Request<super::MsgVoteWeighted>,
-                        ) -> Self::Future {
-                            let inner = self.0.clone();
-                            let fut = async move {
-                                (*inner).vote_weighted(request).await
-                            };
-                            Box::pin(fut)
-                        }
-                    }
-                    let accept_compression_encodings = self.accept_compression_encodings;
-                    let send_compression_encodings = self.send_compression_encodings;
-                    let inner = self.inner.clone();
-                    let fut = async move {
-                        let inner = inner.0;
-                        let method = VoteWeightedSvc(inner);
-                        let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            );
-                        let res = grpc.unary(method, req).await;
-                        Ok(res)
-                    };
-                    Box::pin(fut)
-                }
-                "/cosmos.gov.v1beta1.Msg/Deposit" => {
-                    #[allow(non_camel_case_types)]
-                    struct DepositSvc<T: Msg>(pub Arc<T>);
-                    impl<T: Msg> tonic::server::UnaryService<super::MsgDeposit>
-                    for DepositSvc<T> {
-                        type Response = super::MsgDepositResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
-                        fn call(
-                            &mut self,
-                            request: tonic::Request<super::MsgDeposit>,
-                        ) -> Self::Future {
-                            let inner = self.0.clone();
-                            let fut = async move { (*inner).deposit(request).await };
-                            Box::pin(fut)
-                        }
-                    }
-                    let accept_compression_encodings = self.accept_compression_encodings;
-                    let send_compression_encodings = self.send_compression_encodings;
-                    let inner = self.inner.clone();
-                    let fut = async move {
-                        let inner = inner.0;
-                        let method = DepositSvc(inner);
+                        let method = MultiSendSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(
@@ -1433,31 +1154,36 @@ pub mod msg_server {
         }
     }
     impl<T: Msg> tonic::transport::NamedService for MsgServer<T> {
-        const NAME: &'static str = "cosmos.gov.v1beta1.Msg";
+        const NAME: &'static str = "cosmos.bank.v1beta1.Msg";
     }
 }
-/// GenesisState defines the gov module's genesis state.
+/// GenesisState defines the bank module's genesis state.
+#[derive(::serde::Serialize, ::serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GenesisState {
-    /// starting_proposal_id is the ID of the starting proposal.
-    #[prost(uint64, tag="1")]
-    pub starting_proposal_id: u64,
-    /// deposits defines all the deposits present at genesis.
+    /// params defines all the paramaters of the module.
+    #[prost(message, optional, tag="1")]
+    pub params: ::core::option::Option<Params>,
+    /// balances is an array containing the balances of all the accounts.
     #[prost(message, repeated, tag="2")]
-    pub deposits: ::prost::alloc::vec::Vec<Deposit>,
-    /// votes defines all the votes present at genesis.
+    pub balances: ::prost::alloc::vec::Vec<Balance>,
+    /// supply represents the total supply. If it is left empty, then supply will be calculated based on the provided
+    /// balances. Otherwise, it will be used to validate that the sum of the balances equals this amount.
     #[prost(message, repeated, tag="3")]
-    pub votes: ::prost::alloc::vec::Vec<Vote>,
-    /// proposals defines all the proposals present at genesis.
+    pub supply: ::prost::alloc::vec::Vec<super::super::base::v1beta1::Coin>,
+    /// denom_metadata defines the metadata of the differents coins.
     #[prost(message, repeated, tag="4")]
-    pub proposals: ::prost::alloc::vec::Vec<Proposal>,
-    /// params defines all the paramaters of related to deposit.
-    #[prost(message, optional, tag="5")]
-    pub deposit_params: ::core::option::Option<DepositParams>,
-    /// params defines all the paramaters of related to voting.
-    #[prost(message, optional, tag="6")]
-    pub voting_params: ::core::option::Option<VotingParams>,
-    /// params defines all the paramaters of related to tally.
-    #[prost(message, optional, tag="7")]
-    pub tally_params: ::core::option::Option<TallyParams>,
+    pub denom_metadata: ::prost::alloc::vec::Vec<Metadata>,
+}
+/// Balance defines an account address and balance pair used in the bank module's
+/// genesis state.
+#[derive(::serde::Serialize, ::serde::Deserialize)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Balance {
+    /// address is the address of the balance holder.
+    #[prost(string, tag="1")]
+    pub address: ::prost::alloc::string::String,
+    /// coins defines the different coins this balance holds.
+    #[prost(message, repeated, tag="2")]
+    pub coins: ::prost::alloc::vec::Vec<super::super::base::v1beta1::Coin>,
 }

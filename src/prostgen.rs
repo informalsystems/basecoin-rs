@@ -96,3 +96,9 @@ pub mod ibc {
 pub mod ics23 {
     include!("prostgen/ics23.rs");
 }
+
+pub mod google {
+    pub mod protobuf {
+        include!("prostgen/google.protobuf.rs");
+    }
+}
