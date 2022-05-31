@@ -102,3 +102,12 @@ pub mod google {
         include!("prostgen/google.protobuf.rs");
     }
 }
+
+impl From<ibc_proto::google::protobuf::Any> for google::protobuf::Any {
+    fn from(any: ibc_proto::google::protobuf::Any) -> Self {
+        Self {
+            type_url: any.type_url,
+            value: any.value,
+        }
+    }
+}
