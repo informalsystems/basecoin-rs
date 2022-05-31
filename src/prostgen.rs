@@ -98,6 +98,7 @@ pub mod ics23 {
 }
 
 pub mod google {
+    #[allow(clippy::enum_variant_names)]
     pub mod protobuf {
         include!("prostgen/google.protobuf.rs");
     }
