@@ -21,10 +21,13 @@ use crate::prostgen::ibc::core::connection::v1::{
     QueryConnectionsResponse, Version as RawVersion,
 };
 
+use std::borrow::Borrow;
 use std::convert::{TryFrom, TryInto};
 use std::str::FromStr;
 
-use ibc::applications::ics20_fungible_token_transfer::context::Ics20Context;
+use ibc::applications::transfer::context::{BankKeeper, Ics20Context, Ics20Keeper, Ics20Reader};
+use ibc::applications::transfer::error::Error as Ics20Error;
+use ibc::applications::transfer::PrefixedCoin;
 use ibc::clients::ics07_tendermint::consensus_state::ConsensusState;
 use ibc::core::ics02_client::client_consensus::AnyConsensusState;
 use ibc::core::ics02_client::client_state::AnyClientState;
@@ -35,19 +38,21 @@ use ibc::core::ics03_connection::connection::ConnectionEnd;
 use ibc::core::ics03_connection::context::{ConnectionKeeper, ConnectionReader};
 use ibc::core::ics03_connection::error::Error as ConnectionError;
 use ibc::core::ics04_channel::channel::ChannelEnd;
+use ibc::core::ics04_channel::commitment::{AcknowledgementCommitment, PacketCommitment};
 use ibc::core::ics04_channel::context::{ChannelKeeper, ChannelReader};
 use ibc::core::ics04_channel::error::Error as ChannelError;
 use ibc::core::ics04_channel::packet::{Receipt, Sequence};
-use ibc::core::ics05_port::capabilities::{Capability, CapabilityName};
-use ibc::core::ics05_port::context::{CapabilityReader, PortReader};
+use ibc::core::ics05_port::context::PortReader;
 use ibc::core::ics05_port::error::Error as PortError;
 use ibc::core::ics23_commitment::commitment::{CommitmentPrefix, CommitmentRoot};
 use ibc::core::ics24_host::identifier::{ChannelId, ClientId, ConnectionId, PortId};
 use ibc::core::ics24_host::{path, Path as IbcPath, IBC_QUERY_PATH};
-use ibc::core::ics26_routing::context::Ics26Context;
+use ibc::core::ics26_routing::context::{Ics26Context, ModuleId, Router};
 use ibc::core::ics26_routing::handler::{decode, dispatch};
+use ibc::signer::Signer;
 use ibc::timestamp::Timestamp;
 use ibc::Height as IbcHeight;
+use ibc_proto::google::protobuf::Any;
 use ibc_proto::ibc::core::channel::v1::Channel as IbcRawChannelEnd;
 use ibc_proto::ibc::core::connection::v1::ConnectionEnd as IbcRawConnectionEnd;
 use prost::Message;
@@ -150,11 +155,11 @@ pub struct Ibc<S> {
     /// A typed-store for ack sequences
     ack_sequence_store: JsonStore<SharedStore<S>, path::SeqAcksPath, Sequence>,
     /// A typed-store for packet commitments
-    packet_commitment_store: JsonStore<SharedStore<S>, path::CommitmentsPath, String>,
+    packet_commitment_store: JsonStore<SharedStore<S>, path::CommitmentsPath, PacketCommitment>,
     /// A typed-store for packet receipts
     packet_receipt_store: TypedSet<SharedStore<S>, path::ReceiptsPath>,
     /// A typed-store for packet ack
-    packet_ack_store: JsonStore<SharedStore<S>, path::AcksPath, String>,
+    packet_ack_store: JsonStore<SharedStore<S>, path::AcksPath, AcknowledgementCommitment>,
 }
 
 impl<S: ProvableStore + Default> Ibc<S> {
@@ -475,7 +480,7 @@ impl<S: Store> ChannelReader for Ibc<S> {
         self.channel_end_store
             .get(
                 Height::Pending,
-                &path::ChannelEndsPath(port_id.clone(), chan_id.clone()),
+                &path::ChannelEndsPath(port_id.clone(), *chan_id),
             )
             .ok_or_else(ChannelError::implementation_specific)
     }
@@ -520,11 +525,6 @@ impl<S: Store> ChannelReader for Ibc<S> {
             .map_err(ChannelError::ics03_connection)
     }
 
-    fn authenticated_capability(&self, _port_id: &PortId) -> Result<Capability, ChannelError> {
-        // TODO(hu55a1n1): Copy SDK impl
-        Ok(Capability::default())
-    }
-
     fn get_next_sequence_send(
         &self,
         (port_id, chan_id): &(PortId, ChannelId),
@@ -532,7 +532,7 @@ impl<S: Store> ChannelReader for Ibc<S> {
         self.send_sequence_store
             .get(
                 Height::Pending,
-                &path::SeqSendsPath(port_id.clone(), chan_id.clone()),
+                &path::SeqSendsPath(port_id.clone(), *chan_id),
             )
             .ok_or_else(ChannelError::implementation_specific)
     }
@@ -544,7 +544,7 @@ impl<S: Store> ChannelReader for Ibc<S> {
         self.recv_sequence_store
             .get(
                 Height::Pending,
-                &path::SeqRecvsPath(port_id.clone(), chan_id.clone()),
+                &path::SeqRecvsPath(port_id.clone(), *chan_id),
             )
             .ok_or_else(ChannelError::implementation_specific)
     }
@@ -556,7 +556,7 @@ impl<S: Store> ChannelReader for Ibc<S> {
         self.ack_sequence_store
             .get(
                 Height::Pending,
-                &path::SeqAcksPath(port_id.clone(), chan_id.clone()),
+                &path::SeqAcksPath(port_id.clone(), *chan_id),
             )
             .ok_or_else(ChannelError::implementation_specific)
     }
@@ -564,13 +564,13 @@ impl<S: Store> ChannelReader for Ibc<S> {
     fn get_packet_commitment(
         &self,
         key: &(PortId, ChannelId, Sequence),
-    ) -> Result<String, ChannelError> {
+    ) -> Result<PacketCommitment, ChannelError> {
         self.packet_commitment_store
             .get(
                 Height::Pending,
                 &path::CommitmentsPath {
                     port_id: key.0.clone(),
-                    channel_id: key.1.clone(),
+                    channel_id: key.1,
                     sequence: key.2,
                 },
             )
@@ -586,7 +586,7 @@ impl<S: Store> ChannelReader for Ibc<S> {
                 Height::Pending,
                 &path::ReceiptsPath {
                     port_id: key.0.clone(),
-                    channel_id: key.1.clone(),
+                    channel_id: key.1,
                     sequence: key.2,
                 },
             )
@@ -597,22 +597,21 @@ impl<S: Store> ChannelReader for Ibc<S> {
     fn get_packet_acknowledgement(
         &self,
         key: &(PortId, ChannelId, Sequence),
-    ) -> Result<String, ChannelError> {
+    ) -> Result<AcknowledgementCommitment, ChannelError> {
         self.packet_ack_store
             .get(
                 Height::Pending,
                 &path::AcksPath {
                     port_id: key.0.clone(),
-                    channel_id: key.1.clone(),
+                    channel_id: key.1,
                     sequence: key.2,
                 },
             )
             .ok_or_else(ChannelError::implementation_specific)
     }
 
-    fn hash(&self, value: String) -> String {
-        let r = sha2::Sha256::digest(value.as_bytes());
-        format!("{:x}", r)
+    fn hash(&self, value: Vec<u8>) -> Vec<u8> {
+        sha2::Sha256::digest(&value).to_vec()
     }
 
     fn host_height(&self) -> IbcHeight {
@@ -666,12 +665,8 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
     fn store_packet_commitment(
         &mut self,
         key: (PortId, ChannelId, Sequence),
-        timestamp: Timestamp,
-        height: IbcHeight,
-        data: Vec<u8>,
+        commitment: PacketCommitment,
     ) -> Result<(), ChannelError> {
-        let commitment =
-            ChannelReader::hash(self, format!("{:?},{:?},{:?}", timestamp, height, data));
         self.packet_commitment_store
             .set(
                 path::CommitmentsPath {
@@ -715,9 +710,8 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
     fn store_packet_acknowledgement(
         &mut self,
         key: (PortId, ChannelId, Sequence),
-        ack: Vec<u8>,
+        ack_commitment: AcknowledgementCommitment,
     ) -> Result<(), ChannelError> {
-        let commitment = ChannelReader::hash(self, format!("{:?}", ack));
         self.packet_ack_store
             .set(
                 path::AcksPath {
@@ -725,7 +719,7 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
                     channel_id: key.1,
                     sequence: key.2,
                 },
-                commitment,
+                ack_commitment,
             )
             .map(|_| ())
             .map_err(|_| ChannelError::implementation_specific())
@@ -810,38 +804,91 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
     }
 }
 
-impl<S: Store> CapabilityReader for Ibc<S> {
-    fn get_capability(&self, _name: &CapabilityName) -> Result<Capability, PortError> {
-        todo!()
-    }
-
-    fn authenticate_capability(
-        &self,
-        _name: &CapabilityName,
-        _capability: &Capability,
-    ) -> Result<(), PortError> {
-        todo!()
-    }
-}
-
 impl<S: Store> PortReader for Ibc<S> {
-    type ModuleId = ();
-
-    fn lookup_module_by_port(
-        &self,
-        _port_id: &PortId,
-    ) -> Result<(Self::ModuleId, Capability), PortError> {
-        todo!()
-    }
-
-    fn authenticate(&self, _port_id: PortId, _key: &Capability) -> bool {
+    fn lookup_module_by_port(&self, _port_id: &PortId) -> Result<ModuleId, PortError> {
         todo!()
     }
 }
 
-impl<S: Store> Ics20Context for Ibc<S> {}
+impl<S: Store> Ics20Keeper for Ibc<S> {
+    type AccountId = Signer;
+}
 
-impl<S: Store> Ics26Context for Ibc<S> {}
+impl<S: Store> BankKeeper for Ibc<S> {
+    type AccountId = Signer;
+
+    fn send_coins(
+        &mut self,
+        _from: &Self::AccountId,
+        _to: &Self::AccountId,
+        _amt: &PrefixedCoin,
+    ) -> Result<(), Ics20Error> {
+        todo!()
+    }
+
+    fn mint_coins(
+        &mut self,
+        _account: &Self::AccountId,
+        _amt: &PrefixedCoin,
+    ) -> Result<(), Ics20Error> {
+        todo!()
+    }
+
+    fn burn_coins(
+        &mut self,
+        _account: &Self::AccountId,
+        _amt: &PrefixedCoin,
+    ) -> Result<(), Ics20Error> {
+        todo!()
+    }
+}
+
+impl<S: Store> Ics20Reader for Ibc<S> {
+    type AccountId = Signer;
+
+    fn get_port(&self) -> Result<PortId, Ics20Error> {
+        todo!()
+    }
+
+    fn is_send_enabled(&self) -> bool {
+        todo!()
+    }
+
+    fn is_receive_enabled(&self) -> bool {
+        todo!()
+    }
+}
+
+impl<S: Store> Ics20Context for Ibc<S> {
+    type AccountId = Signer;
+}
+
+pub struct IbcRouter;
+
+impl Router for IbcRouter {
+    fn get_route_mut(
+        &mut self,
+        _module_id: &impl Borrow<ModuleId>,
+    ) -> Option<&mut dyn ibc::core::ics26_routing::context::Module> {
+        todo!()
+    }
+
+    fn has_route(&self, _module_id: &impl Borrow<ModuleId>) -> bool {
+        todo!()
+    }
+}
+
+impl<S: Store> Ics26Context for Ibc<S> {
+    type Router = IbcRouter;
+
+    fn router(&self) -> &Self::Router {
+        todo!()
+    }
+
+    fn router_mut(&mut self) -> &mut Self::Router {
+        todo!()
+    }
+}
 
 impl<S: ProvableStore> Module for Ibc<S> {
     type Store = S;
@@ -990,7 +1037,7 @@ impl<S: ProvableStore + 'static> ClientQuery for Ibc<S> {
                             revision_number: path.epoch,
                             revision_height: path.height,
                         }),
-                        consensus_state: consensus_state.map(|cs| cs.into()),
+                        consensus_state: consensus_state.map(|cs| Any::from(cs).into()),
                     }
                 } else {
                     panic!("unexpected path") // safety - store paths are assumed to be well-formed
