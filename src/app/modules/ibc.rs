@@ -1037,7 +1037,7 @@ impl<S: ProvableStore + 'static> ClientQuery for Ibc<S> {
                             revision_number: path.epoch,
                             revision_height: path.height,
                         }),
-                        consensus_state: consensus_state.map(|cs| Any::from(cs).into()),
+                        consensus_state: consensus_state.map(|cs| cs.into()),
                     }
                 } else {
                     panic!("unexpected path") // safety - store paths are assumed to be well-formed
