@@ -11,7 +11,7 @@ pub(crate) use self::staking::Staking;
 use crate::app::store::{self, Height, Path, SharedStore};
 
 use flex_error::{define_error, TraceError};
-use prost_types::Any;
+use ibc_proto::google::protobuf::Any;
 use tendermint::block::Header;
 use tendermint_proto::abci::Event;
 use tendermint_proto::crypto::ProofOp;

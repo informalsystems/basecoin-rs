@@ -9,6 +9,7 @@ use crate::prostgen::cosmos::auth::v1beta1::{
     QueryAccountRequest, QueryAccountResponse, QueryAccountsRequest, QueryAccountsResponse,
     QueryParamsRequest, QueryParamsResponse,
 };
+use crate::prostgen::google::protobuf::Any;
 
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
@@ -16,7 +17,6 @@ use std::str::FromStr;
 
 use cosmrs::AccountId;
 use prost::Message;
-use prost_types::Any;
 use serde_json::Value;
 use tendermint_proto::Protobuf;
 use tonic::{Request, Response, Status};

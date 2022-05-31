@@ -14,8 +14,9 @@ use crate::prostgen::cosmos::staking::v1beta1::{
     QueryValidatorsRequest, QueryValidatorsResponse,
 };
 
-use prost_types::Duration;
 use std::marker::PhantomData;
+
+use crate::prostgen::google::protobuf::Duration;
 use tonic::{Request, Response, Status};
 use tracing::debug;
 

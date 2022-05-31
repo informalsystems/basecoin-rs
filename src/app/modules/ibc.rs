@@ -51,7 +51,6 @@ use ibc::Height as IbcHeight;
 use ibc_proto::ibc::core::channel::v1::Channel as IbcRawChannelEnd;
 use ibc_proto::ibc::core::connection::v1::ConnectionEnd as IbcRawConnectionEnd;
 use prost::Message;
-use prost_types::Any;
 use sha2::Digest;
 use std::collections::HashMap;
 use std::time::Duration;
