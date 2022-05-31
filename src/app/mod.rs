@@ -26,8 +26,8 @@ use std::convert::TryInto;
 use std::sync::{Arc, RwLock};
 
 use cosmrs::Tx;
+use ibc_proto::google::protobuf::Any;
 use prost::Message;
-use prost_types::Any;
 use serde_json::Value;
 use tendermint_abci::Application;
 use tendermint_proto::abci::{
@@ -257,8 +257,13 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
 
         let mut events = vec![];
         for message in tx.body.messages {
+            let message = Any {
+                type_url: message.type_url,
+                value: message.value,
+            };
+
             // try to deliver message to every module
-            match self.deliver_msg(message.clone()) {
+            match self.deliver_msg(message) {
                 // success - append events and continue with next message
                 Ok(mut msg_events) => {
                     events.append(&mut msg_events);
