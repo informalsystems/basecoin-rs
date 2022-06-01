@@ -1132,3 +1132,22 @@ impl RouterBuilder for IbcRouterBuilder {
         self.0
     }
 }
+
+#[derive(Clone)]
+pub struct IbcTransferModule;
+
+impl IbcModule for IbcTransferModule {
+    fn on_chan_open_try(
+        &mut self,
+        _output: &mut ModuleOutputBuilder,
+        _order: Order,
+        _connection_hops: &[ConnectionId],
+        _port_id: &PortId,
+        _channel_id: &ChannelId,
+        _counterparty: &Counterparty,
+        _version: &Version,
+        counterparty_version: &Version,
+    ) -> Result<Version, ChannelError> {
+        Ok(counterparty_version.clone())
+    }
+}
