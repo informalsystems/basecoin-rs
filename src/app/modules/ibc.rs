@@ -22,12 +22,12 @@ use crate::prostgen::ibc::core::connection::v1::{
 };
 
 use std::borrow::Borrow;
+use std::collections::{BTreeMap, HashMap};
 use std::convert::{TryFrom, TryInto};
 use std::str::FromStr;
+use std::sync::Arc;
+use std::time::Duration;
 
-use ibc::applications::transfer::context::{BankKeeper, Ics20Context, Ics20Keeper, Ics20Reader};
-use ibc::applications::transfer::error::Error as Ics20Error;
-use ibc::applications::transfer::PrefixedCoin;
 use ibc::clients::ics07_tendermint::consensus_state::ConsensusState;
 use ibc::core::ics02_client::client_consensus::AnyConsensusState;
 use ibc::core::ics02_client::client_state::AnyClientState;
@@ -37,19 +37,21 @@ use ibc::core::ics02_client::error::Error as ClientError;
 use ibc::core::ics03_connection::connection::ConnectionEnd;
 use ibc::core::ics03_connection::context::{ConnectionKeeper, ConnectionReader};
 use ibc::core::ics03_connection::error::Error as ConnectionError;
-use ibc::core::ics04_channel::channel::ChannelEnd;
+use ibc::core::ics04_channel::channel::{ChannelEnd, Counterparty, Order};
 use ibc::core::ics04_channel::commitment::{AcknowledgementCommitment, PacketCommitment};
 use ibc::core::ics04_channel::context::{ChannelKeeper, ChannelReader};
 use ibc::core::ics04_channel::error::Error as ChannelError;
 use ibc::core::ics04_channel::packet::{Receipt, Sequence};
+use ibc::core::ics04_channel::Version;
 use ibc::core::ics05_port::context::PortReader;
 use ibc::core::ics05_port::error::Error as PortError;
 use ibc::core::ics23_commitment::commitment::{CommitmentPrefix, CommitmentRoot};
 use ibc::core::ics24_host::identifier::{ChannelId, ClientId, ConnectionId, PortId};
 use ibc::core::ics24_host::{path, Path as IbcPath, IBC_QUERY_PATH};
-use ibc::core::ics26_routing::context::{Ics26Context, ModuleId, Router};
+use ibc::core::ics26_routing::context::{
+    Ics26Context, Module as IbcModule, ModuleId, ModuleOutputBuilder, Router, RouterBuilder,
+};
 use ibc::core::ics26_routing::handler::{decode, dispatch};
-use ibc::signer::Signer;
 use ibc::timestamp::Timestamp;
 use ibc::Height as IbcHeight;
 use ibc_proto::google::protobuf::Any;
@@ -57,8 +59,6 @@ use ibc_proto::ibc::core::channel::v1::Channel as IbcRawChannelEnd;
 use ibc_proto::ibc::core::connection::v1::ConnectionEnd as IbcRawConnectionEnd;
 use prost::Message;
 use sha2::Digest;
-use std::collections::HashMap;
-use std::time::Duration;
 use tendermint::abci::responses::Event as TendermintEvent;
 use tendermint::block::Header;
 use tendermint_proto::abci::{Event, EventAttribute};
@@ -121,6 +121,10 @@ pub struct Ibc<S> {
     /// Handle to store instance.
     /// The module is guaranteed exclusive access to all paths in the store key-space.
     store: SharedStore<S>,
+    /// Mapping of which IBC modules own which port
+    port_to_module_map: BTreeMap<PortId, ModuleId>,
+    /// ICS26 router impl
+    router: IbcRouter,
     /// Counter for clients
     client_counter: u64,
     /// Counter for connections
@@ -165,6 +169,8 @@ pub struct Ibc<S> {
 impl<S: ProvableStore + Default> Ibc<S> {
     pub fn new(store: SharedStore<S>) -> Self {
         Self {
+            port_to_module_map: Default::default(),
+            router: Default::default(),
             client_counter: 0,
             conn_counter: 0,
             channel_counter: 0,
@@ -186,6 +192,14 @@ impl<S: ProvableStore + Default> Ibc<S> {
             store,
         }
     }
+
+    pub fn with_router(self, router: IbcRouter) -> Self {
+        Self { router, ..self }
+    }
+
+    pub fn scope_port_to_module(&mut self, port_id: PortId, module_id: ModuleId) {
+        self.port_to_module_map.insert(port_id, module_id);
+    }
 }
 
 impl<S: ProvableStore> Ibc<S> {
@@ -197,6 +211,88 @@ impl<S: ProvableStore> Ibc<S> {
             }
         }
         None
+    }
+}
+
+impl<S: ProvableStore> Module for Ibc<S> {
+    type Store = S;
+
+    fn deliver(&mut self, message: Any) -> Result<Vec<Event>, ModuleError> {
+        let msg = decode(message).map_err(|_| ModuleError::not_handled())?;
+
+        debug!("Dispatching message: {:?}", msg);
+        match dispatch(self, msg) {
+            Ok(output) => Ok(output
+                .events
+                .into_iter()
+                .map(|ev| TmEvent(ev.try_into().unwrap()).into())
+                .collect()),
+            Err(e) => Err(ModuleError::ibc(e)),
+        }
+    }
+
+    fn query(
+        &self,
+        data: &[u8],
+        path: Option<&Path>,
+        height: Height,
+        prove: bool,
+    ) -> Result<QueryResult, ModuleError> {
+        let path = path.ok_or_else(ModuleError::not_handled)?;
+        if path.to_string() != IBC_QUERY_PATH {
+            return Err(ModuleError::not_handled());
+        }
+
+        let path: Path = String::from_utf8(data.to_vec())
+            .map_err(|_| Error::ics02_client(ClientError::implementation_specific()))?
+            .try_into()?;
+
+        let _ = IbcPath::try_from(path.clone())
+            .map_err(|_| Error::ics02_client(ClientError::implementation_specific()))?;
+
+        debug!(
+            "Querying for path ({}) at height {:?}",
+            path.to_string(),
+            height
+        );
+
+        let proof = if prove {
+            let proof = self
+                .get_proof(height, &path)
+                .ok_or_else(|| Error::ics02_client(ClientError::implementation_specific()))?;
+            Some(vec![ProofOp {
+                r#type: "".to_string(),
+                key: path.to_string().into_bytes(),
+                data: proof,
+            }])
+        } else {
+            None
+        };
+
+        let data = self
+            .store
+            .get(height, &path)
+            .ok_or_else(|| Error::ics02_client(ClientError::implementation_specific()))?;
+        Ok(QueryResult { data, proof })
+    }
+
+    fn begin_block(&mut self, header: &Header) -> Vec<Event> {
+        let consensus_state = ConsensusState::new(
+            CommitmentRoot::from_bytes(header.app_hash.as_ref()),
+            header.time,
+            header.next_validators_hash,
+        );
+        self.consensus_states
+            .insert(header.height.value(), consensus_state);
+        vec![]
+    }
+
+    fn store_mut(&mut self) -> &mut SharedStore<S> {
+        &mut self.store
+    }
+
+    fn store(&self) -> &SharedStore<S> {
+        &self.store
     }
 }
 
@@ -805,76 +901,11 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
 }
 
 impl<S: Store> PortReader for Ibc<S> {
-    fn lookup_module_by_port(&self, _port_id: &PortId) -> Result<ModuleId, PortError> {
-        todo!()
-    }
-}
-
-impl<S: Store> Ics20Keeper for Ibc<S> {
-    type AccountId = Signer;
-}
-
-impl<S: Store> BankKeeper for Ibc<S> {
-    type AccountId = Signer;
-
-    fn send_coins(
-        &mut self,
-        _from: &Self::AccountId,
-        _to: &Self::AccountId,
-        _amt: &PrefixedCoin,
-    ) -> Result<(), Ics20Error> {
-        todo!()
-    }
-
-    fn mint_coins(
-        &mut self,
-        _account: &Self::AccountId,
-        _amt: &PrefixedCoin,
-    ) -> Result<(), Ics20Error> {
-        todo!()
-    }
-
-    fn burn_coins(
-        &mut self,
-        _account: &Self::AccountId,
-        _amt: &PrefixedCoin,
-    ) -> Result<(), Ics20Error> {
-        todo!()
-    }
-}
-
-impl<S: Store> Ics20Reader for Ibc<S> {
-    type AccountId = Signer;
-
-    fn get_port(&self) -> Result<PortId, Ics20Error> {
-        todo!()
-    }
-
-    fn is_send_enabled(&self) -> bool {
-        todo!()
-    }
-
-    fn is_receive_enabled(&self) -> bool {
-        todo!()
-    }
-}
-
-impl<S: Store> Ics20Context for Ibc<S> {
-    type AccountId = Signer;
-}
-
-pub struct IbcRouter;
-
-impl Router for IbcRouter {
-    fn get_route_mut(
-        &mut self,
-        _module_id: &impl Borrow<ModuleId>,
-    ) -> Option<&mut dyn ibc::core::ics26_routing::context::Module> {
-        todo!()
-    }
-
-    fn has_route(&self, _module_id: &impl Borrow<ModuleId>) -> bool {
-        todo!()
+    fn lookup_module_by_port(&self, port_id: &PortId) -> Result<ModuleId, PortError> {
+        self.port_to_module_map
+            .get(port_id)
+            .ok_or_else(|| PortError::unknown_port(port_id.clone()))
+            .map(Clone::clone)
     }
 }
 
@@ -882,93 +913,11 @@ impl<S: Store> Ics26Context for Ibc<S> {
     type Router = IbcRouter;
 
     fn router(&self) -> &Self::Router {
-        todo!()
+        &self.router
     }
 
     fn router_mut(&mut self) -> &mut Self::Router {
-        todo!()
-    }
-}
-
-impl<S: ProvableStore> Module for Ibc<S> {
-    type Store = S;
-
-    fn deliver(&mut self, message: Any) -> Result<Vec<Event>, ModuleError> {
-        let msg = decode(message).map_err(|_| ModuleError::not_handled())?;
-
-        debug!("Dispatching message: {:?}", msg);
-        match dispatch(self, msg) {
-            Ok(output) => Ok(output
-                .events
-                .into_iter()
-                .map(|ev| TmEvent(ev.try_into().unwrap()).into())
-                .collect()),
-            Err(e) => Err(ModuleError::ibc(e)),
-        }
-    }
-
-    fn query(
-        &self,
-        data: &[u8],
-        path: Option<&Path>,
-        height: Height,
-        prove: bool,
-    ) -> Result<QueryResult, ModuleError> {
-        let path = path.ok_or_else(ModuleError::not_handled)?;
-        if path.to_string() != IBC_QUERY_PATH {
-            return Err(ModuleError::not_handled());
-        }
-
-        let path: Path = String::from_utf8(data.to_vec())
-            .map_err(|_| Error::ics02_client(ClientError::implementation_specific()))?
-            .try_into()?;
-
-        let _ = IbcPath::try_from(path.clone())
-            .map_err(|_| Error::ics02_client(ClientError::implementation_specific()))?;
-
-        debug!(
-            "Querying for path ({}) at height {:?}",
-            path.to_string(),
-            height
-        );
-
-        let proof = if prove {
-            let proof = self
-                .get_proof(height, &path)
-                .ok_or_else(|| Error::ics02_client(ClientError::implementation_specific()))?;
-            Some(vec![ProofOp {
-                r#type: "".to_string(),
-                key: path.to_string().into_bytes(),
-                data: proof,
-            }])
-        } else {
-            None
-        };
-
-        let data = self
-            .store
-            .get(height, &path)
-            .ok_or_else(|| Error::ics02_client(ClientError::implementation_specific()))?;
-        Ok(QueryResult { data, proof })
-    }
-
-    fn begin_block(&mut self, header: &Header) -> Vec<Event> {
-        let consensus_state = ConsensusState::new(
-            CommitmentRoot::from_bytes(header.app_hash.as_ref()),
-            header.time,
-            header.next_validators_hash,
-        );
-        self.consensus_states
-            .insert(header.height.value(), consensus_state);
-        vec![]
-    }
-
-    fn store_mut(&mut self) -> &mut SharedStore<S> {
-        &mut self.store
-    }
-
-    fn store(&self) -> &SharedStore<S> {
-        &self.store
+        &mut self.router
     }
 }
 
@@ -1150,5 +1099,36 @@ impl From<ConnectionEndWrapper> for RawConnectionEnd {
             }),
             delay_period: 0,
         }
+    }
+}
+
+#[derive(Clone, Default)]
+pub struct IbcRouter(BTreeMap<ModuleId, Arc<dyn IbcModule>>);
+
+impl Router for IbcRouter {
+    fn get_route_mut(&mut self, module_id: &impl Borrow<ModuleId>) -> Option<&mut dyn IbcModule> {
+        self.0.get_mut(module_id.borrow()).and_then(Arc::get_mut)
+    }
+
+    fn has_route(&self, module_id: &impl Borrow<ModuleId>) -> bool {
+        self.0.get(module_id.borrow()).is_some()
+    }
+}
+
+#[derive(Default)]
+pub struct IbcRouterBuilder(IbcRouter);
+
+impl RouterBuilder for IbcRouterBuilder {
+    type Router = IbcRouter;
+
+    fn add_route(mut self, module_id: ModuleId, module: impl IbcModule) -> Result<Self, String> {
+        match self.0 .0.insert(module_id, Arc::new(module)) {
+            None => Ok(self),
+            Some(_) => Err("Duplicate module_id".to_owned()),
+        }
+    }
+
+    fn build(self) -> Self::Router {
+        self.0
     }
 }
