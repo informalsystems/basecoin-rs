@@ -1133,7 +1133,7 @@ impl RouterBuilder for IbcRouterBuilder {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct IbcTransferModule;
 
 impl IbcModule for IbcTransferModule {

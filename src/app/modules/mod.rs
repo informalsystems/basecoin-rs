@@ -5,7 +5,7 @@ mod staking;
 
 pub(crate) use self::auth::Auth;
 pub(crate) use self::bank::Bank;
-pub(crate) use self::ibc::Ibc;
+pub(crate) use self::ibc::{Ibc, IbcRouterBuilder, IbcTransferModule};
 pub(crate) use self::staking::Staking;
 
 use crate::app::store::{self, Height, Path, SharedStore};

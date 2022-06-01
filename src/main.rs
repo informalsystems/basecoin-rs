@@ -2,7 +2,13 @@ mod app;
 mod base64;
 mod prostgen;
 
-use crate::app::modules::{prefix, Auth, Bank, Ibc, Identifiable, Staking};
+use ibc::applications::transfer::MODULE_ID_STR as IBC_TRANSFER_MODULE_ID;
+use ibc::core::ics24_host::identifier::PortId;
+use ibc::core::ics26_routing::context::{ModuleId, RouterBuilder};
+
+use crate::app::modules::{
+    prefix, Auth, Bank, Ibc, IbcRouterBuilder, IbcTransferModule, Identifiable, Staking,
+};
 use crate::app::store::InMemoryStore;
 use crate::app::Builder;
 use crate::prostgen::cosmos::base::tendermint::v1beta1::service_server::ServiceServer as HealthServer;
@@ -66,8 +72,21 @@ fn main() {
         auth.account_reader().clone(),
         auth.account_keeper().clone(),
     );
-    let ibc = Ibc::new(app_builder.module_store(&prefix::Ibc {}.identifier()));
     let staking = Staking::new(app_builder.module_store(&prefix::Staking {}.identifier()));
+
+    let ibc = {
+        let mut ibc = Ibc::new(app_builder.module_store(&prefix::Ibc {}.identifier()));
+
+        let transfer_module_id: ModuleId = IBC_TRANSFER_MODULE_ID.parse().unwrap();
+        let module = IbcTransferModule {};
+        let router = IbcRouterBuilder::default()
+            .add_route(transfer_module_id.clone(), module)
+            .unwrap()
+            .build();
+        ibc.scope_port_to_module(PortId::transfer(), transfer_module_id);
+
+        ibc.with_router(router)
+    };
 
     // register modules with the app
     let app = app_builder
