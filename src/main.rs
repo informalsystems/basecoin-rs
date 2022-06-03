@@ -13,8 +13,6 @@ use crate::app::store::InMemoryStore;
 use crate::app::Builder;
 use crate::prostgen::cosmos::base::tendermint::v1beta1::service_server::ServiceServer as HealthServer;
 use crate::prostgen::cosmos::tx::v1beta1::service_server::ServiceServer as TxServer;
-use crate::prostgen::ibc::core::client::v1::query_server::QueryServer as ClientQueryServer;
-use crate::prostgen::ibc::core::connection::v1::query_server::QueryServer as ConnectionQueryServer;
 
 use structopt::StructOpt;
 use tendermint_abci::ServerBuilder;
@@ -87,12 +85,14 @@ fn main() {
 
         ibc.with_router(router)
     };
+    let ibc_client_service = ibc.client_service();
+    let ibc_conn_service = ibc.connection_service();
 
     // register modules with the app
     let app = app_builder
         .add_module(prefix::Auth {}.identifier(), auth.clone())
         .add_module(prefix::Bank {}.identifier(), bank)
-        .add_module(prefix::Ibc {}.identifier(), ibc.clone())
+        .add_module(prefix::Ibc {}.identifier(), ibc)
         .build();
 
     // run the blocking ABCI server on a separate thread
@@ -107,8 +107,8 @@ fn main() {
     let grpc_server = Server::builder()
         .add_service(HealthServer::new(app.clone()))
         .add_service(TxServer::new(app))
-        .add_service(ClientQueryServer::new(ibc.clone()))
-        .add_service(ConnectionQueryServer::new(ibc))
+        .add_service(ibc_client_service)
+        .add_service(ibc_conn_service)
         .add_service(auth.query())
         .add_service(staking.query())
         .serve(format!("{}:{}", opt.host, opt.grpc_port).parse().unwrap());
