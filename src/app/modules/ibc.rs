@@ -2,6 +2,7 @@ use crate::app::modules::{Error as ModuleError, Identifiable, Module, QueryResul
 use crate::app::store::{
     Height, JsonStore, Path, ProtobufStore, ProvableStore, SharedStore, Store, TypedSet, TypedStore,
 };
+use crate::prostgen::ibc::core::client::v1::query_server::QueryServer as ClientQueryServer;
 use crate::prostgen::ibc::core::client::v1::{
     query_server::Query as ClientQuery, ConsensusStateWithHeight, Height as RawHeight,
     QueryClientParamsRequest, QueryClientParamsResponse, QueryClientStateRequest,
@@ -12,6 +13,7 @@ use crate::prostgen::ibc::core::client::v1::{
     QueryUpgradedConsensusStateRequest, QueryUpgradedConsensusStateResponse,
 };
 use crate::prostgen::ibc::core::commitment::v1::MerklePrefix;
+use crate::prostgen::ibc::core::connection::v1::query_server::QueryServer as ConnectionQueryServer;
 use crate::prostgen::ibc::core::connection::v1::{
     query_server::Query as ConnectionQuery, ConnectionEnd as RawConnectionEnd,
     Counterparty as RawCounterParty, QueryClientConnectionsRequest, QueryClientConnectionsResponse,
@@ -166,7 +168,7 @@ pub struct Ibc<S> {
     packet_ack_store: JsonStore<SharedStore<S>, path::AcksPath, AcknowledgementCommitment>,
 }
 
-impl<S: ProvableStore + Default> Ibc<S> {
+impl<S: 'static + ProvableStore + Default> Ibc<S> {
     pub fn new(store: SharedStore<S>) -> Self {
         Self {
             port_to_module_map: Default::default(),
@@ -199,6 +201,14 @@ impl<S: ProvableStore + Default> Ibc<S> {
 
     pub fn scope_port_to_module(&mut self, port_id: PortId, module_id: ModuleId) {
         self.port_to_module_map.insert(port_id, module_id);
+    }
+
+    pub fn client_service(&self) -> ClientQueryServer<IbcClientService<S>> {
+        ClientQueryServer::new(IbcClientService::new(self.store.clone()))
+    }
+
+    pub fn connection_service(&self) -> ConnectionQueryServer<IbcConnectionService<S>> {
+        ConnectionQueryServer::new(IbcConnectionService::new(self.store.clone()))
     }
 }
 
@@ -941,8 +951,23 @@ impl From<TmEvent> for Event {
     }
 }
 
+pub struct IbcClientService<S> {
+    store: SharedStore<S>,
+    consensus_state_store:
+        ProtobufStore<SharedStore<S>, path::ClientConsensusStatePath, AnyConsensusState, Any>,
+}
+
+impl<S: Store> IbcClientService<S> {
+    pub fn new(store: SharedStore<S>) -> Self {
+        Self {
+            consensus_state_store: TypedStore::new(store.clone()),
+            store,
+        }
+    }
+}
+
 #[tonic::async_trait]
-impl<S: ProvableStore + 'static> ClientQuery for Ibc<S> {
+impl<S: ProvableStore + 'static> ClientQuery for IbcClientService<S> {
     async fn client_state(
         &self,
         _request: Request<QueryClientStateRequest>,
@@ -1029,15 +1054,30 @@ impl<S: ProvableStore + 'static> ClientQuery for Ibc<S> {
     }
 }
 
+pub struct IbcConnectionService<S> {
+    connection_end_store:
+        ProtobufStore<SharedStore<S>, path::ConnectionsPath, ConnectionEnd, IbcRawConnectionEnd>,
+}
+
+impl<S: Store> IbcConnectionService<S> {
+    pub fn new(store: SharedStore<S>) -> Self {
+        Self {
+            connection_end_store: TypedStore::new(store),
+        }
+    }
+}
+
 #[tonic::async_trait]
-impl<S: ProvableStore + 'static> ConnectionQuery for Ibc<S> {
+impl<S: ProvableStore + 'static> ConnectionQuery for IbcConnectionService<S> {
     async fn connection(
         &self,
         request: Request<QueryConnectionRequest>,
     ) -> Result<Response<QueryConnectionResponse>, Status> {
         let conn_id = ConnectionId::from_str(&request.get_ref().connection_id)
             .map_err(|_| Status::invalid_argument("invalid connection id"))?;
-        let conn = ConnectionReader::connection_end(self, &conn_id).ok();
+        let conn = self
+            .connection_end_store
+            .get(Height::Pending, &path::ConnectionsPath(conn_id));
         Ok(Response::new(QueryConnectionResponse {
             connection: conn.map(|c| ConnectionEndWrapper(c.into()).into()),
             proof: vec![],
