@@ -65,11 +65,14 @@ fn main() {
 
     // instantiate modules and setup inter-module communication (if required)
     let auth = Auth::new(app_builder.module_store(&prefix::Auth {}.identifier()));
+    let auth_service = auth.service();
+
     let bank = Bank::new(
         app_builder.module_store(&prefix::Bank {}.identifier()),
         auth.account_reader().clone(),
         auth.account_keeper().clone(),
     );
+
     let staking = Staking::new(app_builder.module_store(&prefix::Staking {}.identifier()));
 
     let ibc = {
@@ -90,7 +93,7 @@ fn main() {
 
     // register modules with the app
     let app = app_builder
-        .add_module(prefix::Auth {}.identifier(), auth.clone())
+        .add_module(prefix::Auth {}.identifier(), auth)
         .add_module(prefix::Bank {}.identifier(), bank)
         .add_module(prefix::Ibc {}.identifier(), ibc)
         .build();
@@ -109,8 +112,8 @@ fn main() {
         .add_service(TxServer::new(app))
         .add_service(ibc_client_service)
         .add_service(ibc_conn_service)
-        .add_service(auth.query())
-        .add_service(staking.query())
+        .add_service(auth_service)
+        .add_service(staking.service())
         .serve(format!("{}:{}", opt.host, opt.grpc_port).parse().unwrap());
     Runtime::new()
         .unwrap()

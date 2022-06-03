@@ -27,15 +27,15 @@ impl<S: 'static + ProvableStore> Staking<S> {
         Self(PhantomData)
     }
 
-    pub fn query(&self) -> QueryServer<StakingQuery<S>> {
-        QueryServer::new(StakingQuery(PhantomData))
+    pub fn service(&self) -> QueryServer<StakingService<S>> {
+        QueryServer::new(StakingService(PhantomData))
     }
 }
 
-pub struct StakingQuery<S>(PhantomData<S>);
+pub struct StakingService<S>(PhantomData<S>);
 
 #[tonic::async_trait]
-impl<S: ProvableStore + 'static> Query for StakingQuery<S> {
+impl<S: ProvableStore + 'static> Query for StakingService<S> {
     async fn validators(
         &self,
         _request: Request<QueryValidatorsRequest>,

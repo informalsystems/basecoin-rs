@@ -160,8 +160,8 @@ impl<S: 'static + ProvableStore> Auth<S> {
         }
     }
 
-    pub fn query(&self) -> QueryServer<AuthQuery<S>> {
-        QueryServer::new(AuthQuery {
+    pub fn service(&self) -> QueryServer<AuthService<S>> {
+        QueryServer::new(AuthService {
             account_reader: self.account_reader().clone(),
         })
     }
@@ -241,12 +241,12 @@ impl<S: Store> AccountKeeper for AuthAccountKeeper<S> {
     }
 }
 
-pub struct AuthQuery<S> {
+pub struct AuthService<S> {
     account_reader: AuthAccountReader<S>,
 }
 
 #[tonic::async_trait]
-impl<S: ProvableStore + 'static> Query for AuthQuery<S> {
+impl<S: ProvableStore + 'static> Query for AuthService<S> {
     async fn accounts(
         &self,
         _request: Request<QueryAccountsRequest>,
