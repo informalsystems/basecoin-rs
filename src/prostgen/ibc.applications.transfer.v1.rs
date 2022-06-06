@@ -1,90 +1,114 @@
 /// DenomTrace contains the base denomination for ICS20 fungible tokens and the
 /// source tracing information path.
+#[derive(::serde::Serialize, ::serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct DenomTrace {
     /// path defines the chain of port/channel identifiers used for tracing the
     /// source of the fungible token.
-    #[prost(string, tag = "1")]
+    #[prost(string, tag="1")]
     pub path: ::prost::alloc::string::String,
     /// base denomination of the relayed fungible token.
-    #[prost(string, tag = "2")]
+    #[prost(string, tag="2")]
     pub base_denom: ::prost::alloc::string::String,
 }
 /// Params defines the set of IBC transfer parameters.
 /// NOTE: To prevent a single token from being transferred, set the
 /// TransfersEnabled parameter to true and then set the bank module's SendEnabled
 /// parameter for the denomination to false.
+#[derive(::serde::Serialize, ::serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Params {
     /// send_enabled enables or disables all cross-chain token transfers from this
     /// chain.
-    #[prost(bool, tag = "1")]
+    #[prost(bool, tag="1")]
     pub send_enabled: bool,
     /// receive_enabled enables or disables all cross-chain token transfers to this
     /// chain.
-    #[prost(bool, tag = "2")]
+    #[prost(bool, tag="2")]
     pub receive_enabled: bool,
 }
 /// QueryDenomTraceRequest is the request type for the Query/DenomTrace RPC
 /// method
+#[derive(::serde::Serialize, ::serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct QueryDenomTraceRequest {
     /// hash (in hex format) of the denomination trace information.
-    #[prost(string, tag = "1")]
+    #[prost(string, tag="1")]
     pub hash: ::prost::alloc::string::String,
 }
 /// QueryDenomTraceResponse is the response type for the Query/DenomTrace RPC
 /// method.
+#[derive(::serde::Serialize, ::serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct QueryDenomTraceResponse {
     /// denom_trace returns the requested denomination trace information.
-    #[prost(message, optional, tag = "1")]
+    #[prost(message, optional, tag="1")]
     pub denom_trace: ::core::option::Option<DenomTrace>,
 }
 /// QueryConnectionsRequest is the request type for the Query/DenomTraces RPC
 /// method
+#[derive(::serde::Serialize, ::serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct QueryDenomTracesRequest {
     /// pagination defines an optional pagination for the request.
-    #[prost(message, optional, tag = "1")]
-    pub pagination: ::core::option::Option<
-        super::super::super::super::cosmos::base::query::v1beta1::PageRequest,
-    >,
+    #[prost(message, optional, tag="1")]
+    pub pagination: ::core::option::Option<super::super::super::super::cosmos::base::query::v1beta1::PageRequest>,
 }
 /// QueryConnectionsResponse is the response type for the Query/DenomTraces RPC
 /// method.
+#[derive(::serde::Serialize, ::serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct QueryDenomTracesResponse {
     /// denom_traces returns all denominations trace information.
-    #[prost(message, repeated, tag = "1")]
+    #[prost(message, repeated, tag="1")]
     pub denom_traces: ::prost::alloc::vec::Vec<DenomTrace>,
     /// pagination defines the pagination in the response.
-    #[prost(message, optional, tag = "2")]
-    pub pagination: ::core::option::Option<
-        super::super::super::super::cosmos::base::query::v1beta1::PageResponse,
-    >,
+    #[prost(message, optional, tag="2")]
+    pub pagination: ::core::option::Option<super::super::super::super::cosmos::base::query::v1beta1::PageResponse>,
 }
 /// QueryParamsRequest is the request type for the Query/Params RPC method.
+#[derive(::serde::Serialize, ::serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct QueryParamsRequest {}
+pub struct QueryParamsRequest {
+}
 /// QueryParamsResponse is the response type for the Query/Params RPC method.
+#[derive(::serde::Serialize, ::serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct QueryParamsResponse {
     /// params defines the parameters of the module.
-    #[prost(message, optional, tag = "1")]
+    #[prost(message, optional, tag="1")]
     pub params: ::core::option::Option<Params>,
 }
-#[doc = r" Generated client implementations."]
+/// QueryDenomHashRequest is the request type for the Query/DenomHash RPC
+/// method
+#[derive(::serde::Serialize, ::serde::Deserialize)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct QueryDenomHashRequest {
+    /// The denomination trace (\[port_id]/[channel_id])+/[denom\]
+    #[prost(string, tag="1")]
+    pub trace: ::prost::alloc::string::String,
+}
+/// QueryDenomHashResponse is the response type for the Query/DenomHash RPC
+/// method.
+#[derive(::serde::Serialize, ::serde::Deserialize)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct QueryDenomHashResponse {
+    /// hash (in hex format) of the denomination trace information.
+    #[prost(string, tag="1")]
+    pub hash: ::prost::alloc::string::String,
+}
+/// Generated client implementations.
+#[cfg(feature = "client")]
 pub mod query_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
-    #[doc = " Query provides defines the gRPC querier service."]
+    /// Query provides defines the gRPC querier service.
     #[derive(Debug, Clone)]
     pub struct QueryClient<T> {
         inner: tonic::client::Grpc<T>,
     }
     impl QueryClient<tonic::transport::Channel> {
-        #[doc = r" Attempt to create a new client by connecting to a given endpoint."]
+        /// Attempt to create a new client by connecting to a given endpoint.
         pub async fn connect<D>(dst: D) -> Result<Self, tonic::transport::Error>
         where
             D: std::convert::TryInto<tonic::transport::Endpoint>,
@@ -97,8 +121,8 @@ pub mod query_client {
     impl<T> QueryClient<T>
     where
         T: tonic::client::GrpcService<tonic::body::BoxBody>,
-        T::ResponseBody: Body + Send + 'static,
         T::Error: Into<StdError>,
+        T::ResponseBody: Default + Body<Data = Bytes> + Send + 'static,
         <T::ResponseBody as Body>::Error: Into<StdError> + Send,
     {
         pub fn new(inner: T) -> Self {
@@ -117,100 +141,138 @@ pub mod query_client {
                     <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
                 >,
             >,
-            <T as tonic::codegen::Service<http::Request<tonic::body::BoxBody>>>::Error:
-                Into<StdError> + Send + Sync,
+            <T as tonic::codegen::Service<
+                http::Request<tonic::body::BoxBody>,
+            >>::Error: Into<StdError> + Send + Sync,
         {
             QueryClient::new(InterceptedService::new(inner, interceptor))
         }
-        #[doc = r" Compress requests with `gzip`."]
-        #[doc = r""]
-        #[doc = r" This requires the server to support it otherwise it might respond with an"]
-        #[doc = r" error."]
+        /// Compress requests with `gzip`.
+        ///
+        /// This requires the server to support it otherwise it might respond with an
+        /// error.
+        #[must_use]
         pub fn send_gzip(mut self) -> Self {
             self.inner = self.inner.send_gzip();
             self
         }
-        #[doc = r" Enable decompressing responses with `gzip`."]
+        /// Enable decompressing responses with `gzip`.
+        #[must_use]
         pub fn accept_gzip(mut self) -> Self {
             self.inner = self.inner.accept_gzip();
             self
         }
-        #[doc = " DenomTrace queries a denomination trace information."]
+        /// DenomTrace queries a denomination trace information.
         pub async fn denom_trace(
             &mut self,
             request: impl tonic::IntoRequest<super::QueryDenomTraceRequest>,
         ) -> Result<tonic::Response<super::QueryDenomTraceResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::Unknown,
-                    format!("Service was not ready: {}", e.into()),
-                )
-            })?;
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/ibc.applications.transfer.v1.Query/DenomTrace",
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
-        #[doc = " DenomTraces queries all denomination traces."]
+        /// DenomTraces queries all denomination traces.
         pub async fn denom_traces(
             &mut self,
             request: impl tonic::IntoRequest<super::QueryDenomTracesRequest>,
         ) -> Result<tonic::Response<super::QueryDenomTracesResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::Unknown,
-                    format!("Service was not ready: {}", e.into()),
-                )
-            })?;
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/ibc.applications.transfer.v1.Query/DenomTraces",
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
-        #[doc = " Params queries all parameters of the ibc-transfer module."]
+        /// Params queries all parameters of the ibc-transfer module.
         pub async fn params(
             &mut self,
             request: impl tonic::IntoRequest<super::QueryParamsRequest>,
         ) -> Result<tonic::Response<super::QueryParamsResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::Unknown,
-                    format!("Service was not ready: {}", e.into()),
-                )
-            })?;
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/ibc.applications.transfer.v1.Query/Params");
+            let path = http::uri::PathAndQuery::from_static(
+                "/ibc.applications.transfer.v1.Query/Params",
+            );
+            self.inner.unary(request.into_request(), path, codec).await
+        }
+        /// DenomHash queries a denomination hash information.
+        pub async fn denom_hash(
+            &mut self,
+            request: impl tonic::IntoRequest<super::QueryDenomHashRequest>,
+        ) -> Result<tonic::Response<super::QueryDenomHashResponse>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/ibc.applications.transfer.v1.Query/DenomHash",
+            );
             self.inner.unary(request.into_request(), path, codec).await
         }
     }
 }
-#[doc = r" Generated server implementations."]
+/// Generated server implementations.
 pub mod query_server {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
-    #[doc = "Generated trait containing gRPC methods that should be implemented for use with QueryServer."]
+    ///Generated trait containing gRPC methods that should be implemented for use with QueryServer.
     #[async_trait]
     pub trait Query: Send + Sync + 'static {
-        #[doc = " DenomTrace queries a denomination trace information."]
+        /// DenomTrace queries a denomination trace information.
         async fn denom_trace(
             &self,
             request: tonic::Request<super::QueryDenomTraceRequest>,
         ) -> Result<tonic::Response<super::QueryDenomTraceResponse>, tonic::Status>;
-        #[doc = " DenomTraces queries all denomination traces."]
+        /// DenomTraces queries all denomination traces.
         async fn denom_traces(
             &self,
             request: tonic::Request<super::QueryDenomTracesRequest>,
         ) -> Result<tonic::Response<super::QueryDenomTracesResponse>, tonic::Status>;
-        #[doc = " Params queries all parameters of the ibc-transfer module."]
+        /// Params queries all parameters of the ibc-transfer module.
         async fn params(
             &self,
             request: tonic::Request<super::QueryParamsRequest>,
         ) -> Result<tonic::Response<super::QueryParamsResponse>, tonic::Status>;
+        /// DenomHash queries a denomination hash information.
+        async fn denom_hash(
+            &self,
+            request: tonic::Request<super::QueryDenomHashRequest>,
+        ) -> Result<tonic::Response<super::QueryDenomHashResponse>, tonic::Status>;
     }
-    #[doc = " Query provides defines the gRPC querier service."]
+    /// Query provides defines the gRPC querier service.
     #[derive(Debug)]
     pub struct QueryServer<T: Query> {
         inner: _Inner<T>,
@@ -220,7 +282,9 @@ pub mod query_server {
     struct _Inner<T>(Arc<T>);
     impl<T: Query> QueryServer<T> {
         pub fn new(inner: T) -> Self {
-            let inner = Arc::new(inner);
+            Self::from_arc(Arc::new(inner))
+        }
+        pub fn from_arc(inner: Arc<T>) -> Self {
             let inner = _Inner(inner);
             Self {
                 inner,
@@ -228,7 +292,10 @@ pub mod query_server {
                 send_compression_encodings: Default::default(),
             }
         }
-        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
+        pub fn with_interceptor<F>(
+            inner: T,
+            interceptor: F,
+        ) -> InterceptedService<Self, F>
         where
             F: tonic::service::Interceptor,
         {
@@ -242,9 +309,12 @@ pub mod query_server {
         B::Error: Into<StdError> + Send + 'static,
     {
         type Response = http::Response<tonic::body::BoxBody>;
-        type Error = Never;
+        type Error = std::convert::Infallible;
         type Future = BoxFuture<Self::Response, Self::Error>;
-        fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        fn poll_ready(
+            &mut self,
+            _cx: &mut Context<'_>,
+        ) -> Poll<Result<(), Self::Error>> {
             Poll::Ready(Ok(()))
         }
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
@@ -253,9 +323,15 @@ pub mod query_server {
                 "/ibc.applications.transfer.v1.Query/DenomTrace" => {
                     #[allow(non_camel_case_types)]
                     struct DenomTraceSvc<T: Query>(pub Arc<T>);
-                    impl<T: Query> tonic::server::UnaryService<super::QueryDenomTraceRequest> for DenomTraceSvc<T> {
+                    impl<
+                        T: Query,
+                    > tonic::server::UnaryService<super::QueryDenomTraceRequest>
+                    for DenomTraceSvc<T> {
                         type Response = super::QueryDenomTraceResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::QueryDenomTraceRequest>,
@@ -272,10 +348,11 @@ pub mod query_server {
                         let inner = inner.0;
                         let method = DenomTraceSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
-                            accept_compression_encodings,
-                            send_compression_encodings,
-                        );
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
@@ -284,15 +361,23 @@ pub mod query_server {
                 "/ibc.applications.transfer.v1.Query/DenomTraces" => {
                     #[allow(non_camel_case_types)]
                     struct DenomTracesSvc<T: Query>(pub Arc<T>);
-                    impl<T: Query> tonic::server::UnaryService<super::QueryDenomTracesRequest> for DenomTracesSvc<T> {
+                    impl<
+                        T: Query,
+                    > tonic::server::UnaryService<super::QueryDenomTracesRequest>
+                    for DenomTracesSvc<T> {
                         type Response = super::QueryDenomTracesResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::QueryDenomTracesRequest>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
-                            let fut = async move { (*inner).denom_traces(request).await };
+                            let fut = async move {
+                                (*inner).denom_traces(request).await
+                            };
                             Box::pin(fut)
                         }
                     }
@@ -303,10 +388,11 @@ pub mod query_server {
                         let inner = inner.0;
                         let method = DenomTracesSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
-                            accept_compression_encodings,
-                            send_compression_encodings,
-                        );
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
@@ -315,9 +401,13 @@ pub mod query_server {
                 "/ibc.applications.transfer.v1.Query/Params" => {
                     #[allow(non_camel_case_types)]
                     struct ParamsSvc<T: Query>(pub Arc<T>);
-                    impl<T: Query> tonic::server::UnaryService<super::QueryParamsRequest> for ParamsSvc<T> {
+                    impl<T: Query> tonic::server::UnaryService<super::QueryParamsRequest>
+                    for ParamsSvc<T> {
                         type Response = super::QueryParamsResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::QueryParamsRequest>,
@@ -334,23 +424,66 @@ pub mod query_server {
                         let inner = inner.0;
                         let method = ParamsSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
-                            accept_compression_encodings,
-                            send_compression_encodings,
-                        );
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
                     Box::pin(fut)
                 }
-                _ => Box::pin(async move {
-                    Ok(http::Response::builder()
-                        .status(200)
-                        .header("grpc-status", "12")
-                        .header("content-type", "application/grpc")
-                        .body(empty_body())
-                        .unwrap())
-                }),
+                "/ibc.applications.transfer.v1.Query/DenomHash" => {
+                    #[allow(non_camel_case_types)]
+                    struct DenomHashSvc<T: Query>(pub Arc<T>);
+                    impl<
+                        T: Query,
+                    > tonic::server::UnaryService<super::QueryDenomHashRequest>
+                    for DenomHashSvc<T> {
+                        type Response = super::QueryDenomHashResponse;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::QueryDenomHashRequest>,
+                        ) -> Self::Future {
+                            let inner = self.0.clone();
+                            let fut = async move { (*inner).denom_hash(request).await };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = DenomHashSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                _ => {
+                    Box::pin(async move {
+                        Ok(
+                            http::Response::builder()
+                                .status(200)
+                                .header("grpc-status", "12")
+                                .header("content-type", "application/grpc")
+                                .body(empty_body())
+                                .unwrap(),
+                        )
+                    })
+                }
             }
         }
     }
@@ -381,46 +514,50 @@ pub mod query_server {
 /// MsgTransfer defines a msg to transfer fungible tokens (i.e Coins) between
 /// ICS20 enabled chains. See ICS Spec here:
 /// <https://github.com/cosmos/ibc/tree/master/spec/app/ics-020-fungible-token-transfer#data-structures>
+#[derive(::serde::Serialize, ::serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct MsgTransfer {
     /// the port on which the packet will be sent
-    #[prost(string, tag = "1")]
+    #[prost(string, tag="1")]
     pub source_port: ::prost::alloc::string::String,
     /// the channel by which the packet will be sent
-    #[prost(string, tag = "2")]
+    #[prost(string, tag="2")]
     pub source_channel: ::prost::alloc::string::String,
     /// the tokens to be transferred
-    #[prost(message, optional, tag = "3")]
+    #[prost(message, optional, tag="3")]
     pub token: ::core::option::Option<super::super::super::super::cosmos::base::v1beta1::Coin>,
     /// the sender address
-    #[prost(string, tag = "4")]
+    #[prost(string, tag="4")]
     pub sender: ::prost::alloc::string::String,
     /// the recipient address on the destination chain
-    #[prost(string, tag = "5")]
+    #[prost(string, tag="5")]
     pub receiver: ::prost::alloc::string::String,
     /// Timeout height relative to the current block height.
     /// The timeout is disabled when set to 0.
-    #[prost(message, optional, tag = "6")]
+    #[prost(message, optional, tag="6")]
     pub timeout_height: ::core::option::Option<super::super::super::core::client::v1::Height>,
-    /// Timeout timestamp (in nanoseconds) relative to the current block timestamp.
+    /// Timeout timestamp in absolute nanoseconds since unix epoch.
     /// The timeout is disabled when set to 0.
-    #[prost(uint64, tag = "7")]
+    #[prost(uint64, tag="7")]
     pub timeout_timestamp: u64,
 }
 /// MsgTransferResponse defines the Msg/Transfer response type.
+#[derive(::serde::Serialize, ::serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct MsgTransferResponse {}
-#[doc = r" Generated client implementations."]
+pub struct MsgTransferResponse {
+}
+/// Generated client implementations.
+#[cfg(feature = "client")]
 pub mod msg_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
-    #[doc = " Msg defines the ibc/transfer Msg service."]
+    /// Msg defines the ibc/transfer Msg service.
     #[derive(Debug, Clone)]
     pub struct MsgClient<T> {
         inner: tonic::client::Grpc<T>,
     }
     impl MsgClient<tonic::transport::Channel> {
-        #[doc = r" Attempt to create a new client by connecting to a given endpoint."]
+        /// Attempt to create a new client by connecting to a given endpoint.
         pub async fn connect<D>(dst: D) -> Result<Self, tonic::transport::Error>
         where
             D: std::convert::TryInto<tonic::transport::Endpoint>,
@@ -433,15 +570,18 @@ pub mod msg_client {
     impl<T> MsgClient<T>
     where
         T: tonic::client::GrpcService<tonic::body::BoxBody>,
-        T::ResponseBody: Body + Send + 'static,
         T::Error: Into<StdError>,
+        T::ResponseBody: Default + Body<Data = Bytes> + Send + 'static,
         <T::ResponseBody as Body>::Error: Into<StdError> + Send,
     {
         pub fn new(inner: T) -> Self {
             let inner = tonic::client::Grpc::new(inner);
             Self { inner }
         }
-        pub fn with_interceptor<F>(inner: T, interceptor: F) -> MsgClient<InterceptedService<T, F>>
+        pub fn with_interceptor<F>(
+            inner: T,
+            interceptor: F,
+        ) -> MsgClient<InterceptedService<T, F>>
         where
             F: tonic::service::Interceptor,
             T: tonic::codegen::Service<
@@ -450,56 +590,63 @@ pub mod msg_client {
                     <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
                 >,
             >,
-            <T as tonic::codegen::Service<http::Request<tonic::body::BoxBody>>>::Error:
-                Into<StdError> + Send + Sync,
+            <T as tonic::codegen::Service<
+                http::Request<tonic::body::BoxBody>,
+            >>::Error: Into<StdError> + Send + Sync,
         {
             MsgClient::new(InterceptedService::new(inner, interceptor))
         }
-        #[doc = r" Compress requests with `gzip`."]
-        #[doc = r""]
-        #[doc = r" This requires the server to support it otherwise it might respond with an"]
-        #[doc = r" error."]
+        /// Compress requests with `gzip`.
+        ///
+        /// This requires the server to support it otherwise it might respond with an
+        /// error.
+        #[must_use]
         pub fn send_gzip(mut self) -> Self {
             self.inner = self.inner.send_gzip();
             self
         }
-        #[doc = r" Enable decompressing responses with `gzip`."]
+        /// Enable decompressing responses with `gzip`.
+        #[must_use]
         pub fn accept_gzip(mut self) -> Self {
             self.inner = self.inner.accept_gzip();
             self
         }
-        #[doc = " Transfer defines a rpc handler method for MsgTransfer."]
+        /// Transfer defines a rpc handler method for MsgTransfer.
         pub async fn transfer(
             &mut self,
             request: impl tonic::IntoRequest<super::MsgTransfer>,
         ) -> Result<tonic::Response<super::MsgTransferResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::Unknown,
-                    format!("Service was not ready: {}", e.into()),
-                )
-            })?;
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/ibc.applications.transfer.v1.Msg/Transfer");
+            let path = http::uri::PathAndQuery::from_static(
+                "/ibc.applications.transfer.v1.Msg/Transfer",
+            );
             self.inner.unary(request.into_request(), path, codec).await
         }
     }
 }
-#[doc = r" Generated server implementations."]
+/// Generated server implementations.
 pub mod msg_server {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
-    #[doc = "Generated trait containing gRPC methods that should be implemented for use with MsgServer."]
+    ///Generated trait containing gRPC methods that should be implemented for use with MsgServer.
     #[async_trait]
     pub trait Msg: Send + Sync + 'static {
-        #[doc = " Transfer defines a rpc handler method for MsgTransfer."]
+        /// Transfer defines a rpc handler method for MsgTransfer.
         async fn transfer(
             &self,
             request: tonic::Request<super::MsgTransfer>,
         ) -> Result<tonic::Response<super::MsgTransferResponse>, tonic::Status>;
     }
-    #[doc = " Msg defines the ibc/transfer Msg service."]
+    /// Msg defines the ibc/transfer Msg service.
     #[derive(Debug)]
     pub struct MsgServer<T: Msg> {
         inner: _Inner<T>,
@@ -509,7 +656,9 @@ pub mod msg_server {
     struct _Inner<T>(Arc<T>);
     impl<T: Msg> MsgServer<T> {
         pub fn new(inner: T) -> Self {
-            let inner = Arc::new(inner);
+            Self::from_arc(Arc::new(inner))
+        }
+        pub fn from_arc(inner: Arc<T>) -> Self {
             let inner = _Inner(inner);
             Self {
                 inner,
@@ -517,7 +666,10 @@ pub mod msg_server {
                 send_compression_encodings: Default::default(),
             }
         }
-        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
+        pub fn with_interceptor<F>(
+            inner: T,
+            interceptor: F,
+        ) -> InterceptedService<Self, F>
         where
             F: tonic::service::Interceptor,
         {
@@ -531,9 +683,12 @@ pub mod msg_server {
         B::Error: Into<StdError> + Send + 'static,
     {
         type Response = http::Response<tonic::body::BoxBody>;
-        type Error = Never;
+        type Error = std::convert::Infallible;
         type Future = BoxFuture<Self::Response, Self::Error>;
-        fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        fn poll_ready(
+            &mut self,
+            _cx: &mut Context<'_>,
+        ) -> Poll<Result<(), Self::Error>> {
             Poll::Ready(Ok(()))
         }
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
@@ -542,9 +697,13 @@ pub mod msg_server {
                 "/ibc.applications.transfer.v1.Msg/Transfer" => {
                     #[allow(non_camel_case_types)]
                     struct TransferSvc<T: Msg>(pub Arc<T>);
-                    impl<T: Msg> tonic::server::UnaryService<super::MsgTransfer> for TransferSvc<T> {
+                    impl<T: Msg> tonic::server::UnaryService<super::MsgTransfer>
+                    for TransferSvc<T> {
                         type Response = super::MsgTransferResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::MsgTransfer>,
@@ -561,23 +720,28 @@ pub mod msg_server {
                         let inner = inner.0;
                         let method = TransferSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
-                            accept_compression_encodings,
-                            send_compression_encodings,
-                        );
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
                     Box::pin(fut)
                 }
-                _ => Box::pin(async move {
-                    Ok(http::Response::builder()
-                        .status(200)
-                        .header("grpc-status", "12")
-                        .header("content-type", "application/grpc")
-                        .body(empty_body())
-                        .unwrap())
-                }),
+                _ => {
+                    Box::pin(async move {
+                        Ok(
+                            http::Response::builder()
+                                .status(200)
+                                .header("grpc-status", "12")
+                                .header("content-type", "application/grpc")
+                                .body(empty_body())
+                                .unwrap(),
+                        )
+                    })
+                }
             }
         }
     }
@@ -606,12 +770,13 @@ pub mod msg_server {
     }
 }
 /// GenesisState defines the ibc-transfer genesis state
+#[derive(::serde::Serialize, ::serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GenesisState {
-    #[prost(string, tag = "1")]
+    #[prost(string, tag="1")]
     pub port_id: ::prost::alloc::string::String,
-    #[prost(message, repeated, tag = "2")]
+    #[prost(message, repeated, tag="2")]
     pub denom_traces: ::prost::alloc::vec::Vec<DenomTrace>,
-    #[prost(message, optional, tag = "3")]
+    #[prost(message, optional, tag="3")]
     pub params: ::core::option::Option<Params>,
 }

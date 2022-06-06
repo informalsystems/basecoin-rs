@@ -37,21 +37,14 @@ proof_specs = '''
       "prehash_key": 0,
       "prehash_value": 0,
       "length": 0,
-      "prefix": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      "prefix": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
     },
     "inner_spec": {
-      "child_order": [
-        0,
-        1,
-        2
-      ],
+      "child_order": [0, 1, 2],
       "child_size": 32,
       "min_prefix_length": 0,
       "max_prefix_length": 64,
-      "empty_child": [
-        0,
-        32
-      ],
+      "empty_child": "ACA=",
       "hash": 1
     },
     "max_depth": 0,
@@ -63,21 +56,14 @@ proof_specs = '''
       "prehash_key": 0,
       "prehash_value": 0,
       "length": 0,
-      "prefix": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      "prefix": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
     },
     "inner_spec": {
-      "child_order": [
-        0,
-        1,
-        2
-      ],
+      "child_order": [0, 1, 2],
       "child_size": 32,
       "min_prefix_length": 0,
       "max_prefix_length": 64,
-      "empty_child": [
-        0,
-        32
-      ],
+      "empty_child": "ACA=",
       "hash": 1
     },
     "max_depth": 0,
@@ -103,6 +89,6 @@ $ hermes keys add basecoin-0 -f user_seed.json
 ### Step 4: Create and Update a client
 Assuming the `basecoin-0` chain and tendermint are running (see instructions on [README.md#run-the-basecoin-app-and-tendermint](../../README.md#step-4-run-the-basecoin-app-and-tendermint)). 
 ```shell
-$ hermes tx raw create-client basecoin-0 ibc-0
-$ hermes tx raw update-client basecoin-0 07-tendermint-0
+$ hermes create client basecoin-0 ibc-0
+$ hermes update client basecoin-0 07-tendermint-0
 ```

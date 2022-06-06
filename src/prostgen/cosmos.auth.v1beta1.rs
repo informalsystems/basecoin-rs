@@ -3,91 +3,97 @@
 /// type for additional functionality (e.g. vesting).
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct BaseAccount {
-    #[prost(string, tag = "1")]
+    #[prost(string, tag="1")]
     pub address: ::prost::alloc::string::String,
-    #[prost(message, optional, tag = "2")]
-    pub pub_key: ::core::option::Option<::prost_types::Any>,
-    #[prost(uint64, tag = "3")]
+    #[prost(message, optional, tag="2")]
+    pub pub_key: ::core::option::Option<super::super::super::google::protobuf::Any>,
+    #[prost(uint64, tag="3")]
     pub account_number: u64,
-    #[prost(uint64, tag = "4")]
+    #[prost(uint64, tag="4")]
     pub sequence: u64,
 }
 /// ModuleAccount defines an account for modules that holds coins on a pool.
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ModuleAccount {
-    #[prost(message, optional, tag = "1")]
+    #[prost(message, optional, tag="1")]
     pub base_account: ::core::option::Option<BaseAccount>,
-    #[prost(string, tag = "2")]
+    #[prost(string, tag="2")]
     pub name: ::prost::alloc::string::String,
-    #[prost(string, repeated, tag = "3")]
+    #[prost(string, repeated, tag="3")]
     pub permissions: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
 /// Params defines the parameters for the auth module.
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Params {
-    #[prost(uint64, tag = "1")]
+    #[prost(uint64, tag="1")]
     pub max_memo_characters: u64,
-    #[prost(uint64, tag = "2")]
+    #[prost(uint64, tag="2")]
     pub tx_sig_limit: u64,
-    #[prost(uint64, tag = "3")]
+    #[prost(uint64, tag="3")]
     pub tx_size_cost_per_byte: u64,
-    #[prost(uint64, tag = "4")]
+    #[prost(uint64, tag="4")]
     pub sig_verify_cost_ed25519: u64,
-    #[prost(uint64, tag = "5")]
+    #[prost(uint64, tag="5")]
     pub sig_verify_cost_secp256k1: u64,
 }
 /// QueryAccountsRequest is the request type for the Query/Accounts RPC method.
+///
+/// Since: cosmos-sdk 0.43
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct QueryAccountsRequest {
     /// pagination defines an optional pagination for the request.
-    #[prost(message, optional, tag = "1")]
+    #[prost(message, optional, tag="1")]
     pub pagination: ::core::option::Option<super::super::base::query::v1beta1::PageRequest>,
 }
 /// QueryAccountsResponse is the response type for the Query/Accounts RPC method.
+///
+/// Since: cosmos-sdk 0.43
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct QueryAccountsResponse {
     /// accounts are the existing accounts
-    #[prost(message, repeated, tag = "1")]
-    pub accounts: ::prost::alloc::vec::Vec<::prost_types::Any>,
+    #[prost(message, repeated, tag="1")]
+    pub accounts: ::prost::alloc::vec::Vec<super::super::super::google::protobuf::Any>,
     /// pagination defines the pagination in the response.
-    #[prost(message, optional, tag = "2")]
+    #[prost(message, optional, tag="2")]
     pub pagination: ::core::option::Option<super::super::base::query::v1beta1::PageResponse>,
 }
 /// QueryAccountRequest is the request type for the Query/Account RPC method.
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct QueryAccountRequest {
     /// address defines the address to query for.
-    #[prost(string, tag = "1")]
+    #[prost(string, tag="1")]
     pub address: ::prost::alloc::string::String,
 }
 /// QueryAccountResponse is the response type for the Query/Account RPC method.
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct QueryAccountResponse {
     /// account defines the account of the corresponding address.
-    #[prost(message, optional, tag = "1")]
-    pub account: ::core::option::Option<::prost_types::Any>,
+    #[prost(message, optional, tag="1")]
+    pub account: ::core::option::Option<super::super::super::google::protobuf::Any>,
 }
 /// QueryParamsRequest is the request type for the Query/Params RPC method.
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct QueryParamsRequest {}
+pub struct QueryParamsRequest {
+}
 /// QueryParamsResponse is the response type for the Query/Params RPC method.
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct QueryParamsResponse {
     /// params defines the parameters of the module.
-    #[prost(message, optional, tag = "1")]
+    #[prost(message, optional, tag="1")]
     pub params: ::core::option::Option<Params>,
 }
-#[doc = r" Generated client implementations."]
+/// Generated client implementations.
+#[cfg(feature = "client")]
 pub mod query_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
-    #[doc = " Query defines the gRPC querier service."]
+    /// Query defines the gRPC querier service.
     #[derive(Debug, Clone)]
     pub struct QueryClient<T> {
         inner: tonic::client::Grpc<T>,
     }
     impl QueryClient<tonic::transport::Channel> {
-        #[doc = r" Attempt to create a new client by connecting to a given endpoint."]
+        /// Attempt to create a new client by connecting to a given endpoint.
         pub async fn connect<D>(dst: D) -> Result<Self, tonic::transport::Error>
         where
             D: std::convert::TryInto<tonic::transport::Endpoint>,
@@ -100,8 +106,8 @@ pub mod query_client {
     impl<T> QueryClient<T>
     where
         T: tonic::client::GrpcService<tonic::body::BoxBody>,
-        T::ResponseBody: Body + Send + 'static,
         T::Error: Into<StdError>,
+        T::ResponseBody: Default + Body<Data = Bytes> + Send + 'static,
         <T::ResponseBody as Body>::Error: Into<StdError> + Send,
     {
         pub fn new(inner: T) -> Self {
@@ -120,95 +126,117 @@ pub mod query_client {
                     <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
                 >,
             >,
-            <T as tonic::codegen::Service<http::Request<tonic::body::BoxBody>>>::Error:
-                Into<StdError> + Send + Sync,
+            <T as tonic::codegen::Service<
+                http::Request<tonic::body::BoxBody>,
+            >>::Error: Into<StdError> + Send + Sync,
         {
             QueryClient::new(InterceptedService::new(inner, interceptor))
         }
-        #[doc = r" Compress requests with `gzip`."]
-        #[doc = r""]
-        #[doc = r" This requires the server to support it otherwise it might respond with an"]
-        #[doc = r" error."]
+        /// Compress requests with `gzip`.
+        ///
+        /// This requires the server to support it otherwise it might respond with an
+        /// error.
+        #[must_use]
         pub fn send_gzip(mut self) -> Self {
             self.inner = self.inner.send_gzip();
             self
         }
-        #[doc = r" Enable decompressing responses with `gzip`."]
+        /// Enable decompressing responses with `gzip`.
+        #[must_use]
         pub fn accept_gzip(mut self) -> Self {
             self.inner = self.inner.accept_gzip();
             self
         }
-        #[doc = " Accounts returns all the existing accounts"]
+        /// Accounts returns all the existing accounts
+        ///
+        /// Since: cosmos-sdk 0.43
         pub async fn accounts(
             &mut self,
             request: impl tonic::IntoRequest<super::QueryAccountsRequest>,
         ) -> Result<tonic::Response<super::QueryAccountsResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::Unknown,
-                    format!("Service was not ready: {}", e.into()),
-                )
-            })?;
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/cosmos.auth.v1beta1.Query/Accounts");
+            let path = http::uri::PathAndQuery::from_static(
+                "/cosmos.auth.v1beta1.Query/Accounts",
+            );
             self.inner.unary(request.into_request(), path, codec).await
         }
-        #[doc = " Account returns account details based on address."]
+        /// Account returns account details based on address.
         pub async fn account(
             &mut self,
             request: impl tonic::IntoRequest<super::QueryAccountRequest>,
         ) -> Result<tonic::Response<super::QueryAccountResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::Unknown,
-                    format!("Service was not ready: {}", e.into()),
-                )
-            })?;
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/cosmos.auth.v1beta1.Query/Account");
+            let path = http::uri::PathAndQuery::from_static(
+                "/cosmos.auth.v1beta1.Query/Account",
+            );
             self.inner.unary(request.into_request(), path, codec).await
         }
-        #[doc = " Params queries all parameters."]
+        /// Params queries all parameters.
         pub async fn params(
             &mut self,
             request: impl tonic::IntoRequest<super::QueryParamsRequest>,
         ) -> Result<tonic::Response<super::QueryParamsResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::Unknown,
-                    format!("Service was not ready: {}", e.into()),
-                )
-            })?;
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/cosmos.auth.v1beta1.Query/Params");
+            let path = http::uri::PathAndQuery::from_static(
+                "/cosmos.auth.v1beta1.Query/Params",
+            );
             self.inner.unary(request.into_request(), path, codec).await
         }
     }
 }
-#[doc = r" Generated server implementations."]
+/// Generated server implementations.
 pub mod query_server {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
-    #[doc = "Generated trait containing gRPC methods that should be implemented for use with QueryServer."]
+    ///Generated trait containing gRPC methods that should be implemented for use with QueryServer.
     #[async_trait]
     pub trait Query: Send + Sync + 'static {
-        #[doc = " Accounts returns all the existing accounts"]
+        /// Accounts returns all the existing accounts
+        ///
+        /// Since: cosmos-sdk 0.43
         async fn accounts(
             &self,
             request: tonic::Request<super::QueryAccountsRequest>,
         ) -> Result<tonic::Response<super::QueryAccountsResponse>, tonic::Status>;
-        #[doc = " Account returns account details based on address."]
+        /// Account returns account details based on address.
         async fn account(
             &self,
             request: tonic::Request<super::QueryAccountRequest>,
         ) -> Result<tonic::Response<super::QueryAccountResponse>, tonic::Status>;
-        #[doc = " Params queries all parameters."]
+        /// Params queries all parameters.
         async fn params(
             &self,
             request: tonic::Request<super::QueryParamsRequest>,
         ) -> Result<tonic::Response<super::QueryParamsResponse>, tonic::Status>;
     }
-    #[doc = " Query defines the gRPC querier service."]
+    /// Query defines the gRPC querier service.
     #[derive(Debug)]
     pub struct QueryServer<T: Query> {
         inner: _Inner<T>,
@@ -218,7 +246,9 @@ pub mod query_server {
     struct _Inner<T>(Arc<T>);
     impl<T: Query> QueryServer<T> {
         pub fn new(inner: T) -> Self {
-            let inner = Arc::new(inner);
+            Self::from_arc(Arc::new(inner))
+        }
+        pub fn from_arc(inner: Arc<T>) -> Self {
             let inner = _Inner(inner);
             Self {
                 inner,
@@ -226,7 +256,10 @@ pub mod query_server {
                 send_compression_encodings: Default::default(),
             }
         }
-        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
+        pub fn with_interceptor<F>(
+            inner: T,
+            interceptor: F,
+        ) -> InterceptedService<Self, F>
         where
             F: tonic::service::Interceptor,
         {
@@ -240,9 +273,12 @@ pub mod query_server {
         B::Error: Into<StdError> + Send + 'static,
     {
         type Response = http::Response<tonic::body::BoxBody>;
-        type Error = Never;
+        type Error = std::convert::Infallible;
         type Future = BoxFuture<Self::Response, Self::Error>;
-        fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        fn poll_ready(
+            &mut self,
+            _cx: &mut Context<'_>,
+        ) -> Poll<Result<(), Self::Error>> {
             Poll::Ready(Ok(()))
         }
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
@@ -251,9 +287,15 @@ pub mod query_server {
                 "/cosmos.auth.v1beta1.Query/Accounts" => {
                     #[allow(non_camel_case_types)]
                     struct AccountsSvc<T: Query>(pub Arc<T>);
-                    impl<T: Query> tonic::server::UnaryService<super::QueryAccountsRequest> for AccountsSvc<T> {
+                    impl<
+                        T: Query,
+                    > tonic::server::UnaryService<super::QueryAccountsRequest>
+                    for AccountsSvc<T> {
                         type Response = super::QueryAccountsResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::QueryAccountsRequest>,
@@ -270,10 +312,11 @@ pub mod query_server {
                         let inner = inner.0;
                         let method = AccountsSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
-                            accept_compression_encodings,
-                            send_compression_encodings,
-                        );
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
@@ -282,9 +325,15 @@ pub mod query_server {
                 "/cosmos.auth.v1beta1.Query/Account" => {
                     #[allow(non_camel_case_types)]
                     struct AccountSvc<T: Query>(pub Arc<T>);
-                    impl<T: Query> tonic::server::UnaryService<super::QueryAccountRequest> for AccountSvc<T> {
+                    impl<
+                        T: Query,
+                    > tonic::server::UnaryService<super::QueryAccountRequest>
+                    for AccountSvc<T> {
                         type Response = super::QueryAccountResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::QueryAccountRequest>,
@@ -301,10 +350,11 @@ pub mod query_server {
                         let inner = inner.0;
                         let method = AccountSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
-                            accept_compression_encodings,
-                            send_compression_encodings,
-                        );
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
@@ -313,9 +363,13 @@ pub mod query_server {
                 "/cosmos.auth.v1beta1.Query/Params" => {
                     #[allow(non_camel_case_types)]
                     struct ParamsSvc<T: Query>(pub Arc<T>);
-                    impl<T: Query> tonic::server::UnaryService<super::QueryParamsRequest> for ParamsSvc<T> {
+                    impl<T: Query> tonic::server::UnaryService<super::QueryParamsRequest>
+                    for ParamsSvc<T> {
                         type Response = super::QueryParamsResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::QueryParamsRequest>,
@@ -332,23 +386,28 @@ pub mod query_server {
                         let inner = inner.0;
                         let method = ParamsSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
-                            accept_compression_encodings,
-                            send_compression_encodings,
-                        );
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
                     Box::pin(fut)
                 }
-                _ => Box::pin(async move {
-                    Ok(http::Response::builder()
-                        .status(200)
-                        .header("grpc-status", "12")
-                        .header("content-type", "application/grpc")
-                        .body(empty_body())
-                        .unwrap())
-                }),
+                _ => {
+                    Box::pin(async move {
+                        Ok(
+                            http::Response::builder()
+                                .status(200)
+                                .header("grpc-status", "12")
+                                .header("content-type", "application/grpc")
+                                .body(empty_body())
+                                .unwrap(),
+                        )
+                    })
+                }
             }
         }
     }
@@ -380,9 +439,9 @@ pub mod query_server {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GenesisState {
     /// params defines all the paramaters of the module.
-    #[prost(message, optional, tag = "1")]
+    #[prost(message, optional, tag="1")]
     pub params: ::core::option::Option<Params>,
     /// accounts are the accounts present at genesis.
-    #[prost(message, repeated, tag = "2")]
-    pub accounts: ::prost::alloc::vec::Vec<::prost_types::Any>,
+    #[prost(message, repeated, tag="2")]
+    pub accounts: ::prost::alloc::vec::Vec<super::super::super::google::protobuf::Any>,
 }

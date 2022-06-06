@@ -1,25 +1,22 @@
-//! In-memory key/value store application for Tendermint.
-
-#[allow(unused_imports)]
-#[macro_use]
-extern crate lazy_static;
-
 mod app;
+mod base64;
 mod prostgen;
 
-use crate::app::modules::{prefix, Ibc, Identifiable};
-use crate::app::store::{InMemoryStore, ProvableStore};
-use crate::app::BaseCoinApp;
-use crate::prostgen::cosmos::auth::v1beta1::query_server::QueryServer as AuthQueryServer;
+use ibc::applications::transfer::MODULE_ID_STR as IBC_TRANSFER_MODULE_ID;
+use ibc::core::ics24_host::identifier::PortId;
+use ibc::core::ics26_routing::context::{ModuleId, RouterBuilder};
+
+use crate::app::modules::{
+    prefix, Auth, Bank, Ibc, IbcRouterBuilder, IbcTransferModule, Identifiable, Staking,
+};
+use crate::app::store::InMemoryStore;
+use crate::app::Builder;
 use crate::prostgen::cosmos::base::tendermint::v1beta1::service_server::ServiceServer as HealthServer;
-use crate::prostgen::cosmos::staking::v1beta1::query_server::QueryServer as StakingQueryServer;
 use crate::prostgen::cosmos::tx::v1beta1::service_server::ServiceServer as TxServer;
-use crate::prostgen::ibc::core::client::v1::query_server::QueryServer as ClientQueryServer;
-use crate::prostgen::ibc::core::connection::v1::query_server::QueryServer as ConnectionQueryServer;
-use crate::prostgen::ibc::core::port::v1::query_server::QueryServer as PortQueryServer;
 
 use structopt::StructOpt;
 use tendermint_abci::ServerBuilder;
+use tokio::runtime::Runtime;
 use tonic::transport::Server;
 use tracing_subscriber::filter::LevelFilter;
 
@@ -30,7 +27,7 @@ struct Opt {
     host: String,
 
     /// Bind the TCP server to this port.
-    #[structopt(short, long, default_value = "26658")]
+    #[structopt(short, long, default_value = "26358")]
     port: u16,
 
     /// Bind the gRPC server to this port.
@@ -51,30 +48,6 @@ struct Opt {
     quiet: bool,
 }
 
-#[tokio::main]
-async fn grpc_serve<S: Default + ProvableStore + 'static>(
-    app: BaseCoinApp<S>,
-    host: String,
-    port: u16,
-) {
-    let addr = format!("{}:{}", host, port).parse().unwrap();
-
-    let ibc = Ibc::new(app.get_store(prefix::Ibc {}.identifier()).unwrap());
-
-    // TODO(hu55a1n1): implement these services for `auth` and `staking` modules
-    Server::builder()
-        .add_service(HealthServer::new(app.clone()))
-        .add_service(AuthQueryServer::new(app.clone()))
-        .add_service(StakingQueryServer::new(app.clone()))
-        .add_service(TxServer::new(app.clone()))
-        .add_service(ClientQueryServer::new(ibc.clone()))
-        .add_service(ConnectionQueryServer::new(ibc.clone()))
-        .add_service(PortQueryServer::new(ibc))
-        .serve(addr)
-        .await
-        .unwrap()
-}
-
 fn main() {
     let opt: Opt = Opt::from_args();
     let log_level = if opt.quiet {
@@ -85,17 +58,64 @@ fn main() {
         LevelFilter::INFO
     };
     tracing_subscriber::fmt().with_max_level(log_level).init();
-
     tracing::info!("Starting app and waiting for Tendermint to connect...");
 
-    let app = BaseCoinApp::new(InMemoryStore::default()).expect("Failed to init app");
-    let app_copy = app.clone();
-    let grpc_port = opt.grpc_port;
-    let grpc_host = opt.host.clone();
-    std::thread::spawn(move || grpc_serve(app_copy, grpc_host, grpc_port));
+    // instantiate the application with a KV store implementation of choice
+    let app_builder = Builder::new(InMemoryStore::default());
 
+    // instantiate modules and setup inter-module communication (if required)
+    let auth = Auth::new(app_builder.module_store(&prefix::Auth {}.identifier()));
+    let auth_service = auth.service();
+
+    let bank = Bank::new(
+        app_builder.module_store(&prefix::Bank {}.identifier()),
+        auth.account_reader().clone(),
+        auth.account_keeper().clone(),
+    );
+
+    let staking = Staking::new(app_builder.module_store(&prefix::Staking {}.identifier()));
+
+    let ibc = {
+        let mut ibc = Ibc::new(app_builder.module_store(&prefix::Ibc {}.identifier()));
+
+        let transfer_module_id: ModuleId = IBC_TRANSFER_MODULE_ID.parse().unwrap();
+        let module = IbcTransferModule {};
+        let router = IbcRouterBuilder::default()
+            .add_route(transfer_module_id.clone(), module)
+            .unwrap()
+            .build();
+        ibc.scope_port_to_module(PortId::transfer(), transfer_module_id);
+
+        ibc.with_router(router)
+    };
+    let ibc_client_service = ibc.client_service();
+    let ibc_conn_service = ibc.connection_service();
+
+    // register modules with the app
+    let app = app_builder
+        .add_module(prefix::Auth {}.identifier(), auth)
+        .add_module(prefix::Bank {}.identifier(), bank)
+        .add_module(prefix::Ibc {}.identifier(), ibc)
+        .build();
+
+    // run the blocking ABCI server on a separate thread
     let server = ServerBuilder::new(opt.read_buf_size)
-        .bind(format!("{}:{}", opt.host, opt.port), app)
+        .bind(format!("{}:{}", opt.host, opt.port), app.clone())
         .unwrap();
-    server.listen().unwrap();
+    std::thread::spawn(move || {
+        server.listen().unwrap();
+    });
+
+    // run the gRPC server
+    let grpc_server = Server::builder()
+        .add_service(HealthServer::new(app.clone()))
+        .add_service(TxServer::new(app))
+        .add_service(ibc_client_service)
+        .add_service(ibc_conn_service)
+        .add_service(auth_service)
+        .add_service(staking.service())
+        .serve(format!("{}:{}", opt.host, opt.grpc_port).parse().unwrap());
+    Runtime::new()
+        .unwrap()
+        .block_on(async { grpc_server.await.unwrap() });
 }

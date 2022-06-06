@@ -14,7 +14,18 @@ use std::sync::{Arc, RwLock};
 use flex_error::{define_error, TraceError};
 use ibc::core::ics24_host::{error::ValidationError, validate::validate_identifier};
 use ics23::CommitmentProof;
+use serde::{de::DeserializeOwned, Serialize};
+use std::marker::PhantomData;
 use tracing::trace;
+
+/// A `TypedStore` that uses the `JsonCodec`
+pub(crate) type JsonStore<S, K, V> = TypedStore<S, K, JsonCodec<V>>;
+
+/// A `TypedStore` that uses the `ProtobufCodec`
+pub(crate) type ProtobufStore<S, K, V, R> = TypedStore<S, K, ProtobufCodec<V, R>>;
+
+/// A `TypedSet` that stores only paths and no values
+pub(crate) type TypedSet<S, K> = TypedStore<S, K, NullCodec>;
 
 /// A newtype representing a valid ICS024 identifier.
 /// Implements `Deref<Target=String>`.
@@ -34,12 +45,6 @@ impl Identifier {
         // length as inputs; `validate_identifier` itself checks for
         // empty inputs and returns an error as appropriate
         validate_identifier(s, 0, s.len()).map_err(|v| Error::invalid_identifier(s.to_string(), v))
-    }
-
-    #[inline]
-    fn unprefixed_path(&self, path: &Path) -> Path {
-        // FIXME(hu55a1n1)
-        path.clone()
     }
 }
 
@@ -178,7 +183,7 @@ pub trait Store: Send + Sync + Clone {
     fn reset(&mut self) {}
 
     /// Prune historic blocks upto specified `height`
-    fn prune(&self, height: RawHeight) -> Result<RawHeight, Self::Error> {
+    fn prune(&mut self, height: RawHeight) -> Result<RawHeight, Self::Error> {
         Ok(height)
     }
 
@@ -198,123 +203,33 @@ pub trait ProvableStore: Store {
     fn get_proof(&self, height: Height, key: &Path) -> Option<ics23::CommitmentProof>;
 }
 
-/// A wrapper store that implements a prefixed key-space for other shared stores
-#[derive(Clone)]
-pub(crate) struct SubStore<S> {
-    /// main store - used to stores a commitment to this sub-store at path `<prefix>`
-    main_store: S,
-    /// sub store - the underlying store that actually holds the KV pairs for this sub-store
-    sub_store: S,
-    /// prefix for key-space
-    prefix: Identifier,
-    /// boolean to keep track of changes to know when to update commitment in main-store
-    dirty: bool,
-}
-
-impl<S: Default + ProvableStore> SubStore<S> {
-    pub(crate) fn new(store: S, prefix: Identifier) -> Result<Self, S::Error> {
-        let mut sub_store = Self {
-            main_store: store,
-            sub_store: S::default(),
-            prefix,
-            dirty: false,
-        };
-        sub_store.update_main_store_commitment()?;
-        Ok(sub_store)
-    }
-
-    pub(crate) fn prefix(&self) -> Identifier {
-        self.prefix.clone()
-    }
-}
-
-impl<S: Default + ProvableStore> SubStore<S> {
-    fn update_main_store_commitment(&mut self) -> Result<Option<Vec<u8>>, S::Error> {
-        self.main_store
-            .set(Path::from(self.prefix.clone()), self.sub_store.root_hash())
-    }
-}
-
-impl<S> Store for SubStore<S>
-where
-    S: Default + ProvableStore,
-{
-    type Error = S::Error;
-
-    #[inline]
-    fn set(&mut self, path: Path, value: Vec<u8>) -> Result<Option<Vec<u8>>, Self::Error> {
-        self.dirty = true;
-        self.sub_store
-            .set(self.prefix.unprefixed_path(&path), value)
-    }
-
-    #[inline]
-    fn get(&self, height: Height, path: &Path) -> Option<Vec<u8>> {
-        self.sub_store
-            .get(height, &self.prefix.unprefixed_path(path))
-    }
-
-    #[inline]
-    fn delete(&mut self, path: &Path) {
-        self.dirty = true;
-        self.sub_store.delete(&self.prefix.unprefixed_path(path))
-    }
-
-    #[inline]
-    fn commit(&mut self) -> Result<Vec<u8>, Self::Error> {
-        let root_hash = self.sub_store.commit()?;
-        if self.dirty {
-            self.dirty = false;
-            self.update_main_store_commitment()?;
-        }
-        Ok(root_hash)
-    }
-
-    #[inline]
-    fn current_height(&self) -> RawHeight {
-        self.sub_store.current_height()
-    }
-
-    #[inline]
-    fn get_keys(&self, key_prefix: &Path) -> Vec<Path> {
-        self.sub_store
-            .get_keys(&self.prefix.unprefixed_path(key_prefix))
-    }
-}
-
-impl<S> ProvableStore for SubStore<S>
-where
-    S: Default + ProvableStore,
-{
-    #[inline]
-    fn root_hash(&self) -> Vec<u8> {
-        self.sub_store.root_hash()
-    }
-
-    #[inline]
-    fn get_proof(&self, height: Height, key: &Path) -> Option<CommitmentProof> {
-        self.sub_store
-            .get_proof(height, &self.prefix.unprefixed_path(key))
-    }
-}
-
 /// Wraps a store to make it shareable by cloning
 #[derive(Clone)]
-pub(crate) struct SharedStore<S>(Arc<RwLock<S>>);
+pub struct SharedStore<S>(Arc<RwLock<S>>);
 
 impl<S> SharedStore<S> {
     pub(crate) fn new(store: S) -> Self {
         Self(Arc::new(RwLock::new(store)))
     }
+
+    pub(crate) fn share(&self) -> Self {
+        Self(self.0.clone())
+    }
 }
 
-impl<S: Default + Store> Default for SharedStore<S> {
+impl<S> Default for SharedStore<S>
+where
+    S: Default + Store,
+{
     fn default() -> Self {
         Self::new(S::default())
     }
 }
 
-impl<S: Store> Store for SharedStore<S> {
+impl<S> Store for SharedStore<S>
+where
+    S: Store,
+{
     type Error = S::Error;
 
     #[inline]
@@ -358,7 +273,10 @@ impl<S: Store> Store for SharedStore<S> {
     }
 }
 
-impl<S: ProvableStore> ProvableStore for SharedStore<S> {
+impl<S> ProvableStore for SharedStore<S>
+where
+    S: ProvableStore,
+{
     #[inline]
     fn root_hash(&self) -> Vec<u8> {
         self.read().unwrap().root_hash()
@@ -399,7 +317,10 @@ enum RevertOp {
     Set(Path, Vec<u8>),
 }
 
-impl<S: Store> RevertibleStore<S> {
+impl<S> RevertibleStore<S>
+where
+    S: Store,
+{
     pub(crate) fn new(store: S) -> Self {
         Self {
             store,
@@ -408,13 +329,19 @@ impl<S: Store> RevertibleStore<S> {
     }
 }
 
-impl<S: Default + Store> Default for RevertibleStore<S> {
+impl<S> Default for RevertibleStore<S>
+where
+    S: Default + Store,
+{
     fn default() -> Self {
         Self::new(S::default())
     }
 }
 
-impl<S: Store> Store for RevertibleStore<S> {
+impl<S> Store for RevertibleStore<S>
+where
+    S: Store,
+{
     type Error = S::Error;
 
     #[inline]
@@ -481,7 +408,10 @@ impl<S: Store> Store for RevertibleStore<S> {
     }
 }
 
-impl<S: ProvableStore> ProvableStore for RevertibleStore<S> {
+impl<S> ProvableStore for RevertibleStore<S>
+where
+    S: ProvableStore,
+{
     #[inline]
     fn root_hash(&self) -> Vec<u8> {
         self.store.root_hash()
@@ -493,11 +423,151 @@ impl<S: ProvableStore> ProvableStore for RevertibleStore<S> {
     }
 }
 
+/// A trait that defines how types are decoded/encoded.
+pub(crate) trait Codec {
+    type Type;
+    type Encoded: AsRef<[u8]>;
+
+    fn encode(d: &Self::Type) -> Option<Self::Encoded>;
+
+    fn decode(bytes: &[u8]) -> Option<Self::Type>;
+}
+
+/// A JSON codec that uses `serde_json` to encode/decode as a JSON string
+#[derive(Clone)]
+pub(crate) struct JsonCodec<T>(PhantomData<T>);
+
+impl<T> Codec for JsonCodec<T>
+where
+    T: Serialize + DeserializeOwned,
+{
+    type Type = T;
+    type Encoded = String;
+
+    fn encode(d: &Self::Type) -> Option<Self::Encoded> {
+        serde_json::to_string(d).ok()
+    }
+
+    fn decode(bytes: &[u8]) -> Option<Self::Type> {
+        let json_string = String::from_utf8(bytes.to_vec()).ok()?;
+        serde_json::from_str(&json_string).ok()
+    }
+}
+
+/// A Null codec that can be used for paths that are only meant to be set/reset and do not hold any
+/// typed value.
+#[derive(Clone)]
+pub(crate) struct NullCodec;
+
+impl Codec for NullCodec {
+    type Type = ();
+    type Encoded = Vec<u8>;
+
+    fn encode(_d: &Self::Type) -> Option<Self::Encoded> {
+        Some(vec![])
+    }
+
+    fn decode(bytes: &[u8]) -> Option<Self::Type> {
+        assert!(bytes.is_empty());
+        Some(())
+    }
+}
+
+/// A Protobuf codec that uses `prost` to encode/decode
+#[derive(Clone)]
+pub(crate) struct ProtobufCodec<T, R> {
+    domain_type: PhantomData<T>,
+    raw_type: PhantomData<R>,
+}
+
+impl<T, R> Codec for ProtobufCodec<T, R>
+where
+    T: Into<R> + Clone,
+    R: TryInto<T> + Default + prost::Message,
+{
+    type Type = T;
+    type Encoded = Vec<u8>;
+
+    fn encode(d: &Self::Type) -> Option<Self::Encoded> {
+        let r = d.clone().into();
+        Some(r.encode_to_vec())
+    }
+
+    fn decode(bytes: &[u8]) -> Option<Self::Type> {
+        let r = R::decode(bytes).ok()?;
+        r.try_into().ok()
+    }
+}
+
+/// The `TypedStore` provides methods to treat the data stored at given store paths as given Rust types.
+///
+/// It is designed to be aliased for each concrete codec. For example,
+/// ```rust
+/// type CandyStore<S, K, V> = TypedStore<S, K, CandyCodec<V>>;
+/// ```
+#[derive(Clone)]
+pub(crate) struct TypedStore<S, K, C> {
+    store: S,
+    _key: PhantomData<K>,
+    _codec: PhantomData<C>,
+}
+
+impl<S, K, C, V> TypedStore<S, K, C>
+where
+    S: Store,
+    C: Codec<Type = V>,
+    K: Into<Path> + Clone,
+{
+    #[inline]
+    pub(crate) fn new(store: S) -> Self {
+        Self {
+            store,
+            _codec: PhantomData,
+            _key: PhantomData,
+        }
+    }
+
+    #[inline]
+    pub(crate) fn set(&mut self, path: K, value: V) -> Result<Option<V>, S::Error> {
+        self.store
+            .set(path.into(), C::encode(&value).unwrap().as_ref().to_vec())
+            .map(|prev_val| prev_val.and_then(|v| C::decode(&v)))
+    }
+
+    #[inline]
+    pub(crate) fn get(&self, height: Height, path: &K) -> Option<V> {
+        self.store
+            .get(height, &path.clone().into())
+            .and_then(|v| C::decode(&v))
+    }
+
+    #[inline]
+    pub(crate) fn delete(&mut self, path: &K) {
+        self.store.delete(&path.clone().into())
+    }
+}
+
+impl<S, K> TypedStore<S, K, NullCodec>
+where
+    S: Store,
+    K: Into<Path> + Clone,
+{
+    #[inline]
+    pub(crate) fn set_path(&mut self, path: K) -> Result<(), S::Error> {
+        self.store.set(path.into(), vec![]).map(|_| ())
+    }
+
+    #[inline]
+    pub(crate) fn is_path_set(&self, height: Height, path: &K) -> bool {
+        self.store.get(height, &path.clone().into()).is_some()
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    #![allow(unused_must_use)]
-
     use super::{Identifier, Path};
+
+    use lazy_static::lazy_static;
     use proptest::prelude::*;
     use rand::distributions::Standard;
     use rand::seq::SliceRandom;
@@ -545,7 +615,7 @@ mod tests {
     proptest! {
         #[test]
         fn validate_method_doesnt_crash(s in "\\PC*") {
-            Identifier::validate(&s);
+            let _ = Identifier::validate(&s);
         }
 
         #[test]

@@ -3,13 +3,15 @@ mod bank;
 mod ibc;
 mod staking;
 
+pub(crate) use self::auth::Auth;
 pub(crate) use self::bank::Bank;
-pub(crate) use self::ibc::Ibc;
+pub(crate) use self::ibc::{Ibc, IbcRouterBuilder, IbcTransferModule};
+pub(crate) use self::staking::Staking;
 
-use crate::app::store::{self, Height, Path};
+use crate::app::store::{self, Height, Path, SharedStore};
 
 use flex_error::{define_error, TraceError};
-use prost_types::Any;
+use ibc_proto::google::protobuf::Any;
 use tendermint::block::Header;
 use tendermint_proto::abci::Event;
 use tendermint_proto::crypto::ProofOp;
@@ -31,9 +33,8 @@ define_error! {
     }
 }
 
-/// Module trait
-pub(crate) trait Module {
-    /// The module's Store type
+pub(crate) trait Module: Send + Sync {
+    /// The module's store type.
     type Store;
 
     /// Similar to [ABCI CheckTx method](https://docs.tendermint.com/master/spec/abci/abci.html#checktx)
@@ -52,7 +53,9 @@ pub(crate) trait Module {
     /// * `Error::not_handled()` if message isn't known to OR hasn't been consumed (but possibly intercepted) by this module
     /// * Other errors iff message was meant to be consumed by module but resulted in an error
     /// * Resulting events on success
-    fn deliver(&mut self, message: Any) -> Result<Vec<Event>, Error>;
+    fn deliver(&mut self, _message: Any) -> Result<Vec<Event>, Error> {
+        Err(Error::not_handled())
+    }
 
     /// Similar to [ABCI InitChain method](https://docs.tendermint.com/master/spec/abci/abci.html#initchain)
     /// Just as with `InitChain`, implementations are encouraged to panic on error
@@ -83,8 +86,11 @@ pub(crate) trait Module {
         vec![]
     }
 
-    /// Return a mutable reference to the module's sub-store
-    fn store(&mut self) -> &mut Self::Store;
+    /// Return a mutable reference to the module's store
+    fn store_mut(&mut self) -> &mut SharedStore<Self::Store>;
+
+    /// Return a reference to the module's store
+    fn store(&self) -> &SharedStore<Self::Store>;
 }
 
 pub(crate) struct QueryResult {
@@ -127,6 +133,30 @@ pub(crate) mod prefix {
 
         fn identifier(&self) -> Self::Identifier {
             "ibc".to_owned().try_into().unwrap()
+        }
+    }
+
+    /// Auth module prefix
+    #[derive(Clone)]
+    pub(crate) struct Auth;
+
+    impl Identifiable for Auth {
+        type Identifier = store::Identifier;
+
+        fn identifier(&self) -> Self::Identifier {
+            "auth".to_owned().try_into().unwrap()
+        }
+    }
+
+    /// Staking module prefix
+    #[derive(Clone)]
+    pub(crate) struct Staking;
+
+    impl Identifiable for Staking {
+        type Identifier = store::Identifier;
+
+        fn identifier(&self) -> Self::Identifier {
+            "staking".to_owned().try_into().unwrap()
         }
     }
 }
