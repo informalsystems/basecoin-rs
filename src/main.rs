@@ -7,7 +7,7 @@ use ibc::core::ics24_host::identifier::PortId;
 use ibc::core::ics26_routing::context::{ModuleId, RouterBuilder};
 
 use crate::app::modules::{
-    prefix, Auth, Bank, Ibc, IbcRouterBuilder, IbcTransferModule, Identifiable, Staking,
+    prefix, Auth, Bank, Ibc, IbcRouterBuilder, IbcTransferModule, Identifiable, Module, Staking,
 };
 use crate::app::store::InMemoryStore;
 use crate::app::Builder;
@@ -79,7 +79,7 @@ fn main() {
         let mut ibc = Ibc::new(app_builder.module_store(&prefix::Ibc {}.identifier()));
 
         let transfer_module_id: ModuleId = IBC_TRANSFER_MODULE_ID.parse().unwrap();
-        let module = IbcTransferModule {};
+        let module = IbcTransferModule::new(ibc.store().clone());
         let router = IbcRouterBuilder::default()
             .add_route(transfer_module_id.clone(), module)
             .unwrap()

@@ -30,6 +30,8 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 
+use ibc::applications::transfer::context::{BankKeeper, Ics20Context, Ics20Keeper, Ics20Reader};
+use ibc::applications::transfer::{error::Error as Ics20Error, PrefixedCoin};
 use ibc::clients::ics07_tendermint::consensus_state::ConsensusState;
 use ibc::core::ics02_client::client_consensus::AnyConsensusState;
 use ibc::core::ics02_client::client_state::AnyClientState;
@@ -54,6 +56,7 @@ use ibc::core::ics26_routing::context::{
     Ics26Context, Module as IbcModule, ModuleId, ModuleOutputBuilder, Router, RouterBuilder,
 };
 use ibc::core::ics26_routing::handler::{decode, dispatch};
+use ibc::signer::Signer;
 use ibc::timestamp::Timestamp;
 use ibc::Height as IbcHeight;
 use ibc_proto::google::protobuf::Any;
@@ -1173,10 +1176,41 @@ impl RouterBuilder for IbcRouterBuilder {
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct IbcTransferModule;
+#[derive(Clone)]
+pub struct IbcTransferModule<S> {
+    store: SharedStore<S>,
+    /// A typed-store for AnyClientState
+    client_state_store: ProtobufStore<SharedStore<S>, path::ClientStatePath, AnyClientState, Any>,
+    /// A typed-store for AnyConsensusState
+    consensus_state_store:
+        ProtobufStore<SharedStore<S>, path::ClientConsensusStatePath, AnyConsensusState, Any>,
+    /// A typed-store for ConnectionEnd
+    connection_end_store:
+        ProtobufStore<SharedStore<S>, path::ConnectionsPath, ConnectionEnd, IbcRawConnectionEnd>,
+    /// A typed-store for ChannelEnd
+    channel_end_store:
+        ProtobufStore<SharedStore<S>, path::ChannelEndsPath, ChannelEnd, IbcRawChannelEnd>,
+    /// A typed-store for send sequences
+    send_sequence_store: JsonStore<SharedStore<S>, path::SeqSendsPath, Sequence>,
+    /// A typed-store for packet commitments
+    packet_commitment_store: JsonStore<SharedStore<S>, path::CommitmentsPath, PacketCommitment>,
+}
 
-impl IbcModule for IbcTransferModule {
+impl<S: Store> IbcTransferModule<S> {
+    pub fn new(store: SharedStore<S>) -> Self {
+        Self {
+            client_state_store: TypedStore::new(store.clone()),
+            consensus_state_store: TypedStore::new(store.clone()),
+            connection_end_store: TypedStore::new(store.clone()),
+            channel_end_store: TypedStore::new(store.clone()),
+            send_sequence_store: TypedStore::new(store.clone()),
+            packet_commitment_store: TypedStore::new(store.clone()),
+            store,
+        }
+    }
+}
+
+impl<S: Store + 'static> IbcModule for IbcTransferModule<S> {
     fn on_chan_open_try(
         &mut self,
         _output: &mut ModuleOutputBuilder,
@@ -1190,4 +1224,289 @@ impl IbcModule for IbcTransferModule {
     ) -> Result<Version, ChannelError> {
         Ok(counterparty_version.clone())
     }
+}
+
+impl<S: Store> Ics20Keeper for IbcTransferModule<S> {
+    type AccountId = Signer;
+}
+
+impl<S: Store> ChannelKeeper for IbcTransferModule<S> {
+    fn store_packet_commitment(
+        &mut self,
+        key: (PortId, ChannelId, Sequence),
+        commitment: PacketCommitment,
+    ) -> Result<(), ChannelError> {
+        self.packet_commitment_store
+            .set(
+                path::CommitmentsPath {
+                    port_id: key.0,
+                    channel_id: key.1,
+                    sequence: key.2,
+                },
+                commitment,
+            )
+            .map(|_| ())
+            .map_err(|_| ChannelError::implementation_specific())
+    }
+
+    fn delete_packet_commitment(
+        &mut self,
+        _key: (PortId, ChannelId, Sequence),
+    ) -> Result<(), ChannelError> {
+        unimplemented!()
+    }
+
+    fn store_packet_receipt(
+        &mut self,
+        _key: (PortId, ChannelId, Sequence),
+        _receipt: Receipt,
+    ) -> Result<(), ChannelError> {
+        unimplemented!()
+    }
+
+    fn store_packet_acknowledgement(
+        &mut self,
+        _key: (PortId, ChannelId, Sequence),
+        _ack: AcknowledgementCommitment,
+    ) -> Result<(), ChannelError> {
+        unimplemented!()
+    }
+
+    fn delete_packet_acknowledgement(
+        &mut self,
+        _key: (PortId, ChannelId, Sequence),
+    ) -> Result<(), ChannelError> {
+        unimplemented!()
+    }
+
+    fn store_connection_channels(
+        &mut self,
+        _conn_id: ConnectionId,
+        _port_channel_id: &(PortId, ChannelId),
+    ) -> Result<(), ChannelError> {
+        unimplemented!()
+    }
+
+    fn store_channel(
+        &mut self,
+        _port_channel_id: (PortId, ChannelId),
+        _channel_end: &ChannelEnd,
+    ) -> Result<(), ChannelError> {
+        unimplemented!()
+    }
+
+    fn store_next_sequence_send(
+        &mut self,
+        (port_id, chan_id): (PortId, ChannelId),
+        seq: Sequence,
+    ) -> Result<(), ChannelError> {
+        self.send_sequence_store
+            .set(path::SeqSendsPath(port_id, chan_id), seq)
+            .map(|_| ())
+            .map_err(|_| ChannelError::implementation_specific())
+    }
+
+    fn store_next_sequence_recv(
+        &mut self,
+        _port_channel_id: (PortId, ChannelId),
+        _seq: Sequence,
+    ) -> Result<(), ChannelError> {
+        unimplemented!()
+    }
+
+    fn store_next_sequence_ack(
+        &mut self,
+        _port_channel_id: (PortId, ChannelId),
+        _seq: Sequence,
+    ) -> Result<(), ChannelError> {
+        unimplemented!()
+    }
+
+    fn increase_channel_counter(&mut self) {
+        unimplemented!()
+    }
+}
+
+impl<S: Store> BankKeeper for IbcTransferModule<S> {
+    type AccountId = Signer;
+
+    fn send_coins(
+        &mut self,
+        _from: &Self::AccountId,
+        _to: &Self::AccountId,
+        _amt: &PrefixedCoin,
+    ) -> Result<(), Ics20Error> {
+        Ok(())
+    }
+
+    fn mint_coins(
+        &mut self,
+        _account: &Self::AccountId,
+        _amt: &PrefixedCoin,
+    ) -> Result<(), Ics20Error> {
+        Ok(())
+    }
+
+    fn burn_coins(
+        &mut self,
+        _account: &Self::AccountId,
+        _amt: &PrefixedCoin,
+    ) -> Result<(), Ics20Error> {
+        Ok(())
+    }
+}
+
+impl<S: Store> Ics20Reader for IbcTransferModule<S> {
+    type AccountId = Signer;
+
+    fn get_port(&self) -> Result<PortId, Ics20Error> {
+        Ok(PortId::transfer())
+    }
+
+    fn is_send_enabled(&self) -> bool {
+        true
+    }
+
+    fn is_receive_enabled(&self) -> bool {
+        true
+    }
+}
+
+impl<S: Store> ChannelReader for IbcTransferModule<S> {
+    fn channel_end(
+        &self,
+        (port_id, chan_id): &(PortId, ChannelId),
+    ) -> Result<ChannelEnd, ChannelError> {
+        self.channel_end_store
+            .get(
+                Height::Pending,
+                &path::ChannelEndsPath(port_id.clone(), *chan_id),
+            )
+            .ok_or_else(ChannelError::implementation_specific)
+    }
+
+    fn connection_end(&self, conn_id: &ConnectionId) -> Result<ConnectionEnd, ChannelError> {
+        self.connection_end_store
+            .get(Height::Pending, &path::ConnectionsPath(conn_id.clone()))
+            .ok_or_else(ChannelError::implementation_specific)
+    }
+
+    fn connection_channels(
+        &self,
+        _cid: &ConnectionId,
+    ) -> Result<Vec<(PortId, ChannelId)>, ChannelError> {
+        unimplemented!()
+    }
+
+    fn client_state(&self, client_id: &ClientId) -> Result<AnyClientState, ChannelError> {
+        self.client_state_store
+            .get(Height::Pending, &path::ClientStatePath(client_id.clone()))
+            .ok_or_else(ChannelError::implementation_specific)
+    }
+
+    fn client_consensus_state(
+        &self,
+        client_id: &ClientId,
+        height: IbcHeight,
+    ) -> Result<AnyConsensusState, ChannelError> {
+        let path = path::ClientConsensusStatePath {
+            client_id: client_id.clone(),
+            epoch: height.revision_number,
+            height: height.revision_height,
+        };
+        self.consensus_state_store
+            .get(Height::Pending, &path)
+            .ok_or_else(ChannelError::implementation_specific)
+    }
+
+    fn get_next_sequence_send(
+        &self,
+        (port_id, chan_id): &(PortId, ChannelId),
+    ) -> Result<Sequence, ChannelError> {
+        self.send_sequence_store
+            .get(
+                Height::Pending,
+                &path::SeqSendsPath(port_id.clone(), *chan_id),
+            )
+            .ok_or_else(ChannelError::implementation_specific)
+    }
+
+    fn get_next_sequence_recv(
+        &self,
+        _port_channel_id: &(PortId, ChannelId),
+    ) -> Result<Sequence, ChannelError> {
+        unimplemented!()
+    }
+
+    fn get_next_sequence_ack(
+        &self,
+        _port_channel_id: &(PortId, ChannelId),
+    ) -> Result<Sequence, ChannelError> {
+        unimplemented!()
+    }
+
+    fn get_packet_commitment(
+        &self,
+        _key: &(PortId, ChannelId, Sequence),
+    ) -> Result<PacketCommitment, ChannelError> {
+        unimplemented!()
+    }
+
+    fn get_packet_receipt(
+        &self,
+        _key: &(PortId, ChannelId, Sequence),
+    ) -> Result<Receipt, ChannelError> {
+        unimplemented!()
+    }
+
+    fn get_packet_acknowledgement(
+        &self,
+        _key: &(PortId, ChannelId, Sequence),
+    ) -> Result<AcknowledgementCommitment, ChannelError> {
+        unimplemented!()
+    }
+
+    fn hash(&self, value: Vec<u8>) -> Vec<u8> {
+        sha2::Sha256::digest(value).to_vec()
+    }
+
+    fn host_height(&self) -> IbcHeight {
+        IbcHeight::new(0, self.store.current_height())
+    }
+
+    fn host_consensus_state(&self, _height: IbcHeight) -> Result<AnyConsensusState, ChannelError> {
+        unimplemented!()
+    }
+
+    fn pending_host_consensus_state(&self) -> Result<AnyConsensusState, ChannelError> {
+        unimplemented!()
+    }
+
+    fn client_update_time(
+        &self,
+        _client_id: &ClientId,
+        _height: IbcHeight,
+    ) -> Result<Timestamp, ChannelError> {
+        unimplemented!()
+    }
+
+    fn client_update_height(
+        &self,
+        _client_id: &ClientId,
+        _height: IbcHeight,
+    ) -> Result<IbcHeight, ChannelError> {
+        unimplemented!()
+    }
+
+    fn channel_counter(&self) -> Result<u64, ChannelError> {
+        unimplemented!()
+    }
+
+    fn max_expected_time_per_block(&self) -> Duration {
+        unimplemented!()
+    }
+}
+
+impl<S: Store> Ics20Context for IbcTransferModule<S> {
+    type AccountId = Signer;
 }
