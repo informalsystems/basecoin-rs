@@ -30,6 +30,10 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 
+use ibc::applications::transfer::context::{
+    on_acknowledgement_packet, on_chan_close_confirm, on_chan_close_init, on_chan_open_ack,
+    on_chan_open_confirm, on_chan_open_init, on_chan_open_try, on_recv_packet, on_timeout_packet,
+};
 use ibc::applications::transfer::context::{BankKeeper, Ics20Context, Ics20Keeper, Ics20Reader};
 use ibc::applications::transfer::{error::Error as Ics20Error, PrefixedCoin};
 use ibc::clients::ics07_tendermint::consensus_state::ConsensusState;
@@ -45,7 +49,8 @@ use ibc::core::ics04_channel::channel::{ChannelEnd, Counterparty, Order};
 use ibc::core::ics04_channel::commitment::{AcknowledgementCommitment, PacketCommitment};
 use ibc::core::ics04_channel::context::{ChannelKeeper, ChannelReader};
 use ibc::core::ics04_channel::error::Error as ChannelError;
-use ibc::core::ics04_channel::packet::{Receipt, Sequence};
+use ibc::core::ics04_channel::msgs::acknowledgement::Acknowledgement as GenericAcknowledgement;
+use ibc::core::ics04_channel::packet::{Packet, Receipt, Sequence};
 use ibc::core::ics04_channel::Version;
 use ibc::core::ics05_port::context::PortReader;
 use ibc::core::ics05_port::error::Error as PortError;
@@ -53,7 +58,8 @@ use ibc::core::ics23_commitment::commitment::{CommitmentPrefix, CommitmentRoot};
 use ibc::core::ics24_host::identifier::{ChannelId, ClientId, ConnectionId, PortId};
 use ibc::core::ics24_host::{path, Path as IbcPath, IBC_QUERY_PATH};
 use ibc::core::ics26_routing::context::{
-    Ics26Context, Module as IbcModule, ModuleId, ModuleOutputBuilder, Router, RouterBuilder,
+    Ics26Context, Module as IbcModule, ModuleId, ModuleOutputBuilder, OnRecvPacketAck, Router,
+    RouterBuilder,
 };
 use ibc::core::ics26_routing::handler::{decode, dispatch};
 use ibc::signer::Signer;
@@ -1211,18 +1217,123 @@ impl<S: Store> IbcTransferModule<S> {
 }
 
 impl<S: Store + 'static> IbcModule for IbcTransferModule<S> {
+    fn on_chan_open_init(
+        &mut self,
+        output: &mut ModuleOutputBuilder,
+        order: Order,
+        connection_hops: &[ConnectionId],
+        port_id: &PortId,
+        channel_id: &ChannelId,
+        counterparty: &Counterparty,
+        version: &Version,
+    ) -> Result<(), ChannelError> {
+        on_chan_open_init(
+            self,
+            output,
+            order,
+            connection_hops,
+            port_id,
+            channel_id,
+            counterparty,
+            version,
+        )
+        .map_err(|e: Ics20Error| ChannelError::app_module(e.to_string()))
+    }
+
     fn on_chan_open_try(
         &mut self,
-        _output: &mut ModuleOutputBuilder,
-        _order: Order,
-        _connection_hops: &[ConnectionId],
-        _port_id: &PortId,
-        _channel_id: &ChannelId,
-        _counterparty: &Counterparty,
-        _version: &Version,
+        output: &mut ModuleOutputBuilder,
+        order: Order,
+        connection_hops: &[ConnectionId],
+        port_id: &PortId,
+        channel_id: &ChannelId,
+        counterparty: &Counterparty,
+        version: &Version,
         counterparty_version: &Version,
     ) -> Result<Version, ChannelError> {
-        Ok(counterparty_version.clone())
+        on_chan_open_try(
+            self,
+            output,
+            order,
+            connection_hops,
+            port_id,
+            channel_id,
+            counterparty,
+            version,
+            counterparty_version,
+        )
+        .map_err(|e: Ics20Error| ChannelError::app_module(e.to_string()))
+    }
+
+    fn on_chan_open_ack(
+        &mut self,
+        output: &mut ModuleOutputBuilder,
+        port_id: &PortId,
+        channel_id: &ChannelId,
+        counterparty_version: &Version,
+    ) -> Result<(), ChannelError> {
+        on_chan_open_ack(self, output, port_id, channel_id, counterparty_version)
+            .map_err(|e: Ics20Error| ChannelError::app_module(e.to_string()))
+    }
+
+    fn on_chan_open_confirm(
+        &mut self,
+        output: &mut ModuleOutputBuilder,
+        port_id: &PortId,
+        channel_id: &ChannelId,
+    ) -> Result<(), ChannelError> {
+        on_chan_open_confirm(self, output, port_id, channel_id)
+            .map_err(|e: Ics20Error| ChannelError::app_module(e.to_string()))
+    }
+
+    fn on_chan_close_init(
+        &mut self,
+        output: &mut ModuleOutputBuilder,
+        port_id: &PortId,
+        channel_id: &ChannelId,
+    ) -> Result<(), ChannelError> {
+        on_chan_close_init(self, output, port_id, channel_id)
+            .map_err(|e: Ics20Error| ChannelError::app_module(e.to_string()))
+    }
+
+    fn on_chan_close_confirm(
+        &mut self,
+        output: &mut ModuleOutputBuilder,
+        port_id: &PortId,
+        channel_id: &ChannelId,
+    ) -> Result<(), ChannelError> {
+        on_chan_close_confirm(self, output, port_id, channel_id)
+            .map_err(|e: Ics20Error| ChannelError::app_module(e.to_string()))
+    }
+
+    fn on_recv_packet(
+        &self,
+        output: &mut ModuleOutputBuilder,
+        packet: &Packet,
+        relayer: &Signer,
+    ) -> OnRecvPacketAck {
+        on_recv_packet(self, output, packet, relayer)
+    }
+
+    fn on_acknowledgement_packet(
+        &mut self,
+        output: &mut ModuleOutputBuilder,
+        packet: &Packet,
+        acknowledgement: &GenericAcknowledgement,
+        relayer: &Signer,
+    ) -> Result<(), ChannelError> {
+        on_acknowledgement_packet(self, output, packet, acknowledgement, relayer)
+            .map_err(|e: Ics20Error| ChannelError::app_module(e.to_string()))
+    }
+
+    fn on_timeout_packet(
+        &mut self,
+        output: &mut ModuleOutputBuilder,
+        packet: &Packet,
+        relayer: &Signer,
+    ) -> Result<(), ChannelError> {
+        on_timeout_packet(self, output, packet, relayer)
+            .map_err(|e: Ics20Error| ChannelError::app_module(e.to_string()))
     }
 }
 
