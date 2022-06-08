@@ -79,7 +79,7 @@ fn main() {
         let mut ibc = Ibc::new(app_builder.module_store(&prefix::Ibc {}.identifier()));
 
         let transfer_module_id: ModuleId = IBC_TRANSFER_MODULE_ID.parse().unwrap();
-        let module = IbcTransferModule::new(ibc.store().clone());
+        let module = IbcTransferModule::new(ibc.store().clone(), bank.bank_keeper().clone());
         let router = IbcRouterBuilder::default()
             .add_route(transfer_module_id.clone(), module)
             .unwrap()

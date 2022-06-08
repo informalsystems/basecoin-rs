@@ -30,11 +30,14 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 
+use crate::app::modules::bank::BankKeeper;
 use ibc::applications::transfer::context::{
     on_acknowledgement_packet, on_chan_close_confirm, on_chan_close_init, on_chan_open_ack,
     on_chan_open_confirm, on_chan_open_init, on_chan_open_try, on_recv_packet, on_timeout_packet,
 };
-use ibc::applications::transfer::context::{BankKeeper, Ics20Context, Ics20Keeper, Ics20Reader};
+use ibc::applications::transfer::context::{
+    BankKeeper as IbcBankKeeper, Ics20Context, Ics20Keeper, Ics20Reader,
+};
 use ibc::applications::transfer::{error::Error as Ics20Error, PrefixedCoin};
 use ibc::clients::ics07_tendermint::consensus_state::ConsensusState;
 use ibc::core::ics02_client::client_consensus::AnyConsensusState;
@@ -1183,8 +1186,10 @@ impl RouterBuilder for IbcRouterBuilder {
 }
 
 #[derive(Clone)]
-pub struct IbcTransferModule<S> {
+pub struct IbcTransferModule<S, BK> {
     store: SharedStore<S>,
+    /// A bank keeper to enable sending, minting and burnning of tokens
+    bank_keeper: BK,
     /// A typed-store for AnyClientState
     client_state_store: ProtobufStore<SharedStore<S>, path::ClientStatePath, AnyClientState, Any>,
     /// A typed-store for AnyConsensusState
@@ -1202,9 +1207,10 @@ pub struct IbcTransferModule<S> {
     packet_commitment_store: JsonStore<SharedStore<S>, path::CommitmentsPath, PacketCommitment>,
 }
 
-impl<S: Store> IbcTransferModule<S> {
-    pub fn new(store: SharedStore<S>) -> Self {
+impl<S: Store, BK> IbcTransferModule<S, BK> {
+    pub fn new(store: SharedStore<S>, bank_keeper: BK) -> Self {
         Self {
+            bank_keeper,
             client_state_store: TypedStore::new(store.clone()),
             consensus_state_store: TypedStore::new(store.clone()),
             connection_end_store: TypedStore::new(store.clone()),
@@ -1216,7 +1222,9 @@ impl<S: Store> IbcTransferModule<S> {
     }
 }
 
-impl<S: Store + 'static> IbcModule for IbcTransferModule<S> {
+impl<S: Store + 'static, BK: 'static + Send + Sync + BankKeeper> IbcModule
+    for IbcTransferModule<S, BK>
+{
     fn on_chan_open_init(
         &mut self,
         output: &mut ModuleOutputBuilder,
@@ -1337,11 +1345,11 @@ impl<S: Store + 'static> IbcModule for IbcTransferModule<S> {
     }
 }
 
-impl<S: Store> Ics20Keeper for IbcTransferModule<S> {
+impl<S: Store, BK: BankKeeper> Ics20Keeper for IbcTransferModule<S, BK> {
     type AccountId = Signer;
 }
 
-impl<S: Store> ChannelKeeper for IbcTransferModule<S> {
+impl<S: Store, BK> ChannelKeeper for IbcTransferModule<S, BK> {
     fn store_packet_commitment(
         &mut self,
         key: (PortId, ChannelId, Sequence),
@@ -1438,7 +1446,7 @@ impl<S: Store> ChannelKeeper for IbcTransferModule<S> {
     }
 }
 
-impl<S: Store> BankKeeper for IbcTransferModule<S> {
+impl<S: Store, BK: BankKeeper> IbcBankKeeper for IbcTransferModule<S, BK> {
     type AccountId = Signer;
 
     fn send_coins(
@@ -1467,7 +1475,7 @@ impl<S: Store> BankKeeper for IbcTransferModule<S> {
     }
 }
 
-impl<S: Store> Ics20Reader for IbcTransferModule<S> {
+impl<S: Store, BK> Ics20Reader for IbcTransferModule<S, BK> {
     type AccountId = Signer;
 
     fn get_port(&self) -> Result<PortId, Ics20Error> {
@@ -1483,7 +1491,7 @@ impl<S: Store> Ics20Reader for IbcTransferModule<S> {
     }
 }
 
-impl<S: Store> ChannelReader for IbcTransferModule<S> {
+impl<S: Store, BK> ChannelReader for IbcTransferModule<S, BK> {
     fn channel_end(
         &self,
         (port_id, chan_id): &(PortId, ChannelId),
@@ -1618,6 +1626,6 @@ impl<S: Store> ChannelReader for IbcTransferModule<S> {
     }
 }
 
-impl<S: Store> Ics20Context for IbcTransferModule<S> {
+impl<S: Store, BK: BankKeeper> Ics20Context for IbcTransferModule<S, BK> {
     type AccountId = Signer;
 }

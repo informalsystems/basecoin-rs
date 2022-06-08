@@ -53,7 +53,7 @@ impl From<Error> for ModuleError {
 #[serde(transparent)]
 pub struct Denom(String);
 
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Clone, Serialize, Deserialize, Debug, Default)]
 pub struct Coin {
     pub denom: Denom,
     pub amount: u64,
@@ -75,7 +75,7 @@ impl From<&MsgCoin> for Coin {
 }
 
 /// A mapping of currency denomination identifiers to balances.
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Clone, Serialize, Deserialize, Debug, Default)]
 #[serde(transparent)]
 pub struct Balances(Vec<Coin>);
 
@@ -149,6 +149,7 @@ impl<S: Store> BankReader for BankBalanceReader<S> {
     }
 }
 
+#[derive(Clone)]
 pub struct BankBalanceKeeper<S> {
     balance_store: JsonStore<SharedStore<S>, BalancesPath, Balances>,
 }
@@ -311,6 +312,10 @@ impl<S: ProvableStore + Default, AR: AccountReader, AK: AccountKeeper> Bank<S, A
             account_reader,
             account_keeper,
         }
+    }
+
+    pub fn bank_keeper(&self) -> &BankBalanceKeeper<S> {
+        &self.balance_keeper
     }
 }
 
