@@ -75,6 +75,12 @@ impl Display for Identifier {
 
 pub struct Path(Vec<Identifier>);
 
+impl Path {
+    pub fn get(&self, index: usize) -> Option<&Identifier> {
+        self.0.iter().nth(index)
+    }
+}
+
 impl TryFrom<String> for Path {
     type Error = Error;
 
@@ -544,6 +550,11 @@ where
     #[inline]
     pub(crate) fn delete(&mut self, path: &K) {
         self.store.delete(&path.clone().into())
+    }
+
+    #[inline]
+    pub(crate) fn get_keys(&self, key_prefix: &Path) -> Vec<Path> {
+        self.store.get_keys(key_prefix)
     }
 }
 

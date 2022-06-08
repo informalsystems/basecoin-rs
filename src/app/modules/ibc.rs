@@ -16,7 +16,7 @@ use ibc::core::ics02_client::client_state::AnyClientState;
 use ibc::core::ics02_client::client_type::ClientType;
 use ibc::core::ics02_client::context::{ClientKeeper, ClientReader};
 use ibc::core::ics02_client::error::Error as ClientError;
-use ibc::core::ics03_connection::connection::ConnectionEnd;
+use ibc::core::ics03_connection::connection::{ConnectionEnd, IdentifiedConnectionEnd};
 use ibc::core::ics03_connection::context::{ConnectionKeeper, ConnectionReader};
 use ibc::core::ics03_connection::error::Error as ConnectionError;
 use ibc::core::ics04_channel::channel::{ChannelEnd, Counterparty, Order};
@@ -50,10 +50,10 @@ use ibc_proto::ibc::core::client::v1::{
 };
 use ibc_proto::ibc::core::commitment::v1::MerklePrefix;
 use ibc_proto::ibc::core::connection::v1::query_server::QueryServer as ConnectionQueryServer;
-use ibc_proto::ibc::core::connection::v1::ConnectionEnd as IbcRawConnectionEnd;
 use ibc_proto::ibc::core::connection::v1::{
     query_server::Query as ConnectionQuery, ConnectionEnd as RawConnectionEnd,
-    Counterparty as RawCounterParty, QueryClientConnectionsRequest, QueryClientConnectionsResponse,
+    Counterparty as RawCounterParty, IdentifiedConnection as RawIdentifiedConnection,
+    QueryClientConnectionsRequest, QueryClientConnectionsResponse,
     QueryConnectionClientStateRequest, QueryConnectionClientStateResponse,
     QueryConnectionConsensusStateRequest, QueryConnectionConsensusStateResponse,
     QueryConnectionRequest, QueryConnectionResponse, QueryConnectionsRequest,
@@ -148,7 +148,7 @@ pub struct Ibc<S> {
         ProtobufStore<SharedStore<S>, path::ClientConsensusStatePath, AnyConsensusState, Any>,
     /// A typed-store for ConnectionEnd
     connection_end_store:
-        ProtobufStore<SharedStore<S>, path::ConnectionsPath, ConnectionEnd, IbcRawConnectionEnd>,
+        ProtobufStore<SharedStore<S>, path::ConnectionsPath, ConnectionEnd, RawConnectionEnd>,
     /// A typed-store for ConnectionIds
     connection_ids_store: JsonStore<SharedStore<S>, path::ClientConnectionsPath, Vec<ConnectionId>>,
     /// A typed-store for ChannelEnd
@@ -1006,6 +1006,7 @@ impl<S: ProvableStore + 'static> ClientQuery for IbcClientService<S> {
                 let path = IbcPath::try_from(path);
                 if let Ok(IbcPath::ClientConsensusState(path)) = path {
                     let consensus_state = self.consensus_state_store.get(Height::Pending, &path);
+
                     ConsensusStateWithHeight {
                         height: Some(RawHeight {
                             revision_number: path.epoch,
@@ -1056,7 +1057,7 @@ impl<S: ProvableStore + 'static> ClientQuery for IbcClientService<S> {
 
 pub struct IbcConnectionService<S> {
     connection_end_store:
-        ProtobufStore<SharedStore<S>, path::ConnectionsPath, ConnectionEnd, IbcRawConnectionEnd>,
+        ProtobufStore<SharedStore<S>, path::ConnectionsPath, ConnectionEnd, RawConnectionEnd>,
 }
 
 impl<S: Store> IbcConnectionService<S> {
@@ -1089,7 +1090,35 @@ impl<S: ProvableStore + 'static> ConnectionQuery for IbcConnectionService<S> {
         &self,
         _request: Request<QueryConnectionsRequest>,
     ) -> Result<Response<QueryConnectionsResponse>, Status> {
-        todo!()
+        let connection_path_prefix: Path = String::from("connections")
+            .try_into()
+            .map_err(|_| Status::invalid_argument(""))?;
+
+        let connection_paths: Vec<Path> =
+            self.connection_end_store.get_keys(&connection_path_prefix);
+
+        let identified_connections: Vec<RawIdentifiedConnection> = connection_paths
+            .into_iter()
+            .map(|path| match IbcPath::try_from(path.clone()) {
+                Ok(IbcPath::Connections(connections_path)) => {
+                    let connection_end = self
+                        .connection_end_store
+                        .get(Height::Latest, &connections_path)
+                        .unwrap();
+
+                    let connection_id: ConnectionId =
+                        path.get(1).unwrap().to_string().parse().unwrap();
+                    IdentifiedConnectionEnd::new(connection_id, connection_end).into()
+                }
+                _ => panic!("unexpected path"),
+            })
+            .collect();
+
+        Ok(Response::new(QueryConnectionsResponse {
+            connections: identified_connections,
+            pagination: None,
+            height: None,
+        }))
     }
 
     async fn client_connections(
@@ -1114,7 +1143,8 @@ impl<S: ProvableStore + 'static> ConnectionQuery for IbcConnectionService<S> {
     }
 }
 
-struct ConnectionEndWrapper(IbcRawConnectionEnd);
+// TODO: NO LONGER NEEDED (remove before merge)
+struct ConnectionEndWrapper(RawConnectionEnd);
 
 impl From<ConnectionEndWrapper> for RawConnectionEnd {
     fn from(conn: ConnectionEndWrapper) -> Self {
