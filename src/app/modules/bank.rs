@@ -218,10 +218,41 @@ impl<S: Store> BankKeeper for BankBalanceKeeper<S> {
 
     fn mint_coins(
         &mut self,
-        _account: Self::Address,
-        _amount: Self::Coins,
+        account: Self::Address,
+        amount: Self::Coins,
     ) -> Result<(), Self::Error> {
-        todo!()
+        let balance_path = BalancesPath(account);
+        let mut balances = self
+            .balance_store
+            .get(Height::Pending, &balance_path)
+            .map(|b| b.0)
+            .unwrap_or_default();
+
+        for Coin { denom, amount } in amount {
+            let mut balance = if let Some(i) = balances.iter_mut().position(|c| c.denom == denom) {
+                &mut balances[i]
+            } else {
+                balances.push(Coin {
+                    denom,
+                    amount: 0u64,
+                });
+                balances.last_mut().unwrap()
+            };
+
+            if balance.amount > u64::MAX - amount {
+                return Err(Error::dest_fund_overflow());
+            }
+
+            balance.amount += amount;
+        }
+
+        // Store the updated account balances
+        self.balance_store
+            .set(balance_path, Balances(balances))
+            .map(|_| ())
+            .map_err(|e| Error::store(format!("{:?}", e)))?;
+
+        Ok(())
     }
 
     fn burn_coins(
