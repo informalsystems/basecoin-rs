@@ -272,6 +272,7 @@ impl<S: Store> BankKeeper for BankBalanceKeeper<S> {
             let mut balance = balances
                 .iter_mut()
                 .find(|c| c.denom == denom)
+                .filter(|c| c.amount >= amount)
                 .ok_or_else(Error::insufficient_source_funds)?;
 
             balance.amount -= amount;
