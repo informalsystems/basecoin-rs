@@ -3,19 +3,19 @@ use crate::app::modules::Module;
 use crate::app::store::{
     Height, Path, ProtobufStore, ProvableStore, SharedStore, Store, TypedStore,
 };
-use crate::prostgen::cosmos::auth::v1beta1::BaseAccount;
-use crate::prostgen::cosmos::auth::v1beta1::{
-    query_server::{Query, QueryServer},
-    QueryAccountRequest, QueryAccountResponse, QueryAccountsRequest, QueryAccountsResponse,
-    QueryParamsRequest, QueryParamsResponse,
-};
-use crate::prostgen::google::protobuf::Any;
 
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::str::FromStr;
 
 use cosmrs::AccountId;
+use ibc_proto::cosmos::auth::v1beta1::BaseAccount;
+use ibc_proto::cosmos::auth::v1beta1::{
+    query_server::{Query, QueryServer},
+    QueryAccountRequest, QueryAccountResponse, QueryAccountsRequest, QueryAccountsResponse,
+    QueryParamsRequest, QueryParamsResponse,
+};
+use ibc_proto::google::protobuf::Any;
 use prost::Message;
 use serde_json::Value;
 use tendermint_proto::Protobuf;

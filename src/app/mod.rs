@@ -9,23 +9,23 @@ use crate::app::response::ResponseFromErrorExt;
 use crate::app::store::{
     Height, Identifier, Path, ProvableStore, RevertibleStore, SharedStore, Store,
 };
-use crate::prostgen::cosmos::base::tendermint::v1beta1::{
+
+use std::convert::TryInto;
+use std::sync::{Arc, RwLock};
+
+use cosmrs::Tx;
+use ibc_proto::cosmos::base::tendermint::v1beta1::{
     service_server::Service as HealthService, GetBlockByHeightRequest, GetBlockByHeightResponse,
     GetLatestBlockRequest, GetLatestBlockResponse, GetLatestValidatorSetRequest,
     GetLatestValidatorSetResponse, GetNodeInfoRequest, GetNodeInfoResponse, GetSyncingRequest,
     GetSyncingResponse, GetValidatorSetByHeightRequest, GetValidatorSetByHeightResponse,
     Module as VersionInfoModule, VersionInfo,
 };
-use crate::prostgen::cosmos::tx::v1beta1::service_server::Service as TxService;
-use crate::prostgen::cosmos::tx::v1beta1::{
+use ibc_proto::cosmos::tx::v1beta1::service_server::Service as TxService;
+use ibc_proto::cosmos::tx::v1beta1::{
     BroadcastTxRequest, BroadcastTxResponse, GetTxRequest, GetTxResponse, GetTxsEventRequest,
     GetTxsEventResponse, SimulateRequest, SimulateResponse,
 };
-
-use std::convert::TryInto;
-use std::sync::{Arc, RwLock};
-
-use cosmrs::Tx;
 use ibc_proto::google::protobuf::Any;
 use prost::Message;
 use serde_json::Value;

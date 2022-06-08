@@ -2,26 +2,6 @@ use crate::app::modules::{Error as ModuleError, Identifiable, Module, QueryResul
 use crate::app::store::{
     Height, JsonStore, Path, ProtobufStore, ProvableStore, SharedStore, Store, TypedSet, TypedStore,
 };
-use crate::prostgen::ibc::core::client::v1::query_server::QueryServer as ClientQueryServer;
-use crate::prostgen::ibc::core::client::v1::{
-    query_server::Query as ClientQuery, ConsensusStateWithHeight, Height as RawHeight,
-    QueryClientParamsRequest, QueryClientParamsResponse, QueryClientStateRequest,
-    QueryClientStateResponse, QueryClientStatesRequest, QueryClientStatesResponse,
-    QueryClientStatusRequest, QueryClientStatusResponse, QueryConsensusStateRequest,
-    QueryConsensusStateResponse, QueryConsensusStatesRequest, QueryConsensusStatesResponse,
-    QueryUpgradedClientStateRequest, QueryUpgradedClientStateResponse,
-    QueryUpgradedConsensusStateRequest, QueryUpgradedConsensusStateResponse,
-};
-use crate::prostgen::ibc::core::commitment::v1::MerklePrefix;
-use crate::prostgen::ibc::core::connection::v1::query_server::QueryServer as ConnectionQueryServer;
-use crate::prostgen::ibc::core::connection::v1::{
-    query_server::Query as ConnectionQuery, ConnectionEnd as RawConnectionEnd,
-    Counterparty as RawCounterParty, QueryClientConnectionsRequest, QueryClientConnectionsResponse,
-    QueryConnectionClientStateRequest, QueryConnectionClientStateResponse,
-    QueryConnectionConsensusStateRequest, QueryConnectionConsensusStateResponse,
-    QueryConnectionRequest, QueryConnectionResponse, QueryConnectionsRequest,
-    QueryConnectionsResponse, Version as RawVersion,
-};
 
 use std::borrow::Borrow;
 use std::collections::{BTreeMap, HashMap};
@@ -58,7 +38,27 @@ use ibc::timestamp::Timestamp;
 use ibc::Height as IbcHeight;
 use ibc_proto::google::protobuf::Any;
 use ibc_proto::ibc::core::channel::v1::Channel as IbcRawChannelEnd;
+use ibc_proto::ibc::core::client::v1::query_server::QueryServer as ClientQueryServer;
+use ibc_proto::ibc::core::client::v1::{
+    query_server::Query as ClientQuery, ConsensusStateWithHeight, Height as RawHeight,
+    QueryClientParamsRequest, QueryClientParamsResponse, QueryClientStateRequest,
+    QueryClientStateResponse, QueryClientStatesRequest, QueryClientStatesResponse,
+    QueryClientStatusRequest, QueryClientStatusResponse, QueryConsensusStateRequest,
+    QueryConsensusStateResponse, QueryConsensusStatesRequest, QueryConsensusStatesResponse,
+    QueryUpgradedClientStateRequest, QueryUpgradedClientStateResponse,
+    QueryUpgradedConsensusStateRequest, QueryUpgradedConsensusStateResponse,
+};
+use ibc_proto::ibc::core::commitment::v1::MerklePrefix;
+use ibc_proto::ibc::core::connection::v1::query_server::QueryServer as ConnectionQueryServer;
 use ibc_proto::ibc::core::connection::v1::ConnectionEnd as IbcRawConnectionEnd;
+use ibc_proto::ibc::core::connection::v1::{
+    query_server::Query as ConnectionQuery, ConnectionEnd as RawConnectionEnd,
+    Counterparty as RawCounterParty, QueryClientConnectionsRequest, QueryClientConnectionsResponse,
+    QueryConnectionClientStateRequest, QueryConnectionClientStateResponse,
+    QueryConnectionConsensusStateRequest, QueryConnectionConsensusStateResponse,
+    QueryConnectionRequest, QueryConnectionResponse, QueryConnectionsRequest,
+    QueryConnectionsResponse, Version as RawVersion,
+};
 use prost::Message;
 use sha2::Digest;
 use tendermint::abci::responses::Event as TendermintEvent;
