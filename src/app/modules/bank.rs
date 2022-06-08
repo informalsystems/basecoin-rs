@@ -108,10 +108,26 @@ pub trait BankKeeper {
     type Coin;
     type Coins: IntoIterator<Item = Self::Coin>;
 
-    fn set_balances(
+    /// This function should enable sending ibc fungible tokens from one account to another
+    fn send_coins(
         &mut self,
-        address: Self::Address,
-        coins: Self::Coins,
+        from: Self::Address,
+        to: Self::Address,
+        amount: Self::Coins,
+    ) -> Result<(), Self::Error>;
+
+    /// This function to enable minting ibc tokens to a user account
+    fn mint_coins(
+        &mut self,
+        account: Self::Address,
+        amount: Self::Coins,
+    ) -> Result<(), Self::Error>;
+
+    /// This function should enable burning of minted tokens in a user account
+    fn burn_coins(
+        &mut self,
+        account: Self::Address,
+        amount: Self::Coins,
     ) -> Result<(), Self::Error>;
 }
 
@@ -138,21 +154,82 @@ pub struct BankBalanceKeeper<S> {
 }
 
 impl<S: Store> BankKeeper for BankBalanceKeeper<S> {
-    type Error = ();
+    type Error = Error;
     type Address = AccountId;
     type Denom = Denom;
     type Coin = Coin;
     type Coins = Vec<Self::Coin>;
 
-    fn set_balances(
+    fn send_coins(
         &mut self,
-        address: Self::Address,
-        coins: Self::Coins,
+        from: Self::Address,
+        to: Self::Address,
+        amount: Self::Coins,
     ) -> Result<(), Self::Error> {
+        let src_balance_path = BalancesPath(from);
+        let mut src_balances = self
+            .balance_store
+            .get(Height::Pending, &src_balance_path)
+            .map(|b| b.0)
+            .unwrap_or_default();
+
+        let dst_balance_path = BalancesPath(to);
+        let mut dst_balances = self
+            .balance_store
+            .get(Height::Pending, &dst_balance_path)
+            .map(|b| b.0)
+            .unwrap_or_default();
+
+        for Coin { denom, amount } in amount {
+            let mut src_balance = src_balances
+                .iter_mut()
+                .find(|c| c.denom == denom)
+                .ok_or_else(Error::insufficient_source_funds)?;
+
+            if dst_balances.iter().any(|c| c.denom == denom) {
+                dst_balances.push(Coin {
+                    denom: denom.clone(),
+                    amount: 0u64,
+                });
+            }
+
+            let mut dst_balance = dst_balances.iter_mut().find(|c| c.denom == denom).unwrap();
+
+            if dst_balance.amount > u64::MAX - amount {
+                return Err(Error::dest_fund_overflow());
+            }
+
+            src_balance.amount -= amount;
+            dst_balance.amount += amount;
+        }
+
+        // Store the updated account balances
         self.balance_store
-            .set(BalancesPath(address), Balances(coins))
+            .set(src_balance_path, Balances(src_balances))
             .map(|_| ())
-            .map_err(|_| ())
+            .map_err(|e| Error::store(format!("{:?}", e)))?;
+        self.balance_store
+            .set(dst_balance_path, Balances(dst_balances))
+            .map(|_| ())
+            .map_err(|e| Error::store(format!("{:?}", e)))?;
+
+        Ok(())
+    }
+
+    fn mint_coins(
+        &mut self,
+        _account: Self::Address,
+        _amount: Self::Coins,
+    ) -> Result<(), Self::Error> {
+        todo!()
+    }
+
+    fn burn_coins(
+        &mut self,
+        _account: Self::Address,
+        _amount: Self::Coins,
+    ) -> Result<(), Self::Error> {
+        todo!()
     }
 }
 
@@ -212,45 +289,9 @@ where
             .map_err(|_| Error::non_existent_account(message.from_address.clone()))?;
 
         // Note: we allow transfers to non-existent destination accounts
-
-        let mut src_balances = self
-            .balance_reader
-            .get_all_balances(message.from_address.clone());
-        let mut dst_balances = self
-            .balance_reader
-            .get_all_balances(message.to_address.clone());
-
         let amounts: Vec<Coin> = message.amount.iter().map(|amt| amt.into()).collect();
-        for Coin { denom, amount } in amounts {
-            let mut src_balance = src_balances
-                .iter_mut()
-                .find(|c| c.denom == denom)
-                .ok_or_else(Error::insufficient_source_funds)?;
-
-            if dst_balances.iter().any(|c| c.denom == denom) {
-                dst_balances.push(Coin {
-                    denom: denom.clone(),
-                    amount: 0u64,
-                });
-            }
-
-            let mut dst_balance = dst_balances.iter_mut().find(|c| c.denom == denom).unwrap();
-
-            if dst_balance.amount > u64::MAX - amount {
-                return Err(Error::dest_fund_overflow().into());
-            }
-
-            src_balance.amount -= amount;
-            dst_balance.amount += amount;
-        }
-
-        // Store the updated account balances
         self.balance_keeper
-            .set_balances(message.from_address, src_balances)
-            .map_err(|e| Error::store(format!("{:?}", e)))?;
-        self.balance_keeper
-            .set_balances(message.to_address, dst_balances)
-            .map_err(|e| Error::store(format!("{:?}", e)))?;
+            .send_coins(message.from_address, message.to_address, amounts)?;
 
         Ok(vec![])
     }
@@ -266,7 +307,7 @@ where
 
             let account_id = AccountId::from_str(&account).unwrap();
             self.balance_keeper
-                .set_balances(account_id, balances.into_iter().map(|b| b.into()).collect())
+                .mint_coins(account_id, balances.into_iter().map(|b| b.into()).collect())
                 .unwrap();
         }
     }
