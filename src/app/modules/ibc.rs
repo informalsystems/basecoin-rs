@@ -37,7 +37,22 @@ use ibc::core::ics26_routing::handler::{decode, dispatch};
 use ibc::timestamp::Timestamp;
 use ibc::Height as IbcHeight;
 use ibc_proto::google::protobuf::Any;
-use ibc_proto::ibc::core::channel::v1::Channel as IbcRawChannelEnd;
+use ibc_proto::ibc::core::channel::v1::query_server::{
+    Query as ChannelQuery, QueryServer as ChannelQueryServer,
+};
+use ibc_proto::ibc::core::channel::v1::{
+    Channel as RawChannelEnd, QueryChannelClientStateRequest, QueryChannelClientStateResponse,
+    QueryChannelConsensusStateRequest, QueryChannelConsensusStateResponse, QueryChannelRequest,
+    QueryChannelResponse, QueryChannelsRequest, QueryChannelsResponse,
+    QueryConnectionChannelsRequest, QueryConnectionChannelsResponse,
+    QueryNextSequenceReceiveRequest, QueryNextSequenceReceiveResponse,
+    QueryPacketAcknowledgementRequest, QueryPacketAcknowledgementResponse,
+    QueryPacketAcknowledgementsRequest, QueryPacketAcknowledgementsResponse,
+    QueryPacketCommitmentRequest, QueryPacketCommitmentResponse, QueryPacketCommitmentsRequest,
+    QueryPacketCommitmentsResponse, QueryPacketReceiptRequest, QueryPacketReceiptResponse,
+    QueryUnreceivedAcksRequest, QueryUnreceivedAcksResponse, QueryUnreceivedPacketsRequest,
+    QueryUnreceivedPacketsResponse,
+};
 use ibc_proto::ibc::core::client::v1::query_server::QueryServer as ClientQueryServer;
 use ibc_proto::ibc::core::client::v1::{
     query_server::Query as ClientQuery, ConsensusStateWithHeight, Height as RawHeight,
@@ -153,7 +168,7 @@ pub struct Ibc<S> {
     connection_ids_store: JsonStore<SharedStore<S>, path::ClientConnectionsPath, Vec<ConnectionId>>,
     /// A typed-store for ChannelEnd
     channel_end_store:
-        ProtobufStore<SharedStore<S>, path::ChannelEndsPath, ChannelEnd, IbcRawChannelEnd>,
+        ProtobufStore<SharedStore<S>, path::ChannelEndsPath, ChannelEnd, RawChannelEnd>,
     /// A typed-store for send sequences
     send_sequence_store: JsonStore<SharedStore<S>, path::SeqSendsPath, Sequence>,
     /// A typed-store for receive sequences
@@ -209,6 +224,10 @@ impl<S: 'static + ProvableStore + Default> Ibc<S> {
 
     pub fn connection_service(&self) -> ConnectionQueryServer<IbcConnectionService<S>> {
         ConnectionQueryServer::new(IbcConnectionService::new(self.store.clone()))
+    }
+
+    pub fn channel_service(&self) -> ChannelQueryServer<IbcChannelService<S>> {
+        ChannelQueryServer::new(IbcChannelService::new(self.store.clone()))
     }
 }
 
@@ -1169,6 +1188,127 @@ impl From<ConnectionEndWrapper> for RawConnectionEnd {
             }),
             delay_period: 0,
         }
+    }
+}
+
+pub struct IbcChannelService<S> {
+    channel_end_store:
+        ProtobufStore<SharedStore<S>, path::ChannelEndsPath, ChannelEnd, RawChannelEnd>,
+}
+
+impl<S: Store> IbcChannelService<S> {
+    pub fn new(store: SharedStore<S>) -> Self {
+        Self {
+            channel_end_store: TypedStore::new(store),
+        }
+    }
+}
+
+#[tonic::async_trait]
+impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
+    async fn channel(
+        &self,
+        _request: tonic::Request<QueryChannelRequest>,
+    ) -> Result<tonic::Response<QueryChannelResponse>, tonic::Status> {
+        todo!()
+    }
+    /// Channels queries all the IBC channels of a chain.
+    async fn channels(
+        &self,
+        _request: tonic::Request<QueryChannelsRequest>,
+    ) -> Result<tonic::Response<QueryChannelsResponse>, tonic::Status> {
+        todo!()
+    }
+    /// ConnectionChannels queries all the channels associated with a connection
+    /// end.
+    async fn connection_channels(
+        &self,
+        _request: tonic::Request<QueryConnectionChannelsRequest>,
+    ) -> Result<tonic::Response<QueryConnectionChannelsResponse>, tonic::Status> {
+        todo!()
+    }
+    /// ChannelClientState queries for the client state for the channel associated
+    /// with the provided channel identifiers.
+    async fn channel_client_state(
+        &self,
+        _request: tonic::Request<QueryChannelClientStateRequest>,
+    ) -> Result<tonic::Response<QueryChannelClientStateResponse>, tonic::Status> {
+        todo!()
+    }
+    /// ChannelConsensusState queries for the consensus state for the channel
+    /// associated with the provided channel identifiers.
+    async fn channel_consensus_state(
+        &self,
+        _request: tonic::Request<QueryChannelConsensusStateRequest>,
+    ) -> Result<tonic::Response<QueryChannelConsensusStateResponse>, tonic::Status> {
+        todo!()
+    }
+    /// PacketCommitment queries a stored packet commitment hash.
+    async fn packet_commitment(
+        &self,
+        _request: tonic::Request<QueryPacketCommitmentRequest>,
+    ) -> Result<tonic::Response<QueryPacketCommitmentResponse>, tonic::Status> {
+        todo!()
+    }
+    /// PacketCommitments returns all the packet commitments hashes associated
+    /// with a channel.
+    async fn packet_commitments(
+        &self,
+        _request: tonic::Request<QueryPacketCommitmentsRequest>,
+    ) -> Result<tonic::Response<QueryPacketCommitmentsResponse>, tonic::Status> {
+        todo!()
+    }
+
+    /// PacketReceipt queries if a given packet sequence has been received on the
+    /// queried chain
+    async fn packet_receipt(
+        &self,
+        _request: tonic::Request<QueryPacketReceiptRequest>,
+    ) -> Result<tonic::Response<QueryPacketReceiptResponse>, tonic::Status> {
+        todo!()
+    }
+
+    /// PacketAcknowledgement queries a stored packet acknowledgement hash.
+    async fn packet_acknowledgement(
+        &self,
+        _request: tonic::Request<QueryPacketAcknowledgementRequest>,
+    ) -> Result<tonic::Response<QueryPacketAcknowledgementResponse>, tonic::Status> {
+        todo!()
+    }
+
+    /// PacketAcknowledgements returns all the packet acknowledgements associated
+    /// with a channel.
+    async fn packet_acknowledgements(
+        &self,
+        _request: tonic::Request<QueryPacketAcknowledgementsRequest>,
+    ) -> Result<tonic::Response<QueryPacketAcknowledgementsResponse>, tonic::Status> {
+        todo!()
+    }
+
+    /// UnreceivedPackets returns all the unreceived IBC packets associated with a
+    /// channel and sequences.
+    async fn unreceived_packets(
+        &self,
+        _request: tonic::Request<QueryUnreceivedPacketsRequest>,
+    ) -> Result<tonic::Response<QueryUnreceivedPacketsResponse>, tonic::Status> {
+        todo!()
+    }
+
+    /// UnreceivedAcks returns all the unreceived IBC acknowledgements associated
+    /// with a channel and sequences.
+    async fn unreceived_acks(
+        &self,
+        _request: tonic::Request<QueryUnreceivedAcksRequest>,
+    ) -> Result<tonic::Response<QueryUnreceivedAcksResponse>, tonic::Status> {
+        todo!()
+    }
+
+    /// NextSequenceReceive returns the next receive sequence for a given channel.
+    async fn next_sequence_receive(
+        &self,
+        _request: tonic::Request<QueryNextSequenceReceiveRequest>,
+    ) -> Result<tonic::Response<QueryNextSequenceReceiveResponse>, tonic::Status> {
+        todo!()
     }
 }
 
