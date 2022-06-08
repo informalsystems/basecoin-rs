@@ -77,7 +77,7 @@ pub struct Path(Vec<Identifier>);
 
 impl Path {
     pub fn get(&self, index: usize) -> Option<&Identifier> {
-        self.0.iter().nth(index)
+        self.0.get(index)
     }
 }
 
