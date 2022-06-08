@@ -257,10 +257,32 @@ impl<S: Store> BankKeeper for BankBalanceKeeper<S> {
 
     fn burn_coins(
         &mut self,
-        _account: Self::Address,
-        _amount: Self::Coins,
+        account: Self::Address,
+        amount: Self::Coins,
     ) -> Result<(), Self::Error> {
-        todo!()
+        let balance_path = BalancesPath(account);
+        let mut balances = self
+            .balance_store
+            .get(Height::Pending, &balance_path)
+            .map(|b| b.0)
+            .unwrap_or_default();
+
+        for Coin { denom, amount } in amount {
+            let mut balance = balances
+                .iter_mut()
+                .find(|c| c.denom == denom)
+                .ok_or_else(Error::insufficient_source_funds)?;
+
+            balance.amount -= amount;
+        }
+
+        // Store the updated account balances
+        self.balance_store
+            .set(balance_path, Balances(balances))
+            .map(|_| ())
+            .map_err(|e| Error::store(format!("{:?}", e)))?;
+
+        Ok(())
     }
 }
 
