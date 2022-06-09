@@ -1123,7 +1123,7 @@ impl<S: ProvableStore + 'static> ConnectionQuery for IbcConnectionService<S> {
                 Ok(IbcPath::Connections(connections_path)) => {
                     let connection_end = self
                         .connection_end_store
-                        .get(Height::Latest, &connections_path)
+                        .get(Height::Pending, &connections_path)
                         .unwrap();
 
                     let connection_id: ConnectionId =
@@ -1209,9 +1209,23 @@ impl<S: Store> IbcChannelService<S> {
 impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
     async fn channel(
         &self,
-        _request: tonic::Request<QueryChannelRequest>,
+        request: tonic::Request<QueryChannelRequest>,
     ) -> Result<tonic::Response<QueryChannelResponse>, tonic::Status> {
-        todo!()
+        let port_id = PortId::from_str(&request.get_ref().port_id)
+            .map_err(|_| Status::invalid_argument("invalid port id"))?;
+        let channel_id = ChannelId::from_str(&request.get_ref().channel_id)
+            .map_err(|_| Status::invalid_argument("invalid channel id"))?;
+
+        let channel = self
+            .channel_end_store
+            .get(Height::Pending, &path::ChannelEndsPath(port_id, channel_id))
+            .map(|channel_end| channel_end.into());
+
+        Ok(Response::new(QueryChannelResponse {
+            channel,
+            proof: vec![],
+            proof_height: None,
+        }))
     }
     /// Channels queries all the IBC channels of a chain.
     async fn channels(
@@ -1230,8 +1244,7 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
                 Ok(IbcPath::ChannelEnds(channels_path)) => {
                     let channel_end = self
                         .channel_end_store
-                        // Q: Use Height::Pending?
-                        .get(Height::Latest, &channels_path)
+                        .get(Height::Pending, &channels_path)
                         .unwrap();
 
                     // path: "channelEnds/ports/{}/channels/{}"
