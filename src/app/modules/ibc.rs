@@ -1389,16 +1389,12 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
                     Ok(IbcPath::Acks(acks_ibc_path)) => {
                         let acks_path: Path = acks_ibc_path.into();
                         // unwrap() because all paths were returned by `get_keys()`
-                        let ack_hash = self
-                            .raw_store
-                            .get(Height::Pending, &acks_path)
-                            .expect(
+                        let ack_hash = self.raw_store.get(Height::Pending, &acks_path).expect(
                             "commitment path returned by get_keys() had no associated commitment",
                         );
 
                         // commitments_path format: "acks/ports/{}/channels/{}/sequences/{}"
-                        let sequence_id =
-                            acks_path.get(6).expect("malformed acks path");
+                        let sequence_id = acks_path.get(6).expect("malformed acks path");
                         let sequence: u64 = sequence_id
                             .parse()
                             .expect("Invalid sequence number in commitments path");
