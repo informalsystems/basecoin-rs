@@ -51,7 +51,7 @@ impl From<Error> for ModuleError {
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq, Clone, Hash, Eq)]
 #[serde(transparent)]
-pub struct Denom(String);
+pub struct Denom(pub String);
 
 #[derive(Clone, Serialize, Deserialize, Debug, Default)]
 pub struct Coin {
