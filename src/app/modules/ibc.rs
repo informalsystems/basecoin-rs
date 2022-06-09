@@ -1306,7 +1306,7 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
     ) -> Result<tonic::Response<QueryPacketCommitmentsResponse>, tonic::Status> {
         let commitment_path_prefix: Path = String::from("commitments/ports")
             .try_into()
-            .expect("'channelEnds/ports' expected to be a valid Path");
+            .expect("'commitments/ports' expected to be a valid Path");
 
         let commitment_paths: Vec<Path> = self.raw_store.get_keys(&commitment_path_prefix);
 
@@ -1374,9 +1374,55 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
     /// with a channel.
     async fn packet_acknowledgements(
         &self,
-        _request: tonic::Request<QueryPacketAcknowledgementsRequest>,
+        request: tonic::Request<QueryPacketAcknowledgementsRequest>,
     ) -> Result<tonic::Response<QueryPacketAcknowledgementsResponse>, tonic::Status> {
-        todo!()
+        let ack_path_prefix: Path = String::from("acks/ports")
+            .try_into()
+            .expect("'acks/ports' expected to be a valid Path");
+
+        let ack_paths: Vec<Path> = self.raw_store.get_keys(&ack_path_prefix);
+
+        let packet_states: Vec<PacketState> = ack_paths
+            .into_iter()
+            .map(|path| {
+                match IbcPath::try_from(path) {
+                    Ok(IbcPath::Acks(acks_ibc_path)) => {
+                        let acks_path: Path = acks_ibc_path.into();
+                        // unwrap() because all paths were returned by `get_keys()`
+                        let ack_hash = self
+                            .raw_store
+                            .get(Height::Pending, &acks_path)
+                            .expect(
+                            "commitment path returned by get_keys() had no associated commitment",
+                        );
+
+                        // commitments_path format: "acks/ports/{}/channels/{}/sequences/{}"
+                        let sequence_id =
+                            acks_path.get(6).expect("malformed acks path");
+                        let sequence: u64 = sequence_id
+                            .parse()
+                            .expect("Invalid sequence number in commitments path");
+
+                        PacketState {
+                            port_id: request.get_ref().port_id.clone(),
+                            channel_id: request.get_ref().channel_id.clone(),
+                            sequence,
+                            data: ack_hash,
+                        }
+                    }
+                    _ => panic!("unexpected path"),
+                }
+            })
+            .collect();
+
+        Ok(Response::new(QueryPacketAcknowledgementsResponse {
+            acknowledgements: packet_states,
+            pagination: None,
+            height: Some(RawHeight {
+                revision_number: 1,
+                revision_height: self.raw_store.current_height(),
+            }),
+        }))
     }
 
     /// UnreceivedPackets returns all the unreceived IBC packets associated with a
