@@ -725,7 +725,7 @@ dependencies = [
 [[package]]
 name = "ibc"
 version = "0.15.0"
-source = "git+https://github.com/informalsystems/ibc-rs.git?branch=plafer/proto-server#b28ea81655af5cf67bd84719e2bd60bd57d5d6cf"
+source = "git+https://github.com/informalsystems/ibc-rs.git?branch=master#d070773d9a6b3308c2c142c586823770eb3a1a35"
 dependencies = [
  "bytes",
  "derive_more",
@@ -752,7 +752,7 @@ dependencies = [
 [[package]]
 name = "ibc-proto"
 version = "0.18.0"
-source = "git+https://github.com/informalsystems/ibc-rs.git?branch=plafer/proto-server#b28ea81655af5cf67bd84719e2bd60bd57d5d6cf"
+source = "git+https://github.com/informalsystems/ibc-rs.git?branch=master#d070773d9a6b3308c2c142c586823770eb3a1a35"
 dependencies = [
  "base64",
  "bytes",
