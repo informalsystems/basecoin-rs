@@ -185,6 +185,7 @@ impl<S: Store> BankKeeper for BankBalanceKeeper<S> {
             let src_balance = src_balances
                 .iter_mut()
                 .find(|c| c.denom == denom)
+                .filter(|c| c.amount >= amount)
                 .ok_or_else(Error::insufficient_source_funds)?;
 
             if dst_balances.iter().any(|c| c.denom == denom) {
