@@ -41,7 +41,7 @@ use ibc_proto::ibc::core::channel::v1::query_server::{
     Query as ChannelQuery, QueryServer as ChannelQueryServer,
 };
 use ibc_proto::ibc::core::channel::v1::{
-    Channel as RawChannelEnd, IdentifiedChannel as RawIdentifiedChannel,
+    Channel as RawChannelEnd, IdentifiedChannel as RawIdentifiedChannel, PacketState,
     QueryChannelClientStateRequest, QueryChannelClientStateResponse,
     QueryChannelConsensusStateRequest, QueryChannelConsensusStateResponse, QueryChannelRequest,
     QueryChannelResponse, QueryChannelsRequest, QueryChannelsResponse,
@@ -1193,6 +1193,7 @@ impl From<ConnectionEndWrapper> for RawConnectionEnd {
 }
 
 pub struct IbcChannelService<S> {
+    raw_store: SharedStore<S>,
     channel_end_store:
         ProtobufStore<SharedStore<S>, path::ChannelEndsPath, ChannelEnd, RawChannelEnd>,
 }
@@ -1200,6 +1201,7 @@ pub struct IbcChannelService<S> {
 impl<S: Store> IbcChannelService<S> {
     pub fn new(store: SharedStore<S>) -> Self {
         Self {
+            raw_store: store.clone(),
             channel_end_store: TypedStore::new(store),
         }
     }
@@ -1245,7 +1247,7 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
                     let channel_end = self
                         .channel_end_store
                         .get(Height::Pending, &channels_path)
-                        .unwrap();
+                        .expect("channel path returned by get_keys() had no associated channel");
 
                     // path: "channelEnds/ports/{}/channels/{}"
                     let port_id: PortId = path.get(2).unwrap().to_string().parse().unwrap();
@@ -1297,9 +1299,55 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
     /// with a channel.
     async fn packet_commitments(
         &self,
-        _request: tonic::Request<QueryPacketCommitmentsRequest>,
+        request: tonic::Request<QueryPacketCommitmentsRequest>,
     ) -> Result<tonic::Response<QueryPacketCommitmentsResponse>, tonic::Status> {
-        todo!()
+        let commitment_path_prefix: Path = String::from("commitments/ports")
+            .try_into()
+            .expect("'channelEnds/ports' expected to be a valid Path");
+
+        let commitment_paths: Vec<Path> = self.raw_store.get_keys(&commitment_path_prefix);
+
+        let packet_states: Vec<PacketState> = commitment_paths
+            .into_iter()
+            .map(|path| {
+                match IbcPath::try_from(path) {
+                    Ok(IbcPath::Commitments(commitments_ibc_path)) => {
+                        let commitments_path: Path = commitments_ibc_path.into();
+                        // unwrap() because all paths were returned by `get_keys()`
+                        let commitment = self
+                            .raw_store
+                            .get(Height::Pending, &commitments_path)
+                            .expect(
+                            "commitment path returned by get_keys() had no associated commitment",
+                        );
+
+                        // commitments_path format: "commitments/ports/{}/channels/{}/sequences/{}"
+                        let sequence_id =
+                            commitments_path.get(6).expect("malformed commitments path");
+                        let sequence: u64 = sequence_id
+                            .parse()
+                            .expect("Invalid sequence number in commitments path");
+
+                        PacketState {
+                            port_id: request.get_ref().port_id.clone(),
+                            channel_id: request.get_ref().channel_id.clone(),
+                            sequence,
+                            data: commitment,
+                        }
+                    }
+                    _ => panic!("unexpected path"),
+                }
+            })
+            .collect();
+
+        Ok(Response::new(QueryPacketCommitmentsResponse {
+            commitments: packet_states,
+            pagination: None,
+            height: Some(RawHeight {
+                revision_number: 1,
+                revision_height: self.raw_store.current_height(),
+            }),
+        }))
     }
 
     /// PacketReceipt queries if a given packet sequence has been received on the
