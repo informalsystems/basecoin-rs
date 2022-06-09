@@ -6,6 +6,7 @@ use crate::app::store::{
 
 use std::collections::HashMap;
 use std::convert::TryInto;
+use std::fmt::Debug;
 use std::num::ParseIntError;
 use std::str::FromStr;
 
@@ -103,8 +104,8 @@ pub trait BankReader {
 }
 
 pub trait BankKeeper {
-    type Error;
-    type Address;
+    type Error: Debug;
+    type Address: FromStr;
     type Denom;
     type Coin;
 
