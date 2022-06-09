@@ -19,7 +19,7 @@ use ibc::core::ics02_client::error::Error as ClientError;
 use ibc::core::ics03_connection::connection::{ConnectionEnd, IdentifiedConnectionEnd};
 use ibc::core::ics03_connection::context::{ConnectionKeeper, ConnectionReader};
 use ibc::core::ics03_connection::error::Error as ConnectionError;
-use ibc::core::ics04_channel::channel::{ChannelEnd, Counterparty, Order};
+use ibc::core::ics04_channel::channel::{ChannelEnd, Counterparty, IdentifiedChannelEnd, Order};
 use ibc::core::ics04_channel::commitment::{AcknowledgementCommitment, PacketCommitment};
 use ibc::core::ics04_channel::context::{ChannelKeeper, ChannelReader};
 use ibc::core::ics04_channel::error::Error as ChannelError;
@@ -41,7 +41,8 @@ use ibc_proto::ibc::core::channel::v1::query_server::{
     Query as ChannelQuery, QueryServer as ChannelQueryServer,
 };
 use ibc_proto::ibc::core::channel::v1::{
-    Channel as RawChannelEnd, QueryChannelClientStateRequest, QueryChannelClientStateResponse,
+    Channel as RawChannelEnd, IdentifiedChannel as RawIdentifiedChannel,
+    QueryChannelClientStateRequest, QueryChannelClientStateResponse,
     QueryChannelConsensusStateRequest, QueryChannelConsensusStateResponse, QueryChannelRequest,
     QueryChannelResponse, QueryChannelsRequest, QueryChannelsResponse,
     QueryConnectionChannelsRequest, QueryConnectionChannelsResponse,
@@ -1111,7 +1112,7 @@ impl<S: ProvableStore + 'static> ConnectionQuery for IbcConnectionService<S> {
     ) -> Result<Response<QueryConnectionsResponse>, Status> {
         let connection_path_prefix: Path = String::from("connections")
             .try_into()
-            .map_err(|_| Status::invalid_argument(""))?;
+            .expect("'connections' expected to be a valid Path");
 
         let connection_paths: Vec<Path> =
             self.connection_end_store.get_keys(&connection_path_prefix);
@@ -1217,7 +1218,36 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
         &self,
         _request: tonic::Request<QueryChannelsRequest>,
     ) -> Result<tonic::Response<QueryChannelsResponse>, tonic::Status> {
-        todo!()
+        let channel_path_prefix: Path = String::from("channelEnds/ports")
+            .try_into()
+            .expect("'channelEnds/ports' expected to be a valid Path");
+
+        let channel_paths: Vec<Path> = self.channel_end_store.get_keys(&channel_path_prefix);
+
+        let identified_channels: Vec<RawIdentifiedChannel> = channel_paths
+            .into_iter()
+            .map(|path| match IbcPath::try_from(path.clone()) {
+                Ok(IbcPath::ChannelEnds(channels_path)) => {
+                    let channel_end = self
+                        .channel_end_store
+                        // Q: Use Height::Pending?
+                        .get(Height::Latest, &channels_path)
+                        .unwrap();
+
+                    // path: "channelEnds/ports/{}/channels/{}"
+                    let port_id: PortId = path.get(2).unwrap().to_string().parse().unwrap();
+                    let channel_id: ChannelId = path.get(4).unwrap().to_string().parse().unwrap();
+                    IdentifiedChannelEnd::new(port_id, channel_id, channel_end).into()
+                }
+                _ => panic!("unexpected path"),
+            })
+            .collect();
+
+        Ok(Response::new(QueryChannelsResponse {
+            channels: identified_channels,
+            pagination: None,
+            height: None,
+        }))
     }
     /// ConnectionChannels queries all the channels associated with a connection
     /// end.
