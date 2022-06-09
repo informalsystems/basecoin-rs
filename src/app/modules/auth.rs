@@ -181,7 +181,7 @@ impl<S: Store> Module for Auth<S> {
     fn init(&mut self, app_state: Value) {
         debug!("Initializing auth module");
         // safety - we panic on errors to prevent chain creation with invalid genesis config
-        let accounts: HashMap<String, HashMap<Denom, u64>> =
+        let accounts: HashMap<String, HashMap<Denom, String>> =
             serde_json::from_value(app_state).unwrap();
         for (account, _) in accounts {
             trace!("Adding account: {}", account);

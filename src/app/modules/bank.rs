@@ -12,6 +12,7 @@ use std::str::FromStr;
 use cosmrs::bank::MsgSend;
 use cosmrs::{proto, AccountId, Coin as MsgCoin};
 use flex_error::{define_error, TraceError};
+use ibc::bigint::U256;
 use ibc_proto::google::protobuf::Any;
 use prost::{DecodeError, Message};
 use serde::{Deserialize, Serialize};
@@ -56,11 +57,11 @@ pub struct Denom(pub String);
 #[derive(Clone, Serialize, Deserialize, Debug, Default)]
 pub struct Coin {
     pub denom: Denom,
-    pub amount: u64,
+    pub amount: U256,
 }
 
-impl From<(Denom, u64)> for Coin {
-    fn from((denom, amount): (Denom, u64)) -> Self {
+impl From<(Denom, U256)> for Coin {
+    fn from((denom, amount): (Denom, U256)) -> Self {
         Self { denom, amount }
     }
 }
@@ -190,13 +191,13 @@ impl<S: Store> BankKeeper for BankBalanceKeeper<S> {
             if dst_balances.iter().any(|c| c.denom == denom) {
                 dst_balances.push(Coin {
                     denom: denom.clone(),
-                    amount: 0u64,
+                    amount: 0u64.into(),
                 });
             }
 
             let mut dst_balance = dst_balances.iter_mut().find(|c| c.denom == denom).unwrap();
 
-            if dst_balance.amount > u64::MAX - amount {
+            if dst_balance.amount > U256::MAX - amount {
                 return Err(Error::dest_fund_overflow());
             }
 
@@ -235,12 +236,12 @@ impl<S: Store> BankKeeper for BankBalanceKeeper<S> {
             } else {
                 balances.push(Coin {
                     denom,
-                    amount: 0u64,
+                    amount: 0u64.into(),
                 });
                 balances.last_mut().unwrap()
             };
 
-            if balance.amount > u64::MAX - amount {
+            if balance.amount > U256::MAX - amount {
                 return Err(Error::dest_fund_overflow());
             }
 
@@ -359,7 +360,7 @@ where
         debug!("Initializing bank module");
 
         // safety - we panic on errors to prevent chain creation with invalid genesis config
-        let accounts: HashMap<String, HashMap<Denom, u64>> =
+        let accounts: HashMap<String, HashMap<Denom, U256>> =
             serde_json::from_value(app_state).unwrap();
         for (account, balances) in accounts {
             trace!("Adding account ({}) => {:?}", account, balances);
