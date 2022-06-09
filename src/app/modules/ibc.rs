@@ -1163,7 +1163,7 @@ impl<S: ProvableStore + 'static> ConnectionQuery for IbcConnectionService<S> {
     }
 }
 
-// TODO: NO LONGER NEEDED (remove before merge)
+// TODO: REMOVE (NO LONGER NEEDED)
 struct ConnectionEndWrapper(RawConnectionEnd);
 
 impl From<ConnectionEndWrapper> for RawConnectionEnd {
@@ -1464,9 +1464,38 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
     /// with a channel and sequences.
     async fn unreceived_acks(
         &self,
-        _request: tonic::Request<QueryUnreceivedAcksRequest>,
+        request: tonic::Request<QueryUnreceivedAcksRequest>,
     ) -> Result<tonic::Response<QueryUnreceivedAcksResponse>, tonic::Status> {
-        todo!()
+        let sequences_to_check: Vec<u64> = request.get_ref().packet_ack_sequences.clone();
+
+        let port_id: PortId = request.get_ref().port_id.clone().parse().unwrap();
+        let channel_id: ChannelId = request.get_ref().channel_id.clone().parse().unwrap();
+
+        let unreceived_sequences: Vec<u64> = sequences_to_check
+            .into_iter()
+            .filter(|seq| {
+                // To check if we received an acknowledgement, we check if we still have the sent packet
+                // commitment (upon receiving an ack, the sent packet commitment is deleted).
+                let commitments_path: Path = path::CommitmentsPath {
+                    port_id: port_id.clone(),
+                    channel_id,
+                    sequence: Sequence::from(*seq),
+                }
+                .into();
+
+                self.raw_store
+                    .get(Height::Pending, &commitments_path)
+                    .is_some()
+            })
+            .collect();
+
+        Ok(Response::new(QueryUnreceivedAcksResponse {
+            sequences: unreceived_sequences,
+            height: Some(RawHeight {
+                revision_number: 1,
+                revision_height: self.raw_store.current_height(),
+            }),
+        }))
     }
 
     /// NextSequenceReceive returns the next receive sequence for a given channel.
