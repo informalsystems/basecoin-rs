@@ -107,28 +107,27 @@ pub trait BankKeeper {
     type Address;
     type Denom;
     type Coin;
-    type Coins: IntoIterator<Item = Self::Coin>;
 
     /// This function should enable sending ibc fungible tokens from one account to another
     fn send_coins(
         &mut self,
         from: Self::Address,
         to: Self::Address,
-        amount: Self::Coins,
+        amount: impl IntoIterator<Item = Self::Coin>,
     ) -> Result<(), Self::Error>;
 
     /// This function to enable minting ibc tokens to a user account
     fn mint_coins(
         &mut self,
         account: Self::Address,
-        amount: Self::Coins,
+        amount: impl IntoIterator<Item = Self::Coin>,
     ) -> Result<(), Self::Error>;
 
     /// This function should enable burning of minted tokens in a user account
     fn burn_coins(
         &mut self,
         account: Self::Address,
-        amount: Self::Coins,
+        amount: impl IntoIterator<Item = Self::Coin>,
     ) -> Result<(), Self::Error>;
 }
 
@@ -160,13 +159,12 @@ impl<S: Store> BankKeeper for BankBalanceKeeper<S> {
     type Address = AccountId;
     type Denom = Denom;
     type Coin = Coin;
-    type Coins = Vec<Self::Coin>;
 
     fn send_coins(
         &mut self,
         from: Self::Address,
         to: Self::Address,
-        amount: Self::Coins,
+        amount: impl IntoIterator<Item = Self::Coin>,
     ) -> Result<(), Self::Error> {
         let src_balance_path = BalancesPath(from);
         let mut src_balances = self
@@ -183,7 +181,7 @@ impl<S: Store> BankKeeper for BankBalanceKeeper<S> {
             .unwrap_or_default();
 
         for Coin { denom, amount } in amount {
-            let mut src_balance = src_balances
+            let src_balance = src_balances
                 .iter_mut()
                 .find(|c| c.denom == denom)
                 .ok_or_else(Error::insufficient_source_funds)?;
@@ -195,7 +193,7 @@ impl<S: Store> BankKeeper for BankBalanceKeeper<S> {
                 });
             }
 
-            let mut dst_balance = dst_balances.iter_mut().find(|c| c.denom == denom).unwrap();
+            let dst_balance = dst_balances.iter_mut().find(|c| c.denom == denom).unwrap();
 
             if dst_balance.amount > U256::MAX - amount {
                 return Err(Error::dest_fund_overflow());
@@ -221,7 +219,7 @@ impl<S: Store> BankKeeper for BankBalanceKeeper<S> {
     fn mint_coins(
         &mut self,
         account: Self::Address,
-        amount: Self::Coins,
+        amount: impl IntoIterator<Item = Self::Coin>,
     ) -> Result<(), Self::Error> {
         let balance_path = BalancesPath(account);
         let mut balances = self
@@ -231,7 +229,7 @@ impl<S: Store> BankKeeper for BankBalanceKeeper<S> {
             .unwrap_or_default();
 
         for Coin { denom, amount } in amount {
-            let mut balance = if let Some(i) = balances.iter_mut().position(|c| c.denom == denom) {
+            let balance = if let Some(i) = balances.iter_mut().position(|c| c.denom == denom) {
                 &mut balances[i]
             } else {
                 balances.push(Coin {
@@ -260,7 +258,7 @@ impl<S: Store> BankKeeper for BankBalanceKeeper<S> {
     fn burn_coins(
         &mut self,
         account: Self::Address,
-        amount: Self::Coins,
+        amount: impl IntoIterator<Item = Self::Coin>,
     ) -> Result<(), Self::Error> {
         let balance_path = BalancesPath(account);
         let mut balances = self
@@ -270,7 +268,7 @@ impl<S: Store> BankKeeper for BankBalanceKeeper<S> {
             .unwrap_or_default();
 
         for Coin { denom, amount } in amount {
-            let mut balance = balances
+            let balance = balances
                 .iter_mut()
                 .find(|c| c.denom == denom)
                 .filter(|c| c.amount >= amount)
@@ -367,7 +365,13 @@ where
 
             let account_id = AccountId::from_str(&account).unwrap();
             self.balance_keeper
-                .mint_coins(account_id, balances.into_iter().map(|b| b.into()).collect())
+                .mint_coins(
+                    account_id,
+                    balances
+                        .into_iter()
+                        .map(|b| b.into())
+                        .collect::<Vec<Coin>>(),
+                )
                 .unwrap();
         }
     }
