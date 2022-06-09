@@ -556,6 +556,11 @@ where
     pub(crate) fn get_keys(&self, key_prefix: &Path) -> Vec<Path> {
         self.store.get_keys(key_prefix)
     }
+
+    #[inline]
+    pub(crate) fn current_height(&self) -> RawHeight {
+        self.store.current_height()
+    }
 }
 
 impl<S, K> TypedStore<S, K, NullCodec>

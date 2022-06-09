@@ -1261,7 +1261,10 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
         Ok(Response::new(QueryChannelsResponse {
             channels: identified_channels,
             pagination: None,
-            height: None,
+            height: Some(RawHeight {
+                revision_number: 1,
+                revision_height: self.channel_end_store.current_height(),
+            }),
         }))
     }
     /// ConnectionChannels queries all the channels associated with a connection
