@@ -1421,13 +1421,43 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
         }))
     }
 
-    /// UnreceivedPackets returns all the unreceived IBC packets associated with a
-    /// channel and sequences.
+    /// UnreceivedPackets returns all the unreceived IBC packets associated with
+    /// a channel and sequences.
+    ///
+    /// QUESTION. Currently only works for unordered channels; ordered channels
+    /// don't use receipts. However, ibc-go does it this way. Investigate if
+    /// this query only ever makes sense on unordered channels.
     async fn unreceived_packets(
         &self,
-        _request: tonic::Request<QueryUnreceivedPacketsRequest>,
+        request: tonic::Request<QueryUnreceivedPacketsRequest>,
     ) -> Result<tonic::Response<QueryUnreceivedPacketsResponse>, tonic::Status> {
-        todo!()
+        let sequences_to_check: Vec<u64> = request.get_ref().packet_commitment_sequences.clone();
+
+        let port_id: PortId = request.get_ref().port_id.clone().parse().unwrap();
+        let channel_id: ChannelId = request.get_ref().channel_id.clone().parse().unwrap();
+
+        let unreceived_sequences: Vec<u64> = sequences_to_check
+            .into_iter()
+            .filter(|seq| {
+                let receipts_path: Path = path::ReceiptsPath {
+                    port_id: port_id.clone(),
+                    channel_id,
+                    sequence: Sequence::from(*seq),
+                }
+                .into();
+                self.raw_store
+                    .get(Height::Pending, &receipts_path)
+                    .is_none()
+            })
+            .collect();
+
+        Ok(Response::new(QueryUnreceivedPacketsResponse {
+            sequences: unreceived_sequences,
+            height: Some(RawHeight {
+                revision_number: 1,
+                revision_height: self.raw_store.current_height(),
+            }),
+        }))
     }
 
     /// UnreceivedAcks returns all the unreceived IBC acknowledgements associated
