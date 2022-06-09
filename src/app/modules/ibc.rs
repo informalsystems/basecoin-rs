@@ -1,3 +1,4 @@
+use crate::app::modules::bank::{BankKeeper, Coin, Denom};
 use crate::app::modules::{Error as ModuleError, Identifiable, Module, QueryResult};
 use crate::app::store::{
     Height, JsonStore, Path, ProtobufStore, ProvableStore, SharedStore, Store, TypedSet, TypedStore,
@@ -30,7 +31,6 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::app::modules::bank::BankKeeper;
 use ibc::applications::transfer::context::{
     on_acknowledgement_packet, on_chan_close_confirm, on_chan_close_init, on_chan_open_ack,
     on_chan_open_confirm, on_chan_open_init, on_chan_open_try, on_recv_packet, on_timeout_packet,
@@ -1222,7 +1222,7 @@ impl<S: Store, BK> IbcTransferModule<S, BK> {
     }
 }
 
-impl<S: Store + 'static, BK: 'static + Send + Sync + BankKeeper> IbcModule
+impl<S: Store + 'static, BK: 'static + Send + Sync + BankKeeper<Coin = Coin>> IbcModule
     for IbcTransferModule<S, BK>
 {
     fn on_chan_open_init(
@@ -1345,7 +1345,7 @@ impl<S: Store + 'static, BK: 'static + Send + Sync + BankKeeper> IbcModule
     }
 }
 
-impl<S: Store, BK: BankKeeper> Ics20Keeper for IbcTransferModule<S, BK> {
+impl<S: Store, BK: BankKeeper<Coin = Coin>> Ics20Keeper for IbcTransferModule<S, BK> {
     type AccountId = Signer;
 }
 
@@ -1446,31 +1446,62 @@ impl<S: Store, BK> ChannelKeeper for IbcTransferModule<S, BK> {
     }
 }
 
-impl<S: Store, BK: BankKeeper> IbcBankKeeper for IbcTransferModule<S, BK> {
+impl<S: Store, BK: BankKeeper<Coin = Coin>> IbcBankKeeper for IbcTransferModule<S, BK> {
     type AccountId = Signer;
 
     fn send_coins(
         &mut self,
-        _from: &Self::AccountId,
-        _to: &Self::AccountId,
-        _amt: &PrefixedCoin,
+        from: &Self::AccountId,
+        to: &Self::AccountId,
+        amt: &PrefixedCoin,
     ) -> Result<(), Ics20Error> {
+        let from = from
+            .to_string()
+            .parse()
+            .map_err(|_| Ics20Error::parse_account_failure())?;
+        let to = to
+            .to_string()
+            .parse()
+            .map_err(|_| Ics20Error::parse_account_failure())?;
+        let coins = vec![Coin {
+            denom: Denom(amt.denom.to_string()),
+            amount: amt.amount.into(),
+        }];
+        self.bank_keeper.send_coins(from, to, coins).unwrap(); // Fixme(hu55a1n1)
         Ok(())
     }
 
     fn mint_coins(
         &mut self,
-        _account: &Self::AccountId,
-        _amt: &PrefixedCoin,
+        account: &Self::AccountId,
+        amt: &PrefixedCoin,
     ) -> Result<(), Ics20Error> {
+        let account = account
+            .to_string()
+            .parse()
+            .map_err(|_| Ics20Error::parse_account_failure())?;
+        let coins = vec![Coin {
+            denom: Denom(amt.denom.to_string()),
+            amount: amt.amount.into(),
+        }];
+        self.bank_keeper.mint_coins(account, coins).unwrap(); // Fixme(hu55a1n1)
         Ok(())
     }
 
     fn burn_coins(
         &mut self,
-        _account: &Self::AccountId,
-        _amt: &PrefixedCoin,
+        account: &Self::AccountId,
+        amt: &PrefixedCoin,
     ) -> Result<(), Ics20Error> {
+        let account = account
+            .to_string()
+            .parse()
+            .map_err(|_| Ics20Error::parse_account_failure())?;
+        let coins = vec![Coin {
+            denom: Denom(amt.denom.to_string()),
+            amount: amt.amount.into(),
+        }];
+        self.bank_keeper.burn_coins(account, coins).unwrap(); // Fixme(hu55a1n1)
         Ok(())
     }
 }
@@ -1626,6 +1657,6 @@ impl<S: Store, BK> ChannelReader for IbcTransferModule<S, BK> {
     }
 }
 
-impl<S: Store, BK: BankKeeper> Ics20Context for IbcTransferModule<S, BK> {
+impl<S: Store, BK: BankKeeper<Coin = Coin>> Ics20Context for IbcTransferModule<S, BK> {
     type AccountId = Signer;
 }
