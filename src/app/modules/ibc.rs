@@ -60,6 +60,7 @@ use ibc::core::ics05_port::context::PortReader;
 use ibc::core::ics05_port::error::Error as PortError;
 use ibc::core::ics23_commitment::commitment::{CommitmentPrefix, CommitmentRoot};
 use ibc::core::ics24_host::identifier::{ChannelId, ClientId, ConnectionId, PortId};
+use ibc::core::ics24_host::path::ClientConnectionsPath;
 use ibc::core::ics24_host::{path, Path as IbcPath, IBC_QUERY_PATH};
 use ibc::core::ics26_routing::context::{
     Ics26Context, Module as IbcModule, ModuleId, ModuleOutputBuilder, OnRecvPacketAck, Router,
@@ -1099,12 +1100,14 @@ impl<S: ProvableStore + 'static> ClientQuery for IbcClientService<S> {
 pub struct IbcConnectionService<S> {
     connection_end_store:
         ProtobufStore<SharedStore<S>, path::ConnectionsPath, ConnectionEnd, IbcRawConnectionEnd>,
+    connection_ids_store: JsonStore<SharedStore<S>, path::ClientConnectionsPath, Vec<ConnectionId>>,
 }
 
 impl<S: Store> IbcConnectionService<S> {
     pub fn new(store: SharedStore<S>) -> Self {
         Self {
-            connection_end_store: TypedStore::new(store),
+            connection_end_store: TypedStore::new(store.clone()),
+            connection_ids_store: TypedStore::new(store),
         }
     }
 }
@@ -1136,9 +1139,31 @@ impl<S: ProvableStore + 'static> ConnectionQuery for IbcConnectionService<S> {
 
     async fn client_connections(
         &self,
-        _request: Request<QueryClientConnectionsRequest>,
+        request: Request<QueryClientConnectionsRequest>,
     ) -> Result<Response<QueryClientConnectionsResponse>, Status> {
-        todo!()
+        trace!("Got client connections request: {:?}", request);
+
+        let client_id = request
+            .get_ref()
+            .client_id
+            .parse()
+            .map_err(|e| Status::invalid_argument(format!("{}", e)))?;
+        let path = ClientConnectionsPath(client_id).into();
+        let connection_ids = self
+            .connection_ids_store
+            .get(Height::Pending, &path)
+            .unwrap_or_default();
+        let connection_paths = connection_ids
+            .into_iter()
+            .map(|conn_id| conn_id.to_string())
+            .collect();
+
+        Ok(Response::new(QueryClientConnectionsResponse {
+            connection_paths,
+            // Note: proofs aren't being used by hermes currently
+            proof: vec![],
+            proof_height: None,
+        }))
     }
 
     async fn connection_client_state(
