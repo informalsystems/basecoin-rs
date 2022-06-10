@@ -1,5 +1,8 @@
 use crate::app::store::{ProvableStore, SharedStore};
-use crate::prostgen::cosmos::staking::v1beta1::{
+
+use std::marker::PhantomData;
+
+use ibc_proto::cosmos::staking::v1beta1::{
     query_server::{Query, QueryServer},
     Params, QueryDelegationRequest, QueryDelegationResponse, QueryDelegatorDelegationsRequest,
     QueryDelegatorDelegationsResponse, QueryDelegatorUnbondingDelegationsRequest,
@@ -13,10 +16,7 @@ use crate::prostgen::cosmos::staking::v1beta1::{
     QueryValidatorUnbondingDelegationsRequest, QueryValidatorUnbondingDelegationsResponse,
     QueryValidatorsRequest, QueryValidatorsResponse,
 };
-
-use std::marker::PhantomData;
-
-use crate::prostgen::google::protobuf::Duration;
+use ibc_proto::google::protobuf::Duration;
 use tonic::{Request, Response, Status};
 use tracing::debug;
 

@@ -15,8 +15,8 @@ description = """
 [dependencies]
 cosmrs = "0.7.0"
 flex-error = { version = "0.4.2", features = ["eyre_tracer"] }
-ibc = "0.15.0"
-ibc-proto = "0.18.0"
+ibc = "=0.15.0"
+ibc-proto = { version = "=0.18.0", default-features = false, features = ["server"] }
 ics23 = { version = "=0.8.0-alpha", default-features = false }
 prost = { version = "0.10", default-features = false }
 serde = "1.0"

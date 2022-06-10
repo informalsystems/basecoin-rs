@@ -1,19 +1,16 @@
 mod app;
-mod base64;
-mod prostgen;
-
-use ibc::applications::transfer::MODULE_ID_STR as IBC_TRANSFER_MODULE_ID;
-use ibc::core::ics24_host::identifier::PortId;
-use ibc::core::ics26_routing::context::{ModuleId, RouterBuilder};
 
 use crate::app::modules::{
     prefix, Auth, Bank, Ibc, IbcRouterBuilder, IbcTransferModule, Identifiable, Module, Staking,
 };
 use crate::app::store::InMemoryStore;
 use crate::app::Builder;
-use crate::prostgen::cosmos::base::tendermint::v1beta1::service_server::ServiceServer as HealthServer;
-use crate::prostgen::cosmos::tx::v1beta1::service_server::ServiceServer as TxServer;
 
+use ibc::applications::transfer::MODULE_ID_STR as IBC_TRANSFER_MODULE_ID;
+use ibc::core::ics24_host::identifier::PortId;
+use ibc::core::ics26_routing::context::{ModuleId, RouterBuilder};
+use ibc_proto::cosmos::base::tendermint::v1beta1::service_server::ServiceServer as HealthServer;
+use ibc_proto::cosmos::tx::v1beta1::service_server::ServiceServer as TxServer;
 use structopt::StructOpt;
 use tendermint_abci::ServerBuilder;
 use tokio::runtime::Runtime;
