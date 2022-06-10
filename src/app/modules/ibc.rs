@@ -6,12 +6,13 @@ use crate::app::store::{
 use crate::prostgen::ibc::core::client::v1::query_server::QueryServer as ClientQueryServer;
 use crate::prostgen::ibc::core::client::v1::{
     query_server::Query as ClientQuery, ConsensusStateWithHeight, Height as RawHeight,
-    QueryClientParamsRequest, QueryClientParamsResponse, QueryClientStateRequest,
-    QueryClientStateResponse, QueryClientStatesRequest, QueryClientStatesResponse,
-    QueryClientStatusRequest, QueryClientStatusResponse, QueryConsensusStateRequest,
-    QueryConsensusStateResponse, QueryConsensusStatesRequest, QueryConsensusStatesResponse,
-    QueryUpgradedClientStateRequest, QueryUpgradedClientStateResponse,
-    QueryUpgradedConsensusStateRequest, QueryUpgradedConsensusStateResponse,
+    IdentifiedClientState, QueryClientParamsRequest, QueryClientParamsResponse,
+    QueryClientStateRequest, QueryClientStateResponse, QueryClientStatesRequest,
+    QueryClientStatesResponse, QueryClientStatusRequest, QueryClientStatusResponse,
+    QueryConsensusStateRequest, QueryConsensusStateResponse, QueryConsensusStatesRequest,
+    QueryConsensusStatesResponse, QueryUpgradedClientStateRequest,
+    QueryUpgradedClientStateResponse, QueryUpgradedConsensusStateRequest,
+    QueryUpgradedConsensusStateResponse,
 };
 use crate::prostgen::ibc::core::commitment::v1::MerklePrefix;
 use crate::prostgen::ibc::core::connection::v1::query_server::QueryServer as ConnectionQueryServer;
@@ -965,6 +966,7 @@ impl From<TmEvent> for Event {
 
 pub struct IbcClientService<S> {
     store: SharedStore<S>,
+    client_state_store: ProtobufStore<SharedStore<S>, path::ClientStatePath, AnyClientState, Any>,
     consensus_state_store:
         ProtobufStore<SharedStore<S>, path::ClientConsensusStatePath, AnyConsensusState, Any>,
 }
@@ -972,6 +974,7 @@ pub struct IbcClientService<S> {
 impl<S: Store> IbcClientService<S> {
     pub fn new(store: SharedStore<S>) -> Self {
         Self {
+            client_state_store: TypedStore::new(store.clone()),
             consensus_state_store: TypedStore::new(store.clone()),
             store,
         }
@@ -989,9 +992,36 @@ impl<S: ProvableStore + 'static> ClientQuery for IbcClientService<S> {
 
     async fn client_states(
         &self,
-        _request: Request<QueryClientStatesRequest>,
+        request: Request<QueryClientStatesRequest>,
     ) -> Result<Response<QueryClientStatesResponse>, Status> {
-        unimplemented!()
+        trace!("Got client states request: {:?}", request);
+
+        let path = format!("clients")
+            .try_into()
+            .map_err(|e| Status::invalid_argument(format!("{}", e)))?;
+
+        let keys = self.store.get_keys(&path);
+        let client_states = keys
+            .into_iter()
+            .filter_map(|path| {
+                let path = IbcPath::try_from(path);
+                if let Ok(IbcPath::ClientState(path)) = path {
+                    let client_state = self.client_state_store.get(Height::Pending, &path);
+                    Some(IdentifiedClientState {
+                        client_id: path.0.to_string(),
+                        client_state: client_state.map(|cs| cs.into()),
+                    })
+                } else {
+                    // could be a valid path starting with `clients`, eg. `ClientType`, etc.
+                    None
+                }
+            })
+            .collect();
+
+        Ok(Response::new(QueryClientStatesResponse {
+            client_states,
+            pagination: None, // TODO(hu55a1n1): add pagination support
+        }))
     }
 
     async fn consensus_state(
