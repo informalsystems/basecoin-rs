@@ -997,7 +997,8 @@ impl<S: ProvableStore + 'static> ClientQuery for IbcClientService<S> {
     ) -> Result<Response<QueryClientStatesResponse>, Status> {
         trace!("Got client states request: {:?}", request);
 
-        let path = format!("clients")
+        let path = "clients"
+            .to_owned()
             .try_into()
             .map_err(|e| Status::invalid_argument(format!("{}", e)))?;
 
@@ -1148,7 +1149,7 @@ impl<S: ProvableStore + 'static> ConnectionQuery for IbcConnectionService<S> {
             .client_id
             .parse()
             .map_err(|e| Status::invalid_argument(format!("{}", e)))?;
-        let path = ClientConnectionsPath(client_id).into();
+        let path = ClientConnectionsPath(client_id);
         let connection_ids = self
             .connection_ids_store
             .get(Height::Pending, &path)
