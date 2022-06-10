@@ -139,6 +139,7 @@ impl<S: ProvableStore + 'static> Query for StakingService<S> {
                     seconds: 3 * 7 * 24 * 60 * 60,
                     nanos: 0,
                 }),
+                historical_entries: 1, // just to satisfy hermes's health-check
                 ..Params::default()
             }),
         }))
