@@ -54,12 +54,13 @@ use ibc_proto::ibc::core::channel::v1::Channel as IbcRawChannelEnd;
 use ibc_proto::ibc::core::client::v1::query_server::QueryServer as ClientQueryServer;
 use ibc_proto::ibc::core::client::v1::{
     query_server::Query as ClientQuery, ConsensusStateWithHeight, Height as RawHeight,
-    QueryClientParamsRequest, QueryClientParamsResponse, QueryClientStateRequest,
-    QueryClientStateResponse, QueryClientStatesRequest, QueryClientStatesResponse,
-    QueryClientStatusRequest, QueryClientStatusResponse, QueryConsensusStateRequest,
-    QueryConsensusStateResponse, QueryConsensusStatesRequest, QueryConsensusStatesResponse,
-    QueryUpgradedClientStateRequest, QueryUpgradedClientStateResponse,
-    QueryUpgradedConsensusStateRequest, QueryUpgradedConsensusStateResponse,
+    IdentifiedClientState, QueryClientParamsRequest, QueryClientParamsResponse,
+    QueryClientStateRequest, QueryClientStateResponse, QueryClientStatesRequest,
+    QueryClientStatesResponse, QueryClientStatusRequest, QueryClientStatusResponse,
+    QueryConsensusStateRequest, QueryConsensusStateResponse, QueryConsensusStatesRequest,
+    QueryConsensusStatesResponse, QueryUpgradedClientStateRequest,
+    QueryUpgradedClientStateResponse, QueryUpgradedConsensusStateRequest,
+    QueryUpgradedConsensusStateResponse,
 };
 use ibc_proto::ibc::core::commitment::v1::MerklePrefix;
 use ibc_proto::ibc::core::connection::v1::query_server::QueryServer as ConnectionQueryServer;

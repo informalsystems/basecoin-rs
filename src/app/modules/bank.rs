@@ -3,14 +3,6 @@ use crate::app::modules::{Error as ModuleError, Module, QueryResult};
 use crate::app::store::{
     Codec, Height, JsonCodec, JsonStore, Path, ProvableStore, SharedStore, Store, TypedStore,
 };
-use crate::prostgen::cosmos::bank::v1beta1::{
-    query_server::{Query, QueryServer},
-    QueryAllBalancesRequest, QueryAllBalancesResponse, QueryBalanceRequest, QueryBalanceResponse,
-    QueryDenomMetadataRequest, QueryDenomMetadataResponse, QueryDenomsMetadataRequest,
-    QueryDenomsMetadataResponse, QueryParamsRequest, QueryParamsResponse, QuerySupplyOfRequest,
-    QuerySupplyOfResponse, QueryTotalSupplyRequest, QueryTotalSupplyResponse,
-};
-use crate::prostgen::cosmos::base::v1beta1::Coin as RawCoin;
 
 use std::collections::HashMap;
 use std::convert::TryInto;
@@ -22,6 +14,14 @@ use cosmrs::bank::MsgSend;
 use cosmrs::{proto, AccountId, Coin as MsgCoin};
 use flex_error::{define_error, TraceError};
 use ibc::bigint::U256;
+use ibc_proto::cosmos::bank::v1beta1::{
+    query_server::{Query, QueryServer},
+    QueryAllBalancesRequest, QueryAllBalancesResponse, QueryBalanceRequest, QueryBalanceResponse,
+    QueryDenomMetadataRequest, QueryDenomMetadataResponse, QueryDenomsMetadataRequest,
+    QueryDenomsMetadataResponse, QueryParamsRequest, QueryParamsResponse, QuerySupplyOfRequest,
+    QuerySupplyOfResponse, QueryTotalSupplyRequest, QueryTotalSupplyResponse,
+};
+use ibc_proto::cosmos::base::v1beta1::Coin as RawCoin;
 use ibc_proto::google::protobuf::Any;
 use prost::{DecodeError, Message};
 use serde::{Deserialize, Serialize};
