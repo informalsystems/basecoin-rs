@@ -26,7 +26,7 @@ rpc_timeout = '10s'
 account_prefix = 'cosmos'
 key_name = 'testkey'
 store_prefix = 'ibc'
-gas_price = { price = 0.001, denom = 'stake' }
+gas_price = { price = 0.001, denom = 'basecoin' }
 clock_drift = '5s'
 trusting_period = '14days'
 proof_specs = '''
