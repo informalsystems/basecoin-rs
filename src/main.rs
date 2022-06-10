@@ -72,6 +72,7 @@ fn main() {
         auth.account_reader().clone(),
         auth.account_keeper().clone(),
     );
+    let bank_service = bank.service();
 
     let staking = Staking::new(app_builder.module_store(&prefix::Staking {}.identifier()));
 
@@ -113,6 +114,7 @@ fn main() {
         .add_service(ibc_client_service)
         .add_service(ibc_conn_service)
         .add_service(auth_service)
+        .add_service(bank_service)
         .add_service(staking.service())
         .serve(format!("{}:{}", opt.host, opt.grpc_port).parse().unwrap());
     Runtime::new()

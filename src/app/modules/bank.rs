@@ -3,6 +3,14 @@ use crate::app::modules::{Error as ModuleError, Module, QueryResult};
 use crate::app::store::{
     Codec, Height, JsonCodec, JsonStore, Path, ProvableStore, SharedStore, Store, TypedStore,
 };
+use crate::prostgen::cosmos::bank::v1beta1::{
+    query_server::{Query, QueryServer},
+    QueryAllBalancesRequest, QueryAllBalancesResponse, QueryBalanceRequest, QueryBalanceResponse,
+    QueryDenomMetadataRequest, QueryDenomMetadataResponse, QueryDenomsMetadataRequest,
+    QueryDenomsMetadataResponse, QueryParamsRequest, QueryParamsResponse, QuerySupplyOfRequest,
+    QuerySupplyOfResponse, QueryTotalSupplyRequest, QueryTotalSupplyResponse,
+};
+use crate::prostgen::cosmos::base::v1beta1::Coin as RawCoin;
 
 use std::collections::HashMap;
 use std::convert::TryInto;
@@ -18,6 +26,7 @@ use ibc_proto::google::protobuf::Any;
 use prost::{DecodeError, Message};
 use serde::{Deserialize, Serialize};
 use tendermint_proto::abci::Event;
+use tonic::{Request, Response, Status};
 use tracing::{debug, trace};
 
 define_error! {
@@ -132,6 +141,7 @@ pub trait BankKeeper {
     ) -> Result<(), Self::Error>;
 }
 
+#[derive(Clone)]
 pub struct BankBalanceReader<S> {
     balance_store: JsonStore<SharedStore<S>, BalancesPath, Balances>,
 }
@@ -301,7 +311,7 @@ pub struct Bank<S, AR, AK> {
     account_keeper: AK,
 }
 
-impl<S: ProvableStore + Default, AR: AccountReader, AK: AccountKeeper> Bank<S, AR, AK> {
+impl<S: 'static + ProvableStore + Default, AR: AccountReader, AK: AccountKeeper> Bank<S, AR, AK> {
     pub fn new(store: SharedStore<S>, account_reader: AR, account_keeper: AK) -> Self {
         Self {
             store: store.clone(),
@@ -314,6 +324,12 @@ impl<S: ProvableStore + Default, AR: AccountReader, AK: AccountKeeper> Bank<S, A
             account_reader,
             account_keeper,
         }
+    }
+
+    pub fn service(&self) -> QueryServer<BankService<S>> {
+        QueryServer::new(BankService {
+            bank_reader: self.balance_reader.clone(),
+        })
     }
 
     pub fn bank_keeper(&self) -> &BankBalanceKeeper<S> {
@@ -416,5 +432,79 @@ where
 
     fn store(&self) -> &SharedStore<S> {
         &self.store
+    }
+}
+
+pub struct BankService<S> {
+    bank_reader: BankBalanceReader<S>,
+}
+
+#[tonic::async_trait]
+impl<S: ProvableStore + 'static> Query for BankService<S> {
+    async fn balance(
+        &self,
+        request: Request<QueryBalanceRequest>,
+    ) -> Result<Response<QueryBalanceResponse>, Status> {
+        debug!("Got bank balance request: {:?}", request);
+
+        let account_id = request
+            .get_ref()
+            .address
+            .parse()
+            .map_err(|e| Status::invalid_argument(format!("{}", e)))?;
+        let denom = Denom(request.get_ref().denom.clone());
+        let balances = self.bank_reader.get_all_balances(account_id);
+
+        Ok(Response::new(QueryBalanceResponse {
+            balance: balances
+                .into_iter()
+                .find(|c| c.denom == denom)
+                .map(|coin| RawCoin {
+                    denom: coin.denom.0,
+                    amount: coin.amount.to_string(),
+                }),
+        }))
+    }
+
+    async fn all_balances(
+        &self,
+        _request: Request<QueryAllBalancesRequest>,
+    ) -> Result<Response<QueryAllBalancesResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn total_supply(
+        &self,
+        _request: Request<QueryTotalSupplyRequest>,
+    ) -> Result<Response<QueryTotalSupplyResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn supply_of(
+        &self,
+        _request: Request<QuerySupplyOfRequest>,
+    ) -> Result<Response<QuerySupplyOfResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn params(
+        &self,
+        _request: Request<QueryParamsRequest>,
+    ) -> Result<Response<QueryParamsResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn denom_metadata(
+        &self,
+        _request: Request<QueryDenomMetadataRequest>,
+    ) -> Result<Response<QueryDenomMetadataResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn denoms_metadata(
+        &self,
+        _request: Request<QueryDenomsMetadataRequest>,
+    ) -> Result<Response<QueryDenomsMetadataResponse>, Status> {
+        unimplemented!()
     }
 }

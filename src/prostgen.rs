@@ -7,6 +7,11 @@ pub mod cosmos {
             include!("prostgen/cosmos.auth.v1beta1.rs");
         }
     }
+    pub mod bank {
+        pub mod v1beta1 {
+            include!("prostgen/cosmos.bank.v1beta1.rs");
+        }
+    }
 
     pub mod staking {
         pub mod v1beta1 {
