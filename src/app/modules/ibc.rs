@@ -699,19 +699,19 @@ impl<S: Store> ChannelReader for Ibc<S> {
 
     fn get_packet_receipt(
         &self,
-        key: &(PortId, ChannelId, Sequence),
+        (port_id, channel_id, sequence): &(PortId, ChannelId, Sequence),
     ) -> Result<Receipt, ChannelError> {
         self.packet_receipt_store
             .is_path_set(
                 Height::Pending,
                 &path::ReceiptsPath {
-                    port_id: key.0.clone(),
-                    channel_id: key.1,
-                    sequence: key.2,
+                    port_id: port_id.clone(),
+                    channel_id: *channel_id,
+                    sequence: *sequence,
                 },
             )
             .then(|| Receipt::Ok)
-            .ok_or_else(ChannelError::implementation_specific)
+            .ok_or_else(|| ChannelError::packet_receipt_not_found(*sequence))
     }
 
     fn get_packet_acknowledgement(
