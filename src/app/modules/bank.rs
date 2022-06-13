@@ -1,4 +1,4 @@
-use crate::app::modules::auth::{AccountKeeper, AccountReader, AuthAccount};
+use crate::app::modules::auth::{AccountKeeper, AccountReader, AuthAccount, ACCOUNT_PREFIX};
 use crate::app::modules::{Error as ModuleError, Module, QueryResult};
 use crate::app::store::{
     Codec, Height, JsonCodec, JsonStore, Path, ProvableStore, SharedStore, Store, TypedStore,
@@ -201,7 +201,7 @@ where
 {
     type Store = S;
 
-    fn deliver(&mut self, message: Any) -> Result<Vec<Event>, ModuleError> {
+    fn deliver(&mut self, message: Any, _signer: &AccountId) -> Result<Vec<Event>, ModuleError> {
         let message: MsgSend = Self::decode::<proto::cosmos::bank::v1beta1::MsgSend>(message)?
             .try_into()
             .map_err(|e| Error::msg_validation_failure(format!("{:?}", e)))?;
@@ -279,7 +279,7 @@ where
         _prove: bool,
     ) -> Result<QueryResult, ModuleError> {
         let account_id = match String::from_utf8(data.to_vec()) {
-            Ok(s) if s.starts_with("cosmos") => s, // TODO(hu55a1n1): check if valid identifier
+            Ok(s) if s.starts_with(ACCOUNT_PREFIX) => s, // TODO(hu55a1n1): check if valid identifier
             _ => return Err(ModuleError::not_handled()),
         };
 
