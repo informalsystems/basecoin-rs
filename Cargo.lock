@@ -734,7 +734,7 @@ dependencies = [
 [[package]]
 name = "ibc"
 version = "0.15.0"
-source = "git+https://github.com/informalsystems/ibc-rs.git?branch=basecoin/phase6#d0420ff724e3acd5a51b60ea11c85c882967ebea"
+source = "git+https://github.com/informalsystems/ibc-rs.git#ec5d513da617b44a542bed53097f35d74dfd9763"
 dependencies = [
  "bytes",
  "derive_more",
@@ -762,7 +762,7 @@ dependencies = [
 [[package]]
 name = "ibc-proto"
 version = "0.18.0"
-source = "git+https://github.com/informalsystems/ibc-rs.git?branch=basecoin/phase6#d0420ff724e3acd5a51b60ea11c85c882967ebea"
+source = "git+https://github.com/informalsystems/ibc-rs.git#ec5d513da617b44a542bed53097f35d74dfd9763"
 dependencies = [
  "base64",
  "bytes",
