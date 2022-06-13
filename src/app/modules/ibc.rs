@@ -1271,9 +1271,36 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
     /// end.
     async fn connection_channels(
         &self,
-        _request: tonic::Request<QueryConnectionChannelsRequest>,
-    ) -> Result<tonic::Response<QueryConnectionChannelsResponse>, tonic::Status> {
-        todo!()
+        request: Request<QueryConnectionChannelsRequest>,
+    ) -> Result<Response<QueryConnectionChannelsResponse>, tonic::Status> {
+        let path = "channelEnds"
+            .to_owned()
+            .try_into()
+            .expect("'commitments/ports' expected to be a valid Path");
+        let keys = self.raw_store.get_keys(&path);
+        let conn_id = ConnectionId::from_str(&request.get_ref().connection)
+            .map_err(|_| Status::invalid_argument("invalid connection id"))?;
+        let channels = keys
+            .into_iter()
+            .filter_map(|path| {
+                if let Ok(IbcPath::ChannelEnds(path)) = path.try_into() {
+                    let channel_end = self.channel_end_store.get(Height::Pending, &path)?;
+                    if channel_end.connection_hops.first() == Some(&conn_id) {
+                        return Some(IdentifiedChannelEnd::new(path.0, path.1, channel_end).into());
+                    }
+                }
+
+                None
+            })
+            .collect();
+        Ok(Response::new(QueryConnectionChannelsResponse {
+            channels,
+            pagination: None,
+            height: Some(RawHeight {
+                revision_number: 1,
+                revision_height: self.channel_end_store.current_height(),
+            }),
+        }))
     }
     /// ChannelClientState queries for the client state for the channel associated
     /// with the provided channel identifiers.
