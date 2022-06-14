@@ -25,7 +25,7 @@ use tracing::{debug, trace};
 
 /// Address of the account that the relayer uses to sign basecoin transactions.
 /// This is hardcoded as we don't verify signatures currently.
-const RELAYER_ACCOUNT: &str = "cosmos1snd5m4h0wt5ur55d47vpxla389r2xkf8dl6g9w";
+const RELAYER_ACCOUNT: &str = "cosmos12xpmzmfpf7tn57xg93rne2hc2q26lcfql5efws";
 pub(crate) const ACCOUNT_PREFIX: &str = "cosmos";
 
 #[derive(Clone)]
