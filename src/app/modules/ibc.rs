@@ -10,6 +10,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 
+use cosmrs::AccountId;
 use ibc::clients::ics07_tendermint::consensus_state::ConsensusState;
 use ibc::core::ics02_client::client_consensus::AnyConsensusState;
 use ibc::core::ics02_client::client_state::AnyClientState;
@@ -247,7 +248,7 @@ impl<S: ProvableStore> Ibc<S> {
 impl<S: ProvableStore> Module for Ibc<S> {
     type Store = S;
 
-    fn deliver(&mut self, message: Any) -> Result<Vec<Event>, ModuleError> {
+    fn deliver(&mut self, message: Any, _signer: &AccountId) -> Result<Vec<Event>, ModuleError> {
         let msg = decode(message).map_err(|_| ModuleError::not_handled())?;
 
         debug!("Dispatching message: {:?}", msg);

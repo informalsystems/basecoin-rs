@@ -3,13 +3,14 @@ mod bank;
 mod ibc;
 mod staking;
 
-pub(crate) use self::auth::Auth;
+pub(crate) use self::auth::{Auth, ACCOUNT_PREFIX};
 pub(crate) use self::bank::Bank;
 pub(crate) use self::ibc::{Ibc, IbcRouterBuilder, IbcTransferModule};
 pub(crate) use self::staking::Staking;
 
 use crate::app::store::{self, Height, Path, SharedStore};
 
+use cosmrs::AccountId;
 use flex_error::{define_error, TraceError};
 use ibc_proto::google::protobuf::Any;
 use tendermint::block::Header;
@@ -21,6 +22,9 @@ define_error! {
     Error {
         NotHandled
             | _ | { "no module could handle specified message" },
+        Custom
+            { reason: String }
+            | e | { format!("custom error: {0}", e.reason) },
         Store
             [ TraceError<store::Error> ]
             | _ | { "store error" },
@@ -53,7 +57,7 @@ pub(crate) trait Module: Send + Sync {
     /// * `Error::not_handled()` if message isn't known to OR hasn't been consumed (but possibly intercepted) by this module
     /// * Other errors iff message was meant to be consumed by module but resulted in an error
     /// * Resulting events on success
-    fn deliver(&mut self, _message: Any) -> Result<Vec<Event>, Error> {
+    fn deliver(&mut self, _message: Any, _signer: &AccountId) -> Result<Vec<Event>, Error> {
         Err(Error::not_handled())
     }
 

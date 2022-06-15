@@ -18,6 +18,7 @@ COPY entrypoint.sh /usr/bin/entrypoint.sh
 COPY tendermint-config/ /basecoin/.tendermint/config
 COPY hermes-config.toml /basecoin/.hermes/config.toml
 COPY one-chain /basecoin/one-chain
+COPY user_seed.json /basecoin/user_seed.json
 COPY tests/ /basecoin/tests
 
 RUN apt update && \
