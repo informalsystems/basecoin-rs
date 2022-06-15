@@ -39,5 +39,5 @@ proptest = "*"
 rand = "*"
 
 [patch.crates-io]
-ibc = { git = "https://github.com/informalsystems/ibc-rs.git" }
-ibc-proto = { git = "https://github.com/informalsystems/ibc-rs.git" }
+ibc = { git = "https://github.com/informalsystems/ibc-rs.git", branch = "master" }
+ibc-proto = { git = "https://github.com/informalsystems/ibc-rs.git", branch = "master" }
