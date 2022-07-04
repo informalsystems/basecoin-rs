@@ -10,7 +10,7 @@ example `genesis.json` file:
 ```json
 {
   "app_state": {
-    "cosmos1snd5m4h0wt5ur55d47vpxla389r2xkf8dl6g9w": {
+    "cosmos12xpmzmfpf7tn57xg93rne2hc2q26lcfql5efws": {
       "basecoin": "0x1000",
       "othercoin": "0x1000"
     },
@@ -79,9 +79,9 @@ The value `eyJvdGhlcmNvaW4iOjYwMDAsImJhc2Vjb2luIjozNTB9` is the base64-encoded s
 balance, which decodes to the string `"{"othercoin":6000,"basecoin":350}"` - this can be verified using 
 `echo "eyJvdGhlcmNvaW4iOjYwMDAsImJhc2Vjb2luIjozNTB9" | base64 -d`.
 
-Now, we query balance of sender's account (i.e. `cosmos1snd5m4h0wt5ur55d47vpxla389r2xkf8dl6g9w`):
+Now, we query balance of sender's account (i.e. `cosmos12xpmzmfpf7tn57xg93rne2hc2q26lcfql5efws`):
 ```bash
-curl http://localhost:26657/abci_query?data=\"cosmos1snd5m4h0wt5ur55d47vpxla389r2xkf8dl6g9w\"
+curl http://localhost:26657/abci_query?data=\"cosmos12xpmzmfpf7tn57xg93rne2hc2q26lcfql5efws\"
 ```
 ```json
 {

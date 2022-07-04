@@ -88,6 +88,7 @@ fn main() {
     };
     let ibc_client_service = ibc.client_service();
     let ibc_conn_service = ibc.connection_service();
+    let ibc_channel_service = ibc.channel_service();
 
     // register modules with the app
     let app = app_builder
@@ -110,6 +111,7 @@ fn main() {
         .add_service(TxServer::new(app))
         .add_service(ibc_client_service)
         .add_service(ibc_conn_service)
+        .add_service(ibc_channel_service)
         .add_service(auth_service)
         .add_service(bank_service)
         .add_service(staking.service())

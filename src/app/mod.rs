@@ -4,7 +4,7 @@ pub(crate) mod modules;
 mod response;
 pub(crate) mod store;
 
-use crate::app::modules::{Error, ErrorDetail, Module};
+use crate::app::modules::{Error, ErrorDetail, Module, ACCOUNT_PREFIX};
 use crate::app::response::ResponseFromErrorExt;
 use crate::app::store::{
     Height, Identifier, Path, ProvableStore, RevertibleStore, SharedStore, Store,
@@ -13,7 +13,8 @@ use crate::app::store::{
 use std::convert::TryInto;
 use std::sync::{Arc, RwLock};
 
-use cosmrs::Tx;
+use cosmrs::tx::{SignerInfo, SignerPublicKey};
+use cosmrs::{AccountId, Tx};
 use ibc_proto::cosmos::base::tendermint::v1beta1::{
     service_server::Service as HealthService, GetBlockByHeightRequest, GetBlockByHeightResponse,
     GetLatestBlockRequest, GetLatestBlockResponse, GetLatestValidatorSetRequest,
@@ -39,7 +40,7 @@ use tendermint_proto::crypto::ProofOp;
 use tendermint_proto::crypto::ProofOps;
 use tendermint_proto::p2p::DefaultNodeInfo;
 use tonic::{Request, Response, Status};
-use tracing::{debug, info};
+use tracing::{debug, error, info};
 
 type MainStore<S> = SharedStore<RevertibleStore<S>>;
 type ModuleStore<S> = RevertibleStore<S>;
@@ -118,24 +119,26 @@ impl<S: Default + ProvableStore> BaseCoinApp<S> {
     // Return:
     // * other errors immediately OR
     // * `Error::not_handled()` if all modules return `Error::not_handled()`
-    // * events from first successful deliver call OR
-    fn deliver_msg(&self, message: Any) -> Result<Vec<Event>, Error> {
+    // * events from first successful deliver call
+    fn deliver_msg(&self, message: Any, signer: &AccountId) -> Result<Vec<Event>, Error> {
         let mut modules = self.modules.write().unwrap();
         let mut handled = false;
         let mut events = vec![];
 
         for IdentifiedModule { module, .. } in modules.iter_mut() {
-            match module.deliver(message.clone()) {
+            match module.deliver(message.clone(), signer) {
                 Ok(mut msg_events) => {
                     events.append(&mut msg_events);
                     handled = true;
                     break;
                 }
                 Err(Error(ErrorDetail::NotHandled(_), _)) => continue,
-                Err(e) => return Err(e),
-            };
+                Err(e) => {
+                    error!("deliver message ({:?}) failed with error: {:?}", message, e);
+                    return Err(e);
+                }
+            }
         }
-
         if handled {
             Ok(events)
         } else {
@@ -251,6 +254,22 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
             }
         };
 
+        // Extract `AccountId` of first signer
+        let signer = {
+            let pubkey = match tx.auth_info.signer_infos.first() {
+                Some(&SignerInfo {
+                    public_key: Some(SignerPublicKey::Single(pubkey)),
+                    ..
+                }) => pubkey,
+                _ => return ResponseDeliverTx::from_error(2, "Empty signers"),
+            };
+            if let Ok(signer) = pubkey.account_id(ACCOUNT_PREFIX) {
+                signer
+            } else {
+                return ResponseDeliverTx::from_error(2, "Invalid signer");
+            }
+        };
+
         if tx.body.messages.is_empty() {
             return ResponseDeliverTx::from_error(2, "Empty Tx");
         }
@@ -263,7 +282,7 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
             };
 
             // try to deliver message to every module
-            match self.deliver_msg(message) {
+            match self.deliver_msg(message, &signer) {
                 // success - append events and continue with next message
                 Ok(mut msg_events) => {
                     events.append(&mut msg_events);

@@ -3,7 +3,7 @@
     "messages": [
       {
         "@type": "/cosmos.bank.v1beta1.MsgSend",
-        "from_address": "cosmos1snd5m4h0wt5ur55d47vpxla389r2xkf8dl6g9w",
+        "from_address": "cosmos12xpmzmfpf7tn57xg93rne2hc2q26lcfql5efws",
         "to_address": "cosmos1t2e0nyjhwn3revunvf2uperhftvhzu4euuzva9",
         "amount": [
           {

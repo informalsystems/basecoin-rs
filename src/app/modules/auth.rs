@@ -1,5 +1,5 @@
 use crate::app::modules::bank::Denom;
-use crate::app::modules::Module;
+use crate::app::modules::{Error as ModuleError, Module};
 use crate::app::store::{
     Height, Path, ProtobufStore, ProvableStore, SharedStore, Store, TypedStore,
 };
@@ -18,13 +18,15 @@ use ibc_proto::cosmos::auth::v1beta1::{
 use ibc_proto::google::protobuf::Any;
 use prost::Message;
 use serde_json::Value;
+use tendermint_proto::abci::Event;
 use tendermint_proto::Protobuf;
 use tonic::{Request, Response, Status};
 use tracing::{debug, trace};
 
 /// Address of the account that the relayer uses to sign basecoin transactions.
 /// This is hardcoded as we don't verify signatures currently.
-const RELAYER_ACCOUNT: &str = "cosmos1snd5m4h0wt5ur55d47vpxla389r2xkf8dl6g9w";
+const RELAYER_ACCOUNT: &str = "cosmos12xpmzmfpf7tn57xg93rne2hc2q26lcfql5efws";
+pub(crate) const ACCOUNT_PREFIX: &str = "cosmos";
 
 #[derive(Clone)]
 struct AccountsPath(AccountId);
@@ -194,6 +196,21 @@ impl<S: Store> Module for Auth<S> {
         }
     }
 
+    fn deliver(&mut self, _message: Any, signer: &AccountId) -> Result<Vec<Event>, ModuleError> {
+        let mut account = self
+            .account_reader
+            .get_account(signer.clone())
+            .map_err(|_| ModuleError::custom("unknown signer".to_string()))?;
+        account.sequence += 1;
+
+        self.account_keeper
+            .set_account(account)
+            .map_err(|_| ModuleError::custom("failed to increment signer sequence".to_string()))?;
+
+        // we're only intercepting the deliverTx here, so return unhandled.
+        Err(ModuleError::not_handled())
+    }
+
     fn store_mut(&mut self) -> &mut SharedStore<S> {
         &mut self.store
     }
@@ -261,8 +278,7 @@ impl<S: ProvableStore + 'static> Query for AuthService<S> {
         debug!("Got auth account request");
 
         let account_id = RELAYER_ACCOUNT.parse().unwrap();
-        let mut account = self.account_reader.get_account(account_id).unwrap();
-        account.sequence += 1;
+        let account = self.account_reader.get_account(account_id).unwrap();
 
         Ok(Response::new(QueryAccountResponse {
             account: Some(account.into()),
