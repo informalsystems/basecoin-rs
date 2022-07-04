@@ -1,8 +1,11 @@
-use crate::app::modules::bank::{BankKeeper, Coin, Denom};
-use crate::app::modules::{Error as ModuleError, Identifiable, Module, QueryResult};
+use crate::app::modules::bank::{BankBalanceKeeper, BankKeeper, Coin, Denom};
+use crate::app::modules::{
+    Error as ModuleError, Identifiable, Module, QueryResult, ACCOUNT_PREFIX,
+};
 use crate::app::store::{
     Height, JsonStore, Path, ProtobufStore, ProvableStore, SharedStore, Store, TypedSet, TypedStore,
 };
+use crate::IBC_TRANSFER_MODULE_ID;
 
 use std::borrow::Borrow;
 use std::collections::{BTreeMap, HashMap};
@@ -21,7 +24,7 @@ use ibc::applications::transfer::context::{
 };
 use ibc::applications::transfer::relay::send_transfer::send_transfer;
 use ibc::applications::transfer::{
-    error::Error as Ics20Error, msgs::transfer::MsgTransfer, PrefixedCoin,
+    error::Error as Ics20Error, msgs::transfer::MsgTransfer, PrefixedCoin, VERSION,
 };
 use ibc::clients::ics07_tendermint::consensus_state::ConsensusState;
 use ibc::core::ics02_client::client_consensus::AnyConsensusState;
@@ -99,7 +102,7 @@ use ibc_proto::ibc::core::connection::v1::{
     QueryConnectionsResponse, Version as RawVersion,
 };
 use prost::Message;
-use sha2::Digest;
+use sha2::{Digest, Sha256};
 use tendermint::abci::responses::Event as TendermintEvent;
 use tendermint::block::Header;
 use tendermint_proto::abci::{Event, EventAttribute};
@@ -267,20 +270,48 @@ impl<S: ProvableStore> Ibc<S> {
     }
 }
 
-impl<S: ProvableStore> Module for Ibc<S> {
+impl<S: 'static + ProvableStore> Module for Ibc<S> {
     type Store = S;
 
     fn deliver(&mut self, message: Any, _signer: &AccountId) -> Result<Vec<Event>, ModuleError> {
-        let msg = decode(message).map_err(|_| ModuleError::not_handled())?;
+        if let Ok(msg) = decode(message.clone()) {
+            debug!("Dispatching message: {:?}", msg);
 
-        debug!("Dispatching message: {:?}", msg);
-        match dispatch(self, msg) {
-            Ok(output) => Ok(output
+            match dispatch(self, msg) {
+                Ok(output) => Ok(output
+                    .events
+                    .into_iter()
+                    .map(|ev| TmEvent(ev.try_into().unwrap()).into())
+                    .collect()),
+                Err(e) => Err(ModuleError::ibc(e)),
+            }
+        } else if let Ok(transfer_msg) = MsgTransfer::try_from(message) {
+            debug!("Dispatching message: {:?}", transfer_msg);
+
+            let transfer_module_id: ModuleId = IBC_TRANSFER_MODULE_ID.parse().unwrap();
+            let transfer_module = {
+                let transfer_module = self
+                    .router
+                    .get_route_mut(&transfer_module_id)
+                    .ok_or_else(ModuleError::not_handled)?;
+                transfer_module
+                    .as_any_mut()
+                    .downcast_mut::<IbcTransferModule<S, BankBalanceKeeper<S>>>()
+                    .expect("Transfer Module <-> ModuleId mismatch")
+            };
+
+            let mut output = HandlerOutputBuilder::new();
+            send_transfer(transfer_module, &mut output, transfer_msg)
+                .map_err(|e| ModuleError::custom(e.to_string()))?;
+
+            Ok(output
+                .with_result(())
                 .events
                 .into_iter()
                 .map(|ev| TmEvent(ev.try_into().unwrap()).into())
-                .collect()),
-            Err(e) => Err(ModuleError::ibc(e)),
+                .collect())
+        } else {
+            Err(ModuleError::not_handled())
         }
     }
 
