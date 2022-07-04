@@ -2009,6 +2009,35 @@ impl<S: Store, BK> Ics20Reader for IbcTransferModule<S, BK> {
         Ok(PortId::transfer())
     }
 
+    fn get_channel_escrow_address(
+        &self,
+        port_id: &PortId,
+        channel_id: ChannelId,
+    ) -> Result<Self::AccountId, Ics20Error> {
+        fn cosmos_adr028_escrow_address(port_id: &PortId, channel_id: ChannelId) -> Vec<u8> {
+            let contents = format!("{}/{}", port_id, channel_id);
+
+            let mut hasher = Sha256::new();
+            hasher.update(VERSION.as_bytes());
+            hasher.update([0]);
+            hasher.update(contents.as_bytes());
+
+            let mut hash = hasher.finalize().to_vec();
+            hash.truncate(20);
+            hash
+        }
+
+        let account_id = AccountId::new(
+            ACCOUNT_PREFIX,
+            &cosmos_adr028_escrow_address(port_id, channel_id),
+        )
+        .map_err(|_| Ics20Error::parse_account_failure())?;
+        account_id
+            .to_string()
+            .parse()
+            .map_err(|_| Ics20Error::parse_account_failure())
+    }
+
     fn is_send_enabled(&self) -> bool {
         true
     }
