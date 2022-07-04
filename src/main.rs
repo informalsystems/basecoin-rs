@@ -73,18 +73,18 @@ fn main() {
 
     let staking = Staking::new(app_builder.module_store(&prefix::Staking {}.identifier()));
 
-    let ibc = {
+    let (ibc, ibc_transfer_service) = {
         let mut ibc = Ibc::new(app_builder.module_store(&prefix::Ibc {}.identifier()));
 
         let transfer_module_id: ModuleId = IBC_TRANSFER_MODULE_ID.parse().unwrap();
         let module = IbcTransferModule::new(ibc.store().clone(), bank.bank_keeper().clone());
         let router = IbcRouterBuilder::default()
-            .add_route(transfer_module_id.clone(), module)
+            .add_route(transfer_module_id.clone(), module.clone())
             .unwrap()
             .build();
         ibc.scope_port_to_module(PortId::transfer(), transfer_module_id);
 
-        ibc.with_router(router)
+        (ibc.with_router(router), module.service())
     };
     let ibc_client_service = ibc.client_service();
     let ibc_conn_service = ibc.connection_service();
@@ -112,6 +112,7 @@ fn main() {
         .add_service(ibc_client_service)
         .add_service(ibc_conn_service)
         .add_service(ibc_channel_service)
+        .add_service(ibc_transfer_service)
         .add_service(auth_service)
         .add_service(bank_service)
         .add_service(staking.service())

@@ -8,7 +8,7 @@ use std::borrow::Borrow;
 use std::collections::{BTreeMap, HashMap};
 use std::convert::{TryFrom, TryInto};
 use std::str::FromStr;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use cosmrs::AccountId;
@@ -19,7 +19,10 @@ use ibc::applications::transfer::context::{
 use ibc::applications::transfer::context::{
     BankKeeper as IbcBankKeeper, Ics20Context, Ics20Keeper, Ics20Reader,
 };
-use ibc::applications::transfer::{error::Error as Ics20Error, PrefixedCoin};
+use ibc::applications::transfer::relay::send_transfer::send_transfer;
+use ibc::applications::transfer::{
+    error::Error as Ics20Error, msgs::transfer::MsgTransfer, PrefixedCoin,
+};
 use ibc::clients::ics07_tendermint::consensus_state::ConsensusState;
 use ibc::core::ics02_client::client_consensus::AnyConsensusState;
 use ibc::core::ics02_client::client_state::AnyClientState;
@@ -47,10 +50,15 @@ use ibc::core::ics26_routing::context::{
     RouterBuilder,
 };
 use ibc::core::ics26_routing::handler::{decode, dispatch};
+use ibc::handler::HandlerOutputBuilder;
 use ibc::signer::Signer;
 use ibc::timestamp::Timestamp;
 use ibc::Height as IbcHeight;
 use ibc_proto::google::protobuf::Any;
+use ibc_proto::ibc::applications::transfer::v1::msg_server::{Msg as MsgService, MsgServer};
+use ibc_proto::ibc::applications::transfer::v1::{
+    MsgTransfer as RawMsgTransfer, MsgTransferResponse,
+};
 use ibc_proto::ibc::core::channel::v1::query_server::{
     Query as ChannelQuery, QueryServer as ChannelQueryServer,
 };
@@ -1656,7 +1664,9 @@ pub struct IbcTransferModule<S, BK> {
     packet_commitment_store: JsonStore<SharedStore<S>, path::CommitmentsPath, PacketCommitment>,
 }
 
-impl<S: Store, BK> IbcTransferModule<S, BK> {
+impl<S: 'static + Store, BK: 'static + Send + Sync + BankKeeper<Coin = Coin>>
+    IbcTransferModule<S, BK>
+{
     pub fn new(store: SharedStore<S>, bank_keeper: BK) -> Self {
         Self {
             bank_keeper,
@@ -1668,6 +1678,12 @@ impl<S: Store, BK> IbcTransferModule<S, BK> {
             packet_commitment_store: TypedStore::new(store.clone()),
             store,
         }
+    }
+
+    pub fn service(self) -> MsgServer<IbcTransferMsgService<S, BK>> {
+        MsgServer::new(IbcTransferMsgService {
+            transfer_module: Arc::new(Mutex::new(self)),
+        })
     }
 }
 
@@ -2108,4 +2124,33 @@ impl<S: Store, BK> ChannelReader for IbcTransferModule<S, BK> {
 
 impl<S: Store, BK: BankKeeper<Coin = Coin>> Ics20Context for IbcTransferModule<S, BK> {
     type AccountId = Signer;
+}
+
+#[derive(Clone)]
+pub struct IbcTransferMsgService<S, BK> {
+    transfer_module: Arc<Mutex<IbcTransferModule<S, BK>>>,
+}
+
+#[tonic::async_trait]
+impl<S: Store + 'static, BK: 'static + Send + Sync + BankKeeper<Coin = Coin>> MsgService
+    for IbcTransferMsgService<S, BK>
+{
+    async fn transfer(
+        &self,
+        request: Request<RawMsgTransfer>,
+    ) -> Result<Response<MsgTransferResponse>, Status> {
+        let request: MsgTransfer = request
+            .into_inner()
+            .try_into()
+            .map_err(|e: Ics20Error| Status::invalid_argument(e.to_string()))?;
+
+        send_transfer(
+            &mut *self.transfer_module.lock().unwrap(),
+            &mut HandlerOutputBuilder::new(),
+            request,
+        )
+        .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(MsgTransferResponse {}))
+    }
 }
