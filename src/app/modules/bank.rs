@@ -70,6 +70,15 @@ pub struct Coin {
     pub amount: U256,
 }
 
+impl Coin {
+    fn new_empty(denom: Denom) -> Self {
+        Self {
+            denom,
+            amount: 0u64.into(),
+        }
+    }
+}
+
 impl From<(Denom, U256)> for Coin {
     fn from((denom, amount): (Denom, U256)) -> Self {
         Self { denom, amount }
@@ -198,14 +207,13 @@ impl<S: Store> BankKeeper for BankBalanceKeeper<S> {
                 .filter(|c| c.amount >= amount)
                 .ok_or_else(Error::insufficient_source_funds)?;
 
-            if dst_balances.iter().any(|c| c.denom == denom) {
-                dst_balances.push(Coin {
-                    denom: denom.clone(),
-                    amount: 0u64.into(),
-                });
-            }
-
-            let dst_balance = dst_balances.iter_mut().find(|c| c.denom == denom).unwrap();
+            let dst_balance =
+                if let Some(balance) = dst_balances.iter_mut().find(|c| c.denom == denom) {
+                    balance
+                } else {
+                    dst_balances.push(Coin::new_empty(denom));
+                    dst_balances.last_mut().unwrap()
+                };
 
             if dst_balance.amount > U256::MAX - amount {
                 return Err(Error::dest_fund_overflow());
