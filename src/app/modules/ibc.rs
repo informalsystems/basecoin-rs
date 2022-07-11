@@ -865,12 +865,17 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
         &mut self,
         key: (PortId, ChannelId, Sequence),
     ) -> Result<(), ChannelError> {
-        self.packet_commitment_store.delete(&path::CommitmentsPath {
-            port_id: key.0,
-            channel_id: key.1,
-            sequence: key.2,
-        });
-        Ok(())
+        self.packet_commitment_store
+            .set(
+                path::CommitmentsPath {
+                    port_id: key.0,
+                    channel_id: key.1,
+                    sequence: key.2,
+                },
+                vec![].into(),
+            )
+            .map(|_| ())
+            .map_err(|_| ChannelError::implementation_specific())
     }
 
     fn store_packet_receipt(
