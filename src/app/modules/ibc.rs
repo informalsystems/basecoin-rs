@@ -3,7 +3,8 @@ use crate::app::modules::{
     Error as ModuleError, Identifiable, Module, QueryResult, ACCOUNT_PREFIX,
 };
 use crate::app::store::{
-    Height, JsonStore, Path, ProtobufStore, ProvableStore, SharedStore, Store, TypedSet, TypedStore,
+    BinStore, Height, JsonStore, Path, ProtobufStore, ProvableStore, SharedStore, Store, TypedSet,
+    TypedStore,
 };
 use crate::IBC_TRANSFER_MODULE_ID;
 
@@ -203,11 +204,11 @@ pub struct Ibc<S> {
     /// A typed-store for ack sequences
     ack_sequence_store: JsonStore<SharedStore<S>, path::SeqAcksPath, Sequence>,
     /// A typed-store for packet commitments
-    packet_commitment_store: JsonStore<SharedStore<S>, path::CommitmentsPath, PacketCommitment>,
+    packet_commitment_store: BinStore<SharedStore<S>, path::CommitmentsPath, PacketCommitment>,
     /// A typed-store for packet receipts
     packet_receipt_store: TypedSet<SharedStore<S>, path::ReceiptsPath>,
     /// A typed-store for packet ack
-    packet_ack_store: JsonStore<SharedStore<S>, path::AcksPath, AcknowledgementCommitment>,
+    packet_ack_store: BinStore<SharedStore<S>, path::AcksPath, AcknowledgementCommitment>,
 }
 
 impl<S: 'static + ProvableStore + Default> Ibc<S> {
@@ -1692,7 +1693,7 @@ pub struct IbcTransferModule<S, BK> {
     /// A typed-store for send sequences
     send_sequence_store: JsonStore<SharedStore<S>, path::SeqSendsPath, Sequence>,
     /// A typed-store for packet commitments
-    packet_commitment_store: JsonStore<SharedStore<S>, path::CommitmentsPath, PacketCommitment>,
+    packet_commitment_store: BinStore<SharedStore<S>, path::CommitmentsPath, PacketCommitment>,
 }
 
 impl<S: 'static + Store, BK: 'static + Send + Sync + BankKeeper<Coin = Coin>>
