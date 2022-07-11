@@ -27,6 +27,9 @@ pub(crate) type ProtobufStore<S, K, V, R> = TypedStore<S, K, ProtobufCodec<V, R>
 /// A `TypedSet` that stores only paths and no values
 pub(crate) type TypedSet<S, K> = TypedStore<S, K, NullCodec>;
 
+/// A `TypedStore` that uses the `BinCodec`
+pub(crate) type BinStore<S, K, V> = TypedStore<S, K, BinCodec<V>>;
+
 /// A newtype representing a valid ICS024 identifier.
 /// Implements `Deref<Target=String>`.
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Clone)]
@@ -502,6 +505,26 @@ where
     fn decode(bytes: &[u8]) -> Option<Self::Type> {
         let r = R::decode(bytes).ok()?;
         r.try_into().ok()
+    }
+}
+
+/// A binary codec that uses `serde_json` to encode/decode as a JSON string
+#[derive(Clone)]
+pub(crate) struct BinCodec<T>(PhantomData<T>);
+
+impl<T> Codec for BinCodec<T>
+where
+    T: AsRef<[u8]> + From<Vec<u8>>,
+{
+    type Type = T;
+    type Encoded = Vec<u8>;
+
+    fn encode(d: &Self::Type) -> Option<Self::Encoded> {
+        Some(d.as_ref().to_vec())
+    }
+
+    fn decode(bytes: &[u8]) -> Option<Self::Type> {
+        Some(bytes.to_vec().into())
     }
 }
 
