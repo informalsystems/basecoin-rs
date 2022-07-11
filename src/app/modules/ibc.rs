@@ -1453,9 +1453,14 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
 
         let packet_states: Vec<PacketState> = commitment_paths
             .into_iter()
-            .map(|path| {
+            .filter_map(|path| {
                 match IbcPath::try_from(path) {
-                    Ok(IbcPath::Commitments(commitments_ibc_path)) => {
+                    Ok(IbcPath::Commitments(commitments_ibc_path))
+                        if commitments_ibc_path.channel_id.to_string()
+                            == request.get_ref().channel_id
+                            && commitments_ibc_path.port_id.to_string()
+                                == request.get_ref().port_id =>
+                    {
                         let commitments_path: Path = commitments_ibc_path.into();
                         // unwrap() because all paths were returned by `get_keys()`
                         let commitment = self
@@ -1472,11 +1477,12 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
                             .parse()
                             .expect("Invalid sequence number in commitments path");
 
-                        PacketState {
-                            port_id: request.get_ref().port_id.clone(),
-                            channel_id: request.get_ref().channel_id.clone(),
-                            sequence,
-                            data: commitment,
+                            Some(PacketState {
+                                port_id: request.get_ref().port_id.clone(),
+                                channel_id: request.get_ref().channel_id.clone(),
+                                sequence,
+                                data: commitment,
+                            })
                         }
                     }
                     _ => panic!("unexpected path"),
