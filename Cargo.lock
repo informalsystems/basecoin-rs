@@ -733,8 +733,8 @@ dependencies = [
 
 [[package]]
 name = "ibc"
-version = "0.15.0"
-source = "git+https://github.com/informalsystems/ibc-rs.git?rev=ad2d8c5#ad2d8c59083c4670c4ed0d8b6d446040fa7044f1"
+version = "0.16.0"
+source = "git+https://github.com/informalsystems/ibc-rs.git?branch=hu55a1n1/2386-fix-ics20-ds-serde#979f3c6432de5f4256eed4942267faf074813732"
 dependencies = [
  "bytes",
  "derive_more",
@@ -761,8 +761,8 @@ dependencies = [
 
 [[package]]
 name = "ibc-proto"
-version = "0.18.0"
-source = "git+https://github.com/informalsystems/ibc-rs.git?rev=ad2d8c5#ad2d8c59083c4670c4ed0d8b6d446040fa7044f1"
+version = "0.19.0"
+source = "git+https://github.com/informalsystems/ibc-rs.git?branch=hu55a1n1/2386-fix-ics20-ds-serde#979f3c6432de5f4256eed4942267faf074813732"
 dependencies = [
  "base64",
  "bytes",

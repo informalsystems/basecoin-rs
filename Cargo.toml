@@ -15,8 +15,8 @@ description = """
 [dependencies]
 cosmrs = "0.7.0"
 flex-error = { version = "0.4.2", features = ["eyre_tracer"] }
-ibc = "=0.15.0"
-ibc-proto = { version = "=0.18.0", default-features = false, features = ["server"] }
+ibc = "=0.16.0"
+ibc-proto = { version = "=0.19.0", default-features = false, features = ["server"] }
 ics23 = { version = "=0.8.0-alpha", default-features = false }
 prost = { version = "0.10", default-features = false }
 serde = "1.0"
@@ -39,5 +39,5 @@ proptest = "*"
 rand = "*"
 
 [patch.crates-io]
-ibc = { git = "https://github.com/informalsystems/ibc-rs.git", rev = "ad2d8c5" }
-ibc-proto = { git = "https://github.com/informalsystems/ibc-rs.git", rev = "ad2d8c5" }
+ibc = { git = "https://github.com/informalsystems/ibc-rs.git", branch = "hu55a1n1/2386-fix-ics20-ds-serde" }
+ibc-proto = { git = "https://github.com/informalsystems/ibc-rs.git", branch = "hu55a1n1/2386-fix-ics20-ds-serde" }

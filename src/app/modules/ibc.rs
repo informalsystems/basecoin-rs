@@ -401,8 +401,8 @@ impl<S: Store> ClientReader for Ibc<S> {
     ) -> Result<AnyConsensusState, ClientError> {
         let path = path::ClientConsensusStatePath {
             client_id: client_id.clone(),
-            epoch: height.revision_number,
-            height: height.revision_height,
+            epoch: height.revision_number(),
+            height: height.revision_height(),
         };
         self.consensus_state_store
             .get(Height::Pending, &path)
@@ -421,7 +421,7 @@ impl<S: Store> ClientReader for Ibc<S> {
         let keys = self.store.get_keys(&path);
         let found_path = keys.into_iter().find_map(|path| {
             if let Ok(IbcPath::ClientConsensusState(path)) = IbcPath::try_from(path) {
-                if height > IbcHeight::new(path.epoch, path.height) {
+                if height > IbcHeight::new(path.epoch, path.height).unwrap() {
                     return Some(path);
                 }
             }
@@ -451,7 +451,7 @@ impl<S: Store> ClientReader for Ibc<S> {
         let keys = self.store.get_keys(&path);
         let pos = keys.iter().position(|path| {
             if let Ok(IbcPath::ClientConsensusState(path)) = IbcPath::try_from(path.clone()) {
-                height >= IbcHeight::new(path.epoch, path.height)
+                height >= IbcHeight::new(path.epoch, path.height).unwrap()
             } else {
                 false
             }
@@ -477,23 +477,19 @@ impl<S: Store> ClientReader for Ibc<S> {
     }
 
     fn host_height(&self) -> IbcHeight {
-        IbcHeight::new(0, self.store.current_height())
+        IbcHeight::new(0, self.store.current_height()).unwrap()
     }
 
     fn host_consensus_state(&self, height: IbcHeight) -> Result<AnyConsensusState, ClientError> {
         let consensus_state = self
             .consensus_states
-            .get(&height.revision_height)
+            .get(&height.revision_height())
             .ok_or_else(|| ClientError::missing_local_consensus_state(height))?;
         Ok(AnyConsensusState::Tendermint(consensus_state.clone()))
     }
 
     fn pending_host_consensus_state(&self) -> Result<AnyConsensusState, ClientError> {
-        let pending_height = {
-            let mut h = ClientReader::host_height(self);
-            h.revision_height += 1;
-            h
-        };
+        let pending_height = ClientReader::host_height(self).increment();
         ClientReader::host_consensus_state(self, pending_height)
     }
 
@@ -535,8 +531,8 @@ impl<S: Store> ClientKeeper for Ibc<S> {
             .set(
                 path::ClientConsensusStatePath {
                     client_id,
-                    epoch: height.revision_number,
-                    height: height.revision_height,
+                    epoch: height.revision_number(),
+                    height: height.revision_height(),
                 },
                 consensus_state,
             )
@@ -585,11 +581,11 @@ impl<S: Store> ConnectionReader for Ibc<S> {
     }
 
     fn host_current_height(&self) -> IbcHeight {
-        IbcHeight::new(0, self.store.current_height())
+        ClientReader::host_height(self)
     }
 
     fn host_oldest_height(&self) -> IbcHeight {
-        IbcHeight::zero()
+        IbcHeight::new(0, 1).unwrap()
     }
 
     fn commitment_prefix(&self) -> CommitmentPrefix {
@@ -661,7 +657,7 @@ impl<S: Store> ChannelReader for Ibc<S> {
         self.channel_end_store
             .get(
                 Height::Pending,
-                &path::ChannelEndsPath(port_id.clone(), *chan_id),
+                &path::ChannelEndsPath(port_id.clone(), chan_id.clone()),
             )
             .ok_or_else(ChannelError::implementation_specific)
     }
@@ -713,7 +709,7 @@ impl<S: Store> ChannelReader for Ibc<S> {
         self.send_sequence_store
             .get(
                 Height::Pending,
-                &path::SeqSendsPath(port_id.clone(), *chan_id),
+                &path::SeqSendsPath(port_id.clone(), chan_id.clone()),
             )
             .ok_or_else(ChannelError::implementation_specific)
     }
@@ -725,7 +721,7 @@ impl<S: Store> ChannelReader for Ibc<S> {
         self.recv_sequence_store
             .get(
                 Height::Pending,
-                &path::SeqRecvsPath(port_id.clone(), *chan_id),
+                &path::SeqRecvsPath(port_id.clone(), chan_id.clone()),
             )
             .ok_or_else(ChannelError::implementation_specific)
     }
@@ -737,7 +733,7 @@ impl<S: Store> ChannelReader for Ibc<S> {
         self.ack_sequence_store
             .get(
                 Height::Pending,
-                &path::SeqAcksPath(port_id.clone(), *chan_id),
+                &path::SeqAcksPath(port_id.clone(), chan_id.clone()),
             )
             .ok_or_else(ChannelError::implementation_specific)
     }
@@ -751,7 +747,7 @@ impl<S: Store> ChannelReader for Ibc<S> {
                 Height::Pending,
                 &path::CommitmentsPath {
                     port_id: key.0.clone(),
-                    channel_id: key.1,
+                    channel_id: key.1.clone(),
                     sequence: key.2,
                 },
             )
@@ -767,7 +763,7 @@ impl<S: Store> ChannelReader for Ibc<S> {
                 Height::Pending,
                 &path::ReceiptsPath {
                     port_id: port_id.clone(),
-                    channel_id: *channel_id,
+                    channel_id: channel_id.clone(),
                     sequence: *sequence,
                 },
             )
@@ -784,7 +780,7 @@ impl<S: Store> ChannelReader for Ibc<S> {
                 Height::Pending,
                 &path::AcksPath {
                     port_id: key.0.clone(),
-                    channel_id: key.1,
+                    channel_id: key.1.clone(),
                     sequence: key.2,
                 },
             )
@@ -1591,7 +1587,7 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
             .filter(|seq| {
                 let receipts_path: Path = path::ReceiptsPath {
                     port_id: port_id.clone(),
-                    channel_id,
+                    channel_id: channel_id.clone(),
                     sequence: Sequence::from(*seq),
                 }
                 .into();
@@ -1628,7 +1624,7 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
                 // commitment (upon receiving an ack, the sent packet commitment is deleted).
                 let commitments_path: Path = path::CommitmentsPath {
                     port_id: port_id.clone(),
-                    channel_id,
+                    channel_id: channel_id.clone(),
                     sequence: Sequence::from(*seq),
                 }
                 .into();
@@ -2027,9 +2023,9 @@ impl<S: Store, BK> Ics20Reader for IbcTransferModule<S, BK> {
     fn get_channel_escrow_address(
         &self,
         port_id: &PortId,
-        channel_id: ChannelId,
+        channel_id: &ChannelId,
     ) -> Result<Self::AccountId, Ics20Error> {
-        fn cosmos_adr028_escrow_address(port_id: &PortId, channel_id: ChannelId) -> Vec<u8> {
+        fn cosmos_adr028_escrow_address(port_id: &PortId, channel_id: &ChannelId) -> Vec<u8> {
             let contents = format!("{}/{}", port_id, channel_id);
 
             let mut hasher = Sha256::new();
@@ -2070,7 +2066,7 @@ impl<S: Store, BK> ChannelReader for IbcTransferModule<S, BK> {
         self.channel_end_store
             .get(
                 Height::Pending,
-                &path::ChannelEndsPath(port_id.clone(), *chan_id),
+                &path::ChannelEndsPath(port_id.clone(), chan_id.clone()),
             )
             .ok_or_else(ChannelError::implementation_specific)
     }
@@ -2101,8 +2097,8 @@ impl<S: Store, BK> ChannelReader for IbcTransferModule<S, BK> {
     ) -> Result<AnyConsensusState, ChannelError> {
         let path = path::ClientConsensusStatePath {
             client_id: client_id.clone(),
-            epoch: height.revision_number,
-            height: height.revision_height,
+            epoch: height.revision_number(),
+            height: height.revision_height(),
         };
         self.consensus_state_store
             .get(Height::Pending, &path)
@@ -2116,7 +2112,7 @@ impl<S: Store, BK> ChannelReader for IbcTransferModule<S, BK> {
         self.send_sequence_store
             .get(
                 Height::Pending,
-                &path::SeqSendsPath(port_id.clone(), *chan_id),
+                &path::SeqSendsPath(port_id.clone(), chan_id.clone()),
             )
             .ok_or_else(ChannelError::implementation_specific)
     }
@@ -2161,7 +2157,7 @@ impl<S: Store, BK> ChannelReader for IbcTransferModule<S, BK> {
     }
 
     fn host_height(&self) -> IbcHeight {
-        IbcHeight::new(0, self.store.current_height())
+        IbcHeight::new(0, self.store.current_height()).unwrap()
     }
 
     fn host_consensus_state(&self, _height: IbcHeight) -> Result<AnyConsensusState, ChannelError> {
