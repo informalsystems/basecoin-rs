@@ -1470,12 +1470,15 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
                             "commitment path returned by get_keys() had no associated commitment",
                         );
 
-                        // commitments_path format: "commitments/ports/{}/channels/{}/sequences/{}"
-                        let sequence_id =
-                            commitments_path.get(6).expect("malformed commitments path");
-                        let sequence: u64 = sequence_id
-                            .parse()
-                            .expect("Invalid sequence number in commitments path");
+                        if commitment.is_empty() {
+                            None
+                        } else {
+                            // commitments_path format: "commitments/ports/{}/channels/{}/sequences/{}"
+                            let sequence_id =
+                                commitments_path.get(6).expect("malformed commitments path");
+                            let sequence: u64 = sequence_id
+                                .parse()
+                                .expect("Invalid sequence number in commitments path");
 
                             Some(PacketState {
                                 port_id: request.get_ref().port_id.clone(),
