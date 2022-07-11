@@ -1488,7 +1488,7 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
                             })
                         }
                     }
-                    _ => panic!("unexpected path"),
+                    _ => None,
                 }
             })
             .collect();
