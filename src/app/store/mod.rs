@@ -509,7 +509,7 @@ where
     }
 }
 
-/// A binary codec that uses `serde_json` to encode/decode as a JSON string
+/// A binary codec that uses `AsRef<[u8]>` and `From<Vec<u8>>` to encode and decode respectively.
 #[derive(Clone)]
 pub(crate) struct BinCodec<T>(PhantomData<T>);
 
