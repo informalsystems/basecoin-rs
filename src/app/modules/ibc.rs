@@ -3,7 +3,7 @@ use std::{
     collections::{BTreeMap, HashMap},
     convert::{TryFrom, TryInto},
     str::FromStr,
-    sync::{Arc, Mutex},
+    sync::Arc,
     time::Duration,
 };
 
@@ -64,51 +64,42 @@ use ibc::{
 };
 use ibc_proto::{
     google::protobuf::Any,
-    ibc::{
-        applications::transfer::v1::{
-            msg_server::{Msg as MsgService, MsgServer},
-            MsgTransfer as RawMsgTransfer, MsgTransferResponse,
+    ibc::core::{
+        channel::v1::{
+            query_server::{Query as ChannelQuery, QueryServer as ChannelQueryServer},
+            Channel as RawChannelEnd, IdentifiedChannel as RawIdentifiedChannel, PacketState,
+            QueryChannelClientStateRequest, QueryChannelClientStateResponse,
+            QueryChannelConsensusStateRequest, QueryChannelConsensusStateResponse,
+            QueryChannelRequest, QueryChannelResponse, QueryChannelsRequest, QueryChannelsResponse,
+            QueryConnectionChannelsRequest, QueryConnectionChannelsResponse,
+            QueryNextSequenceReceiveRequest, QueryNextSequenceReceiveResponse,
+            QueryPacketAcknowledgementRequest, QueryPacketAcknowledgementResponse,
+            QueryPacketAcknowledgementsRequest, QueryPacketAcknowledgementsResponse,
+            QueryPacketCommitmentRequest, QueryPacketCommitmentResponse,
+            QueryPacketCommitmentsRequest, QueryPacketCommitmentsResponse,
+            QueryPacketReceiptRequest, QueryPacketReceiptResponse, QueryUnreceivedAcksRequest,
+            QueryUnreceivedAcksResponse, QueryUnreceivedPacketsRequest,
+            QueryUnreceivedPacketsResponse,
         },
-        core::{
-            channel::v1::{
-                query_server::{Query as ChannelQuery, QueryServer as ChannelQueryServer},
-                Channel as RawChannelEnd, IdentifiedChannel as RawIdentifiedChannel, PacketState,
-                QueryChannelClientStateRequest, QueryChannelClientStateResponse,
-                QueryChannelConsensusStateRequest, QueryChannelConsensusStateResponse,
-                QueryChannelRequest, QueryChannelResponse, QueryChannelsRequest,
-                QueryChannelsResponse, QueryConnectionChannelsRequest,
-                QueryConnectionChannelsResponse, QueryNextSequenceReceiveRequest,
-                QueryNextSequenceReceiveResponse, QueryPacketAcknowledgementRequest,
-                QueryPacketAcknowledgementResponse, QueryPacketAcknowledgementsRequest,
-                QueryPacketAcknowledgementsResponse, QueryPacketCommitmentRequest,
-                QueryPacketCommitmentResponse, QueryPacketCommitmentsRequest,
-                QueryPacketCommitmentsResponse, QueryPacketReceiptRequest,
-                QueryPacketReceiptResponse, QueryUnreceivedAcksRequest,
-                QueryUnreceivedAcksResponse, QueryUnreceivedPacketsRequest,
-                QueryUnreceivedPacketsResponse,
-            },
-            client::v1::{
-                query_server::{Query as ClientQuery, QueryServer as ClientQueryServer},
-                ConsensusStateWithHeight, Height as RawHeight, IdentifiedClientState,
-                QueryClientParamsRequest, QueryClientParamsResponse, QueryClientStateRequest,
-                QueryClientStateResponse, QueryClientStatesRequest, QueryClientStatesResponse,
-                QueryClientStatusRequest, QueryClientStatusResponse, QueryConsensusStateRequest,
-                QueryConsensusStateResponse, QueryConsensusStatesRequest,
-                QueryConsensusStatesResponse, QueryUpgradedClientStateRequest,
-                QueryUpgradedClientStateResponse, QueryUpgradedConsensusStateRequest,
-                QueryUpgradedConsensusStateResponse,
-            },
-            commitment::v1::MerklePrefix,
-            connection::v1::{
-                query_server::{Query as ConnectionQuery, QueryServer as ConnectionQueryServer},
-                ConnectionEnd as RawConnectionEnd, Counterparty as RawCounterParty,
-                IdentifiedConnection as RawIdentifiedConnection, QueryClientConnectionsRequest,
-                QueryClientConnectionsResponse, QueryConnectionClientStateRequest,
-                QueryConnectionClientStateResponse, QueryConnectionConsensusStateRequest,
-                QueryConnectionConsensusStateResponse, QueryConnectionRequest,
-                QueryConnectionResponse, QueryConnectionsRequest, QueryConnectionsResponse,
-                Version as RawVersion,
-            },
+        client::v1::{
+            query_server::{Query as ClientQuery, QueryServer as ClientQueryServer},
+            ConsensusStateWithHeight, Height as RawHeight, IdentifiedClientState,
+            QueryClientParamsRequest, QueryClientParamsResponse, QueryClientStateRequest,
+            QueryClientStateResponse, QueryClientStatesRequest, QueryClientStatesResponse,
+            QueryClientStatusRequest, QueryClientStatusResponse, QueryConsensusStateRequest,
+            QueryConsensusStateResponse, QueryConsensusStatesRequest, QueryConsensusStatesResponse,
+            QueryUpgradedClientStateRequest, QueryUpgradedClientStateResponse,
+            QueryUpgradedConsensusStateRequest, QueryUpgradedConsensusStateResponse,
+        },
+        commitment::v1::MerklePrefix,
+        connection::v1::{
+            query_server::{Query as ConnectionQuery, QueryServer as ConnectionQueryServer},
+            ConnectionEnd as RawConnectionEnd, Counterparty as RawCounterParty,
+            IdentifiedConnection as RawIdentifiedConnection, QueryClientConnectionsRequest,
+            QueryClientConnectionsResponse, QueryConnectionClientStateRequest,
+            QueryConnectionClientStateResponse, QueryConnectionConsensusStateRequest,
+            QueryConnectionConsensusStateResponse, QueryConnectionRequest, QueryConnectionResponse,
+            QueryConnectionsRequest, QueryConnectionsResponse, Version as RawVersion,
         },
     },
 };
@@ -1755,12 +1746,6 @@ impl<S: 'static + Store, BK: 'static + Send + Sync + BankKeeper<Coin = Coin>>
             packet_commitment_store: TypedStore::new(store),
         }
     }
-
-    pub fn service(self) -> MsgServer<IbcTransferMsgService<S, BK>> {
-        MsgServer::new(IbcTransferMsgService {
-            transfer_module: Arc::new(Mutex::new(self)),
-        })
-    }
 }
 
 impl<S: Store + 'static, BK: 'static + Send + Sync + BankKeeper<Coin = Coin>> IbcModule
@@ -2229,33 +2214,4 @@ impl<S: Store, BK> ChannelReader for IbcTransferModule<S, BK> {
 
 impl<S: Store, BK: BankKeeper<Coin = Coin>> Ics20Context for IbcTransferModule<S, BK> {
     type AccountId = Signer;
-}
-
-#[derive(Clone)]
-pub struct IbcTransferMsgService<S, BK> {
-    transfer_module: Arc<Mutex<IbcTransferModule<S, BK>>>,
-}
-
-#[tonic::async_trait]
-impl<S: Store + 'static, BK: 'static + Send + Sync + BankKeeper<Coin = Coin>> MsgService
-    for IbcTransferMsgService<S, BK>
-{
-    async fn transfer(
-        &self,
-        request: Request<RawMsgTransfer>,
-    ) -> Result<Response<MsgTransferResponse>, Status> {
-        let request: MsgTransfer = request
-            .into_inner()
-            .try_into()
-            .map_err(|e: Ics20Error| Status::invalid_argument(e.to_string()))?;
-
-        send_transfer(
-            &mut *self.transfer_module.lock().unwrap(),
-            &mut HandlerOutputBuilder::new(),
-            request,
-        )
-        .map_err(|e| Status::internal(e.to_string()))?;
-
-        Ok(Response::new(MsgTransferResponse {}))
-    }
 }
