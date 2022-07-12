@@ -47,7 +47,6 @@ use ibc::core::ics05_port::context::PortReader;
 use ibc::core::ics05_port::error::Error as PortError;
 use ibc::core::ics23_commitment::commitment::{CommitmentPrefix, CommitmentRoot};
 use ibc::core::ics24_host::identifier::{ChannelId, ClientId, ConnectionId, PortId};
-use ibc::core::ics24_host::path::ClientConnectionsPath;
 use ibc::core::ics24_host::{path, Path as IbcPath, IBC_QUERY_PATH};
 use ibc::core::ics26_routing::context::{
     Ics26Context, Module as IbcModule, ModuleId, ModuleOutputBuilder, OnRecvPacketAck, Router,
@@ -1240,7 +1239,7 @@ impl<S: ProvableStore + 'static> ConnectionQuery for IbcConnectionService<S> {
             .client_id
             .parse()
             .map_err(|e| Status::invalid_argument(format!("{}", e)))?;
-        let path = ClientConnectionsPath(client_id);
+        let path = path::ClientConnectionsPath(client_id);
         let connection_ids = self
             .connection_ids_store
             .get(Height::Pending, &path)
@@ -1321,8 +1320,8 @@ impl<S: Store> IbcChannelService<S> {
 impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
     async fn channel(
         &self,
-        request: tonic::Request<QueryChannelRequest>,
-    ) -> Result<tonic::Response<QueryChannelResponse>, tonic::Status> {
+        request: Request<QueryChannelRequest>,
+    ) -> Result<Response<QueryChannelResponse>, Status> {
         let port_id = PortId::from_str(&request.get_ref().port_id)
             .map_err(|_| Status::invalid_argument("invalid port id"))?;
         let channel_id = ChannelId::from_str(&request.get_ref().channel_id)
@@ -1342,8 +1341,8 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
     /// Channels queries all the IBC channels of a chain.
     async fn channels(
         &self,
-        _request: tonic::Request<QueryChannelsRequest>,
-    ) -> Result<tonic::Response<QueryChannelsResponse>, tonic::Status> {
+        _request: Request<QueryChannelsRequest>,
+    ) -> Result<Response<QueryChannelsResponse>, Status> {
         let channel_path_prefix: Path = String::from("channelEnds/ports")
             .try_into()
             .expect("'channelEnds/ports' expected to be a valid Path");
@@ -1382,7 +1381,7 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
     async fn connection_channels(
         &self,
         request: Request<QueryConnectionChannelsRequest>,
-    ) -> Result<Response<QueryConnectionChannelsResponse>, tonic::Status> {
+    ) -> Result<Response<QueryConnectionChannelsResponse>, Status> {
         let path = "channelEnds"
             .to_owned()
             .try_into()
@@ -1416,31 +1415,31 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
     /// with the provided channel identifiers.
     async fn channel_client_state(
         &self,
-        _request: tonic::Request<QueryChannelClientStateRequest>,
-    ) -> Result<tonic::Response<QueryChannelClientStateResponse>, tonic::Status> {
+        _request: Request<QueryChannelClientStateRequest>,
+    ) -> Result<Response<QueryChannelClientStateResponse>, Status> {
         todo!()
     }
     /// ChannelConsensusState queries for the consensus state for the channel
     /// associated with the provided channel identifiers.
     async fn channel_consensus_state(
         &self,
-        _request: tonic::Request<QueryChannelConsensusStateRequest>,
-    ) -> Result<tonic::Response<QueryChannelConsensusStateResponse>, tonic::Status> {
+        _request: Request<QueryChannelConsensusStateRequest>,
+    ) -> Result<Response<QueryChannelConsensusStateResponse>, Status> {
         todo!()
     }
     /// PacketCommitment queries a stored packet commitment hash.
     async fn packet_commitment(
         &self,
-        _request: tonic::Request<QueryPacketCommitmentRequest>,
-    ) -> Result<tonic::Response<QueryPacketCommitmentResponse>, tonic::Status> {
+        _request: Request<QueryPacketCommitmentRequest>,
+    ) -> Result<Response<QueryPacketCommitmentResponse>, Status> {
         todo!()
     }
     /// PacketCommitments returns all the packet commitments hashes associated
     /// with a channel.
     async fn packet_commitments(
         &self,
-        request: tonic::Request<QueryPacketCommitmentsRequest>,
-    ) -> Result<tonic::Response<QueryPacketCommitmentsResponse>, tonic::Status> {
+        request: Request<QueryPacketCommitmentsRequest>,
+    ) -> Result<Response<QueryPacketCommitmentsResponse>, Status> {
         let commitment_path_prefix: Path = String::from("commitments/ports")
             .try_into()
             .expect("'commitments/ports' expected to be a valid Path");
@@ -1503,16 +1502,16 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
     /// queried chain
     async fn packet_receipt(
         &self,
-        _request: tonic::Request<QueryPacketReceiptRequest>,
-    ) -> Result<tonic::Response<QueryPacketReceiptResponse>, tonic::Status> {
+        _request: Request<QueryPacketReceiptRequest>,
+    ) -> Result<Response<QueryPacketReceiptResponse>, Status> {
         todo!()
     }
 
     /// PacketAcknowledgement queries a stored packet acknowledgement hash.
     async fn packet_acknowledgement(
         &self,
-        _request: tonic::Request<QueryPacketAcknowledgementRequest>,
-    ) -> Result<tonic::Response<QueryPacketAcknowledgementResponse>, tonic::Status> {
+        _request: Request<QueryPacketAcknowledgementRequest>,
+    ) -> Result<Response<QueryPacketAcknowledgementResponse>, Status> {
         todo!()
     }
 
@@ -1520,8 +1519,8 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
     /// with a channel.
     async fn packet_acknowledgements(
         &self,
-        request: tonic::Request<QueryPacketAcknowledgementsRequest>,
-    ) -> Result<tonic::Response<QueryPacketAcknowledgementsResponse>, tonic::Status> {
+        request: Request<QueryPacketAcknowledgementsRequest>,
+    ) -> Result<Response<QueryPacketAcknowledgementsResponse>, Status> {
         let ack_path_prefix: Path = String::from("acks/ports")
             .try_into()
             .expect("'acks/ports' expected to be a valid Path");
@@ -1575,8 +1574,8 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
     /// this query only ever makes sense on unordered channels.
     async fn unreceived_packets(
         &self,
-        request: tonic::Request<QueryUnreceivedPacketsRequest>,
-    ) -> Result<tonic::Response<QueryUnreceivedPacketsResponse>, tonic::Status> {
+        request: Request<QueryUnreceivedPacketsRequest>,
+    ) -> Result<Response<QueryUnreceivedPacketsResponse>, Status> {
         let sequences_to_check: Vec<u64> = request.get_ref().packet_commitment_sequences.clone();
 
         let port_id: PortId = request.get_ref().port_id.clone().parse().unwrap();
@@ -1610,8 +1609,8 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
     /// with a channel and sequences.
     async fn unreceived_acks(
         &self,
-        request: tonic::Request<QueryUnreceivedAcksRequest>,
-    ) -> Result<tonic::Response<QueryUnreceivedAcksResponse>, tonic::Status> {
+        request: Request<QueryUnreceivedAcksRequest>,
+    ) -> Result<Response<QueryUnreceivedAcksResponse>, Status> {
         let sequences_to_check: Vec<u64> = request.get_ref().packet_ack_sequences.clone();
 
         let port_id: PortId = request.get_ref().port_id.clone().parse().unwrap();
@@ -1647,8 +1646,8 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
     /// NextSequenceReceive returns the next receive sequence for a given channel.
     async fn next_sequence_receive(
         &self,
-        _request: tonic::Request<QueryNextSequenceReceiveRequest>,
-    ) -> Result<tonic::Response<QueryNextSequenceReceiveResponse>, tonic::Status> {
+        _request: Request<QueryNextSequenceReceiveRequest>,
+    ) -> Result<Response<QueryNextSequenceReceiveResponse>, Status> {
         todo!()
     }
 }
@@ -1687,7 +1686,7 @@ impl RouterBuilder for IbcRouterBuilder {
 #[derive(Clone)]
 pub struct IbcTransferModule<S, BK> {
     store: SharedStore<S>,
-    /// A bank keeper to enable sending, minting and burnning of tokens
+    /// A bank keeper to enable sending, minting and burning of tokens
     bank_keeper: BK,
     /// A typed-store for AnyClientState
     client_state_store: ProtobufStore<SharedStore<S>, path::ClientStatePath, AnyClientState, Any>,
