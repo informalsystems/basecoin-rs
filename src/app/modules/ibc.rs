@@ -1353,9 +1353,10 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
         &self,
         request: Request<QueryChannelRequest>,
     ) -> Result<Response<QueryChannelResponse>, Status> {
-        let port_id = PortId::from_str(&request.get_ref().port_id)
+        let request = request.into_inner();
+        let port_id = PortId::from_str(&request.port_id)
             .map_err(|_| Status::invalid_argument("invalid port id"))?;
-        let channel_id = ChannelId::from_str(&request.get_ref().channel_id)
+        let channel_id = ChannelId::from_str(&request.channel_id)
             .map_err(|_| Status::invalid_argument("invalid channel id"))?;
 
         let channel = self
@@ -1607,10 +1608,12 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
         &self,
         request: Request<QueryUnreceivedPacketsRequest>,
     ) -> Result<Response<QueryUnreceivedPacketsResponse>, Status> {
-        let sequences_to_check: Vec<u64> = request.get_ref().packet_commitment_sequences.clone();
-
-        let port_id: PortId = request.get_ref().port_id.clone().parse().unwrap();
-        let channel_id: ChannelId = request.get_ref().channel_id.clone().parse().unwrap();
+        let request = request.into_inner();
+        let port_id = PortId::from_str(&request.port_id)
+            .map_err(|_| Status::invalid_argument("invalid port id"))?;
+        let channel_id = ChannelId::from_str(&request.channel_id)
+            .map_err(|_| Status::invalid_argument("invalid channel id"))?;
+        let sequences_to_check: Vec<u64> = request.packet_commitment_sequences;
 
         let unreceived_sequences: Vec<u64> = sequences_to_check
             .into_iter()
@@ -1642,10 +1645,12 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
         &self,
         request: Request<QueryUnreceivedAcksRequest>,
     ) -> Result<Response<QueryUnreceivedAcksResponse>, Status> {
-        let sequences_to_check: Vec<u64> = request.get_ref().packet_ack_sequences.clone();
-
-        let port_id: PortId = request.get_ref().port_id.clone().parse().unwrap();
-        let channel_id: ChannelId = request.get_ref().channel_id.clone().parse().unwrap();
+        let request = request.into_inner();
+        let port_id = PortId::from_str(&request.port_id)
+            .map_err(|_| Status::invalid_argument("invalid port id"))?;
+        let channel_id = ChannelId::from_str(&request.channel_id)
+            .map_err(|_| Status::invalid_argument("invalid channel id"))?;
+        let sequences_to_check: Vec<u64> = request.packet_ack_sequences;
 
         let unreceived_sequences: Vec<u64> = sequences_to_check
             .into_iter()
