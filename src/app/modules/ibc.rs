@@ -2176,7 +2176,7 @@ impl<S: Store, BK> ChannelReader for IbcTransferModule<S, BK> {
     }
 
     fn host_height(&self) -> IbcHeight {
-        unimplemented!()
+        IbcHeight::new(0, self.client_state_store.current_height()).unwrap()
     }
 
     fn host_consensus_state(&self, _height: IbcHeight) -> Result<AnyConsensusState, ChannelError> {
