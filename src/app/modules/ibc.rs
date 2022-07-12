@@ -1058,7 +1058,6 @@ impl From<TmEvent> for Event {
 }
 
 pub struct IbcClientService<S> {
-    store: SharedStore<S>,
     client_state_store: ProtobufStore<SharedStore<S>, path::ClientStatePath, AnyClientState, Any>,
     consensus_state_store:
         ProtobufStore<SharedStore<S>, path::ClientConsensusStatePath, AnyConsensusState, Any>,
@@ -1068,8 +1067,7 @@ impl<S: Store> IbcClientService<S> {
     pub fn new(store: SharedStore<S>) -> Self {
         Self {
             client_state_store: TypedStore::new(store.clone()),
-            consensus_state_store: TypedStore::new(store.clone()),
-            store,
+            consensus_state_store: TypedStore::new(store),
         }
     }
 }
@@ -1094,7 +1092,7 @@ impl<S: ProvableStore + 'static> ClientQuery for IbcClientService<S> {
             .try_into()
             .map_err(|e| Status::invalid_argument(format!("{}", e)))?;
 
-        let keys = self.store.get_keys(&path);
+        let keys = self.client_state_store.get_keys(&path);
         let client_states = keys
             .into_iter()
             .filter_map(|path| {
@@ -1135,7 +1133,7 @@ impl<S: ProvableStore + 'static> ClientQuery for IbcClientService<S> {
             .try_into()
             .map_err(|e| Status::invalid_argument(format!("{}", e)))?;
 
-        let keys = self.store.get_keys(&path);
+        let keys = self.consensus_state_store.get_keys(&path);
         let consensus_states = keys
             .into_iter()
             .map(|path| {
@@ -1333,20 +1331,20 @@ impl From<ConnectionEndWrapper> for RawConnectionEnd {
 }
 
 pub struct IbcChannelService<S> {
-    raw_store: SharedStore<S>,
     channel_end_store:
         ProtobufStore<SharedStore<S>, path::ChannelEndsPath, ChannelEnd, RawChannelEnd>,
     packet_commitment_store: BinStore<SharedStore<S>, path::CommitmentsPath, PacketCommitment>,
     packet_ack_store: BinStore<SharedStore<S>, path::AcksPath, AcknowledgementCommitment>,
+    packet_receipt_store: TypedSet<SharedStore<S>, path::ReceiptsPath>,
 }
 
 impl<S: Store> IbcChannelService<S> {
     pub fn new(store: SharedStore<S>) -> Self {
         Self {
-            raw_store: store.clone(),
             channel_end_store: TypedStore::new(store.clone()),
             packet_commitment_store: TypedStore::new(store.clone()),
-            packet_ack_store: TypedStore::new(store),
+            packet_ack_store: TypedStore::new(store.clone()),
+            packet_receipt_store: TypedStore::new(store),
         }
     }
 }
@@ -1422,7 +1420,7 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
             .to_owned()
             .try_into()
             .expect("'commitments/ports' expected to be a valid Path");
-        let keys = self.raw_store.get_keys(&path);
+        let keys = self.channel_end_store.get_keys(&path);
         let conn_id = ConnectionId::from_str(&request.get_ref().connection)
             .map_err(|_| Status::invalid_argument("invalid connection id"))?;
         let channels = keys
@@ -1486,7 +1484,7 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
             let prefix: Path = String::from("commitments/ports")
                 .try_into()
                 .expect("'commitments/ports' expected to be a valid Path");
-            self.raw_store.get_keys(&prefix)
+            self.packet_commitment_store.get_keys(&prefix)
         };
 
         let matching_commitment_paths = |path: Path| -> Option<path::CommitmentsPath> {
@@ -1525,7 +1523,7 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
             pagination: None,
             height: Some(RawHeight {
                 revision_number: 0,
-                revision_height: self.raw_store.current_height(),
+                revision_height: self.packet_commitment_store.current_height(),
             }),
         }))
     }
@@ -1563,7 +1561,7 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
             let prefix: Path = String::from("acks/ports")
                 .try_into()
                 .expect("'acks/ports' expected to be a valid Path");
-            self.raw_store.get_keys(&prefix)
+            self.packet_ack_store.get_keys(&prefix)
         };
 
         let matching_ack_paths = |path: Path| -> Option<path::AcksPath> {
@@ -1597,7 +1595,7 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
             pagination: None,
             height: Some(RawHeight {
                 revision_number: 0,
-                revision_height: self.raw_store.current_height(),
+                revision_height: self.packet_ack_store.current_height(),
             }),
         }))
     }
@@ -1622,13 +1620,12 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
         let unreceived_sequences: Vec<u64> = sequences_to_check
             .into_iter()
             .filter(|seq| {
-                let receipts_path: Path = path::ReceiptsPath {
+                let receipts_path = path::ReceiptsPath {
                     port_id: port_id.clone(),
                     channel_id: channel_id.clone(),
                     sequence: Sequence::from(*seq),
-                }
-                .into();
-                self.raw_store
+                };
+                self.packet_receipt_store
                     .get(Height::Pending, &receipts_path)
                     .is_none()
             })
@@ -1638,7 +1635,7 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
             sequences: unreceived_sequences,
             height: Some(RawHeight {
                 revision_number: 0,
-                revision_height: self.raw_store.current_height(),
+                revision_height: self.packet_receipt_store.current_height(),
             }),
         }))
     }
@@ -1661,14 +1658,13 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
             .filter(|seq| {
                 // To check if we received an acknowledgement, we check if we still have the sent packet
                 // commitment (upon receiving an ack, the sent packet commitment is deleted).
-                let commitments_path: Path = path::CommitmentsPath {
+                let commitments_path = path::CommitmentsPath {
                     port_id: port_id.clone(),
                     channel_id: channel_id.clone(),
                     sequence: Sequence::from(*seq),
-                }
-                .into();
+                };
 
-                self.raw_store
+                self.packet_commitment_store
                     .get(Height::Pending, &commitments_path)
                     .is_some()
             })
@@ -1678,7 +1674,7 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
             sequences: unreceived_sequences,
             height: Some(RawHeight {
                 revision_number: 0,
-                revision_height: self.raw_store.current_height(),
+                revision_height: self.packet_commitment_store.current_height(),
             }),
         }))
     }
@@ -1725,7 +1721,7 @@ impl RouterBuilder for IbcRouterBuilder {
 
 #[derive(Clone)]
 pub struct IbcTransferModule<S, BK> {
-    store: SharedStore<S>,
+    // store: SharedStore<S>,
     /// A bank keeper to enable sending, minting and burning of tokens
     bank_keeper: BK,
     /// A typed-store for AnyClientState
@@ -1756,8 +1752,7 @@ impl<S: 'static + Store, BK: 'static + Send + Sync + BankKeeper<Coin = Coin>>
             connection_end_store: TypedStore::new(store.clone()),
             channel_end_store: TypedStore::new(store.clone()),
             send_sequence_store: TypedStore::new(store.clone()),
-            packet_commitment_store: TypedStore::new(store.clone()),
-            store,
+            packet_commitment_store: TypedStore::new(store),
         }
     }
 
@@ -2196,7 +2191,7 @@ impl<S: Store, BK> ChannelReader for IbcTransferModule<S, BK> {
     }
 
     fn host_height(&self) -> IbcHeight {
-        IbcHeight::new(0, self.store.current_height()).unwrap()
+        unimplemented!()
     }
 
     fn host_consensus_state(&self, _height: IbcHeight) -> Result<AnyConsensusState, ChannelError> {
