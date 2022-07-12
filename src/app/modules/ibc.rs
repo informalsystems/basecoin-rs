@@ -1403,7 +1403,7 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
             channels: identified_channels,
             pagination: None,
             height: Some(RawHeight {
-                revision_number: 1,
+                revision_number: 0,
                 revision_height: self.channel_end_store.current_height(),
             }),
         }))
@@ -1438,7 +1438,7 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
             channels,
             pagination: None,
             height: Some(RawHeight {
-                revision_number: 1,
+                revision_number: 0,
                 revision_height: self.channel_end_store.current_height(),
             }),
         }))
@@ -1524,7 +1524,7 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
             commitments: packet_states,
             pagination: None,
             height: Some(RawHeight {
-                revision_number: 1,
+                revision_number: 0,
                 revision_height: self.raw_store.current_height(),
             }),
         }))
@@ -1592,7 +1592,7 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
             acknowledgements: packet_states,
             pagination: None,
             height: Some(RawHeight {
-                revision_number: 1,
+                revision_number: 0,
                 revision_height: self.raw_store.current_height(),
             }),
         }))
@@ -1633,7 +1633,7 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
         Ok(Response::new(QueryUnreceivedPacketsResponse {
             sequences: unreceived_sequences,
             height: Some(RawHeight {
-                revision_number: 1,
+                revision_number: 0,
                 revision_height: self.raw_store.current_height(),
             }),
         }))
@@ -1673,7 +1673,7 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
         Ok(Response::new(QueryUnreceivedAcksResponse {
             sequences: unreceived_sequences,
             height: Some(RawHeight {
-                revision_number: 1,
+                revision_number: 0,
                 revision_height: self.raw_store.current_height(),
             }),
         }))
