@@ -52,6 +52,8 @@ use crate::app::{
     store::{Height, Identifier, Path, ProvableStore, RevertibleStore, SharedStore, Store},
 };
 
+const CHAIN_REVISION_NUMBER: u64 = 0;
+
 type MainStore<S> = SharedStore<RevertibleStore<S>>;
 type ModuleStore<S> = RevertibleStore<S>;
 type ModuleList<S> = Vec<IdentifiedModule<S>>;

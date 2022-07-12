@@ -123,6 +123,7 @@ use crate::{
             BinStore, Height, JsonStore, Path, ProtobufStore, ProvableStore, SharedStore, Store,
             TypedSet, TypedStore,
         },
+        CHAIN_REVISION_NUMBER,
     },
     IBC_TRANSFER_MODULE_ID,
 };
@@ -1396,7 +1397,7 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
             channels: identified_channels,
             pagination: None,
             height: Some(RawHeight {
-                revision_number: 0,
+                revision_number: CHAIN_REVISION_NUMBER,
                 revision_height: self.channel_end_store.current_height(),
             }),
         }))
@@ -1431,7 +1432,7 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
             channels,
             pagination: None,
             height: Some(RawHeight {
-                revision_number: 0,
+                revision_number: CHAIN_REVISION_NUMBER,
                 revision_height: self.channel_end_store.current_height(),
             }),
         }))
@@ -1513,7 +1514,7 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
             commitments: packet_states,
             pagination: None,
             height: Some(RawHeight {
-                revision_number: 0,
+                revision_number: CHAIN_REVISION_NUMBER,
                 revision_height: self.packet_commitment_store.current_height(),
             }),
         }))
@@ -1585,7 +1586,7 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
             acknowledgements: packet_states,
             pagination: None,
             height: Some(RawHeight {
-                revision_number: 0,
+                revision_number: CHAIN_REVISION_NUMBER,
                 revision_height: self.packet_ack_store.current_height(),
             }),
         }))
@@ -1625,7 +1626,7 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
         Ok(Response::new(QueryUnreceivedPacketsResponse {
             sequences: unreceived_sequences,
             height: Some(RawHeight {
-                revision_number: 0,
+                revision_number: CHAIN_REVISION_NUMBER,
                 revision_height: self.packet_receipt_store.current_height(),
             }),
         }))
@@ -1664,7 +1665,7 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
         Ok(Response::new(QueryUnreceivedAcksResponse {
             sequences: unreceived_sequences,
             height: Some(RawHeight {
-                revision_number: 0,
+                revision_number: CHAIN_REVISION_NUMBER,
                 revision_height: self.packet_commitment_store.current_height(),
             }),
         }))
