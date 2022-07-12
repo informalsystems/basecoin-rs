@@ -572,11 +572,6 @@ where
     }
 
     #[inline]
-    pub(crate) fn delete(&mut self, path: &K) {
-        self.store.delete(&path.clone().into())
-    }
-
-    #[inline]
     pub(crate) fn get_keys(&self, key_prefix: &Path) -> Vec<Path> {
         self.store.get_keys(key_prefix)
     }
