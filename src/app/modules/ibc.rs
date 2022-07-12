@@ -1336,13 +1336,17 @@ pub struct IbcChannelService<S> {
     raw_store: SharedStore<S>,
     channel_end_store:
         ProtobufStore<SharedStore<S>, path::ChannelEndsPath, ChannelEnd, RawChannelEnd>,
+    packet_commitment_store: BinStore<SharedStore<S>, path::CommitmentsPath, PacketCommitment>,
+    packet_ack_store: BinStore<SharedStore<S>, path::AcksPath, AcknowledgementCommitment>,
 }
 
 impl<S: Store> IbcChannelService<S> {
     pub fn new(store: SharedStore<S>) -> Self {
         Self {
             raw_store: store.clone(),
-            channel_end_store: TypedStore::new(store),
+            channel_end_store: TypedStore::new(store.clone()),
+            packet_commitment_store: TypedStore::new(store.clone()),
+            packet_ack_store: TypedStore::new(store),
         }
     }
 }
@@ -1472,52 +1476,48 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
         &self,
         request: Request<QueryPacketCommitmentsRequest>,
     ) -> Result<Response<QueryPacketCommitmentsResponse>, Status> {
-        let commitment_path_prefix: Path = String::from("commitments/ports")
-            .try_into()
-            .expect("'commitments/ports' expected to be a valid Path");
+        let request = request.into_inner();
+        let port_id = PortId::from_str(&request.port_id)
+            .map_err(|_| Status::invalid_argument("invalid port id"))?;
+        let channel_id = ChannelId::from_str(&request.channel_id)
+            .map_err(|_| Status::invalid_argument("invalid channel id"))?;
 
-        let commitment_paths: Vec<Path> = self.raw_store.get_keys(&commitment_path_prefix);
+        let commitment_paths: Vec<Path> = {
+            let prefix: Path = String::from("commitments/ports")
+                .try_into()
+                .expect("'commitments/ports' expected to be a valid Path");
+            self.raw_store.get_keys(&prefix)
+        };
+
+        let matching_commitment_paths = |path: Path| -> Option<path::CommitmentsPath> {
+            match path.try_into() {
+                Ok(IbcPath::Commitments(p))
+                    if p.port_id == port_id && p.channel_id == channel_id =>
+                {
+                    Some(p)
+                }
+                _ => None,
+            }
+        };
+
+        let into_packet_state = |path: path::CommitmentsPath| -> Option<PacketState> {
+            let commitment = self
+                .packet_commitment_store
+                .get(Height::Pending, &path)
+                .unwrap();
+            let data = commitment.into_vec();
+            (!data.is_empty()).then(|| PacketState {
+                port_id: path.port_id.to_string(),
+                channel_id: path.channel_id.to_string(),
+                sequence: path.sequence.into(),
+                data,
+            })
+        };
 
         let packet_states: Vec<PacketState> = commitment_paths
             .into_iter()
-            .filter_map(|path| {
-                match IbcPath::try_from(path) {
-                    Ok(IbcPath::Commitments(commitments_ibc_path))
-                        if commitments_ibc_path.channel_id.to_string()
-                            == request.get_ref().channel_id
-                            && commitments_ibc_path.port_id.to_string()
-                                == request.get_ref().port_id =>
-                    {
-                        let commitments_path: Path = commitments_ibc_path.into();
-                        // unwrap() because all paths were returned by `get_keys()`
-                        let commitment = self
-                            .raw_store
-                            .get(Height::Pending, &commitments_path)
-                            .expect(
-                            "commitment path returned by get_keys() had no associated commitment",
-                        );
-
-                        if commitment.is_empty() {
-                            None
-                        } else {
-                            // commitments_path format: "commitments/ports/{}/channels/{}/sequences/{}"
-                            let sequence_id =
-                                commitments_path.get(6).expect("malformed commitments path");
-                            let sequence: u64 = sequence_id
-                                .parse()
-                                .expect("Invalid sequence number in commitments path");
-
-                            Some(PacketState {
-                                port_id: request.get_ref().port_id.clone(),
-                                channel_id: request.get_ref().channel_id.clone(),
-                                sequence,
-                                data: commitment,
-                            })
-                        }
-                    }
-                    _ => None,
-                }
-            })
+            .filter_map(matching_commitment_paths)
+            .filter_map(into_packet_state)
             .collect();
 
         Ok(Response::new(QueryPacketCommitmentsResponse {
@@ -1553,39 +1553,43 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
         &self,
         request: Request<QueryPacketAcknowledgementsRequest>,
     ) -> Result<Response<QueryPacketAcknowledgementsResponse>, Status> {
-        let ack_path_prefix: Path = String::from("acks/ports")
-            .try_into()
-            .expect("'acks/ports' expected to be a valid Path");
+        let request = request.into_inner();
+        let port_id = PortId::from_str(&request.port_id)
+            .map_err(|_| Status::invalid_argument("invalid port id"))?;
+        let channel_id = ChannelId::from_str(&request.channel_id)
+            .map_err(|_| Status::invalid_argument("invalid channel id"))?;
 
-        let ack_paths: Vec<Path> = self.raw_store.get_keys(&ack_path_prefix);
+        let ack_paths: Vec<Path> = {
+            let prefix: Path = String::from("acks/ports")
+                .try_into()
+                .expect("'acks/ports' expected to be a valid Path");
+            self.raw_store.get_keys(&prefix)
+        };
+
+        let matching_ack_paths = |path: Path| -> Option<path::AcksPath> {
+            match path.try_into() {
+                Ok(IbcPath::Acks(p)) if p.port_id == port_id && p.channel_id == channel_id => {
+                    Some(p)
+                }
+                _ => None,
+            }
+        };
+
+        let into_packet_state = |path: path::AcksPath| -> Option<PacketState> {
+            let commitment = self.packet_ack_store.get(Height::Pending, &path).unwrap();
+            let data = commitment.into_vec();
+            (!data.is_empty()).then(|| PacketState {
+                port_id: path.port_id.to_string(),
+                channel_id: path.channel_id.to_string(),
+                sequence: path.sequence.into(),
+                data,
+            })
+        };
 
         let packet_states: Vec<PacketState> = ack_paths
             .into_iter()
-            .map(|path| {
-                match IbcPath::try_from(path) {
-                    Ok(IbcPath::Acks(acks_ibc_path)) => {
-                        let acks_path: Path = acks_ibc_path.into();
-                        // unwrap() because all paths were returned by `get_keys()`
-                        let ack_hash = self.raw_store.get(Height::Pending, &acks_path).expect(
-                            "commitment path returned by get_keys() had no associated commitment",
-                        );
-
-                        // commitments_path format: "acks/ports/{}/channels/{}/sequences/{}"
-                        let sequence_id = acks_path.get(6).expect("malformed acks path");
-                        let sequence: u64 = sequence_id
-                            .parse()
-                            .expect("Invalid sequence number in commitments path");
-
-                        PacketState {
-                            port_id: request.get_ref().port_id.clone(),
-                            channel_id: request.get_ref().channel_id.clone(),
-                            sequence,
-                            data: ack_hash,
-                        }
-                    }
-                    _ => panic!("unexpected path"),
-                }
-            })
+            .filter_map(matching_ack_paths)
+            .filter_map(into_packet_state)
             .collect();
 
         Ok(Response::new(QueryPacketAcknowledgementsResponse {
