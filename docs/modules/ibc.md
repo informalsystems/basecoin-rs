@@ -83,7 +83,7 @@ $ ./scripts/dev-env ~/.hermes/config.toml ibc-0 ibc-1
 ### Step 3: Configure hermes to be able to interact with basecoin
 ```shell
 $ gaiad keys add user --keyring-backend="test" --output json > user_seed.json
-$ hermes keys add basecoin-0 -f user_seed.json
+$ hermes keys add --chain basecoin-0 --key-file user_seed.json
 ```
 
 ### Step 4: Create and Update a client
