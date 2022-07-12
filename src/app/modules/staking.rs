@@ -1,24 +1,26 @@
-use crate::app::store::{ProvableStore, SharedStore};
-
 use std::marker::PhantomData;
 
-use ibc_proto::cosmos::staking::v1beta1::{
-    query_server::{Query, QueryServer},
-    Params, QueryDelegationRequest, QueryDelegationResponse, QueryDelegatorDelegationsRequest,
-    QueryDelegatorDelegationsResponse, QueryDelegatorUnbondingDelegationsRequest,
-    QueryDelegatorUnbondingDelegationsResponse, QueryDelegatorValidatorRequest,
-    QueryDelegatorValidatorResponse, QueryDelegatorValidatorsRequest,
-    QueryDelegatorValidatorsResponse, QueryHistoricalInfoRequest, QueryHistoricalInfoResponse,
-    QueryParamsRequest, QueryParamsResponse, QueryPoolRequest, QueryPoolResponse,
-    QueryRedelegationsRequest, QueryRedelegationsResponse, QueryUnbondingDelegationRequest,
-    QueryUnbondingDelegationResponse, QueryValidatorDelegationsRequest,
-    QueryValidatorDelegationsResponse, QueryValidatorRequest, QueryValidatorResponse,
-    QueryValidatorUnbondingDelegationsRequest, QueryValidatorUnbondingDelegationsResponse,
-    QueryValidatorsRequest, QueryValidatorsResponse,
+use ibc_proto::{
+    cosmos::staking::v1beta1::{
+        query_server::{Query, QueryServer},
+        Params, QueryDelegationRequest, QueryDelegationResponse, QueryDelegatorDelegationsRequest,
+        QueryDelegatorDelegationsResponse, QueryDelegatorUnbondingDelegationsRequest,
+        QueryDelegatorUnbondingDelegationsResponse, QueryDelegatorValidatorRequest,
+        QueryDelegatorValidatorResponse, QueryDelegatorValidatorsRequest,
+        QueryDelegatorValidatorsResponse, QueryHistoricalInfoRequest, QueryHistoricalInfoResponse,
+        QueryParamsRequest, QueryParamsResponse, QueryPoolRequest, QueryPoolResponse,
+        QueryRedelegationsRequest, QueryRedelegationsResponse, QueryUnbondingDelegationRequest,
+        QueryUnbondingDelegationResponse, QueryValidatorDelegationsRequest,
+        QueryValidatorDelegationsResponse, QueryValidatorRequest, QueryValidatorResponse,
+        QueryValidatorUnbondingDelegationsRequest, QueryValidatorUnbondingDelegationsResponse,
+        QueryValidatorsRequest, QueryValidatorsResponse,
+    },
+    google::protobuf::Duration,
 };
-use ibc_proto::google::protobuf::Duration;
 use tonic::{Request, Response, Status};
 use tracing::debug;
+
+use crate::app::store::{ProvableStore, SharedStore};
 
 pub struct Staking<S>(PhantomData<S>);
 

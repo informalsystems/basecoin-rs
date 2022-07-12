@@ -1,33 +1,37 @@
-use crate::app::modules::auth::{AccountKeeper, AccountReader, AuthAccount, ACCOUNT_PREFIX};
-use crate::app::modules::{Error as ModuleError, Module, QueryResult};
-use crate::app::store::{
-    Codec, Height, JsonCodec, JsonStore, Path, ProvableStore, SharedStore, Store, TypedStore,
-};
+use std::{collections::HashMap, convert::TryInto, fmt::Debug, num::ParseIntError, str::FromStr};
 
-use std::collections::HashMap;
-use std::convert::TryInto;
-use std::fmt::Debug;
-use std::num::ParseIntError;
-use std::str::FromStr;
-
-use cosmrs::bank::MsgSend;
-use cosmrs::{proto, AccountId, Coin as MsgCoin};
+use cosmrs::{bank::MsgSend, proto, AccountId, Coin as MsgCoin};
 use flex_error::{define_error, TraceError};
 use ibc::bigint::U256;
-use ibc_proto::cosmos::bank::v1beta1::{
-    query_server::{Query, QueryServer},
-    QueryAllBalancesRequest, QueryAllBalancesResponse, QueryBalanceRequest, QueryBalanceResponse,
-    QueryDenomMetadataRequest, QueryDenomMetadataResponse, QueryDenomsMetadataRequest,
-    QueryDenomsMetadataResponse, QueryParamsRequest, QueryParamsResponse, QuerySupplyOfRequest,
-    QuerySupplyOfResponse, QueryTotalSupplyRequest, QueryTotalSupplyResponse,
+use ibc_proto::{
+    cosmos::{
+        bank::v1beta1::{
+            query_server::{Query, QueryServer},
+            QueryAllBalancesRequest, QueryAllBalancesResponse, QueryBalanceRequest,
+            QueryBalanceResponse, QueryDenomMetadataRequest, QueryDenomMetadataResponse,
+            QueryDenomsMetadataRequest, QueryDenomsMetadataResponse, QueryParamsRequest,
+            QueryParamsResponse, QuerySupplyOfRequest, QuerySupplyOfResponse,
+            QueryTotalSupplyRequest, QueryTotalSupplyResponse,
+        },
+        base::v1beta1::Coin as RawCoin,
+    },
+    google::protobuf::Any,
 };
-use ibc_proto::cosmos::base::v1beta1::Coin as RawCoin;
-use ibc_proto::google::protobuf::Any;
 use prost::{DecodeError, Message};
 use serde::{Deserialize, Serialize};
 use tendermint_proto::abci::Event;
 use tonic::{Request, Response, Status};
 use tracing::{debug, trace};
+
+use crate::app::{
+    modules::{
+        auth::{AccountKeeper, AccountReader, AuthAccount, ACCOUNT_PREFIX},
+        Error as ModuleError, Module, QueryResult,
+    },
+    store::{
+        Codec, Height, JsonCodec, JsonStore, Path, ProvableStore, SharedStore, Store, TypedStore,
+    },
+};
 
 define_error! {
     #[derive(Eq, PartialEq)]

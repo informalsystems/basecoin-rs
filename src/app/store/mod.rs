@@ -1,22 +1,23 @@
 mod avl;
 mod memory;
 
-pub(crate) use memory::InMemoryStore;
-
-use crate::app::modules::Error as ModuleError;
-
-use std::convert::{TryFrom, TryInto};
-use std::fmt::{Debug, Display, Formatter};
-use std::ops::{Deref, DerefMut};
-use std::str::{from_utf8, Utf8Error};
-use std::sync::{Arc, RwLock};
+use std::{
+    convert::{TryFrom, TryInto},
+    fmt::{Debug, Display, Formatter},
+    marker::PhantomData,
+    ops::{Deref, DerefMut},
+    str::{from_utf8, Utf8Error},
+    sync::{Arc, RwLock},
+};
 
 use flex_error::{define_error, TraceError};
 use ibc::core::ics24_host::{error::ValidationError, validate::validate_identifier};
 use ics23::CommitmentProof;
+pub(crate) use memory::InMemoryStore;
 use serde::{de::DeserializeOwned, Serialize};
-use std::marker::PhantomData;
 use tracing::trace;
+
+use crate::app::modules::Error as ModuleError;
 
 /// A `TypedStore` that uses the `JsonCodec`
 pub(crate) type JsonStore<S, K, V> = TypedStore<S, K, JsonCodec<V>>;
@@ -604,14 +605,13 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::{Identifier, Path};
+    use std::{collections::HashSet, convert::TryFrom};
 
     use lazy_static::lazy_static;
     use proptest::prelude::*;
-    use rand::distributions::Standard;
-    use rand::seq::SliceRandom;
-    use std::collections::HashSet;
-    use std::convert::TryFrom;
+    use rand::{distributions::Standard, seq::SliceRandom};
+
+    use super::{Identifier, Path};
 
     const ALLOWED_CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ\
                                    abcdefghijklmnopqrstuvwxyz\

@@ -1,21 +1,29 @@
 mod app;
 
-use crate::app::modules::{
-    prefix, Auth, Bank, Ibc, IbcRouterBuilder, IbcTransferModule, Identifiable, Module, Staking,
+use ibc::{
+    applications::transfer::MODULE_ID_STR as IBC_TRANSFER_MODULE_ID,
+    core::{
+        ics24_host::identifier::PortId,
+        ics26_routing::context::{ModuleId, RouterBuilder},
+    },
 };
-use crate::app::store::InMemoryStore;
-use crate::app::Builder;
-
-use ibc::applications::transfer::MODULE_ID_STR as IBC_TRANSFER_MODULE_ID;
-use ibc::core::ics24_host::identifier::PortId;
-use ibc::core::ics26_routing::context::{ModuleId, RouterBuilder};
-use ibc_proto::cosmos::base::tendermint::v1beta1::service_server::ServiceServer as HealthServer;
-use ibc_proto::cosmos::tx::v1beta1::service_server::ServiceServer as TxServer;
+use ibc_proto::cosmos::{
+    base::tendermint::v1beta1::service_server::ServiceServer as HealthServer,
+    tx::v1beta1::service_server::ServiceServer as TxServer,
+};
 use structopt::StructOpt;
 use tendermint_abci::ServerBuilder;
 use tokio::runtime::Runtime;
 use tonic::transport::Server;
 use tracing_subscriber::filter::LevelFilter;
+
+use crate::app::{
+    modules::{
+        prefix, Auth, Bank, Ibc, IbcRouterBuilder, IbcTransferModule, Identifiable, Module, Staking,
+    },
+    store::InMemoryStore,
+    Builder,
+};
 
 #[derive(Debug, StructOpt)]
 struct Opt {

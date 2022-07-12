@@ -1,27 +1,28 @@
-use crate::app::modules::bank::Denom;
-use crate::app::modules::{Error as ModuleError, Module};
-use crate::app::store::{
-    Height, Path, ProtobufStore, ProvableStore, SharedStore, Store, TypedStore,
+use std::{
+    collections::HashMap,
+    convert::{TryFrom, TryInto},
+    str::FromStr,
 };
-
-use std::collections::HashMap;
-use std::convert::{TryFrom, TryInto};
-use std::str::FromStr;
 
 use cosmrs::AccountId;
-use ibc_proto::cosmos::auth::v1beta1::BaseAccount;
-use ibc_proto::cosmos::auth::v1beta1::{
-    query_server::{Query, QueryServer},
-    QueryAccountRequest, QueryAccountResponse, QueryAccountsRequest, QueryAccountsResponse,
-    QueryParamsRequest, QueryParamsResponse,
+use ibc_proto::{
+    cosmos::auth::v1beta1::{
+        query_server::{Query, QueryServer},
+        BaseAccount, QueryAccountRequest, QueryAccountResponse, QueryAccountsRequest,
+        QueryAccountsResponse, QueryParamsRequest, QueryParamsResponse,
+    },
+    google::protobuf::Any,
 };
-use ibc_proto::google::protobuf::Any;
 use prost::Message;
 use serde_json::Value;
-use tendermint_proto::abci::Event;
-use tendermint_proto::Protobuf;
+use tendermint_proto::{abci::Event, Protobuf};
 use tonic::{Request, Response, Status};
 use tracing::{debug, trace};
+
+use crate::app::{
+    modules::{bank::Denom, Error as ModuleError, Module},
+    store::{Height, Path, ProtobufStore, ProvableStore, SharedStore, Store, TypedStore},
+};
 
 /// Address of the account that the relayer uses to sign basecoin transactions.
 /// This is hardcoded as we don't verify signatures currently.

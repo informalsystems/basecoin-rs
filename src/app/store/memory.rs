@@ -1,10 +1,11 @@
-use crate::app::store::avl::{AsBytes, AvlTree, ByteSlice};
-use crate::app::store::{Height, Path, ProvableStore, Store};
-
 use ics23::CommitmentProof;
-use tendermint::hash::Algorithm;
-use tendermint::Hash;
+use tendermint::{hash::Algorithm, Hash};
 use tracing::trace;
+
+use crate::app::store::{
+    avl::{AsBytes, AvlTree, ByteSlice},
+    Height, Path, ProvableStore, Store,
+};
 
 // A state type that represents a snapshot of the store at every block.
 // The value is a `Vec<u8>` to allow stored types to choose their own serde.

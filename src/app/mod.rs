@@ -4,43 +4,53 @@ pub(crate) mod modules;
 mod response;
 pub(crate) mod store;
 
-use crate::app::modules::{Error, ErrorDetail, Module, ACCOUNT_PREFIX};
-use crate::app::response::ResponseFromErrorExt;
-use crate::app::store::{
-    Height, Identifier, Path, ProvableStore, RevertibleStore, SharedStore, Store,
+use std::{
+    convert::TryInto,
+    sync::{Arc, RwLock},
 };
 
-use std::convert::TryInto;
-use std::sync::{Arc, RwLock};
-
-use cosmrs::tx::{SignerInfo, SignerPublicKey};
-use cosmrs::{AccountId, Tx};
-use ibc_proto::cosmos::base::tendermint::v1beta1::{
-    service_server::Service as HealthService, GetBlockByHeightRequest, GetBlockByHeightResponse,
-    GetLatestBlockRequest, GetLatestBlockResponse, GetLatestValidatorSetRequest,
-    GetLatestValidatorSetResponse, GetNodeInfoRequest, GetNodeInfoResponse, GetSyncingRequest,
-    GetSyncingResponse, GetValidatorSetByHeightRequest, GetValidatorSetByHeightResponse,
-    Module as VersionInfoModule, VersionInfo,
+use cosmrs::{
+    tx::{SignerInfo, SignerPublicKey},
+    AccountId, Tx,
 };
-use ibc_proto::cosmos::tx::v1beta1::service_server::Service as TxService;
-use ibc_proto::cosmos::tx::v1beta1::{
-    BroadcastTxRequest, BroadcastTxResponse, GetTxRequest, GetTxResponse, GetTxsEventRequest,
-    GetTxsEventResponse, SimulateRequest, SimulateResponse,
+use ibc_proto::{
+    cosmos::{
+        base::tendermint::v1beta1::{
+            service_server::Service as HealthService, GetBlockByHeightRequest,
+            GetBlockByHeightResponse, GetLatestBlockRequest, GetLatestBlockResponse,
+            GetLatestValidatorSetRequest, GetLatestValidatorSetResponse, GetNodeInfoRequest,
+            GetNodeInfoResponse, GetSyncingRequest, GetSyncingResponse,
+            GetValidatorSetByHeightRequest, GetValidatorSetByHeightResponse,
+            Module as VersionInfoModule, VersionInfo,
+        },
+        tx::v1beta1::{
+            service_server::Service as TxService, BroadcastTxRequest, BroadcastTxResponse,
+            GetTxRequest, GetTxResponse, GetTxsEventRequest, GetTxsEventResponse, SimulateRequest,
+            SimulateResponse,
+        },
+    },
+    google::protobuf::Any,
 };
-use ibc_proto::google::protobuf::Any;
 use prost::Message;
 use serde_json::Value;
 use tendermint_abci::Application;
-use tendermint_proto::abci::{
-    Event, RequestBeginBlock, RequestDeliverTx, RequestInfo, RequestInitChain, RequestQuery,
-    ResponseBeginBlock, ResponseCommit, ResponseDeliverTx, ResponseInfo, ResponseInitChain,
-    ResponseQuery,
+use tendermint_proto::{
+    abci::{
+        Event, RequestBeginBlock, RequestDeliverTx, RequestInfo, RequestInitChain, RequestQuery,
+        ResponseBeginBlock, ResponseCommit, ResponseDeliverTx, ResponseInfo, ResponseInitChain,
+        ResponseQuery,
+    },
+    crypto::{ProofOp, ProofOps},
+    p2p::DefaultNodeInfo,
 };
-use tendermint_proto::crypto::ProofOp;
-use tendermint_proto::crypto::ProofOps;
-use tendermint_proto::p2p::DefaultNodeInfo;
 use tonic::{Request, Response, Status};
 use tracing::{debug, error, info};
+
+use crate::app::{
+    modules::{Error, ErrorDetail, Module, ACCOUNT_PREFIX},
+    response::ResponseFromErrorExt,
+    store::{Height, Identifier, Path, ProvableStore, RevertibleStore, SharedStore, Store},
+};
 
 type MainStore<S> = SharedStore<RevertibleStore<S>>;
 type ModuleStore<S> = RevertibleStore<S>;
