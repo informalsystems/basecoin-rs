@@ -1083,22 +1083,26 @@ impl<S: ProvableStore + 'static> ClientQuery for IbcClientService<S> {
             .try_into()
             .map_err(|e| Status::invalid_argument(format!("{}", e)))?;
 
+        let client_state_paths = |path: Path| -> Option<path::ClientStatePath> {
+            match path.try_into() {
+                Ok(IbcPath::ClientState(p)) => Some(p),
+                _ => None,
+            }
+        };
+
+        let identified_client_state = |path: path::ClientStatePath| {
+            let client_state = self.client_state_store.get(Height::Pending, &path).unwrap();
+            IdentifiedClientState {
+                client_id: path.0.to_string(),
+                client_state: Some(client_state.into()),
+            }
+        };
+
         let keys = self.client_state_store.get_keys(&path);
         let client_states = keys
             .into_iter()
-            .filter_map(|path| {
-                let path = IbcPath::try_from(path);
-                if let Ok(IbcPath::ClientState(path)) = path {
-                    let client_state = self.client_state_store.get(Height::Pending, &path);
-                    Some(IdentifiedClientState {
-                        client_id: path.0.to_string(),
-                        client_state: client_state.map(|cs| cs.into()),
-                    })
-                } else {
-                    // could be a valid path starting with `clients`, eg. `ClientType`, etc.
-                    None
-                }
-            })
+            .filter_map(client_state_paths)
+            .map(identified_client_state)
             .collect();
 
         Ok(Response::new(QueryClientStatesResponse {
@@ -1128,10 +1132,8 @@ impl<S: ProvableStore + 'static> ClientQuery for IbcClientService<S> {
         let consensus_states = keys
             .into_iter()
             .map(|path| {
-                let path = IbcPath::try_from(path);
-                if let Ok(IbcPath::ClientConsensusState(path)) = path {
+                if let Ok(IbcPath::ClientConsensusState(path)) = path.try_into() {
                     let consensus_state = self.consensus_state_store.get(Height::Pending, &path);
-
                     ConsensusStateWithHeight {
                         height: Some(RawHeight {
                             revision_number: path.epoch,
@@ -1221,21 +1223,17 @@ impl<S: ProvableStore + 'static> ConnectionQuery for IbcConnectionService<S> {
             .try_into()
             .expect("'connections' expected to be a valid Path");
 
-        let connection_paths: Vec<Path> =
-            self.connection_end_store.get_keys(&connection_path_prefix);
+        let connection_paths = self.connection_end_store.get_keys(&connection_path_prefix);
 
         let identified_connections: Vec<RawIdentifiedConnection> = connection_paths
             .into_iter()
-            .map(|path| match IbcPath::try_from(path.clone()) {
+            .map(|path| match path.try_into() {
                 Ok(IbcPath::Connections(connections_path)) => {
                     let connection_end = self
                         .connection_end_store
                         .get(Height::Pending, &connections_path)
                         .unwrap();
-
-                    let connection_id: ConnectionId =
-                        path.get(1).unwrap().to_string().parse().unwrap();
-                    IdentifiedConnectionEnd::new(connection_id, connection_end).into()
+                    IdentifiedConnectionEnd::new(connections_path.0, connection_end).into()
                 }
                 _ => panic!("unexpected path"),
             })
@@ -1343,21 +1341,16 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
             .try_into()
             .expect("'channelEnds/ports' expected to be a valid Path");
 
-        let channel_paths: Vec<Path> = self.channel_end_store.get_keys(&channel_path_prefix);
-
+        let channel_paths = self.channel_end_store.get_keys(&channel_path_prefix);
         let identified_channels: Vec<RawIdentifiedChannel> = channel_paths
             .into_iter()
-            .map(|path| match IbcPath::try_from(path.clone()) {
+            .map(|path| match path.try_into() {
                 Ok(IbcPath::ChannelEnds(channels_path)) => {
                     let channel_end = self
                         .channel_end_store
                         .get(Height::Pending, &channels_path)
                         .expect("channel path returned by get_keys() had no associated channel");
-
-                    // path: "channelEnds/ports/{}/channels/{}"
-                    let port_id: PortId = path.get(2).unwrap().to_string().parse().unwrap();
-                    let channel_id: ChannelId = path.get(4).unwrap().to_string().parse().unwrap();
-                    IdentifiedChannelEnd::new(port_id, channel_id, channel_end).into()
+                    IdentifiedChannelEnd::new(channels_path.0, channels_path.1, channel_end).into()
                 }
                 _ => panic!("unexpected path"),
             })
@@ -1378,13 +1371,15 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
         &self,
         request: Request<QueryConnectionChannelsRequest>,
     ) -> Result<Response<QueryConnectionChannelsResponse>, Status> {
+        let conn_id = ConnectionId::from_str(&request.get_ref().connection)
+            .map_err(|_| Status::invalid_argument("invalid connection id"))?;
+
         let path = "channelEnds"
             .to_owned()
             .try_into()
             .expect("'commitments/ports' expected to be a valid Path");
+
         let keys = self.channel_end_store.get_keys(&path);
-        let conn_id = ConnectionId::from_str(&request.get_ref().connection)
-            .map_err(|_| Status::invalid_argument("invalid connection id"))?;
         let channels = keys
             .into_iter()
             .filter_map(|path| {
@@ -1398,6 +1393,7 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
                 None
             })
             .collect();
+
         Ok(Response::new(QueryConnectionChannelsResponse {
             channels,
             pagination: None,
@@ -1442,7 +1438,7 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
         let channel_id = ChannelId::from_str(&request.channel_id)
             .map_err(|_| Status::invalid_argument("invalid channel id"))?;
 
-        let commitment_paths: Vec<Path> = {
+        let commitment_paths = {
             let prefix: Path = String::from("commitments/ports")
                 .try_into()
                 .expect("'commitments/ports' expected to be a valid Path");
@@ -1460,7 +1456,7 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
             }
         };
 
-        let into_packet_state = |path: path::CommitmentsPath| -> Option<PacketState> {
+        let packet_state = |path: path::CommitmentsPath| -> Option<PacketState> {
             let commitment = self
                 .packet_commitment_store
                 .get(Height::Pending, &path)
@@ -1477,7 +1473,7 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
         let packet_states: Vec<PacketState> = commitment_paths
             .into_iter()
             .filter_map(matching_commitment_paths)
-            .filter_map(into_packet_state)
+            .filter_map(packet_state)
             .collect();
 
         Ok(Response::new(QueryPacketCommitmentsResponse {
@@ -1519,7 +1515,7 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
         let channel_id = ChannelId::from_str(&request.channel_id)
             .map_err(|_| Status::invalid_argument("invalid channel id"))?;
 
-        let ack_paths: Vec<Path> = {
+        let ack_paths = {
             let prefix: Path = String::from("acks/ports")
                 .try_into()
                 .expect("'acks/ports' expected to be a valid Path");
@@ -1535,7 +1531,7 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
             }
         };
 
-        let into_packet_state = |path: path::AcksPath| -> Option<PacketState> {
+        let packet_state = |path: path::AcksPath| -> Option<PacketState> {
             let commitment = self.packet_ack_store.get(Height::Pending, &path).unwrap();
             let data = commitment.into_vec();
             (!data.is_empty()).then(|| PacketState {
@@ -1549,7 +1545,7 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
         let packet_states: Vec<PacketState> = ack_paths
             .into_iter()
             .filter_map(matching_ack_paths)
-            .filter_map(into_packet_state)
+            .filter_map(packet_state)
             .collect();
 
         Ok(Response::new(QueryPacketAcknowledgementsResponse {
