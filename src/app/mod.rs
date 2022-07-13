@@ -31,6 +31,7 @@ use ibc_proto::{
     },
     google::protobuf::Any,
 };
+use ibc_proto::cosmos::tx::v1beta1::{GetBlockWithTxsRequest, GetBlockWithTxsResponse};
 use prost::Message;
 use serde_json::Value;
 use tendermint_abci::Application;
@@ -465,6 +466,10 @@ impl<S: ProvableStore + 'static> TxService for BaseCoinApp<S> {
         &self,
         _request: Request<GetTxsEventRequest>,
     ) -> Result<Response<GetTxsEventResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn get_block_with_txs(&self, _request: Request<GetBlockWithTxsRequest>) -> Result<Response<GetBlockWithTxsResponse>, Status> {
         unimplemented!()
     }
 }

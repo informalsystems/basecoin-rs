@@ -102,6 +102,7 @@ use ibc_proto::{
         },
     },
 };
+use ibc_proto::ibc::core::client::v1::{QueryConsensusStateHeightsRequest, QueryConsensusStateHeightsResponse};
 use prost::Message;
 use sha2::{Digest, Sha256};
 use tendermint::{abci::responses::Event as TendermintEvent, block::Header};
@@ -1151,6 +1152,10 @@ impl<S: ProvableStore + 'static> ClientQuery for IbcClientService<S> {
             consensus_states,
             pagination: None, // TODO(hu55a1n1): add pagination support
         }))
+    }
+
+    async fn consensus_state_heights(&self, _request: Request<QueryConsensusStateHeightsRequest>) -> Result<Response<QueryConsensusStateHeightsResponse>, Status> {
+        unimplemented!()
     }
 
     async fn client_status(

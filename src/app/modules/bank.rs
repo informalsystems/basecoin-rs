@@ -17,6 +17,7 @@ use ibc_proto::{
     },
     google::protobuf::Any,
 };
+use ibc_proto::cosmos::bank::v1beta1::{QuerySpendableBalancesRequest, QuerySpendableBalancesResponse};
 use prost::{DecodeError, Message};
 use serde::{Deserialize, Serialize};
 use tendermint_proto::abci::Event;
@@ -482,6 +483,10 @@ impl<S: ProvableStore + 'static> Query for BankService<S> {
         &self,
         _request: Request<QueryAllBalancesRequest>,
     ) -> Result<Response<QueryAllBalancesResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn spendable_balances(&self, _request: Request<QuerySpendableBalancesRequest>) -> Result<Response<QuerySpendableBalancesResponse>, Status> {
         unimplemented!()
     }
 
