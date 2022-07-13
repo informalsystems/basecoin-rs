@@ -11,14 +11,15 @@ use cosmrs::AccountId;
 use ibc::{
     applications::transfer::{
         context::{
-            on_acknowledgement_packet, on_chan_close_confirm, on_chan_close_init, on_chan_open_ack,
-            on_chan_open_confirm, on_chan_open_init, on_chan_open_try, on_recv_packet,
-            on_timeout_packet, BankKeeper as IbcBankKeeper, Ics20Context, Ics20Keeper, Ics20Reader,
+            cosmos_adr028_escrow_address, on_acknowledgement_packet, on_chan_close_confirm,
+            on_chan_close_init, on_chan_open_ack, on_chan_open_confirm, on_chan_open_init,
+            on_chan_open_try, on_recv_packet, on_timeout_packet, BankKeeper as IbcBankKeeper,
+            Ics20Context, Ics20Keeper, Ics20Reader,
         },
         error::Error as Ics20Error,
         msgs::transfer::MsgTransfer,
         relay::send_transfer::send_transfer,
-        PrefixedCoin, VERSION,
+        PrefixedCoin,
     },
     clients::ics07_tendermint::consensus_state::ConsensusState,
     core::{
@@ -62,6 +63,9 @@ use ibc::{
     timestamp::Timestamp,
     Height as IbcHeight,
 };
+use ibc_proto::ibc::core::client::v1::{
+    QueryConsensusStateHeightsRequest, QueryConsensusStateHeightsResponse,
+};
 use ibc_proto::{
     google::protobuf::Any,
     ibc::core::{
@@ -102,9 +106,8 @@ use ibc_proto::{
         },
     },
 };
-use ibc_proto::ibc::core::client::v1::{QueryConsensusStateHeightsRequest, QueryConsensusStateHeightsResponse};
 use prost::Message;
-use sha2::{Digest, Sha256};
+use sha2::Digest;
 use tendermint::{abci::responses::Event as TendermintEvent, block::Header};
 use tendermint_proto::{
     abci::{Event, EventAttribute},
@@ -1154,7 +1157,10 @@ impl<S: ProvableStore + 'static> ClientQuery for IbcClientService<S> {
         }))
     }
 
-    async fn consensus_state_heights(&self, _request: Request<QueryConsensusStateHeightsRequest>) -> Result<Response<QueryConsensusStateHeightsResponse>, Status> {
+    async fn consensus_state_heights(
+        &self,
+        _request: Request<QueryConsensusStateHeightsRequest>,
+    ) -> Result<Response<QueryConsensusStateHeightsResponse>, Status> {
         unimplemented!()
     }
 
@@ -2016,19 +2022,6 @@ impl<S: Store, BK> Ics20Reader for IbcTransferModule<S, BK> {
         port_id: &PortId,
         channel_id: &ChannelId,
     ) -> Result<Self::AccountId, Ics20Error> {
-        fn cosmos_adr028_escrow_address(port_id: &PortId, channel_id: &ChannelId) -> Vec<u8> {
-            let contents = format!("{}/{}", port_id, channel_id);
-
-            let mut hasher = Sha256::new();
-            hasher.update(VERSION.as_bytes());
-            hasher.update([0]);
-            hasher.update(contents.as_bytes());
-
-            let mut hash = hasher.finalize().to_vec();
-            hash.truncate(20);
-            hash
-        }
-
         let account_id = AccountId::new(
             ACCOUNT_PREFIX,
             &cosmos_adr028_escrow_address(port_id, channel_id),

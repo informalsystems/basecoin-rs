@@ -10,14 +10,14 @@ use ibc_proto::{
             QueryAllBalancesRequest, QueryAllBalancesResponse, QueryBalanceRequest,
             QueryBalanceResponse, QueryDenomMetadataRequest, QueryDenomMetadataResponse,
             QueryDenomsMetadataRequest, QueryDenomsMetadataResponse, QueryParamsRequest,
-            QueryParamsResponse, QuerySupplyOfRequest, QuerySupplyOfResponse,
-            QueryTotalSupplyRequest, QueryTotalSupplyResponse,
+            QueryParamsResponse, QuerySpendableBalancesRequest, QuerySpendableBalancesResponse,
+            QuerySupplyOfRequest, QuerySupplyOfResponse, QueryTotalSupplyRequest,
+            QueryTotalSupplyResponse,
         },
         base::v1beta1::Coin as RawCoin,
     },
     google::protobuf::Any,
 };
-use ibc_proto::cosmos::bank::v1beta1::{QuerySpendableBalancesRequest, QuerySpendableBalancesResponse};
 use prost::{DecodeError, Message};
 use serde::{Deserialize, Serialize};
 use tendermint_proto::abci::Event;
@@ -486,7 +486,10 @@ impl<S: ProvableStore + 'static> Query for BankService<S> {
         unimplemented!()
     }
 
-    async fn spendable_balances(&self, _request: Request<QuerySpendableBalancesRequest>) -> Result<Response<QuerySpendableBalancesResponse>, Status> {
+    async fn spendable_balances(
+        &self,
+        _request: Request<QuerySpendableBalancesRequest>,
+    ) -> Result<Response<QuerySpendableBalancesResponse>, Status> {
         unimplemented!()
     }
 
