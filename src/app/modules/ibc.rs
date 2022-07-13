@@ -91,15 +91,14 @@ use ibc_proto::{
             QueryUpgradedClientStateRequest, QueryUpgradedClientStateResponse,
             QueryUpgradedConsensusStateRequest, QueryUpgradedConsensusStateResponse,
         },
-        commitment::v1::MerklePrefix,
         connection::v1::{
             query_server::{Query as ConnectionQuery, QueryServer as ConnectionQueryServer},
-            ConnectionEnd as RawConnectionEnd, Counterparty as RawCounterParty,
-            IdentifiedConnection as RawIdentifiedConnection, QueryClientConnectionsRequest,
-            QueryClientConnectionsResponse, QueryConnectionClientStateRequest,
-            QueryConnectionClientStateResponse, QueryConnectionConsensusStateRequest,
-            QueryConnectionConsensusStateResponse, QueryConnectionRequest, QueryConnectionResponse,
-            QueryConnectionsRequest, QueryConnectionsResponse, Version as RawVersion,
+            ConnectionEnd as RawConnectionEnd, IdentifiedConnection as RawIdentifiedConnection,
+            QueryClientConnectionsRequest, QueryClientConnectionsResponse,
+            QueryConnectionClientStateRequest, QueryConnectionClientStateResponse,
+            QueryConnectionConsensusStateRequest, QueryConnectionConsensusStateResponse,
+            QueryConnectionRequest, QueryConnectionResponse, QueryConnectionsRequest,
+            QueryConnectionsResponse,
         },
     },
 };
@@ -1208,7 +1207,7 @@ impl<S: ProvableStore + 'static> ConnectionQuery for IbcConnectionService<S> {
             .connection_end_store
             .get(Height::Pending, &path::ConnectionsPath(conn_id));
         Ok(Response::new(QueryConnectionResponse {
-            connection: conn.map(|c| ConnectionEndWrapper(c.into()).into()),
+            connection: conn.map(|c| c.into()),
             proof: vec![],
             proof_height: None,
         }))
@@ -1290,35 +1289,6 @@ impl<S: ProvableStore + 'static> ConnectionQuery for IbcConnectionService<S> {
         _request: Request<QueryConnectionConsensusStateRequest>,
     ) -> Result<Response<QueryConnectionConsensusStateResponse>, Status> {
         todo!()
-    }
-}
-
-// TODO: REMOVE (NO LONGER NEEDED)
-struct ConnectionEndWrapper(RawConnectionEnd);
-
-impl From<ConnectionEndWrapper> for RawConnectionEnd {
-    fn from(conn: ConnectionEndWrapper) -> Self {
-        Self {
-            client_id: conn.0.client_id,
-            versions: conn
-                .0
-                .versions
-                .into_iter()
-                .map(|v| RawVersion {
-                    identifier: v.identifier,
-                    features: v.features,
-                })
-                .collect(),
-            state: conn.0.state,
-            counterparty: conn.0.counterparty.map(|c| RawCounterParty {
-                client_id: c.client_id,
-                connection_id: c.connection_id,
-                prefix: c.prefix.map(|p| MerklePrefix {
-                    key_prefix: p.key_prefix,
-                }),
-            }),
-            delay_period: 0,
-        }
     }
 }
 
