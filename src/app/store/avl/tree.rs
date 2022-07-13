@@ -1,15 +1,22 @@
-use core::borrow::Borrow;
-use core::cmp::{Ord, Ordering};
-use core::marker::Sized;
-use core::option::Option;
-use core::option::Option::{None, Some};
+use core::{
+    borrow::Borrow,
+    cmp::{Ord, Ordering},
+    marker::Sized,
+    option::{
+        Option,
+        Option::{None, Some},
+    },
+};
 
-use ics23::commitment_proof::Proof;
-use ics23::{CommitmentProof, ExistenceProof, HashOp, InnerOp, LeafOp, LengthOp};
+use ics23::{
+    commitment_proof::Proof, CommitmentProof, ExistenceProof, HashOp, InnerOp, LeafOp, LengthOp,
+};
 use tendermint::hash::Hash;
 
-use crate::app::store::avl::node::{as_node_ref, NodeRef};
-use crate::app::store::avl::{proof, AsBytes};
+use crate::app::store::avl::{
+    node::{as_node_ref, NodeRef},
+    proof, AsBytes,
+};
 
 /// An AVL Tree that supports `get` and `insert` operation and can be used to prove existence of a
 /// given key-value couple.

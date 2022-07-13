@@ -1,6 +1,6 @@
 ARG TENDERMINT_VERSION=0.34.11
 ARG GAIA_VERSION=5.0.5
-ARG RUST_VERSION=1.61
+ARG RUST_VERSION=1.62
 
 FROM tendermint/tendermint:v${TENDERMINT_VERSION} AS tendermint
 FROM cephalopodequipment/gaiad:${GAIA_VERSION} AS gaia

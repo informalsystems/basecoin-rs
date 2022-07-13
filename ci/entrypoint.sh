@@ -47,12 +47,14 @@ mkdir -p "${CHAIN_DATA}"
 
 echo ""
 echo "Configuring Hermes..."
-"${HERMES_BIN}" -c "${HERMES_CONFIG}" \
-    keys add ibc-0 \
-    -f "${CHAIN_DATA}/ibc-0/user_seed.json"
+"${HERMES_BIN}" --config "${HERMES_CONFIG}" \
+    keys add --chain ibc-0 \
+    --key-file "${CHAIN_DATA}/ibc-0/user_seed.json"
 
 echo "Adding user key to basecoin-0 chain..."
-"${HERMES_BIN}" -c "${HERMES_CONFIG}" keys add basecoin-0 -f "${HOME}/user_seed.json"
+"${HERMES_BIN}" --config "${HERMES_CONFIG}" \
+    keys add --chain basecoin-0 \
+    --key-file "${HOME}/user_seed.json"
 
 echo ""
 echo "Starting Tendermint..."
