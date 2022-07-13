@@ -41,6 +41,5 @@ jobs:
         run: |
           docker run --rm \
             -v `pwd`:/src/basecoin-rs \
-            -e IBC_COMMITISH=hu55a1n1/2386-fix-ics20-ds-serde \
             informaldev/basecoin-rs-ci
 
