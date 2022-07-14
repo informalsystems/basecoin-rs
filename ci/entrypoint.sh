@@ -14,7 +14,6 @@ CHAIN_DATA="${HOME}/data"
 HERMES_CONFIG="${HOME}/.hermes/config.toml"
 LOG_DIR=${LOG_DIR:-/var/log/basecoin-rs}
 TESTS_DIR=${TESTS_DIR:-${HOME}/tests}
-DEFAULT_TEST=${DEFAULT_TEST:-${TESTS_DIR}/create-channel.sh}
 
 if [ ! -f "${BASECOIN_SRC}/Cargo.toml" ]; then
   echo "basecoin-rs sources must be mounted into ${BASECOIN_SRC} for this script to work properly."
@@ -86,8 +85,10 @@ if [ ! -z "$@" ]; then
   exec "$@"
 else
   echo ""
-  echo "No parameters supplied. Executing default test: ${DEFAULT_TEST}"
-  "${DEFAULT_TEST}"
+  echo "No parameters supplied. Executing default tests from: ${TESTS_DIR}"
+  for t in "${TESTS_DIR}"/*; do
+    bash "$t"
+  done
   echo ""
   echo "Success!"
 fi
