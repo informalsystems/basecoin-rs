@@ -1,12 +1,13 @@
 //! # Test suite of tendermock AVL Tree.
 
-use ics23::commitment_proof::Proof;
-use ics23::verify_membership;
+use ics23::{commitment_proof::Proof, verify_membership};
 use sha2::{Digest, Sha256};
 
-use crate::app::store::avl::node::{as_node_ref, NodeRef};
-use crate::app::store::avl::tree::AvlTree;
-use crate::app::store::avl::*;
+use crate::app::store::avl::{
+    node::{as_node_ref, NodeRef},
+    tree::AvlTree,
+    *,
+};
 
 #[test]
 fn insert() {

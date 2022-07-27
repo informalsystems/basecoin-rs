@@ -1,89 +1,135 @@
-use crate::app::modules::{Error as ModuleError, Identifiable, Module, QueryResult};
-use crate::app::store::{
-    Height, JsonStore, Path, ProtobufStore, ProvableStore, SharedStore, Store, TypedSet, TypedStore,
+use std::{
+    borrow::Borrow,
+    collections::{BTreeMap, HashMap},
+    convert::{TryFrom, TryInto},
+    str::FromStr,
+    sync::Arc,
+    time::Duration,
 };
-
-use std::borrow::Borrow;
-use std::collections::{BTreeMap, HashMap};
-use std::convert::{TryFrom, TryInto};
-use std::str::FromStr;
-use std::sync::Arc;
-use std::time::Duration;
 
 use cosmrs::AccountId;
-use ibc::clients::ics07_tendermint::consensus_state::ConsensusState;
-use ibc::core::ics02_client::client_consensus::AnyConsensusState;
-use ibc::core::ics02_client::client_state::AnyClientState;
-use ibc::core::ics02_client::client_type::ClientType;
-use ibc::core::ics02_client::context::{ClientKeeper, ClientReader};
-use ibc::core::ics02_client::error::Error as ClientError;
-use ibc::core::ics03_connection::connection::{ConnectionEnd, IdentifiedConnectionEnd};
-use ibc::core::ics03_connection::context::{ConnectionKeeper, ConnectionReader};
-use ibc::core::ics03_connection::error::Error as ConnectionError;
-use ibc::core::ics04_channel::channel::{ChannelEnd, Counterparty, IdentifiedChannelEnd, Order};
-use ibc::core::ics04_channel::commitment::{AcknowledgementCommitment, PacketCommitment};
-use ibc::core::ics04_channel::context::{ChannelKeeper, ChannelReader};
-use ibc::core::ics04_channel::error::Error as ChannelError;
-use ibc::core::ics04_channel::packet::{Receipt, Sequence};
-use ibc::core::ics04_channel::Version;
-use ibc::core::ics05_port::context::PortReader;
-use ibc::core::ics05_port::error::Error as PortError;
-use ibc::core::ics23_commitment::commitment::{CommitmentPrefix, CommitmentRoot};
-use ibc::core::ics24_host::identifier::{ChannelId, ClientId, ConnectionId, PortId};
-use ibc::core::ics24_host::{path, Path as IbcPath, IBC_QUERY_PATH};
-use ibc::core::ics26_routing::context::{
-    Ics26Context, Module as IbcModule, ModuleId, ModuleOutputBuilder, Router, RouterBuilder,
+use ibc::{
+    applications::transfer::{
+        context::{
+            cosmos_adr028_escrow_address, on_acknowledgement_packet, on_chan_close_confirm,
+            on_chan_close_init, on_chan_open_ack, on_chan_open_confirm, on_chan_open_init,
+            on_chan_open_try, on_recv_packet, on_timeout_packet, BankKeeper as IbcBankKeeper,
+            Ics20Context, Ics20Keeper, Ics20Reader,
+        },
+        error::Error as Ics20Error,
+        msgs::transfer::MsgTransfer,
+        relay::send_transfer::send_transfer,
+        PrefixedCoin,
+    },
+    clients::ics07_tendermint::consensus_state::ConsensusState,
+    core::{
+        ics02_client::{
+            client_consensus::AnyConsensusState,
+            client_state::AnyClientState,
+            client_type::ClientType,
+            context::{ClientKeeper, ClientReader},
+            error::Error as ClientError,
+        },
+        ics03_connection::{
+            connection::{ConnectionEnd, IdentifiedConnectionEnd},
+            context::{ConnectionKeeper, ConnectionReader},
+            error::Error as ConnectionError,
+        },
+        ics04_channel::{
+            channel::{ChannelEnd, Counterparty, IdentifiedChannelEnd, Order},
+            commitment::{AcknowledgementCommitment, PacketCommitment},
+            context::{ChannelKeeper, ChannelReader},
+            error::Error as ChannelError,
+            msgs::acknowledgement::Acknowledgement as GenericAcknowledgement,
+            packet::{Packet, Receipt, Sequence},
+            Version,
+        },
+        ics05_port::{context::PortReader, error::Error as PortError},
+        ics23_commitment::commitment::{CommitmentPrefix, CommitmentRoot},
+        ics24_host::{
+            identifier::{ChannelId, ClientId, ConnectionId, PortId},
+            path, Path as IbcPath, IBC_QUERY_PATH,
+        },
+        ics26_routing::{
+            context::{
+                Ics26Context, Module as IbcModule, ModuleId, ModuleOutputBuilder, OnRecvPacketAck,
+                Router, RouterBuilder,
+            },
+            handler::{decode, dispatch},
+        },
+    },
+    handler::HandlerOutputBuilder,
+    signer::Signer,
+    timestamp::Timestamp,
+    Height as IbcHeight,
 };
-use ibc::core::ics26_routing::handler::{decode, dispatch};
-use ibc::timestamp::Timestamp;
-use ibc::Height as IbcHeight;
-use ibc_proto::google::protobuf::Any;
-use ibc_proto::ibc::core::channel::v1::query_server::{
-    Query as ChannelQuery, QueryServer as ChannelQueryServer,
-};
-use ibc_proto::ibc::core::channel::v1::{
-    Channel as RawChannelEnd, IdentifiedChannel as RawIdentifiedChannel, PacketState,
-    QueryChannelClientStateRequest, QueryChannelClientStateResponse,
-    QueryChannelConsensusStateRequest, QueryChannelConsensusStateResponse, QueryChannelRequest,
-    QueryChannelResponse, QueryChannelsRequest, QueryChannelsResponse,
-    QueryConnectionChannelsRequest, QueryConnectionChannelsResponse,
-    QueryNextSequenceReceiveRequest, QueryNextSequenceReceiveResponse,
-    QueryPacketAcknowledgementRequest, QueryPacketAcknowledgementResponse,
-    QueryPacketAcknowledgementsRequest, QueryPacketAcknowledgementsResponse,
-    QueryPacketCommitmentRequest, QueryPacketCommitmentResponse, QueryPacketCommitmentsRequest,
-    QueryPacketCommitmentsResponse, QueryPacketReceiptRequest, QueryPacketReceiptResponse,
-    QueryUnreceivedAcksRequest, QueryUnreceivedAcksResponse, QueryUnreceivedPacketsRequest,
-    QueryUnreceivedPacketsResponse,
-};
-use ibc_proto::ibc::core::client::v1::query_server::QueryServer as ClientQueryServer;
 use ibc_proto::ibc::core::client::v1::{
-    query_server::Query as ClientQuery, ConsensusStateWithHeight, Height as RawHeight,
-    QueryClientParamsRequest, QueryClientParamsResponse, QueryClientStateRequest,
-    QueryClientStateResponse, QueryClientStatesRequest, QueryClientStatesResponse,
-    QueryClientStatusRequest, QueryClientStatusResponse, QueryConsensusStateRequest,
-    QueryConsensusStateResponse, QueryConsensusStatesRequest, QueryConsensusStatesResponse,
-    QueryUpgradedClientStateRequest, QueryUpgradedClientStateResponse,
-    QueryUpgradedConsensusStateRequest, QueryUpgradedConsensusStateResponse,
+    QueryConsensusStateHeightsRequest, QueryConsensusStateHeightsResponse,
 };
-use ibc_proto::ibc::core::commitment::v1::MerklePrefix;
-use ibc_proto::ibc::core::connection::v1::query_server::QueryServer as ConnectionQueryServer;
-use ibc_proto::ibc::core::connection::v1::{
-    query_server::Query as ConnectionQuery, ConnectionEnd as RawConnectionEnd,
-    Counterparty as RawCounterParty, IdentifiedConnection as RawIdentifiedConnection,
-    QueryClientConnectionsRequest, QueryClientConnectionsResponse,
-    QueryConnectionClientStateRequest, QueryConnectionClientStateResponse,
-    QueryConnectionConsensusStateRequest, QueryConnectionConsensusStateResponse,
-    QueryConnectionRequest, QueryConnectionResponse, QueryConnectionsRequest,
-    QueryConnectionsResponse, Version as RawVersion,
+use ibc_proto::{
+    google::protobuf::Any,
+    ibc::core::{
+        channel::v1::{
+            query_server::{Query as ChannelQuery, QueryServer as ChannelQueryServer},
+            Channel as RawChannelEnd, IdentifiedChannel as RawIdentifiedChannel, PacketState,
+            QueryChannelClientStateRequest, QueryChannelClientStateResponse,
+            QueryChannelConsensusStateRequest, QueryChannelConsensusStateResponse,
+            QueryChannelRequest, QueryChannelResponse, QueryChannelsRequest, QueryChannelsResponse,
+            QueryConnectionChannelsRequest, QueryConnectionChannelsResponse,
+            QueryNextSequenceReceiveRequest, QueryNextSequenceReceiveResponse,
+            QueryPacketAcknowledgementRequest, QueryPacketAcknowledgementResponse,
+            QueryPacketAcknowledgementsRequest, QueryPacketAcknowledgementsResponse,
+            QueryPacketCommitmentRequest, QueryPacketCommitmentResponse,
+            QueryPacketCommitmentsRequest, QueryPacketCommitmentsResponse,
+            QueryPacketReceiptRequest, QueryPacketReceiptResponse, QueryUnreceivedAcksRequest,
+            QueryUnreceivedAcksResponse, QueryUnreceivedPacketsRequest,
+            QueryUnreceivedPacketsResponse,
+        },
+        client::v1::{
+            query_server::{Query as ClientQuery, QueryServer as ClientQueryServer},
+            ConsensusStateWithHeight, Height as RawHeight, IdentifiedClientState,
+            QueryClientParamsRequest, QueryClientParamsResponse, QueryClientStateRequest,
+            QueryClientStateResponse, QueryClientStatesRequest, QueryClientStatesResponse,
+            QueryClientStatusRequest, QueryClientStatusResponse, QueryConsensusStateRequest,
+            QueryConsensusStateResponse, QueryConsensusStatesRequest, QueryConsensusStatesResponse,
+            QueryUpgradedClientStateRequest, QueryUpgradedClientStateResponse,
+            QueryUpgradedConsensusStateRequest, QueryUpgradedConsensusStateResponse,
+        },
+        connection::v1::{
+            query_server::{Query as ConnectionQuery, QueryServer as ConnectionQueryServer},
+            ConnectionEnd as RawConnectionEnd, IdentifiedConnection as RawIdentifiedConnection,
+            QueryClientConnectionsRequest, QueryClientConnectionsResponse,
+            QueryConnectionClientStateRequest, QueryConnectionClientStateResponse,
+            QueryConnectionConsensusStateRequest, QueryConnectionConsensusStateResponse,
+            QueryConnectionRequest, QueryConnectionResponse, QueryConnectionsRequest,
+            QueryConnectionsResponse,
+        },
+    },
 };
 use prost::Message;
 use sha2::Digest;
-use tendermint::abci::responses::Event as TendermintEvent;
-use tendermint::block::Header;
-use tendermint_proto::abci::{Event, EventAttribute};
-use tendermint_proto::crypto::ProofOp;
+use tendermint::{abci::responses::Event as TendermintEvent, block::Header};
+use tendermint_proto::{
+    abci::{Event, EventAttribute},
+    crypto::ProofOp,
+};
 use tonic::{Request, Response, Status};
 use tracing::{debug, trace};
+
+use crate::{
+    app::{
+        modules::{
+            bank::{BankBalanceKeeper, BankKeeper, Coin, Denom},
+            Error as ModuleError, Identifiable, Module, QueryResult, ACCOUNT_PREFIX,
+        },
+        store::{
+            BinStore, Height, JsonStore, Path, ProtobufStore, ProvableStore, SharedStore, Store,
+            TypedSet, TypedStore,
+        },
+        CHAIN_REVISION_NUMBER,
+    },
+    IBC_TRANSFER_MODULE_ID,
+};
 
 pub(crate) type Error = ibc::core::ics26_routing::error::Error;
 
@@ -178,11 +224,11 @@ pub struct Ibc<S> {
     /// A typed-store for ack sequences
     ack_sequence_store: JsonStore<SharedStore<S>, path::SeqAcksPath, Sequence>,
     /// A typed-store for packet commitments
-    packet_commitment_store: JsonStore<SharedStore<S>, path::CommitmentsPath, PacketCommitment>,
+    packet_commitment_store: BinStore<SharedStore<S>, path::CommitmentsPath, PacketCommitment>,
     /// A typed-store for packet receipts
     packet_receipt_store: TypedSet<SharedStore<S>, path::ReceiptsPath>,
     /// A typed-store for packet ack
-    packet_ack_store: JsonStore<SharedStore<S>, path::AcksPath, AcknowledgementCommitment>,
+    packet_ack_store: BinStore<SharedStore<S>, path::AcksPath, AcknowledgementCommitment>,
 }
 
 impl<S: 'static + ProvableStore + Default> Ibc<S> {
@@ -245,20 +291,48 @@ impl<S: ProvableStore> Ibc<S> {
     }
 }
 
-impl<S: ProvableStore> Module for Ibc<S> {
+impl<S: 'static + ProvableStore> Module for Ibc<S> {
     type Store = S;
 
     fn deliver(&mut self, message: Any, _signer: &AccountId) -> Result<Vec<Event>, ModuleError> {
-        let msg = decode(message).map_err(|_| ModuleError::not_handled())?;
+        if let Ok(msg) = decode(message.clone()) {
+            debug!("Dispatching message: {:?}", msg);
 
-        debug!("Dispatching message: {:?}", msg);
-        match dispatch(self, msg) {
-            Ok(output) => Ok(output
+            match dispatch(self, msg) {
+                Ok(output) => Ok(output
+                    .events
+                    .into_iter()
+                    .map(|ev| TmEvent(ev.try_into().unwrap()).into())
+                    .collect()),
+                Err(e) => Err(ModuleError::ibc(e)),
+            }
+        } else if let Ok(transfer_msg) = MsgTransfer::try_from(message) {
+            debug!("Dispatching message: {:?}", transfer_msg);
+
+            let transfer_module_id: ModuleId = IBC_TRANSFER_MODULE_ID.parse().unwrap();
+            let transfer_module = {
+                let transfer_module = self
+                    .router
+                    .get_route_mut(&transfer_module_id)
+                    .ok_or_else(ModuleError::not_handled)?;
+                transfer_module
+                    .as_any_mut()
+                    .downcast_mut::<IbcTransferModule<S, BankBalanceKeeper<S>>>()
+                    .expect("Transfer Module <-> ModuleId mismatch")
+            };
+
+            let mut output = HandlerOutputBuilder::new();
+            send_transfer(transfer_module, &mut output, transfer_msg)
+                .map_err(|e| ModuleError::custom(e.to_string()))?;
+
+            Ok(output
+                .with_result(())
                 .events
                 .into_iter()
                 .map(|ev| TmEvent(ev.try_into().unwrap()).into())
-                .collect()),
-            Err(e) => Err(ModuleError::ibc(e)),
+                .collect())
+        } else {
+            Err(ModuleError::not_handled())
         }
     }
 
@@ -347,8 +421,8 @@ impl<S: Store> ClientReader for Ibc<S> {
     ) -> Result<AnyConsensusState, ClientError> {
         let path = path::ClientConsensusStatePath {
             client_id: client_id.clone(),
-            epoch: height.revision_number,
-            height: height.revision_height,
+            epoch: height.revision_number(),
+            height: height.revision_height(),
         };
         self.consensus_state_store
             .get(Height::Pending, &path)
@@ -367,7 +441,7 @@ impl<S: Store> ClientReader for Ibc<S> {
         let keys = self.store.get_keys(&path);
         let found_path = keys.into_iter().find_map(|path| {
             if let Ok(IbcPath::ClientConsensusState(path)) = IbcPath::try_from(path) {
-                if height > IbcHeight::new(path.epoch, path.height) {
+                if height > IbcHeight::new(path.epoch, path.height).unwrap() {
                     return Some(path);
                 }
             }
@@ -397,7 +471,7 @@ impl<S: Store> ClientReader for Ibc<S> {
         let keys = self.store.get_keys(&path);
         let pos = keys.iter().position(|path| {
             if let Ok(IbcPath::ClientConsensusState(path)) = IbcPath::try_from(path.clone()) {
-                height >= IbcHeight::new(path.epoch, path.height)
+                height >= IbcHeight::new(path.epoch, path.height).unwrap()
             } else {
                 false
             }
@@ -423,23 +497,19 @@ impl<S: Store> ClientReader for Ibc<S> {
     }
 
     fn host_height(&self) -> IbcHeight {
-        IbcHeight::new(0, self.store.current_height())
+        IbcHeight::new(0, self.store.current_height()).unwrap()
     }
 
     fn host_consensus_state(&self, height: IbcHeight) -> Result<AnyConsensusState, ClientError> {
         let consensus_state = self
             .consensus_states
-            .get(&height.revision_height)
+            .get(&height.revision_height())
             .ok_or_else(|| ClientError::missing_local_consensus_state(height))?;
         Ok(AnyConsensusState::Tendermint(consensus_state.clone()))
     }
 
     fn pending_host_consensus_state(&self) -> Result<AnyConsensusState, ClientError> {
-        let pending_height = {
-            let mut h = ClientReader::host_height(self);
-            h.revision_height += 1;
-            h
-        };
+        let pending_height = ClientReader::host_height(self).increment();
         ClientReader::host_consensus_state(self, pending_height)
     }
 
@@ -481,8 +551,8 @@ impl<S: Store> ClientKeeper for Ibc<S> {
             .set(
                 path::ClientConsensusStatePath {
                     client_id,
-                    epoch: height.revision_number,
-                    height: height.revision_height,
+                    epoch: height.revision_number(),
+                    height: height.revision_height(),
                 },
                 consensus_state,
             )
@@ -531,11 +601,11 @@ impl<S: Store> ConnectionReader for Ibc<S> {
     }
 
     fn host_current_height(&self) -> IbcHeight {
-        IbcHeight::new(0, self.store.current_height())
+        ClientReader::host_height(self)
     }
 
     fn host_oldest_height(&self) -> IbcHeight {
-        IbcHeight::zero()
+        IbcHeight::new(0, 1).unwrap()
     }
 
     fn commitment_prefix(&self) -> CommitmentPrefix {
@@ -607,7 +677,7 @@ impl<S: Store> ChannelReader for Ibc<S> {
         self.channel_end_store
             .get(
                 Height::Pending,
-                &path::ChannelEndsPath(port_id.clone(), *chan_id),
+                &path::ChannelEndsPath(port_id.clone(), chan_id.clone()),
             )
             .ok_or_else(ChannelError::implementation_specific)
     }
@@ -659,7 +729,7 @@ impl<S: Store> ChannelReader for Ibc<S> {
         self.send_sequence_store
             .get(
                 Height::Pending,
-                &path::SeqSendsPath(port_id.clone(), *chan_id),
+                &path::SeqSendsPath(port_id.clone(), chan_id.clone()),
             )
             .ok_or_else(ChannelError::implementation_specific)
     }
@@ -671,7 +741,7 @@ impl<S: Store> ChannelReader for Ibc<S> {
         self.recv_sequence_store
             .get(
                 Height::Pending,
-                &path::SeqRecvsPath(port_id.clone(), *chan_id),
+                &path::SeqRecvsPath(port_id.clone(), chan_id.clone()),
             )
             .ok_or_else(ChannelError::implementation_specific)
     }
@@ -683,7 +753,7 @@ impl<S: Store> ChannelReader for Ibc<S> {
         self.ack_sequence_store
             .get(
                 Height::Pending,
-                &path::SeqAcksPath(port_id.clone(), *chan_id),
+                &path::SeqAcksPath(port_id.clone(), chan_id.clone()),
             )
             .ok_or_else(ChannelError::implementation_specific)
     }
@@ -697,7 +767,7 @@ impl<S: Store> ChannelReader for Ibc<S> {
                 Height::Pending,
                 &path::CommitmentsPath {
                     port_id: key.0.clone(),
-                    channel_id: key.1,
+                    channel_id: key.1.clone(),
                     sequence: key.2,
                 },
             )
@@ -706,19 +776,19 @@ impl<S: Store> ChannelReader for Ibc<S> {
 
     fn get_packet_receipt(
         &self,
-        key: &(PortId, ChannelId, Sequence),
+        (port_id, channel_id, sequence): &(PortId, ChannelId, Sequence),
     ) -> Result<Receipt, ChannelError> {
         self.packet_receipt_store
             .is_path_set(
                 Height::Pending,
                 &path::ReceiptsPath {
-                    port_id: key.0.clone(),
-                    channel_id: key.1,
-                    sequence: key.2,
+                    port_id: port_id.clone(),
+                    channel_id: channel_id.clone(),
+                    sequence: *sequence,
                 },
             )
             .then(|| Receipt::Ok)
-            .ok_or_else(ChannelError::implementation_specific)
+            .ok_or_else(|| ChannelError::packet_receipt_not_found(*sequence))
     }
 
     fn get_packet_acknowledgement(
@@ -730,7 +800,7 @@ impl<S: Store> ChannelReader for Ibc<S> {
                 Height::Pending,
                 &path::AcksPath {
                     port_id: key.0.clone(),
-                    channel_id: key.1,
+                    channel_id: key.1.clone(),
                     sequence: key.2,
                 },
             )
@@ -811,12 +881,17 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
         &mut self,
         key: (PortId, ChannelId, Sequence),
     ) -> Result<(), ChannelError> {
-        self.packet_commitment_store.delete(&path::CommitmentsPath {
-            port_id: key.0,
-            channel_id: key.1,
-            sequence: key.2,
-        });
-        Ok(())
+        self.packet_commitment_store
+            .set(
+                path::CommitmentsPath {
+                    port_id: key.0,
+                    channel_id: key.1,
+                    sequence: key.2,
+                },
+                vec![].into(),
+            )
+            .map(|_| ())
+            .map_err(|_| ChannelError::implementation_specific())
     }
 
     fn store_packet_receipt(
@@ -856,12 +931,17 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
         &mut self,
         key: (PortId, ChannelId, Sequence),
     ) -> Result<(), ChannelError> {
-        self.packet_ack_store.delete(&path::AcksPath {
-            port_id: key.0,
-            channel_id: key.1,
-            sequence: key.2,
-        });
-        Ok(())
+        self.packet_ack_store
+            .set(
+                path::AcksPath {
+                    port_id: key.0,
+                    channel_id: key.1,
+                    sequence: key.2,
+                },
+                vec![].into(),
+            )
+            .map(|_| ())
+            .map_err(|_| ChannelError::implementation_specific())
     }
 
     fn store_connection_channels(
@@ -973,7 +1053,7 @@ impl From<TmEvent> for Event {
 }
 
 pub struct IbcClientService<S> {
-    store: SharedStore<S>,
+    client_state_store: ProtobufStore<SharedStore<S>, path::ClientStatePath, AnyClientState, Any>,
     consensus_state_store:
         ProtobufStore<SharedStore<S>, path::ClientConsensusStatePath, AnyConsensusState, Any>,
 }
@@ -981,8 +1061,8 @@ pub struct IbcClientService<S> {
 impl<S: Store> IbcClientService<S> {
     pub fn new(store: SharedStore<S>) -> Self {
         Self {
-            consensus_state_store: TypedStore::new(store.clone()),
-            store,
+            client_state_store: TypedStore::new(store.clone()),
+            consensus_state_store: TypedStore::new(store),
         }
     }
 }
@@ -998,9 +1078,41 @@ impl<S: ProvableStore + 'static> ClientQuery for IbcClientService<S> {
 
     async fn client_states(
         &self,
-        _request: Request<QueryClientStatesRequest>,
+        request: Request<QueryClientStatesRequest>,
     ) -> Result<Response<QueryClientStatesResponse>, Status> {
-        unimplemented!()
+        trace!("Got client states request: {:?}", request);
+
+        let path = "clients"
+            .to_owned()
+            .try_into()
+            .map_err(|e| Status::invalid_argument(format!("{}", e)))?;
+
+        let client_state_paths = |path: Path| -> Option<path::ClientStatePath> {
+            match path.try_into() {
+                Ok(IbcPath::ClientState(p)) => Some(p),
+                _ => None,
+            }
+        };
+
+        let identified_client_state = |path: path::ClientStatePath| {
+            let client_state = self.client_state_store.get(Height::Pending, &path).unwrap();
+            IdentifiedClientState {
+                client_id: path.0.to_string(),
+                client_state: Some(client_state.into()),
+            }
+        };
+
+        let keys = self.client_state_store.get_keys(&path);
+        let client_states = keys
+            .into_iter()
+            .filter_map(client_state_paths)
+            .map(identified_client_state)
+            .collect();
+
+        Ok(Response::new(QueryClientStatesResponse {
+            client_states,
+            pagination: None, // TODO(hu55a1n1): add pagination support
+        }))
     }
 
     async fn consensus_state(
@@ -1020,14 +1132,12 @@ impl<S: ProvableStore + 'static> ClientQuery for IbcClientService<S> {
             .try_into()
             .map_err(|e| Status::invalid_argument(format!("{}", e)))?;
 
-        let keys = self.store.get_keys(&path);
+        let keys = self.consensus_state_store.get_keys(&path);
         let consensus_states = keys
             .into_iter()
             .map(|path| {
-                let path = IbcPath::try_from(path);
-                if let Ok(IbcPath::ClientConsensusState(path)) = path {
+                if let Ok(IbcPath::ClientConsensusState(path)) = path.try_into() {
                     let consensus_state = self.consensus_state_store.get(Height::Pending, &path);
-
                     ConsensusStateWithHeight {
                         height: Some(RawHeight {
                             revision_number: path.epoch,
@@ -1045,6 +1155,13 @@ impl<S: ProvableStore + 'static> ClientQuery for IbcClientService<S> {
             consensus_states,
             pagination: None, // TODO(hu55a1n1): add pagination support
         }))
+    }
+
+    async fn consensus_state_heights(
+        &self,
+        _request: Request<QueryConsensusStateHeightsRequest>,
+    ) -> Result<Response<QueryConsensusStateHeightsResponse>, Status> {
+        unimplemented!()
     }
 
     async fn client_status(
@@ -1079,12 +1196,14 @@ impl<S: ProvableStore + 'static> ClientQuery for IbcClientService<S> {
 pub struct IbcConnectionService<S> {
     connection_end_store:
         ProtobufStore<SharedStore<S>, path::ConnectionsPath, ConnectionEnd, RawConnectionEnd>,
+    connection_ids_store: JsonStore<SharedStore<S>, path::ClientConnectionsPath, Vec<ConnectionId>>,
 }
 
 impl<S: Store> IbcConnectionService<S> {
     pub fn new(store: SharedStore<S>) -> Self {
         Self {
-            connection_end_store: TypedStore::new(store),
+            connection_end_store: TypedStore::new(store.clone()),
+            connection_ids_store: TypedStore::new(store),
         }
     }
 }
@@ -1101,7 +1220,7 @@ impl<S: ProvableStore + 'static> ConnectionQuery for IbcConnectionService<S> {
             .connection_end_store
             .get(Height::Pending, &path::ConnectionsPath(conn_id));
         Ok(Response::new(QueryConnectionResponse {
-            connection: conn.map(|c| ConnectionEndWrapper(c.into()).into()),
+            connection: conn.map(|c| c.into()),
             proof: vec![],
             proof_height: None,
         }))
@@ -1115,21 +1234,17 @@ impl<S: ProvableStore + 'static> ConnectionQuery for IbcConnectionService<S> {
             .try_into()
             .expect("'connections' expected to be a valid Path");
 
-        let connection_paths: Vec<Path> =
-            self.connection_end_store.get_keys(&connection_path_prefix);
+        let connection_paths = self.connection_end_store.get_keys(&connection_path_prefix);
 
         let identified_connections: Vec<RawIdentifiedConnection> = connection_paths
             .into_iter()
-            .map(|path| match IbcPath::try_from(path.clone()) {
+            .map(|path| match path.try_into() {
                 Ok(IbcPath::Connections(connections_path)) => {
                     let connection_end = self
                         .connection_end_store
                         .get(Height::Pending, &connections_path)
                         .unwrap();
-
-                    let connection_id: ConnectionId =
-                        path.get(1).unwrap().to_string().parse().unwrap();
-                    IdentifiedConnectionEnd::new(connection_id, connection_end).into()
+                    IdentifiedConnectionEnd::new(connections_path.0, connection_end).into()
                 }
                 _ => panic!("unexpected path"),
             })
@@ -1144,9 +1259,31 @@ impl<S: ProvableStore + 'static> ConnectionQuery for IbcConnectionService<S> {
 
     async fn client_connections(
         &self,
-        _request: Request<QueryClientConnectionsRequest>,
+        request: Request<QueryClientConnectionsRequest>,
     ) -> Result<Response<QueryClientConnectionsResponse>, Status> {
-        todo!()
+        trace!("Got client connections request: {:?}", request);
+
+        let client_id = request
+            .get_ref()
+            .client_id
+            .parse()
+            .map_err(|e| Status::invalid_argument(format!("{}", e)))?;
+        let path = path::ClientConnectionsPath(client_id);
+        let connection_ids = self
+            .connection_ids_store
+            .get(Height::Pending, &path)
+            .unwrap_or_default();
+        let connection_paths = connection_ids
+            .into_iter()
+            .map(|conn_id| conn_id.to_string())
+            .collect();
+
+        Ok(Response::new(QueryClientConnectionsResponse {
+            connection_paths,
+            // Note: proofs aren't being used by hermes currently
+            proof: vec![],
+            proof_height: None,
+        }))
     }
 
     async fn connection_client_state(
@@ -1164,46 +1301,21 @@ impl<S: ProvableStore + 'static> ConnectionQuery for IbcConnectionService<S> {
     }
 }
 
-// TODO: REMOVE (NO LONGER NEEDED)
-struct ConnectionEndWrapper(RawConnectionEnd);
-
-impl From<ConnectionEndWrapper> for RawConnectionEnd {
-    fn from(conn: ConnectionEndWrapper) -> Self {
-        Self {
-            client_id: conn.0.client_id,
-            versions: conn
-                .0
-                .versions
-                .into_iter()
-                .map(|v| RawVersion {
-                    identifier: v.identifier,
-                    features: v.features,
-                })
-                .collect(),
-            state: conn.0.state,
-            counterparty: conn.0.counterparty.map(|c| RawCounterParty {
-                client_id: c.client_id,
-                connection_id: c.connection_id,
-                prefix: c.prefix.map(|p| MerklePrefix {
-                    key_prefix: p.key_prefix,
-                }),
-            }),
-            delay_period: 0,
-        }
-    }
-}
-
 pub struct IbcChannelService<S> {
-    raw_store: SharedStore<S>,
     channel_end_store:
         ProtobufStore<SharedStore<S>, path::ChannelEndsPath, ChannelEnd, RawChannelEnd>,
+    packet_commitment_store: BinStore<SharedStore<S>, path::CommitmentsPath, PacketCommitment>,
+    packet_ack_store: BinStore<SharedStore<S>, path::AcksPath, AcknowledgementCommitment>,
+    packet_receipt_store: TypedSet<SharedStore<S>, path::ReceiptsPath>,
 }
 
 impl<S: Store> IbcChannelService<S> {
     pub fn new(store: SharedStore<S>) -> Self {
         Self {
-            raw_store: store.clone(),
-            channel_end_store: TypedStore::new(store),
+            channel_end_store: TypedStore::new(store.clone()),
+            packet_commitment_store: TypedStore::new(store.clone()),
+            packet_ack_store: TypedStore::new(store.clone()),
+            packet_receipt_store: TypedStore::new(store),
         }
     }
 }
@@ -1212,11 +1324,12 @@ impl<S: Store> IbcChannelService<S> {
 impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
     async fn channel(
         &self,
-        request: tonic::Request<QueryChannelRequest>,
-    ) -> Result<tonic::Response<QueryChannelResponse>, tonic::Status> {
-        let port_id = PortId::from_str(&request.get_ref().port_id)
+        request: Request<QueryChannelRequest>,
+    ) -> Result<Response<QueryChannelResponse>, Status> {
+        let request = request.into_inner();
+        let port_id = PortId::from_str(&request.port_id)
             .map_err(|_| Status::invalid_argument("invalid port id"))?;
-        let channel_id = ChannelId::from_str(&request.get_ref().channel_id)
+        let channel_id = ChannelId::from_str(&request.channel_id)
             .map_err(|_| Status::invalid_argument("invalid channel id"))?;
 
         let channel = self
@@ -1233,27 +1346,22 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
     /// Channels queries all the IBC channels of a chain.
     async fn channels(
         &self,
-        _request: tonic::Request<QueryChannelsRequest>,
-    ) -> Result<tonic::Response<QueryChannelsResponse>, tonic::Status> {
+        _request: Request<QueryChannelsRequest>,
+    ) -> Result<Response<QueryChannelsResponse>, Status> {
         let channel_path_prefix: Path = String::from("channelEnds/ports")
             .try_into()
             .expect("'channelEnds/ports' expected to be a valid Path");
 
-        let channel_paths: Vec<Path> = self.channel_end_store.get_keys(&channel_path_prefix);
-
+        let channel_paths = self.channel_end_store.get_keys(&channel_path_prefix);
         let identified_channels: Vec<RawIdentifiedChannel> = channel_paths
             .into_iter()
-            .map(|path| match IbcPath::try_from(path.clone()) {
+            .map(|path| match path.try_into() {
                 Ok(IbcPath::ChannelEnds(channels_path)) => {
                     let channel_end = self
                         .channel_end_store
                         .get(Height::Pending, &channels_path)
                         .expect("channel path returned by get_keys() had no associated channel");
-
-                    // path: "channelEnds/ports/{}/channels/{}"
-                    let port_id: PortId = path.get(2).unwrap().to_string().parse().unwrap();
-                    let channel_id: ChannelId = path.get(4).unwrap().to_string().parse().unwrap();
-                    IdentifiedChannelEnd::new(port_id, channel_id, channel_end).into()
+                    IdentifiedChannelEnd::new(channels_path.0, channels_path.1, channel_end).into()
                 }
                 _ => panic!("unexpected path"),
             })
@@ -1263,7 +1371,7 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
             channels: identified_channels,
             pagination: None,
             height: Some(RawHeight {
-                revision_number: 1,
+                revision_number: CHAIN_REVISION_NUMBER,
                 revision_height: self.channel_end_store.current_height(),
             }),
         }))
@@ -1273,14 +1381,16 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
     async fn connection_channels(
         &self,
         request: Request<QueryConnectionChannelsRequest>,
-    ) -> Result<Response<QueryConnectionChannelsResponse>, tonic::Status> {
+    ) -> Result<Response<QueryConnectionChannelsResponse>, Status> {
+        let conn_id = ConnectionId::from_str(&request.get_ref().connection)
+            .map_err(|_| Status::invalid_argument("invalid connection id"))?;
+
         let path = "channelEnds"
             .to_owned()
             .try_into()
             .expect("'commitments/ports' expected to be a valid Path");
-        let keys = self.raw_store.get_keys(&path);
-        let conn_id = ConnectionId::from_str(&request.get_ref().connection)
-            .map_err(|_| Status::invalid_argument("invalid connection id"))?;
+
+        let keys = self.channel_end_store.get_keys(&path);
         let channels = keys
             .into_iter()
             .filter_map(|path| {
@@ -1294,11 +1404,12 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
                 None
             })
             .collect();
+
         Ok(Response::new(QueryConnectionChannelsResponse {
             channels,
             pagination: None,
             height: Some(RawHeight {
-                revision_number: 1,
+                revision_number: CHAIN_REVISION_NUMBER,
                 revision_height: self.channel_end_store.current_height(),
             }),
         }))
@@ -1307,76 +1418,81 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
     /// with the provided channel identifiers.
     async fn channel_client_state(
         &self,
-        _request: tonic::Request<QueryChannelClientStateRequest>,
-    ) -> Result<tonic::Response<QueryChannelClientStateResponse>, tonic::Status> {
+        _request: Request<QueryChannelClientStateRequest>,
+    ) -> Result<Response<QueryChannelClientStateResponse>, Status> {
         todo!()
     }
     /// ChannelConsensusState queries for the consensus state for the channel
     /// associated with the provided channel identifiers.
     async fn channel_consensus_state(
         &self,
-        _request: tonic::Request<QueryChannelConsensusStateRequest>,
-    ) -> Result<tonic::Response<QueryChannelConsensusStateResponse>, tonic::Status> {
+        _request: Request<QueryChannelConsensusStateRequest>,
+    ) -> Result<Response<QueryChannelConsensusStateResponse>, Status> {
         todo!()
     }
     /// PacketCommitment queries a stored packet commitment hash.
     async fn packet_commitment(
         &self,
-        _request: tonic::Request<QueryPacketCommitmentRequest>,
-    ) -> Result<tonic::Response<QueryPacketCommitmentResponse>, tonic::Status> {
+        _request: Request<QueryPacketCommitmentRequest>,
+    ) -> Result<Response<QueryPacketCommitmentResponse>, Status> {
         todo!()
     }
     /// PacketCommitments returns all the packet commitments hashes associated
     /// with a channel.
     async fn packet_commitments(
         &self,
-        request: tonic::Request<QueryPacketCommitmentsRequest>,
-    ) -> Result<tonic::Response<QueryPacketCommitmentsResponse>, tonic::Status> {
-        let commitment_path_prefix: Path = String::from("commitments/ports")
-            .try_into()
-            .expect("'commitments/ports' expected to be a valid Path");
+        request: Request<QueryPacketCommitmentsRequest>,
+    ) -> Result<Response<QueryPacketCommitmentsResponse>, Status> {
+        let request = request.into_inner();
+        let port_id = PortId::from_str(&request.port_id)
+            .map_err(|_| Status::invalid_argument("invalid port id"))?;
+        let channel_id = ChannelId::from_str(&request.channel_id)
+            .map_err(|_| Status::invalid_argument("invalid channel id"))?;
 
-        let commitment_paths: Vec<Path> = self.raw_store.get_keys(&commitment_path_prefix);
+        let commitment_paths = {
+            let prefix: Path = String::from("commitments/ports")
+                .try_into()
+                .expect("'commitments/ports' expected to be a valid Path");
+            self.packet_commitment_store.get_keys(&prefix)
+        };
+
+        let matching_commitment_paths = |path: Path| -> Option<path::CommitmentsPath> {
+            match path.try_into() {
+                Ok(IbcPath::Commitments(p))
+                    if p.port_id == port_id && p.channel_id == channel_id =>
+                {
+                    Some(p)
+                }
+                _ => None,
+            }
+        };
+
+        let packet_state = |path: path::CommitmentsPath| -> Option<PacketState> {
+            let commitment = self
+                .packet_commitment_store
+                .get(Height::Pending, &path)
+                .unwrap();
+            let data = commitment.into_vec();
+            (!data.is_empty()).then(|| PacketState {
+                port_id: path.port_id.to_string(),
+                channel_id: path.channel_id.to_string(),
+                sequence: path.sequence.into(),
+                data,
+            })
+        };
 
         let packet_states: Vec<PacketState> = commitment_paths
             .into_iter()
-            .map(|path| {
-                match IbcPath::try_from(path) {
-                    Ok(IbcPath::Commitments(commitments_ibc_path)) => {
-                        let commitments_path: Path = commitments_ibc_path.into();
-                        // unwrap() because all paths were returned by `get_keys()`
-                        let commitment = self
-                            .raw_store
-                            .get(Height::Pending, &commitments_path)
-                            .expect(
-                            "commitment path returned by get_keys() had no associated commitment",
-                        );
-
-                        // commitments_path format: "commitments/ports/{}/channels/{}/sequences/{}"
-                        let sequence_id =
-                            commitments_path.get(6).expect("malformed commitments path");
-                        let sequence: u64 = sequence_id
-                            .parse()
-                            .expect("Invalid sequence number in commitments path");
-
-                        PacketState {
-                            port_id: request.get_ref().port_id.clone(),
-                            channel_id: request.get_ref().channel_id.clone(),
-                            sequence,
-                            data: commitment,
-                        }
-                    }
-                    _ => panic!("unexpected path"),
-                }
-            })
+            .filter_map(matching_commitment_paths)
+            .filter_map(packet_state)
             .collect();
 
         Ok(Response::new(QueryPacketCommitmentsResponse {
             commitments: packet_states,
             pagination: None,
             height: Some(RawHeight {
-                revision_number: 1,
-                revision_height: self.raw_store.current_height(),
+                revision_number: CHAIN_REVISION_NUMBER,
+                revision_height: self.packet_commitment_store.current_height(),
             }),
         }))
     }
@@ -1385,16 +1501,16 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
     /// queried chain
     async fn packet_receipt(
         &self,
-        _request: tonic::Request<QueryPacketReceiptRequest>,
-    ) -> Result<tonic::Response<QueryPacketReceiptResponse>, tonic::Status> {
+        _request: Request<QueryPacketReceiptRequest>,
+    ) -> Result<Response<QueryPacketReceiptResponse>, Status> {
         todo!()
     }
 
     /// PacketAcknowledgement queries a stored packet acknowledgement hash.
     async fn packet_acknowledgement(
         &self,
-        _request: tonic::Request<QueryPacketAcknowledgementRequest>,
-    ) -> Result<tonic::Response<QueryPacketAcknowledgementResponse>, tonic::Status> {
+        _request: Request<QueryPacketAcknowledgementRequest>,
+    ) -> Result<Response<QueryPacketAcknowledgementResponse>, Status> {
         todo!()
     }
 
@@ -1402,49 +1518,53 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
     /// with a channel.
     async fn packet_acknowledgements(
         &self,
-        request: tonic::Request<QueryPacketAcknowledgementsRequest>,
-    ) -> Result<tonic::Response<QueryPacketAcknowledgementsResponse>, tonic::Status> {
-        let ack_path_prefix: Path = String::from("acks/ports")
-            .try_into()
-            .expect("'acks/ports' expected to be a valid Path");
+        request: Request<QueryPacketAcknowledgementsRequest>,
+    ) -> Result<Response<QueryPacketAcknowledgementsResponse>, Status> {
+        let request = request.into_inner();
+        let port_id = PortId::from_str(&request.port_id)
+            .map_err(|_| Status::invalid_argument("invalid port id"))?;
+        let channel_id = ChannelId::from_str(&request.channel_id)
+            .map_err(|_| Status::invalid_argument("invalid channel id"))?;
 
-        let ack_paths: Vec<Path> = self.raw_store.get_keys(&ack_path_prefix);
+        let ack_paths = {
+            let prefix: Path = String::from("acks/ports")
+                .try_into()
+                .expect("'acks/ports' expected to be a valid Path");
+            self.packet_ack_store.get_keys(&prefix)
+        };
+
+        let matching_ack_paths = |path: Path| -> Option<path::AcksPath> {
+            match path.try_into() {
+                Ok(IbcPath::Acks(p)) if p.port_id == port_id && p.channel_id == channel_id => {
+                    Some(p)
+                }
+                _ => None,
+            }
+        };
+
+        let packet_state = |path: path::AcksPath| -> Option<PacketState> {
+            let commitment = self.packet_ack_store.get(Height::Pending, &path).unwrap();
+            let data = commitment.into_vec();
+            (!data.is_empty()).then(|| PacketState {
+                port_id: path.port_id.to_string(),
+                channel_id: path.channel_id.to_string(),
+                sequence: path.sequence.into(),
+                data,
+            })
+        };
 
         let packet_states: Vec<PacketState> = ack_paths
             .into_iter()
-            .map(|path| {
-                match IbcPath::try_from(path) {
-                    Ok(IbcPath::Acks(acks_ibc_path)) => {
-                        let acks_path: Path = acks_ibc_path.into();
-                        // unwrap() because all paths were returned by `get_keys()`
-                        let ack_hash = self.raw_store.get(Height::Pending, &acks_path).expect(
-                            "commitment path returned by get_keys() had no associated commitment",
-                        );
-
-                        // commitments_path format: "acks/ports/{}/channels/{}/sequences/{}"
-                        let sequence_id = acks_path.get(6).expect("malformed acks path");
-                        let sequence: u64 = sequence_id
-                            .parse()
-                            .expect("Invalid sequence number in commitments path");
-
-                        PacketState {
-                            port_id: request.get_ref().port_id.clone(),
-                            channel_id: request.get_ref().channel_id.clone(),
-                            sequence,
-                            data: ack_hash,
-                        }
-                    }
-                    _ => panic!("unexpected path"),
-                }
-            })
+            .filter_map(matching_ack_paths)
+            .filter_map(packet_state)
             .collect();
 
         Ok(Response::new(QueryPacketAcknowledgementsResponse {
             acknowledgements: packet_states,
             pagination: None,
             height: Some(RawHeight {
-                revision_number: 1,
-                revision_height: self.raw_store.current_height(),
+                revision_number: CHAIN_REVISION_NUMBER,
+                revision_height: self.packet_ack_store.current_height(),
             }),
         }))
     }
@@ -1457,23 +1577,24 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
     /// this query only ever makes sense on unordered channels.
     async fn unreceived_packets(
         &self,
-        request: tonic::Request<QueryUnreceivedPacketsRequest>,
-    ) -> Result<tonic::Response<QueryUnreceivedPacketsResponse>, tonic::Status> {
-        let sequences_to_check: Vec<u64> = request.get_ref().packet_commitment_sequences.clone();
-
-        let port_id: PortId = request.get_ref().port_id.clone().parse().unwrap();
-        let channel_id: ChannelId = request.get_ref().channel_id.clone().parse().unwrap();
+        request: Request<QueryUnreceivedPacketsRequest>,
+    ) -> Result<Response<QueryUnreceivedPacketsResponse>, Status> {
+        let request = request.into_inner();
+        let port_id = PortId::from_str(&request.port_id)
+            .map_err(|_| Status::invalid_argument("invalid port id"))?;
+        let channel_id = ChannelId::from_str(&request.channel_id)
+            .map_err(|_| Status::invalid_argument("invalid channel id"))?;
+        let sequences_to_check: Vec<u64> = request.packet_commitment_sequences;
 
         let unreceived_sequences: Vec<u64> = sequences_to_check
             .into_iter()
             .filter(|seq| {
-                let receipts_path: Path = path::ReceiptsPath {
+                let receipts_path = path::ReceiptsPath {
                     port_id: port_id.clone(),
-                    channel_id,
+                    channel_id: channel_id.clone(),
                     sequence: Sequence::from(*seq),
-                }
-                .into();
-                self.raw_store
+                };
+                self.packet_receipt_store
                     .get(Height::Pending, &receipts_path)
                     .is_none()
             })
@@ -1482,8 +1603,8 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
         Ok(Response::new(QueryUnreceivedPacketsResponse {
             sequences: unreceived_sequences,
             height: Some(RawHeight {
-                revision_number: 1,
-                revision_height: self.raw_store.current_height(),
+                revision_number: CHAIN_REVISION_NUMBER,
+                revision_height: self.packet_receipt_store.current_height(),
             }),
         }))
     }
@@ -1492,26 +1613,27 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
     /// with a channel and sequences.
     async fn unreceived_acks(
         &self,
-        request: tonic::Request<QueryUnreceivedAcksRequest>,
-    ) -> Result<tonic::Response<QueryUnreceivedAcksResponse>, tonic::Status> {
-        let sequences_to_check: Vec<u64> = request.get_ref().packet_ack_sequences.clone();
-
-        let port_id: PortId = request.get_ref().port_id.clone().parse().unwrap();
-        let channel_id: ChannelId = request.get_ref().channel_id.clone().parse().unwrap();
+        request: Request<QueryUnreceivedAcksRequest>,
+    ) -> Result<Response<QueryUnreceivedAcksResponse>, Status> {
+        let request = request.into_inner();
+        let port_id = PortId::from_str(&request.port_id)
+            .map_err(|_| Status::invalid_argument("invalid port id"))?;
+        let channel_id = ChannelId::from_str(&request.channel_id)
+            .map_err(|_| Status::invalid_argument("invalid channel id"))?;
+        let sequences_to_check: Vec<u64> = request.packet_ack_sequences;
 
         let unreceived_sequences: Vec<u64> = sequences_to_check
             .into_iter()
             .filter(|seq| {
                 // To check if we received an acknowledgement, we check if we still have the sent packet
                 // commitment (upon receiving an ack, the sent packet commitment is deleted).
-                let commitments_path: Path = path::CommitmentsPath {
+                let commitments_path = path::CommitmentsPath {
                     port_id: port_id.clone(),
-                    channel_id,
+                    channel_id: channel_id.clone(),
                     sequence: Sequence::from(*seq),
-                }
-                .into();
+                };
 
-                self.raw_store
+                self.packet_commitment_store
                     .get(Height::Pending, &commitments_path)
                     .is_some()
             })
@@ -1520,8 +1642,8 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
         Ok(Response::new(QueryUnreceivedAcksResponse {
             sequences: unreceived_sequences,
             height: Some(RawHeight {
-                revision_number: 1,
-                revision_height: self.raw_store.current_height(),
+                revision_number: CHAIN_REVISION_NUMBER,
+                revision_height: self.packet_commitment_store.current_height(),
             }),
         }))
     }
@@ -1529,8 +1651,8 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
     /// NextSequenceReceive returns the next receive sequence for a given channel.
     async fn next_sequence_receive(
         &self,
-        _request: tonic::Request<QueryNextSequenceReceiveRequest>,
-    ) -> Result<tonic::Response<QueryNextSequenceReceiveResponse>, tonic::Status> {
+        _request: Request<QueryNextSequenceReceiveRequest>,
+    ) -> Result<Response<QueryNextSequenceReceiveResponse>, Status> {
         todo!()
     }
 }
@@ -1566,21 +1688,495 @@ impl RouterBuilder for IbcRouterBuilder {
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct IbcTransferModule;
+#[derive(Clone)]
+pub struct IbcTransferModule<S, BK> {
+    // store: SharedStore<S>,
+    /// A bank keeper to enable sending, minting and burning of tokens
+    bank_keeper: BK,
+    /// A typed-store for AnyClientState
+    client_state_store: ProtobufStore<SharedStore<S>, path::ClientStatePath, AnyClientState, Any>,
+    /// A typed-store for AnyConsensusState
+    consensus_state_store:
+        ProtobufStore<SharedStore<S>, path::ClientConsensusStatePath, AnyConsensusState, Any>,
+    /// A typed-store for ConnectionEnd
+    connection_end_store:
+        ProtobufStore<SharedStore<S>, path::ConnectionsPath, ConnectionEnd, RawConnectionEnd>,
+    /// A typed-store for ChannelEnd
+    channel_end_store:
+        ProtobufStore<SharedStore<S>, path::ChannelEndsPath, ChannelEnd, RawChannelEnd>,
+    /// A typed-store for send sequences
+    send_sequence_store: JsonStore<SharedStore<S>, path::SeqSendsPath, Sequence>,
+    /// A typed-store for packet commitments
+    packet_commitment_store: BinStore<SharedStore<S>, path::CommitmentsPath, PacketCommitment>,
+}
 
-impl IbcModule for IbcTransferModule {
+impl<S: 'static + Store, BK: 'static + Send + Sync + BankKeeper<Coin = Coin>>
+    IbcTransferModule<S, BK>
+{
+    pub fn new(store: SharedStore<S>, bank_keeper: BK) -> Self {
+        Self {
+            bank_keeper,
+            client_state_store: TypedStore::new(store.clone()),
+            consensus_state_store: TypedStore::new(store.clone()),
+            connection_end_store: TypedStore::new(store.clone()),
+            channel_end_store: TypedStore::new(store.clone()),
+            send_sequence_store: TypedStore::new(store.clone()),
+            packet_commitment_store: TypedStore::new(store),
+        }
+    }
+}
+
+impl<S: Store + 'static, BK: 'static + Send + Sync + BankKeeper<Coin = Coin>> IbcModule
+    for IbcTransferModule<S, BK>
+{
+    fn on_chan_open_init(
+        &mut self,
+        output: &mut ModuleOutputBuilder,
+        order: Order,
+        connection_hops: &[ConnectionId],
+        port_id: &PortId,
+        channel_id: &ChannelId,
+        counterparty: &Counterparty,
+        version: &Version,
+    ) -> Result<(), ChannelError> {
+        on_chan_open_init(
+            self,
+            output,
+            order,
+            connection_hops,
+            port_id,
+            channel_id,
+            counterparty,
+            version,
+        )
+        .map_err(|e: Ics20Error| ChannelError::app_module(e.to_string()))
+    }
+
     fn on_chan_open_try(
         &mut self,
-        _output: &mut ModuleOutputBuilder,
-        _order: Order,
-        _connection_hops: &[ConnectionId],
-        _port_id: &PortId,
-        _channel_id: &ChannelId,
-        _counterparty: &Counterparty,
-        _version: &Version,
+        output: &mut ModuleOutputBuilder,
+        order: Order,
+        connection_hops: &[ConnectionId],
+        port_id: &PortId,
+        channel_id: &ChannelId,
+        counterparty: &Counterparty,
+        version: &Version,
         counterparty_version: &Version,
     ) -> Result<Version, ChannelError> {
-        Ok(counterparty_version.clone())
+        on_chan_open_try(
+            self,
+            output,
+            order,
+            connection_hops,
+            port_id,
+            channel_id,
+            counterparty,
+            version,
+            counterparty_version,
+        )
+        .map_err(|e: Ics20Error| ChannelError::app_module(e.to_string()))
     }
+
+    fn on_chan_open_ack(
+        &mut self,
+        output: &mut ModuleOutputBuilder,
+        port_id: &PortId,
+        channel_id: &ChannelId,
+        counterparty_version: &Version,
+    ) -> Result<(), ChannelError> {
+        on_chan_open_ack(self, output, port_id, channel_id, counterparty_version)
+            .map_err(|e: Ics20Error| ChannelError::app_module(e.to_string()))
+    }
+
+    fn on_chan_open_confirm(
+        &mut self,
+        output: &mut ModuleOutputBuilder,
+        port_id: &PortId,
+        channel_id: &ChannelId,
+    ) -> Result<(), ChannelError> {
+        on_chan_open_confirm(self, output, port_id, channel_id)
+            .map_err(|e: Ics20Error| ChannelError::app_module(e.to_string()))
+    }
+
+    fn on_chan_close_init(
+        &mut self,
+        output: &mut ModuleOutputBuilder,
+        port_id: &PortId,
+        channel_id: &ChannelId,
+    ) -> Result<(), ChannelError> {
+        on_chan_close_init(self, output, port_id, channel_id)
+            .map_err(|e: Ics20Error| ChannelError::app_module(e.to_string()))
+    }
+
+    fn on_chan_close_confirm(
+        &mut self,
+        output: &mut ModuleOutputBuilder,
+        port_id: &PortId,
+        channel_id: &ChannelId,
+    ) -> Result<(), ChannelError> {
+        on_chan_close_confirm(self, output, port_id, channel_id)
+            .map_err(|e: Ics20Error| ChannelError::app_module(e.to_string()))
+    }
+
+    fn on_recv_packet(
+        &self,
+        output: &mut ModuleOutputBuilder,
+        packet: &Packet,
+        relayer: &Signer,
+    ) -> OnRecvPacketAck {
+        on_recv_packet(self, output, packet, relayer)
+    }
+
+    fn on_acknowledgement_packet(
+        &mut self,
+        output: &mut ModuleOutputBuilder,
+        packet: &Packet,
+        acknowledgement: &GenericAcknowledgement,
+        relayer: &Signer,
+    ) -> Result<(), ChannelError> {
+        on_acknowledgement_packet(self, output, packet, acknowledgement, relayer)
+            .map_err(|e: Ics20Error| ChannelError::app_module(e.to_string()))
+    }
+
+    fn on_timeout_packet(
+        &mut self,
+        output: &mut ModuleOutputBuilder,
+        packet: &Packet,
+        relayer: &Signer,
+    ) -> Result<(), ChannelError> {
+        on_timeout_packet(self, output, packet, relayer)
+            .map_err(|e: Ics20Error| ChannelError::app_module(e.to_string()))
+    }
+}
+
+impl<S: Store, BK: BankKeeper<Coin = Coin>> Ics20Keeper for IbcTransferModule<S, BK> {
+    type AccountId = Signer;
+}
+
+impl<S: Store, BK> ChannelKeeper for IbcTransferModule<S, BK> {
+    fn store_packet_commitment(
+        &mut self,
+        key: (PortId, ChannelId, Sequence),
+        commitment: PacketCommitment,
+    ) -> Result<(), ChannelError> {
+        self.packet_commitment_store
+            .set(
+                path::CommitmentsPath {
+                    port_id: key.0,
+                    channel_id: key.1,
+                    sequence: key.2,
+                },
+                commitment,
+            )
+            .map(|_| ())
+            .map_err(|_| ChannelError::implementation_specific())
+    }
+
+    fn delete_packet_commitment(
+        &mut self,
+        _key: (PortId, ChannelId, Sequence),
+    ) -> Result<(), ChannelError> {
+        unimplemented!()
+    }
+
+    fn store_packet_receipt(
+        &mut self,
+        _key: (PortId, ChannelId, Sequence),
+        _receipt: Receipt,
+    ) -> Result<(), ChannelError> {
+        unimplemented!()
+    }
+
+    fn store_packet_acknowledgement(
+        &mut self,
+        _key: (PortId, ChannelId, Sequence),
+        _ack: AcknowledgementCommitment,
+    ) -> Result<(), ChannelError> {
+        unimplemented!()
+    }
+
+    fn delete_packet_acknowledgement(
+        &mut self,
+        _key: (PortId, ChannelId, Sequence),
+    ) -> Result<(), ChannelError> {
+        unimplemented!()
+    }
+
+    fn store_connection_channels(
+        &mut self,
+        _conn_id: ConnectionId,
+        _port_channel_id: &(PortId, ChannelId),
+    ) -> Result<(), ChannelError> {
+        unimplemented!()
+    }
+
+    fn store_channel(
+        &mut self,
+        _port_channel_id: (PortId, ChannelId),
+        _channel_end: &ChannelEnd,
+    ) -> Result<(), ChannelError> {
+        unimplemented!()
+    }
+
+    fn store_next_sequence_send(
+        &mut self,
+        (port_id, chan_id): (PortId, ChannelId),
+        seq: Sequence,
+    ) -> Result<(), ChannelError> {
+        self.send_sequence_store
+            .set(path::SeqSendsPath(port_id, chan_id), seq)
+            .map(|_| ())
+            .map_err(|_| ChannelError::implementation_specific())
+    }
+
+    fn store_next_sequence_recv(
+        &mut self,
+        _port_channel_id: (PortId, ChannelId),
+        _seq: Sequence,
+    ) -> Result<(), ChannelError> {
+        unimplemented!()
+    }
+
+    fn store_next_sequence_ack(
+        &mut self,
+        _port_channel_id: (PortId, ChannelId),
+        _seq: Sequence,
+    ) -> Result<(), ChannelError> {
+        unimplemented!()
+    }
+
+    fn increase_channel_counter(&mut self) {
+        unimplemented!()
+    }
+}
+
+impl<S: Store, BK: BankKeeper<Coin = Coin>> IbcBankKeeper for IbcTransferModule<S, BK> {
+    type AccountId = Signer;
+
+    fn send_coins(
+        &mut self,
+        from: &Self::AccountId,
+        to: &Self::AccountId,
+        amt: &PrefixedCoin,
+    ) -> Result<(), Ics20Error> {
+        let from = from
+            .to_string()
+            .parse()
+            .map_err(|_| Ics20Error::parse_account_failure())?;
+        let to = to
+            .to_string()
+            .parse()
+            .map_err(|_| Ics20Error::parse_account_failure())?;
+        let coins = vec![Coin {
+            denom: Denom(amt.denom.to_string()),
+            amount: amt.amount.into(),
+        }];
+        self.bank_keeper.send_coins(from, to, coins).unwrap(); // Fixme(hu55a1n1)
+        Ok(())
+    }
+
+    fn mint_coins(
+        &mut self,
+        account: &Self::AccountId,
+        amt: &PrefixedCoin,
+    ) -> Result<(), Ics20Error> {
+        let account = account
+            .to_string()
+            .parse()
+            .map_err(|_| Ics20Error::parse_account_failure())?;
+        let coins = vec![Coin {
+            denom: Denom(amt.denom.to_string()),
+            amount: amt.amount.into(),
+        }];
+        self.bank_keeper.mint_coins(account, coins).unwrap(); // Fixme(hu55a1n1)
+        Ok(())
+    }
+
+    fn burn_coins(
+        &mut self,
+        account: &Self::AccountId,
+        amt: &PrefixedCoin,
+    ) -> Result<(), Ics20Error> {
+        let account = account
+            .to_string()
+            .parse()
+            .map_err(|_| Ics20Error::parse_account_failure())?;
+        let coins = vec![Coin {
+            denom: Denom(amt.denom.to_string()),
+            amount: amt.amount.into(),
+        }];
+        self.bank_keeper.burn_coins(account, coins).unwrap(); // Fixme(hu55a1n1)
+        Ok(())
+    }
+}
+
+impl<S: Store, BK> Ics20Reader for IbcTransferModule<S, BK> {
+    type AccountId = Signer;
+
+    fn get_port(&self) -> Result<PortId, Ics20Error> {
+        Ok(PortId::transfer())
+    }
+
+    fn get_channel_escrow_address(
+        &self,
+        port_id: &PortId,
+        channel_id: &ChannelId,
+    ) -> Result<Self::AccountId, Ics20Error> {
+        let account_id = AccountId::new(
+            ACCOUNT_PREFIX,
+            &cosmos_adr028_escrow_address(port_id, channel_id),
+        )
+        .map_err(|_| Ics20Error::parse_account_failure())?;
+        account_id
+            .to_string()
+            .parse()
+            .map_err(|_| Ics20Error::parse_account_failure())
+    }
+
+    fn is_send_enabled(&self) -> bool {
+        true
+    }
+
+    fn is_receive_enabled(&self) -> bool {
+        true
+    }
+}
+
+impl<S: Store, BK> ChannelReader for IbcTransferModule<S, BK> {
+    fn channel_end(
+        &self,
+        (port_id, chan_id): &(PortId, ChannelId),
+    ) -> Result<ChannelEnd, ChannelError> {
+        self.channel_end_store
+            .get(
+                Height::Pending,
+                &path::ChannelEndsPath(port_id.clone(), chan_id.clone()),
+            )
+            .ok_or_else(ChannelError::implementation_specific)
+    }
+
+    fn connection_end(&self, conn_id: &ConnectionId) -> Result<ConnectionEnd, ChannelError> {
+        self.connection_end_store
+            .get(Height::Pending, &path::ConnectionsPath(conn_id.clone()))
+            .ok_or_else(ChannelError::implementation_specific)
+    }
+
+    fn connection_channels(
+        &self,
+        _cid: &ConnectionId,
+    ) -> Result<Vec<(PortId, ChannelId)>, ChannelError> {
+        unimplemented!()
+    }
+
+    fn client_state(&self, client_id: &ClientId) -> Result<AnyClientState, ChannelError> {
+        self.client_state_store
+            .get(Height::Pending, &path::ClientStatePath(client_id.clone()))
+            .ok_or_else(ChannelError::implementation_specific)
+    }
+
+    fn client_consensus_state(
+        &self,
+        client_id: &ClientId,
+        height: IbcHeight,
+    ) -> Result<AnyConsensusState, ChannelError> {
+        let path = path::ClientConsensusStatePath {
+            client_id: client_id.clone(),
+            epoch: height.revision_number(),
+            height: height.revision_height(),
+        };
+        self.consensus_state_store
+            .get(Height::Pending, &path)
+            .ok_or_else(ChannelError::implementation_specific)
+    }
+
+    fn get_next_sequence_send(
+        &self,
+        (port_id, chan_id): &(PortId, ChannelId),
+    ) -> Result<Sequence, ChannelError> {
+        self.send_sequence_store
+            .get(
+                Height::Pending,
+                &path::SeqSendsPath(port_id.clone(), chan_id.clone()),
+            )
+            .ok_or_else(ChannelError::implementation_specific)
+    }
+
+    fn get_next_sequence_recv(
+        &self,
+        _port_channel_id: &(PortId, ChannelId),
+    ) -> Result<Sequence, ChannelError> {
+        unimplemented!()
+    }
+
+    fn get_next_sequence_ack(
+        &self,
+        _port_channel_id: &(PortId, ChannelId),
+    ) -> Result<Sequence, ChannelError> {
+        unimplemented!()
+    }
+
+    fn get_packet_commitment(
+        &self,
+        _key: &(PortId, ChannelId, Sequence),
+    ) -> Result<PacketCommitment, ChannelError> {
+        unimplemented!()
+    }
+
+    fn get_packet_receipt(
+        &self,
+        _key: &(PortId, ChannelId, Sequence),
+    ) -> Result<Receipt, ChannelError> {
+        unimplemented!()
+    }
+
+    fn get_packet_acknowledgement(
+        &self,
+        _key: &(PortId, ChannelId, Sequence),
+    ) -> Result<AcknowledgementCommitment, ChannelError> {
+        unimplemented!()
+    }
+
+    fn hash(&self, value: Vec<u8>) -> Vec<u8> {
+        sha2::Sha256::digest(value).to_vec()
+    }
+
+    fn host_height(&self) -> IbcHeight {
+        IbcHeight::new(0, self.client_state_store.current_height()).unwrap()
+    }
+
+    fn host_consensus_state(&self, _height: IbcHeight) -> Result<AnyConsensusState, ChannelError> {
+        unimplemented!()
+    }
+
+    fn pending_host_consensus_state(&self) -> Result<AnyConsensusState, ChannelError> {
+        unimplemented!()
+    }
+
+    fn client_update_time(
+        &self,
+        _client_id: &ClientId,
+        _height: IbcHeight,
+    ) -> Result<Timestamp, ChannelError> {
+        unimplemented!()
+    }
+
+    fn client_update_height(
+        &self,
+        _client_id: &ClientId,
+        _height: IbcHeight,
+    ) -> Result<IbcHeight, ChannelError> {
+        unimplemented!()
+    }
+
+    fn channel_counter(&self) -> Result<u64, ChannelError> {
+        unimplemented!()
+    }
+
+    fn max_expected_time_per_block(&self) -> Duration {
+        unimplemented!()
+    }
+}
+
+impl<S: Store, BK: BankKeeper<Coin = Coin>> Ics20Context for IbcTransferModule<S, BK> {
+    type AccountId = Signer;
 }

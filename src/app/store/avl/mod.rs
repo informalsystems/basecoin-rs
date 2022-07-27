@@ -12,11 +12,10 @@
 //!
 //! For more info, see [AVL Tree on wikipedia](https://en.wikipedia.org/wiki/AVL_tree),
 
-use tendermint::hash::Algorithm;
-
 pub use as_bytes::{AsBytes, ByteSlice};
 pub use node::AvlNode;
 pub use proof::get_proof_spec;
+use tendermint::hash::Algorithm;
 pub use tree::AvlTree;
 
 mod as_bytes;

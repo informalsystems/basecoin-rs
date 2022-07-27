@@ -1,22 +1,38 @@
-use crate::app::modules::auth::{AccountKeeper, AccountReader, AuthAccount, ACCOUNT_PREFIX};
-use crate::app::modules::{Error as ModuleError, Module, QueryResult};
-use crate::app::store::{
-    Codec, Height, JsonCodec, JsonStore, Path, ProvableStore, SharedStore, Store, TypedStore,
-};
+use std::{collections::HashMap, convert::TryInto, fmt::Debug, num::ParseIntError, str::FromStr};
 
-use std::collections::HashMap;
-use std::convert::TryInto;
-use std::num::ParseIntError;
-use std::str::FromStr;
-
-use cosmrs::bank::MsgSend;
-use cosmrs::{proto, AccountId, Coin as MsgCoin};
+use cosmrs::{bank::MsgSend, proto, AccountId, Coin as MsgCoin};
 use flex_error::{define_error, TraceError};
-use ibc_proto::google::protobuf::Any;
+use ibc::bigint::U256;
+use ibc_proto::{
+    cosmos::{
+        bank::v1beta1::{
+            query_server::{Query, QueryServer},
+            QueryAllBalancesRequest, QueryAllBalancesResponse, QueryBalanceRequest,
+            QueryBalanceResponse, QueryDenomMetadataRequest, QueryDenomMetadataResponse,
+            QueryDenomsMetadataRequest, QueryDenomsMetadataResponse, QueryParamsRequest,
+            QueryParamsResponse, QuerySpendableBalancesRequest, QuerySpendableBalancesResponse,
+            QuerySupplyOfRequest, QuerySupplyOfResponse, QueryTotalSupplyRequest,
+            QueryTotalSupplyResponse,
+        },
+        base::v1beta1::Coin as RawCoin,
+    },
+    google::protobuf::Any,
+};
 use prost::{DecodeError, Message};
 use serde::{Deserialize, Serialize};
 use tendermint_proto::abci::Event;
+use tonic::{Request, Response, Status};
 use tracing::{debug, trace};
+
+use crate::app::{
+    modules::{
+        auth::{AccountKeeper, AccountReader, AuthAccount, ACCOUNT_PREFIX},
+        Error as ModuleError, Module, QueryResult,
+    },
+    store::{
+        Codec, Height, JsonCodec, JsonStore, Path, ProvableStore, SharedStore, Store, TypedStore,
+    },
+};
 
 define_error! {
     #[derive(Eq, PartialEq)]
@@ -51,16 +67,25 @@ impl From<Error> for ModuleError {
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq, Clone, Hash, Eq)]
 #[serde(transparent)]
-pub struct Denom(String);
+pub struct Denom(pub String);
 
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Clone, Serialize, Deserialize, Debug, Default)]
 pub struct Coin {
     pub denom: Denom,
-    pub amount: u64,
+    pub amount: U256,
 }
 
-impl From<(Denom, u64)> for Coin {
-    fn from((denom, amount): (Denom, u64)) -> Self {
+impl Coin {
+    fn new_empty(denom: Denom) -> Self {
+        Self {
+            denom,
+            amount: 0u64.into(),
+        }
+    }
+}
+
+impl From<(Denom, U256)> for Coin {
+    fn from((denom, amount): (Denom, U256)) -> Self {
         Self { denom, amount }
     }
 }
@@ -75,7 +100,7 @@ impl From<&MsgCoin> for Coin {
 }
 
 /// A mapping of currency denomination identifiers to balances.
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Clone, Serialize, Deserialize, Debug, Default)]
 #[serde(transparent)]
 pub struct Balances(Vec<Coin>);
 
@@ -102,19 +127,35 @@ pub trait BankReader {
 }
 
 pub trait BankKeeper {
-    type Error;
-    type Address;
+    type Error: Debug;
+    type Address: FromStr;
     type Denom;
     type Coin;
-    type Coins: IntoIterator<Item = Self::Coin>;
 
-    fn set_balances(
+    /// This function should enable sending ibc fungible tokens from one account to another
+    fn send_coins(
         &mut self,
-        address: Self::Address,
-        coins: Self::Coins,
+        from: Self::Address,
+        to: Self::Address,
+        amount: impl IntoIterator<Item = Self::Coin>,
+    ) -> Result<(), Self::Error>;
+
+    /// This function to enable minting ibc tokens to a user account
+    fn mint_coins(
+        &mut self,
+        account: Self::Address,
+        amount: impl IntoIterator<Item = Self::Coin>,
+    ) -> Result<(), Self::Error>;
+
+    /// This function should enable burning of minted tokens in a user account
+    fn burn_coins(
+        &mut self,
+        account: Self::Address,
+        amount: impl IntoIterator<Item = Self::Coin>,
     ) -> Result<(), Self::Error>;
 }
 
+#[derive(Clone)]
 pub struct BankBalanceReader<S> {
     balance_store: JsonStore<SharedStore<S>, BalancesPath, Balances>,
 }
@@ -133,26 +174,141 @@ impl<S: Store> BankReader for BankBalanceReader<S> {
     }
 }
 
+#[derive(Clone)]
 pub struct BankBalanceKeeper<S> {
     balance_store: JsonStore<SharedStore<S>, BalancesPath, Balances>,
 }
 
 impl<S: Store> BankKeeper for BankBalanceKeeper<S> {
-    type Error = ();
+    type Error = Error;
     type Address = AccountId;
     type Denom = Denom;
     type Coin = Coin;
-    type Coins = Vec<Self::Coin>;
 
-    fn set_balances(
+    fn send_coins(
         &mut self,
-        address: Self::Address,
-        coins: Self::Coins,
+        from: Self::Address,
+        to: Self::Address,
+        amount: impl IntoIterator<Item = Self::Coin>,
     ) -> Result<(), Self::Error> {
+        let src_balance_path = BalancesPath(from);
+        let mut src_balances = self
+            .balance_store
+            .get(Height::Pending, &src_balance_path)
+            .map(|b| b.0)
+            .unwrap_or_default();
+
+        let dst_balance_path = BalancesPath(to);
+        let mut dst_balances = self
+            .balance_store
+            .get(Height::Pending, &dst_balance_path)
+            .map(|b| b.0)
+            .unwrap_or_default();
+
+        for Coin { denom, amount } in amount {
+            let src_balance = src_balances
+                .iter_mut()
+                .find(|c| c.denom == denom)
+                .filter(|c| c.amount >= amount)
+                .ok_or_else(Error::insufficient_source_funds)?;
+
+            let dst_balance =
+                if let Some(balance) = dst_balances.iter_mut().find(|c| c.denom == denom) {
+                    balance
+                } else {
+                    dst_balances.push(Coin::new_empty(denom));
+                    dst_balances.last_mut().unwrap()
+                };
+
+            if dst_balance.amount > U256::MAX - amount {
+                return Err(Error::dest_fund_overflow());
+            }
+
+            src_balance.amount -= amount;
+            dst_balance.amount += amount;
+        }
+
+        // Store the updated account balances
         self.balance_store
-            .set(BalancesPath(address), Balances(coins))
+            .set(src_balance_path, Balances(src_balances))
             .map(|_| ())
-            .map_err(|_| ())
+            .map_err(|e| Error::store(format!("{:?}", e)))?;
+        self.balance_store
+            .set(dst_balance_path, Balances(dst_balances))
+            .map(|_| ())
+            .map_err(|e| Error::store(format!("{:?}", e)))?;
+
+        Ok(())
+    }
+
+    fn mint_coins(
+        &mut self,
+        account: Self::Address,
+        amount: impl IntoIterator<Item = Self::Coin>,
+    ) -> Result<(), Self::Error> {
+        let balance_path = BalancesPath(account);
+        let mut balances = self
+            .balance_store
+            .get(Height::Pending, &balance_path)
+            .map(|b| b.0)
+            .unwrap_or_default();
+
+        for Coin { denom, amount } in amount {
+            let balance = if let Some(i) = balances.iter_mut().position(|c| c.denom == denom) {
+                &mut balances[i]
+            } else {
+                balances.push(Coin {
+                    denom,
+                    amount: 0u64.into(),
+                });
+                balances.last_mut().unwrap()
+            };
+
+            if balance.amount > U256::MAX - amount {
+                return Err(Error::dest_fund_overflow());
+            }
+
+            balance.amount += amount;
+        }
+
+        // Store the updated account balances
+        self.balance_store
+            .set(balance_path, Balances(balances))
+            .map(|_| ())
+            .map_err(|e| Error::store(format!("{:?}", e)))?;
+
+        Ok(())
+    }
+
+    fn burn_coins(
+        &mut self,
+        account: Self::Address,
+        amount: impl IntoIterator<Item = Self::Coin>,
+    ) -> Result<(), Self::Error> {
+        let balance_path = BalancesPath(account);
+        let mut balances = self
+            .balance_store
+            .get(Height::Pending, &balance_path)
+            .map(|b| b.0)
+            .unwrap_or_default();
+
+        for Coin { denom, amount } in amount {
+            let balance = balances
+                .iter_mut()
+                .find(|c| c.denom == denom)
+                .filter(|c| c.amount >= amount)
+                .ok_or_else(Error::insufficient_source_funds)?;
+
+            balance.amount -= amount;
+        }
+
+        // Store the updated account balances
+        self.balance_store
+            .set(balance_path, Balances(balances))
+            .map(|_| ())
+            .map_err(|e| Error::store(format!("{:?}", e)))?;
+
+        Ok(())
     }
 }
 
@@ -168,7 +324,7 @@ pub struct Bank<S, AR, AK> {
     account_keeper: AK,
 }
 
-impl<S: ProvableStore + Default, AR: AccountReader, AK: AccountKeeper> Bank<S, AR, AK> {
+impl<S: 'static + ProvableStore + Default, AR: AccountReader, AK: AccountKeeper> Bank<S, AR, AK> {
     pub fn new(store: SharedStore<S>, account_reader: AR, account_keeper: AK) -> Self {
         Self {
             store: store.clone(),
@@ -181,6 +337,16 @@ impl<S: ProvableStore + Default, AR: AccountReader, AK: AccountKeeper> Bank<S, A
             account_reader,
             account_keeper,
         }
+    }
+
+    pub fn service(&self) -> QueryServer<BankService<S>> {
+        QueryServer::new(BankService {
+            bank_reader: self.balance_reader.clone(),
+        })
+    }
+
+    pub fn bank_keeper(&self) -> &BankBalanceKeeper<S> {
+        &self.balance_keeper
     }
 }
 
@@ -212,45 +378,9 @@ where
             .map_err(|_| Error::non_existent_account(message.from_address.clone()))?;
 
         // Note: we allow transfers to non-existent destination accounts
-
-        let mut src_balances = self
-            .balance_reader
-            .get_all_balances(message.from_address.clone());
-        let mut dst_balances = self
-            .balance_reader
-            .get_all_balances(message.to_address.clone());
-
         let amounts: Vec<Coin> = message.amount.iter().map(|amt| amt.into()).collect();
-        for Coin { denom, amount } in amounts {
-            let mut src_balance = src_balances
-                .iter_mut()
-                .find(|c| c.denom == denom)
-                .ok_or_else(Error::insufficient_source_funds)?;
-
-            if dst_balances.iter().any(|c| c.denom == denom) {
-                dst_balances.push(Coin {
-                    denom: denom.clone(),
-                    amount: 0u64,
-                });
-            }
-
-            let mut dst_balance = dst_balances.iter_mut().find(|c| c.denom == denom).unwrap();
-
-            if dst_balance.amount > u64::MAX - amount {
-                return Err(Error::dest_fund_overflow().into());
-            }
-
-            src_balance.amount -= amount;
-            dst_balance.amount += amount;
-        }
-
-        // Store the updated account balances
         self.balance_keeper
-            .set_balances(message.from_address, src_balances)
-            .map_err(|e| Error::store(format!("{:?}", e)))?;
-        self.balance_keeper
-            .set_balances(message.to_address, dst_balances)
-            .map_err(|e| Error::store(format!("{:?}", e)))?;
+            .send_coins(message.from_address, message.to_address, amounts)?;
 
         Ok(vec![])
     }
@@ -259,14 +389,20 @@ where
         debug!("Initializing bank module");
 
         // safety - we panic on errors to prevent chain creation with invalid genesis config
-        let accounts: HashMap<String, HashMap<Denom, u64>> =
+        let accounts: HashMap<String, HashMap<Denom, U256>> =
             serde_json::from_value(app_state).unwrap();
         for (account, balances) in accounts {
             trace!("Adding account ({}) => {:?}", account, balances);
 
             let account_id = AccountId::from_str(&account).unwrap();
             self.balance_keeper
-                .set_balances(account_id, balances.into_iter().map(|b| b.into()).collect())
+                .mint_coins(
+                    account_id,
+                    balances
+                        .into_iter()
+                        .map(|b| b.into())
+                        .collect::<Vec<Coin>>(),
+                )
                 .unwrap();
         }
     }
@@ -309,5 +445,86 @@ where
 
     fn store(&self) -> &SharedStore<S> {
         &self.store
+    }
+}
+
+pub struct BankService<S> {
+    bank_reader: BankBalanceReader<S>,
+}
+
+#[tonic::async_trait]
+impl<S: ProvableStore + 'static> Query for BankService<S> {
+    async fn balance(
+        &self,
+        request: Request<QueryBalanceRequest>,
+    ) -> Result<Response<QueryBalanceResponse>, Status> {
+        debug!("Got bank balance request: {:?}", request);
+
+        let account_id = request
+            .get_ref()
+            .address
+            .parse()
+            .map_err(|e| Status::invalid_argument(format!("{}", e)))?;
+        let denom = Denom(request.get_ref().denom.clone());
+        let balances = self.bank_reader.get_all_balances(account_id);
+
+        Ok(Response::new(QueryBalanceResponse {
+            balance: balances
+                .into_iter()
+                .find(|c| c.denom == denom)
+                .map(|coin| RawCoin {
+                    denom: coin.denom.0,
+                    amount: coin.amount.to_string(),
+                }),
+        }))
+    }
+
+    async fn all_balances(
+        &self,
+        _request: Request<QueryAllBalancesRequest>,
+    ) -> Result<Response<QueryAllBalancesResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn spendable_balances(
+        &self,
+        _request: Request<QuerySpendableBalancesRequest>,
+    ) -> Result<Response<QuerySpendableBalancesResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn total_supply(
+        &self,
+        _request: Request<QueryTotalSupplyRequest>,
+    ) -> Result<Response<QueryTotalSupplyResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn supply_of(
+        &self,
+        _request: Request<QuerySupplyOfRequest>,
+    ) -> Result<Response<QuerySupplyOfResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn params(
+        &self,
+        _request: Request<QueryParamsRequest>,
+    ) -> Result<Response<QueryParamsResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn denom_metadata(
+        &self,
+        _request: Request<QueryDenomMetadataRequest>,
+    ) -> Result<Response<QueryDenomMetadataResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn denoms_metadata(
+        &self,
+        _request: Request<QueryDenomsMetadataRequest>,
+    ) -> Result<Response<QueryDenomsMetadataResponse>, Status> {
+        unimplemented!()
     }
 }

@@ -3,19 +3,19 @@ mod bank;
 mod ibc;
 mod staking;
 
-pub(crate) use self::auth::{Auth, ACCOUNT_PREFIX};
-pub(crate) use self::bank::Bank;
-pub(crate) use self::ibc::{Ibc, IbcRouterBuilder, IbcTransferModule};
-pub(crate) use self::staking::Staking;
-
-use crate::app::store::{self, Height, Path, SharedStore};
-
 use cosmrs::AccountId;
 use flex_error::{define_error, TraceError};
 use ibc_proto::google::protobuf::Any;
 use tendermint::block::Header;
-use tendermint_proto::abci::Event;
-use tendermint_proto::crypto::ProofOp;
+use tendermint_proto::{abci::Event, crypto::ProofOp};
+
+pub(crate) use self::{
+    auth::{Auth, ACCOUNT_PREFIX},
+    bank::Bank,
+    ibc::{Ibc, IbcRouterBuilder, IbcTransferModule},
+    staking::Staking,
+};
+use crate::app::store::{self, Height, Path, SharedStore};
 
 define_error! {
     #[derive(PartialEq, Eq)]
@@ -112,9 +112,10 @@ pub(crate) trait Identifiable {
 }
 
 pub(crate) mod prefix {
+    use core::convert::TryInto;
+
     use super::Identifiable;
     use crate::app::store;
-    use core::convert::TryInto;
 
     /// Bank module prefix
     #[derive(Clone)]

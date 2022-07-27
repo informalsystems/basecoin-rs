@@ -1,22 +1,23 @@
 mod avl;
 mod memory;
 
-pub(crate) use memory::InMemoryStore;
-
-use crate::app::modules::Error as ModuleError;
-
-use std::convert::{TryFrom, TryInto};
-use std::fmt::{Debug, Display, Formatter};
-use std::ops::{Deref, DerefMut};
-use std::str::{from_utf8, Utf8Error};
-use std::sync::{Arc, RwLock};
+use std::{
+    convert::{TryFrom, TryInto},
+    fmt::{Debug, Display, Formatter},
+    marker::PhantomData,
+    ops::{Deref, DerefMut},
+    str::{from_utf8, Utf8Error},
+    sync::{Arc, RwLock},
+};
 
 use flex_error::{define_error, TraceError};
 use ibc::core::ics24_host::{error::ValidationError, validate::validate_identifier};
 use ics23::CommitmentProof;
+pub(crate) use memory::InMemoryStore;
 use serde::{de::DeserializeOwned, Serialize};
-use std::marker::PhantomData;
 use tracing::trace;
+
+use crate::app::modules::Error as ModuleError;
 
 /// A `TypedStore` that uses the `JsonCodec`
 pub(crate) type JsonStore<S, K, V> = TypedStore<S, K, JsonCodec<V>>;
@@ -26,6 +27,9 @@ pub(crate) type ProtobufStore<S, K, V, R> = TypedStore<S, K, ProtobufCodec<V, R>
 
 /// A `TypedSet` that stores only paths and no values
 pub(crate) type TypedSet<S, K> = TypedStore<S, K, NullCodec>;
+
+/// A `TypedStore` that uses the `BinCodec`
+pub(crate) type BinStore<S, K, V> = TypedStore<S, K, BinCodec<V>>;
 
 /// A newtype representing a valid ICS024 identifier.
 /// Implements `Deref<Target=String>`.
@@ -505,6 +509,26 @@ where
     }
 }
 
+/// A binary codec that uses `AsRef<[u8]>` and `From<Vec<u8>>` to encode and decode respectively.
+#[derive(Clone)]
+pub(crate) struct BinCodec<T>(PhantomData<T>);
+
+impl<T> Codec for BinCodec<T>
+where
+    T: AsRef<[u8]> + From<Vec<u8>>,
+{
+    type Type = T;
+    type Encoded = Vec<u8>;
+
+    fn encode(d: &Self::Type) -> Option<Self::Encoded> {
+        Some(d.as_ref().to_vec())
+    }
+
+    fn decode(bytes: &[u8]) -> Option<Self::Type> {
+        Some(bytes.to_vec().into())
+    }
+}
+
 /// The `TypedStore` provides methods to treat the data stored at given store paths as given Rust types.
 ///
 /// It is designed to be aliased for each concrete codec. For example,
@@ -548,11 +572,6 @@ where
     }
 
     #[inline]
-    pub(crate) fn delete(&mut self, path: &K) {
-        self.store.delete(&path.clone().into())
-    }
-
-    #[inline]
     pub(crate) fn get_keys(&self, key_prefix: &Path) -> Vec<Path> {
         self.store.get_keys(key_prefix)
     }
@@ -581,14 +600,13 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::{Identifier, Path};
+    use std::{collections::HashSet, convert::TryFrom};
 
     use lazy_static::lazy_static;
     use proptest::prelude::*;
-    use rand::distributions::Standard;
-    use rand::seq::SliceRandom;
-    use std::collections::HashSet;
-    use std::convert::TryFrom;
+    use rand::{distributions::Standard, seq::SliceRandom};
+
+    use super::{Identifier, Path};
 
     const ALLOWED_CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ\
                                    abcdefghijklmnopqrstuvwxyz\

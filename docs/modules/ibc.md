@@ -26,7 +26,7 @@ rpc_timeout = '10s'
 account_prefix = 'cosmos'
 key_name = 'testkey'
 store_prefix = 'ibc'
-gas_price = { price = 0.001, denom = 'stake' }
+gas_price = { price = 0.001, denom = 'basecoin' }
 clock_drift = '5s'
 trusting_period = '14days'
 proof_specs = '''
@@ -83,7 +83,7 @@ $ ./scripts/dev-env ~/.hermes/config.toml ibc-0 ibc-1
 ### Step 3: Configure hermes to be able to interact with basecoin
 ```shell
 $ gaiad keys add user --keyring-backend="test" --output json > user_seed.json
-$ hermes keys add basecoin-0 -f user_seed.json
+$ hermes keys add --chain basecoin-0 --key-file user_seed.json
 ```
 
 ### Step 4: Create and Update a client
