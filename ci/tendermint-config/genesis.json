@@ -33,8 +33,9 @@
   ],
   "app_state": {
     "cosmos12xpmzmfpf7tn57xg93rne2hc2q26lcfql5efws": {
-      "basecoin": "0x1000",
-      "othercoin": "0x1000"
+      "basecoin": "0x1000000000",
+      "othercoin": "0x1000000000",
+      "samoleans": "0x1000000000"
     },
     "cosmos1t2e0nyjhwn3revunvf2uperhftvhzu4euuzva9": {
       "basecoin": "0x250",
