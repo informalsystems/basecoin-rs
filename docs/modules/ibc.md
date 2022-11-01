@@ -8,10 +8,40 @@ This module has been tested with `hermes`.
 ## Usage
 
 ### Step 1: Setup
-Edit your `genesis.json` file (default location `~/.tendermint/config/genesis.json`) to update the `chain_id`.
+Edit your `genesis.json` file (default location `~/.tendermint/config/genesis.json`) to update the `chain_id` and setup the genesis `app_state`. 
+(See [genesis.json](../../ci/tendermint-config/genesis.json) for a sample genesis file.)
 ```json
 {
-  "chain_id": "basecoin-0"
+  "chain_id": "basecoin-0",
+  "app_state": {
+    "cosmos12xpmzmfpf7tn57xg93rne2hc2q26lcfql5efws": {
+      "basecoin": "0x1000000000",
+      "othercoin": "0x1000000000",
+      "samoleans": "0x1000000000"
+    },
+    "cosmos1t2e0nyjhwn3revunvf2uperhftvhzu4euuzva9": {
+      "basecoin": "0x250",
+      "othercoin": "0x5000"
+    },
+    "cosmos1uawm90a5xm36kjmaazv89nxmfr8s8cyzkjqytd": {
+      "acidcoin": "0x500"
+    },
+    "cosmos1ny9epydqnr7ymqhmgfvlshp3485cuqlmt7vsmf": {},
+    "cosmos1xwgdxu4ahd9eevtfnq5f7w4td3rqnph4llnngw": {
+      "acidcoin": "0x500",
+      "basecoin": "0x0",
+      "othercoin": "0x100"
+    },
+    "cosmos1mac8xqhun2c3y0njptdmmh3vy8nfjmtm6vua9u": {
+      "basecoin": "0x1000"
+    },
+    "cosmos1wkvwnez6fkjn63xaz7nzpm4zxcd9cetqmyh2y8": {
+      "basecoin": "0x1"
+    },
+    "cosmos166vcha998g7tl8j8cq0kwa8rfvm68cqmj88cff": {
+      "basecoin": "0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
+    }
+  }
 }
 ```
 

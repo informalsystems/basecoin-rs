@@ -787,7 +787,7 @@ impl<S: Store> ChannelReader for Ibc<S> {
                     sequence: *sequence,
                 },
             )
-            .then(|| Receipt::Ok)
+            .then_some(Receipt::Ok)
             .ok_or_else(|| ChannelError::packet_receipt_not_found(*sequence))
     }
 
