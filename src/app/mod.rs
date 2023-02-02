@@ -342,9 +342,7 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
         info!(
             "Committed height {} with hash({})",
             state.current_height() - 1,
-            data.iter()
-                .map(|b| format!("{b:02X}"))
-                .collect::<String>()
+            data.iter().map(|b| format!("{b:02X}")).collect::<String>()
         );
         ResponseCommit {
             data,
