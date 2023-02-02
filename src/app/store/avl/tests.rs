@@ -197,7 +197,7 @@ fn check_integrity<T: Ord, V>(node_ref: &NodeRef<T, V>) -> bool {
             println!("[AVL] Balance factor >= 2");
             return false;
         }
-        let bonus_height = if is_leaf { 0 } else { 1 };
+        let bonus_height = u32::from(!is_leaf);
         if node.height != std::cmp::max(left_height, right_height) + bonus_height {
             println!("[AVL] Heights are inconsistent");
             return false;

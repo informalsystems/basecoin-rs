@@ -808,7 +808,7 @@ impl<S: Store> ChannelReader for Ibc<S> {
     }
 
     fn hash(&self, value: Vec<u8>) -> Vec<u8> {
-        sha2::Sha256::digest(&value).to_vec()
+        sha2::Sha256::digest(value).to_vec()
     }
 
     fn host_height(&self) -> IbcHeight {

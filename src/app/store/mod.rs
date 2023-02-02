@@ -637,7 +637,7 @@ mod tests {
 
         (0..=len)
             .map(|_| loop {
-                let c = rng.sample::<char, _>(Standard) as char;
+                let c = rng.sample::<char, _>(Standard);
 
                 if c.is_ascii() && !VALID_CHARS.contains(&c) {
                     return c;
@@ -649,13 +649,13 @@ mod tests {
     proptest! {
         #[test]
         fn validate_method_doesnt_crash(s in "\\PC*") {
-            let _ = Identifier::validate(&s);
+            let _ = Identifier::validate(s);
         }
 
         #[test]
         fn valid_identifier_is_ok(l in 1usize..=10) {
             let id = gen_valid_identifier(l);
-            let validated = Identifier::validate(&id);
+            let validated = Identifier::validate(id);
 
             assert!(validated.is_ok())
         }
@@ -664,7 +664,7 @@ mod tests {
         #[ignore]
         fn invalid_identifier_errors(l in 1usize..=10) {
             let id = gen_invalid_identifier(l);
-            let validated = Identifier::validate(&id);
+            let validated = Identifier::validate(id);
 
             assert!(validated.is_err())
         }
