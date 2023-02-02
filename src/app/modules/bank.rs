@@ -8,10 +8,10 @@ use ibc_proto::{
             query_server::{Query, QueryServer},
             QueryAllBalancesRequest, QueryAllBalancesResponse, QueryBalanceRequest,
             QueryBalanceResponse, QueryDenomMetadataRequest, QueryDenomMetadataResponse,
-            QueryDenomsMetadataRequest, QueryDenomsMetadataResponse, QueryParamsRequest,
-            QueryParamsResponse, QuerySpendableBalancesRequest, QuerySpendableBalancesResponse,
-            QuerySupplyOfRequest, QuerySupplyOfResponse, QueryTotalSupplyRequest,
-            QueryTotalSupplyResponse,
+            QueryDenomOwnersRequest, QueryDenomOwnersResponse, QueryDenomsMetadataRequest,
+            QueryDenomsMetadataResponse, QueryParamsRequest, QueryParamsResponse,
+            QuerySpendableBalancesRequest, QuerySpendableBalancesResponse, QuerySupplyOfRequest,
+            QuerySupplyOfResponse, QueryTotalSupplyRequest, QueryTotalSupplyResponse,
         },
         base::v1beta1::Coin as RawCoin,
     },
@@ -531,6 +531,13 @@ impl<S: ProvableStore + 'static> Query for BankService<S> {
         &self,
         _request: Request<QueryDenomsMetadataRequest>,
     ) -> Result<Response<QueryDenomsMetadataResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn denom_owners(
+        &self,
+        _request: Request<QueryDenomOwnersRequest>,
+    ) -> Result<Response<QueryDenomOwnersResponse>, Status> {
         unimplemented!()
     }
 }
