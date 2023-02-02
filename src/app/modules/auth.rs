@@ -88,7 +88,7 @@ impl Account for AuthAccount {
     }
 }
 
-impl Protobuf<BaseAccount> for AuthAccount {}
+impl ibc_proto::protobuf::Protobuf<BaseAccount> for AuthAccount {}
 
 impl TryFrom<BaseAccount> for AuthAccount {
     type Error = String;
@@ -201,15 +201,19 @@ impl<S: Store> Module for Auth<S> {
         let mut account = self
             .account_reader
             .get_account(signer.clone())
-            .map_err(|_| ModuleError::custom("unknown signer".to_string()))?;
+            .map_err(|_| ModuleError::Custom {
+                reason: "unknown signer".to_string(),
+            })?;
         account.sequence += 1;
 
         self.account_keeper
             .set_account(account)
-            .map_err(|_| ModuleError::custom("failed to increment signer sequence".to_string()))?;
+            .map_err(|_| ModuleError::Custom {
+                reason: "failed to increment signer sequence".to_string(),
+            })?;
 
         // we're only intercepting the deliverTx here, so return unhandled.
-        Err(ModuleError::not_handled())
+        Err(ModuleError::NotHandled)
     }
 
     fn store_mut(&mut self) -> &mut SharedStore<S> {

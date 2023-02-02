@@ -47,7 +47,7 @@ use tonic::{Request, Response, Status};
 use tracing::{debug, error, info};
 
 use crate::app::{
-    modules::{Error, ErrorDetail, Module, ACCOUNT_PREFIX},
+    modules::{Error, Module, ACCOUNT_PREFIX},
     response::ResponseFromErrorExt,
     store::{Height, Identifier, Path, ProvableStore, RevertibleStore, SharedStore, Store},
 };
@@ -144,7 +144,7 @@ impl<S: Default + ProvableStore> BaseCoinApp<S> {
                     handled = true;
                     break;
                 }
-                Err(Error(ErrorDetail::NotHandled(_), _)) => continue,
+                Err(Error::NotHandled) => continue,
                 Err(e) => {
                     error!("deliver message ({:?}) failed with error: {:?}", message, e);
                     return Err(e);
@@ -154,7 +154,7 @@ impl<S: Default + ProvableStore> BaseCoinApp<S> {
         if handled {
             Ok(events)
         } else {
-            Err(Error::not_handled())
+            Err(Error::NotHandled)
         }
     }
 }
@@ -245,7 +245,7 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
                 }
                 // `Error::not_handled()` - implies query isn't known or was intercepted but not
                 // responded to by this module, so try with next module
-                Err(Error(ErrorDetail::NotHandled(_), _)) => continue,
+                Err(Error::NotHandled) => continue,
                 // Other error - return immediately
                 Err(e) => return ResponseQuery::from_error(1, format!("query error: {e:?}")),
             }

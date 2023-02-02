@@ -1,6 +1,11 @@
 mod avl;
 mod memory;
 
+use displaydoc::Display;
+use ibc::core::ics24_host::{error::ValidationError, validate::validate_identifier};
+use ics23::CommitmentProof;
+pub(crate) use memory::InMemoryStore;
+use serde::{de::DeserializeOwned, Serialize};
 use std::{
     convert::{TryFrom, TryInto},
     fmt::{Debug, Display, Formatter},
@@ -9,12 +14,6 @@ use std::{
     str::{from_utf8, Utf8Error},
     sync::{Arc, RwLock},
 };
-
-use flex_error::{define_error, TraceError};
-use ibc::core::ics24_host::{error::ValidationError, validate::validate_identifier};
-use ics23::CommitmentProof;
-pub(crate) use memory::InMemoryStore;
-use serde::{de::DeserializeOwned, Serialize};
 use tracing::trace;
 
 use crate::app::modules::Error as ModuleError;
@@ -48,7 +47,10 @@ impl Identifier {
         // give a `min` parameter of 0 here to allow id's of arbitrary
         // length as inputs; `validate_identifier` itself checks for
         // empty inputs and returns an error as appropriate
-        validate_identifier(s, 0, s.len()).map_err(|v| Error::invalid_identifier(s.to_string(), v))
+        validate_identifier(s, 0, s.len()).map_err(|v| Error::InvalidIdentifier {
+            identifier: s.to_string(),
+            error: v,
+        })
     }
 }
 
@@ -102,7 +104,7 @@ impl TryFrom<&[u8]> for Path {
     type Error = Error;
 
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
-        let s = from_utf8(value).map_err(Error::malformed_path_string)?;
+        let s = from_utf8(value).map_err(|e| Error::MalformedPathString { error: e })?;
         s.to_owned().try_into()
     }
 }
@@ -127,23 +129,20 @@ impl Display for Path {
     }
 }
 
-define_error! {
-    #[derive(Eq, PartialEq)]
-    Error {
-        InvalidIdentifier
-            { identifier: String }
-            [ ValidationError ]
-            | e | { format!("'{}' is not a valid identifier", e.identifier) },
-        MalformedPathString
-            [ TraceError<Utf8Error> ]
-            | _ | { "path isn't a valid string" },
-
-    }
+#[derive(Debug, Display)]
+pub enum Error {
+    /// '{identifier}' is not a valid identifier: `{error}`
+    InvalidIdentifier {
+        identifier: String,
+        error: ValidationError,
+    },
+    /// path isn't a valid string: `{error}`
+    MalformedPathString { error: Utf8Error },
 }
 
 impl From<Error> for ModuleError {
     fn from(e: Error) -> Self {
-        ModuleError::store(e)
+        ModuleError::Store(e)
     }
 }
 
