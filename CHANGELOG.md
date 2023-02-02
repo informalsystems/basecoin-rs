@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## 0.1.0-alpha
+## 0.1.0
 
 *Feb 1st, 2023*
 
