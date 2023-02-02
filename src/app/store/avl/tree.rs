@@ -209,7 +209,7 @@ where
     }
 
     #[allow(dead_code)]
-    fn get_keys_rec<'a, 'b>(node_ref: &'a NodeRef<K, V>, keys: &'b mut Vec<&'a K>) {
+    fn get_keys_rec<'a>(node_ref: &'a NodeRef<K, V>, keys: &mut Vec<&'a K>) {
         if let Some(node) = node_ref {
             Self::get_keys_rec(&node.left, keys);
             keys.push(&node.key);

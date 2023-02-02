@@ -434,7 +434,7 @@ impl<S: Store> ClientReader for Ibc<S> {
         client_id: &ClientId,
         height: IbcHeight,
     ) -> Result<Option<AnyConsensusState>, ClientError> {
-        let path = format!("clients/{}/consensusStates", client_id)
+        let path = format!("clients/{client_id}/consensusStates")
             .try_into()
             .unwrap(); // safety - path must be valid since ClientId and height are valid Identifiers
 
@@ -464,7 +464,7 @@ impl<S: Store> ClientReader for Ibc<S> {
         client_id: &ClientId,
         height: IbcHeight,
     ) -> Result<Option<AnyConsensusState>, ClientError> {
-        let path = format!("clients/{}/consensusStates", client_id)
+        let path = format!("clients/{client_id}/consensusStates")
             .try_into()
             .unwrap(); // safety - path must be valid since ClientId and height are valid Identifiers
 
@@ -808,7 +808,7 @@ impl<S: Store> ChannelReader for Ibc<S> {
     }
 
     fn hash(&self, value: Vec<u8>) -> Vec<u8> {
-        sha2::Sha256::digest(&value).to_vec()
+        sha2::Sha256::digest(value).to_vec()
     }
 
     fn host_height(&self) -> IbcHeight {
@@ -1085,7 +1085,7 @@ impl<S: ProvableStore + 'static> ClientQuery for IbcClientService<S> {
         let path = "clients"
             .to_owned()
             .try_into()
-            .map_err(|e| Status::invalid_argument(format!("{}", e)))?;
+            .map_err(|e| Status::invalid_argument(format!("{e}")))?;
 
         let client_state_paths = |path: Path| -> Option<path::ClientStatePath> {
             match path.try_into() {
@@ -1130,7 +1130,7 @@ impl<S: ProvableStore + 'static> ClientQuery for IbcClientService<S> {
 
         let path = format!("clients/{}/consensusStates", request.get_ref().client_id)
             .try_into()
-            .map_err(|e| Status::invalid_argument(format!("{}", e)))?;
+            .map_err(|e| Status::invalid_argument(format!("{e}")))?;
 
         let keys = self.consensus_state_store.get_keys(&path);
         let consensus_states = keys
@@ -1267,7 +1267,7 @@ impl<S: ProvableStore + 'static> ConnectionQuery for IbcConnectionService<S> {
             .get_ref()
             .client_id
             .parse()
-            .map_err(|e| Status::invalid_argument(format!("{}", e)))?;
+            .map_err(|e| Status::invalid_argument(format!("{e}")))?;
         let path = path::ClientConnectionsPath(client_id);
         let connection_ids = self
             .connection_ids_store
