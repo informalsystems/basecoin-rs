@@ -13,7 +13,7 @@ description = """
 """
 
 [dependencies]
-base64 = { version = "0.13", default-features = false, features = ["alloc"] }
+base64 = { version = "0.21", default-features = false, features = ["alloc"] }
 cosmrs = "0.7.0"
 flex-error = { version = "0.4.2", features = ["eyre_tracer"] }
 ibc = "=0.16.0"
@@ -30,7 +30,7 @@ tendermint-proto = "=0.23.7"
 tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
 tonic = "0.7"
 tracing = "0.1.26"
-tracing-subscriber = "0.2.18"
+tracing-subscriber = "0.3.16"
 
 [dev-dependencies]
 bytes = "1.0.1"
