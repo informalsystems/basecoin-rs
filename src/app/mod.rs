@@ -247,21 +247,21 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
                 // responded to by this module, so try with next module
                 Err(Error(ErrorDetail::NotHandled(_), _)) => continue,
                 // Other error - return immediately
-                Err(e) => return ResponseQuery::from_error(1, format!("query error: {:?}", e)),
+                Err(e) => return ResponseQuery::from_error(1, format!("query error: {e:?}")),
             }
         }
         ResponseQuery::from_error(1, "query msg not handled")
     }
 
     fn deliver_tx(&self, request: RequestDeliverTx) -> ResponseDeliverTx {
-        debug!("Got deliverTx request: {:?}", request);
+        debug!("Got deliverTx request: {request:?}");
 
         let tx: Tx = match request.tx.as_slice().try_into() {
             Ok(tx) => tx,
             Err(err) => {
                 return ResponseDeliverTx::from_error(
                     1,
-                    format!("failed to decode incoming tx bytes: {}", err),
+                    format!("failed to decode incoming tx bytes: {err}"),
                 );
             }
         };
@@ -311,7 +311,7 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
                     self.store.write().unwrap().reset();
                     return ResponseDeliverTx::from_error(
                         2,
-                        format!("deliver failed with error: {}", e),
+                        format!("deliver failed with error: {e}"),
                     );
                 }
             }
@@ -343,7 +343,7 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
             "Committed height {} with hash({})",
             state.current_height() - 1,
             data.iter()
-                .map(|b| format!("{:02X}", b))
+                .map(|b| format!("{b:02X}"))
                 .collect::<String>()
         );
         ResponseCommit {

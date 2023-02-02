@@ -232,11 +232,11 @@ impl<S: Store> BankKeeper for BankBalanceKeeper<S> {
         self.balance_store
             .set(src_balance_path, Balances(src_balances))
             .map(|_| ())
-            .map_err(|e| Error::store(format!("{:?}", e)))?;
+            .map_err(|e| Error::store(format!("{e:?}")))?;
         self.balance_store
             .set(dst_balance_path, Balances(dst_balances))
             .map(|_| ())
-            .map_err(|e| Error::store(format!("{:?}", e)))?;
+            .map_err(|e| Error::store(format!("{e:?}")))?;
 
         Ok(())
     }
@@ -275,7 +275,7 @@ impl<S: Store> BankKeeper for BankBalanceKeeper<S> {
         self.balance_store
             .set(balance_path, Balances(balances))
             .map(|_| ())
-            .map_err(|e| Error::store(format!("{:?}", e)))?;
+            .map_err(|e| Error::store(format!("{e:?}")))?;
 
         Ok(())
     }
@@ -306,7 +306,7 @@ impl<S: Store> BankKeeper for BankBalanceKeeper<S> {
         self.balance_store
             .set(balance_path, Balances(balances))
             .map(|_| ())
-            .map_err(|e| Error::store(format!("{:?}", e)))?;
+            .map_err(|e| Error::store(format!("{e:?}")))?;
 
         Ok(())
     }
@@ -370,7 +370,7 @@ where
     fn deliver(&mut self, message: Any, _signer: &AccountId) -> Result<Vec<Event>, ModuleError> {
         let message: MsgSend = Self::decode::<proto::cosmos::bank::v1beta1::MsgSend>(message)?
             .try_into()
-            .map_err(|e| Error::msg_validation_failure(format!("{:?}", e)))?;
+            .map_err(|e| Error::msg_validation_failure(format!("{e:?}")))?;
 
         let _ = self
             .account_reader
@@ -464,7 +464,7 @@ impl<S: ProvableStore + 'static> Query for BankService<S> {
             .get_ref()
             .address
             .parse()
-            .map_err(|e| Status::invalid_argument(format!("{}", e)))?;
+            .map_err(|e| Status::invalid_argument(format!("{e}")))?;
         let denom = Denom(request.get_ref().denom.clone());
         let balances = self.bank_reader.get_all_balances(account_id);
 
