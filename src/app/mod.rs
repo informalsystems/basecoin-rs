@@ -16,10 +16,10 @@ use cosmrs::{
 use ibc_proto::{
     cosmos::{
         base::tendermint::v1beta1::{
-            service_server::Service as HealthService, GetBlockByHeightRequest,
-            GetBlockByHeightResponse, GetLatestBlockRequest, GetLatestBlockResponse,
-            GetLatestValidatorSetRequest, GetLatestValidatorSetResponse, GetNodeInfoRequest,
-            GetNodeInfoResponse, GetSyncingRequest, GetSyncingResponse,
+            service_server::Service as HealthService, AbciQueryRequest, AbciQueryResponse,
+            GetBlockByHeightRequest, GetBlockByHeightResponse, GetLatestBlockRequest,
+            GetLatestBlockResponse, GetLatestValidatorSetRequest, GetLatestValidatorSetResponse,
+            GetNodeInfoRequest, GetNodeInfoResponse, GetSyncingRequest, GetSyncingResponse,
             GetValidatorSetByHeightRequest, GetValidatorSetByHeightResponse,
             Module as VersionInfoModule, VersionInfo,
         },
@@ -174,7 +174,7 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
             version: "0.1.0".to_string(),
             app_version: 1,
             last_block_height,
-            last_block_app_hash,
+            last_block_app_hash: last_block_app_hash.into(),
         }
     }
 
@@ -183,7 +183,8 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
 
         // safety - we panic on errors to prevent chain creation with invalid genesis config
         let app_state: Value = serde_json::from_str(
-            &String::from_utf8(request.app_state_bytes.clone()).expect("invalid genesis state"),
+            &String::from_utf8(request.app_state_bytes.clone().into())
+                .expect("invalid genesis state"),
         )
         .expect("genesis state isn't valid JSON");
         let mut modules = self.modules.write().unwrap();
@@ -196,7 +197,7 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
         ResponseInitChain {
             consensus_params: request.consensus_params,
             validators: vec![], // use validator set proposed by tendermint (ie. in the genesis file)
-            app_hash: self.store.write().unwrap().root_hash(),
+            app_hash: self.store.write().unwrap().root_hash().into(),
         }
     }
 
@@ -237,7 +238,7 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
                         code: 0,
                         log: "exists".to_string(),
                         key: request.data,
-                        value: result.data,
+                        value: result.data.into(),
                         proof_ops,
                         height: store.current_height() as i64,
                         ..Default::default()
@@ -256,7 +257,7 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
     fn deliver_tx(&self, request: RequestDeliverTx) -> ResponseDeliverTx {
         debug!("Got deliverTx request: {request:?}");
 
-        let tx: Tx = match request.tx.as_slice().try_into() {
+        let tx: Tx = match request.tx.as_ref().try_into() {
             Ok(tx) => tx,
             Err(err) => {
                 return ResponseDeliverTx::from_error(
@@ -345,7 +346,7 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
             data.iter().map(|b| format!("{b:02X}")).collect::<String>()
         );
         ResponseCommit {
-            data,
+            data: data.into(),
             retain_height: 0,
         }
     }
@@ -366,6 +367,13 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
 
 #[tonic::async_trait]
 impl<S: ProvableStore + 'static> HealthService for BaseCoinApp<S> {
+    async fn abci_query(
+        &self,
+        _request: Request<AbciQueryRequest>,
+    ) -> Result<Response<AbciQueryResponse>, Status> {
+        unimplemented!()
+    }
+
     async fn get_node_info(
         &self,
         _request: Request<GetNodeInfoRequest>,

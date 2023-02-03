@@ -13,7 +13,10 @@ use ibc::{
         relay::send_transfer::send_transfer,
         PrefixedCoin,
     },
-    clients::ics07_tendermint::consensus_state::ConsensusState as TmConsensusState,
+    clients::ics07_tendermint::{
+        client_state::ClientState as TmClientState,
+        consensus_state::ConsensusState as TmConsensusState,
+    },
     core::{
         ics02_client::{
             client_state::ClientState,
@@ -26,6 +29,7 @@ use ibc::{
             connection::{ConnectionEnd, IdentifiedConnectionEnd},
             context::{ConnectionKeeper, ConnectionReader},
             error::ConnectionError,
+            version::Version as ConnectionVersion,
         },
         ics04_channel::{
             channel::{ChannelEnd, Counterparty, IdentifiedChannelEnd, Order},
@@ -35,7 +39,7 @@ use ibc::{
             handler::ModuleExtras,
             msgs::acknowledgement::Acknowledgement as GenericAcknowledgement,
             packet::{Packet, Receipt, Sequence},
-            Version,
+            Version as ChannelVersion,
         },
         ics05_port::{context::PortReader, error::PortError},
         ics23_commitment::commitment::{CommitmentPrefix, CommitmentRoot},
@@ -110,7 +114,7 @@ use std::{
     sync::Arc,
     time::Duration,
 };
-use tendermint::{abci::responses::Event as TendermintEvent, block::Header};
+use tendermint::{abci::Event as TendermintEvent, block::Header};
 use tendermint_proto::{
     abci::{Event, EventAttribute},
     crypto::ProofOp,
@@ -207,11 +211,10 @@ pub struct Ibc<S> {
     /// A typed-store for ClientType
     client_type_store: JsonStore<SharedStore<S>, path::ClientTypePath, ClientType>,
     /// A typed-store for AnyClientState
-    client_state_store:
-        ProtobufStore<SharedStore<S>, path::ClientStatePath, Box<dyn ClientState>, Any>,
+    client_state_store: ProtobufStore<SharedStore<S>, path::ClientStatePath, TmClientState, Any>,
     /// A typed-store for AnyConsensusState
     consensus_state_store:
-        ProtobufStore<SharedStore<S>, path::ClientConsensusStatePath, Box<dyn ConsensusState>, Any>,
+        ProtobufStore<SharedStore<S>, path::ClientConsensusStatePath, TmConsensusState, Any>,
     /// A typed-store for ConnectionEnd
     connection_end_store:
         ProtobufStore<SharedStore<S>, path::ConnectionsPath, ConnectionEnd, RawConnectionEnd>,
@@ -388,7 +391,7 @@ impl<S: 'static + ProvableStore> Module for Ibc<S> {
     }
 
     fn begin_block(&mut self, header: &Header) -> Vec<Event> {
-        let consensus_state = ConsensusState::new(
+        let consensus_state = TmConsensusState::new(
             CommitmentRoot::from_bytes(header.app_hash.as_ref()),
             header.time,
             header.next_validators_hash,
@@ -411,13 +414,14 @@ impl<S: Store> ClientReader for Ibc<S> {
     fn client_type(&self, client_id: &ClientId) -> Result<ClientType, ClientError> {
         self.client_type_store
             .get(Height::Pending, &path::ClientTypePath(client_id.clone()))
-            .ok_or_else(|| ClientError::ImplementationSpecific)
+            .ok_or(ClientError::ImplementationSpecific)
     }
 
     fn client_state(&self, client_id: &ClientId) -> Result<Box<dyn ClientState>, ClientError> {
         self.client_state_store
             .get(Height::Pending, &path::ClientStatePath(client_id.clone()))
-            .ok_or_else(|| ClientError::ImplementationSpecific)
+            .ok_or(ClientError::ImplementationSpecific)
+            .map(|cs| Box::new(cs) as Box<dyn ClientState>)
     }
 
     fn consensus_state(
@@ -432,10 +436,11 @@ impl<S: Store> ClientReader for Ibc<S> {
         };
         self.consensus_state_store
             .get(Height::Pending, &path)
-            .ok_or_else(|| ClientError::ConsensusStateNotFound {
+            .ok_or(ClientError::ConsensusStateNotFound {
                 client_id: client_id.clone(),
-                height: height.clone(),
+                height: *height,
             })
+            .map(|cs| Box::new(cs) as Box<dyn ConsensusState>)
     }
 
     fn next_consensus_state(
@@ -463,9 +468,9 @@ impl<S: Store> ClientReader for Ibc<S> {
                 .get(Height::Pending, &path)
                 .ok_or_else(|| ClientError::ConsensusStateNotFound {
                     client_id: client_id.clone(),
-                    height: height.clone(),
+                    height: *height,
                 })?;
-            Ok(Some(consensus_state))
+            Ok(Some(Box::new(consensus_state)))
         } else {
             Ok(None)
         }
@@ -500,9 +505,9 @@ impl<S: Store> ClientReader for Ibc<S> {
                     .get(Height::Pending, &prev_path)
                     .ok_or_else(|| ClientError::ConsensusStateNotFound {
                         client_id: client_id.clone(),
-                        height: height.clone(),
+                        height: *height,
                     })?;
-                return Ok(Some(consensus_state));
+                return Ok(Some(Box::new(consensus_state)));
             }
         }
 
@@ -520,9 +525,7 @@ impl<S: Store> ClientReader for Ibc<S> {
         let consensus_state = self
             .consensus_states
             .get(&height.revision_height())
-            .ok_or_else(|| ClientError::MissingLocalConsensusState {
-                height: height.clone(),
-            })?;
+            .ok_or(ClientError::MissingLocalConsensusState { height: *height })?;
         Ok(Box::new(consensus_state.clone()))
     }
 
@@ -533,6 +536,16 @@ impl<S: Store> ClientReader for Ibc<S> {
 
     fn client_counter(&self) -> Result<u64, ClientError> {
         Ok(self.client_counter)
+    }
+
+    fn decode_client_state(&self, client_state: Any) -> Result<Box<dyn ClientState>, ClientError> {
+        if let Ok(client_state) = TmClientState::try_from(client_state.clone()) {
+            Ok(client_state.into_box())
+        } else {
+            Err(ClientError::UnknownClientStateType {
+                client_state_type: client_state.type_url,
+            })
+        }
     }
 }
 
@@ -553,8 +566,12 @@ impl<S: Store> ClientKeeper for Ibc<S> {
         client_id: ClientId,
         client_state: Box<dyn ClientState>,
     ) -> Result<(), ClientError> {
+        let tm_client_state = client_state
+            .as_any()
+            .downcast_ref::<TmClientState>()
+            .ok_or(ClientError::ImplementationSpecific)?;
         self.client_state_store
-            .set(path::ClientStatePath(client_id), client_state)
+            .set(path::ClientStatePath(client_id), tm_client_state.clone())
             .map(|_| ())
             .map_err(|_| ClientError::ImplementationSpecific)
     }
@@ -565,6 +582,10 @@ impl<S: Store> ClientKeeper for Ibc<S> {
         height: IbcHeight,
         consensus_state: Box<dyn ConsensusState>,
     ) -> Result<(), ClientError> {
+        let tm_consensus_state = consensus_state
+            .as_any()
+            .downcast_ref::<TmConsensusState>()
+            .ok_or(ClientError::ImplementationSpecific)?;
         self.consensus_state_store
             .set(
                 path::ClientConsensusStatePath {
@@ -572,7 +593,7 @@ impl<S: Store> ClientKeeper for Ibc<S> {
                     epoch: height.revision_number(),
                     height: height.revision_height(),
                 },
-                consensus_state,
+                tm_consensus_state.clone(),
             )
             .map_err(|_| ClientError::ImplementationSpecific)
             .map(|_| ())
@@ -637,18 +658,33 @@ impl<S: Store> ConnectionReader for Ibc<S> {
         client_id: &ClientId,
         height: &IbcHeight,
     ) -> Result<Box<dyn ConsensusState>, ConnectionError> {
-        ClientReader::consensus_state(self, client_id, &height).map_err(ConnectionError::Client)
+        ClientReader::consensus_state(self, client_id, height).map_err(ConnectionError::Client)
     }
 
     fn host_consensus_state(
         &self,
         height: &IbcHeight,
     ) -> Result<Box<dyn ConsensusState>, ConnectionError> {
-        ClientReader::host_consensus_state(self, &height).map_err(ConnectionError::Client)
+        ClientReader::host_consensus_state(self, height).map_err(ConnectionError::Client)
     }
 
     fn connection_counter(&self) -> Result<u64, ConnectionError> {
         Ok(self.conn_counter)
+    }
+
+    fn decode_client_state(
+        &self,
+        client_state: Any,
+    ) -> Result<Box<dyn ClientState>, ConnectionError> {
+        ClientReader::decode_client_state(self, client_state).map_err(ConnectionError::Client)
+    }
+
+    fn get_compatible_versions(&self) -> Vec<ConnectionVersion> {
+        vec![ConnectionVersion::default()]
+    }
+
+    fn validate_self_client(&self, _client_state: Any) -> Result<(), ConnectionError> {
+        unimplemented!()
     }
 }
 
@@ -659,7 +695,7 @@ impl<S: Store> ConnectionKeeper for Ibc<S> {
         connection_end: ConnectionEnd,
     ) -> Result<(), ConnectionError> {
         self.connection_end_store
-            .set(path::ConnectionsPath(connection_id), connection_end.clone())
+            .set(path::ConnectionsPath(connection_id), connection_end)
             .map_err(|_| ConnectionError::Client(ClientError::ImplementationSpecific))?;
         Ok(())
     }
@@ -669,7 +705,7 @@ impl<S: Store> ConnectionKeeper for Ibc<S> {
         connection_id: ConnectionId,
         client_id: ClientId,
     ) -> Result<(), ConnectionError> {
-        let path = path::ClientConnectionsPath(client_id.clone());
+        let path = path::ClientConnectionsPath(client_id);
         let mut conn_ids: Vec<ConnectionId> = self
             .connection_ids_store
             .get(Height::Pending, &path)
@@ -739,7 +775,7 @@ impl<S: Store> ChannelReader for Ibc<S> {
         client_id: &ClientId,
         height: &IbcHeight,
     ) -> Result<Box<dyn ConsensusState>, ChannelError> {
-        ConnectionReader::client_consensus_state(self, client_id, &height)
+        ConnectionReader::client_consensus_state(self, client_id, height)
             .map_err(ChannelError::Connection)
     }
 
@@ -806,7 +842,7 @@ impl<S: Store> ChannelReader for Ibc<S> {
                 &path::CommitmentsPath {
                     port_id: port_id.clone(),
                     channel_id: chan_id.clone(),
-                    sequence: seq.clone(),
+                    sequence: *seq,
                 },
             )
             .ok_or_else(|| {
@@ -832,7 +868,7 @@ impl<S: Store> ChannelReader for Ibc<S> {
                 },
             )
             .then_some(Receipt::Ok)
-            .ok_or_else(|| PacketError::PacketReceiptNotFound { sequence: *seq })
+            .ok_or(PacketError::PacketReceiptNotFound { sequence: *seq })
     }
 
     fn get_packet_acknowledgement(
@@ -847,7 +883,7 @@ impl<S: Store> ChannelReader for Ibc<S> {
                 &path::AcksPath {
                     port_id: port_id.clone(),
                     channel_id: chan_id.clone(),
-                    sequence: seq.clone(),
+                    sequence: *seq,
                 },
             )
             .ok_or_else(|| {
@@ -871,7 +907,7 @@ impl<S: Store> ChannelReader for Ibc<S> {
         &self,
         height: &IbcHeight,
     ) -> Result<Box<dyn ConsensusState>, ChannelError> {
-        ClientReader::host_consensus_state(self, &height)
+        ClientReader::host_consensus_state(self, height)
             .map_err(ConnectionError::Client)
             .map_err(ChannelError::Connection)
     }
@@ -888,7 +924,7 @@ impl<S: Store> ChannelReader for Ibc<S> {
         height: &IbcHeight,
     ) -> Result<Timestamp, ChannelError> {
         self.client_processed_times
-            .get(&(client_id.clone(), height.clone()))
+            .get(&(client_id.clone(), *height))
             .cloned()
             .ok_or_else(|| {
                 ChannelError::Connection(ConnectionError::Client(
@@ -903,7 +939,7 @@ impl<S: Store> ChannelReader for Ibc<S> {
         height: &IbcHeight,
     ) -> Result<IbcHeight, ChannelError> {
         self.client_processed_heights
-            .get(&(client_id.clone(), height.clone()))
+            .get(&(client_id.clone(), *height))
             .cloned()
             .ok_or_else(|| {
                 ChannelError::Connection(ConnectionError::Client(
@@ -932,7 +968,7 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
         self.packet_commitment_store
             .set(
                 path::CommitmentsPath {
-                    port_id: port_id,
+                    port_id,
                     channel_id: chan_id,
                     sequence: seq,
                 },
@@ -957,7 +993,7 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
                 path::CommitmentsPath {
                     port_id: port_id.clone(),
                     channel_id: chan_id.clone(),
-                    sequence: seq.clone(),
+                    sequence: *seq,
                 },
                 vec![].into(),
             )
@@ -978,7 +1014,7 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
     ) -> Result<(), PacketError> {
         self.packet_receipt_store
             .set_path(path::ReceiptsPath {
-                port_id: port_id,
+                port_id,
                 channel_id: chan_id,
                 sequence: seq,
             })
@@ -1000,7 +1036,7 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
         self.packet_ack_store
             .set(
                 path::AcksPath {
-                    port_id: port_id,
+                    port_id,
                     channel_id: chan_id,
                     sequence: seq,
                 },
@@ -1025,7 +1061,7 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
                 path::AcksPath {
                     port_id: port_id.clone(),
                     channel_id: chan_id.clone(),
-                    sequence: seq.clone(),
+                    sequence: *seq,
                 },
                 vec![].into(),
             )
@@ -1044,7 +1080,7 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
         chan_id: ChannelId,
     ) -> Result<(), ChannelError> {
         // FIXME(hu55a1n1): invalid path!
-        let path = format!("connections/{}/channels/{}-{}", conn_id, port_id, chan_id)
+        let path = format!("connections/{conn_id}/channels/{port_id}-{chan_id}")
             .try_into()
             .unwrap(); // safety - path must be valid since ClientId is a valid Identifier
         self.store.set(path, Vec::default()).map_err(|_| {
@@ -1060,7 +1096,7 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
         channel_end: ChannelEnd,
     ) -> Result<(), ChannelError> {
         self.channel_end_store
-            .set(path::ChannelEndsPath(port_id, chan_id), channel_end.clone())
+            .set(path::ChannelEndsPath(port_id, chan_id), channel_end)
             .map_err(|_| {
                 ChannelError::Connection(ConnectionError::Client(
                     ClientError::ImplementationSpecific,
@@ -1150,14 +1186,14 @@ struct TmEvent(TendermintEvent);
 impl From<TmEvent> for Event {
     fn from(value: TmEvent) -> Self {
         Self {
-            r#type: value.0.type_str,
+            r#type: value.0.kind,
             attributes: value
                 .0
                 .attributes
                 .into_iter()
                 .map(|attr| EventAttribute {
-                    key: attr.key.as_ref().into(),
-                    value: attr.value.as_ref().into(),
+                    key: attr.key.into(),
+                    value: attr.value.into(),
                     index: true,
                 })
                 .collect(),
@@ -1166,10 +1202,9 @@ impl From<TmEvent> for Event {
 }
 
 pub struct IbcClientService<S> {
-    client_state_store:
-        ProtobufStore<SharedStore<S>, path::ClientStatePath, Box<dyn ClientState>, Any>,
+    client_state_store: ProtobufStore<SharedStore<S>, path::ClientStatePath, TmClientState, Any>,
     consensus_state_store:
-        ProtobufStore<SharedStore<S>, path::ClientConsensusStatePath, Box<dyn ConsensusState>, Any>,
+        ProtobufStore<SharedStore<S>, path::ClientConsensusStatePath, TmConsensusState, Any>,
 }
 
 impl<S: Store> IbcClientService<S> {
@@ -1808,11 +1843,10 @@ pub struct IbcTransferModule<S, BK> {
     /// A bank keeper to enable sending, minting and burning of tokens
     bank_keeper: BK,
     /// A typed-store for AnyClientState
-    client_state_store:
-        ProtobufStore<SharedStore<S>, path::ClientStatePath, Box<dyn ClientState>, Any>,
+    client_state_store: ProtobufStore<SharedStore<S>, path::ClientStatePath, TmClientState, Any>,
     /// A typed-store for AnyConsensusState
     consensus_state_store:
-        ProtobufStore<SharedStore<S>, path::ClientConsensusStatePath, Box<dyn ConsensusState>, Any>,
+        ProtobufStore<SharedStore<S>, path::ClientConsensusStatePath, TmConsensusState, Any>,
     /// A typed-store for ConnectionEnd
     connection_end_store:
         ProtobufStore<SharedStore<S>, path::ConnectionsPath, ConnectionEnd, RawConnectionEnd>,
@@ -1851,8 +1885,8 @@ impl<S: Store + Debug + 'static, BK: 'static + Send + Sync + Debug + BankKeeper<
         port_id: &PortId,
         channel_id: &ChannelId,
         counterparty: &Counterparty,
-        version: &Version,
-    ) -> Result<(ModuleExtras, Version), ChannelError> {
+        version: &ChannelVersion,
+    ) -> Result<(ModuleExtras, ChannelVersion), ChannelError> {
         on_chan_open_init(
             self,
             order,
@@ -1874,8 +1908,8 @@ impl<S: Store + Debug + 'static, BK: 'static + Send + Sync + Debug + BankKeeper<
         port_id: &PortId,
         channel_id: &ChannelId,
         counterparty: &Counterparty,
-        version: &Version,
-    ) -> Result<(ModuleExtras, Version), ChannelError> {
+        version: &ChannelVersion,
+    ) -> Result<(ModuleExtras, ChannelVersion), ChannelError> {
         on_chan_open_try(
             self,
             order,
@@ -1894,7 +1928,7 @@ impl<S: Store + Debug + 'static, BK: 'static + Send + Sync + Debug + BankKeeper<
         &mut self,
         port_id: &PortId,
         channel_id: &ChannelId,
-        counterparty_version: &Version,
+        counterparty_version: &ChannelVersion,
     ) -> Result<ModuleExtras, ChannelError> {
         on_chan_open_ack(self, port_id, channel_id, counterparty_version).map_err(
             |e: TokenTransferError| ChannelError::AppModule {
@@ -2050,8 +2084,8 @@ impl<S: Store, BK> ChannelKeeper for IbcTransferModule<S, BK> {
 
     fn store_channel(
         &mut self,
-        port_id: PortId,
-        chan_id: ChannelId,
+        _port_id: PortId,
+        _chan_id: ChannelId,
         _channel_end: ChannelEnd,
     ) -> Result<(), ChannelError> {
         unimplemented!()
@@ -2066,10 +2100,10 @@ impl<S: Store, BK> ChannelKeeper for IbcTransferModule<S, BK> {
         self.send_sequence_store
             .set(path::SeqSendsPath(port_id, chan_id), seq)
             .map_err(|_| {
-                ChannelError::Connection(ConnectionError::Client(
+                PacketError::Connection(ConnectionError::Client(
                     ClientError::ImplementationSpecific,
                 ))
-            });
+            })?;
         Ok(())
     }
 
@@ -2226,11 +2260,10 @@ impl<S: Store, BK> ChannelReader for IbcTransferModule<S, BK> {
     fn client_state(&self, client_id: &ClientId) -> Result<Box<dyn ClientState>, ChannelError> {
         self.client_state_store
             .get(Height::Pending, &path::ClientStatePath(client_id.clone()))
-            .ok_or_else(|| {
-                ChannelError::Connection(ConnectionError::Client(
-                    ClientError::ImplementationSpecific,
-                ))
-            })
+            .ok_or(ChannelError::Connection(ConnectionError::Client(
+                ClientError::ImplementationSpecific,
+            )))
+            .map(|cs| Box::new(cs) as Box<dyn ClientState>)
     }
 
     fn client_consensus_state(
@@ -2245,11 +2278,10 @@ impl<S: Store, BK> ChannelReader for IbcTransferModule<S, BK> {
         };
         self.consensus_state_store
             .get(Height::Pending, &path)
-            .ok_or_else(|| {
-                ChannelError::Connection(ConnectionError::Client(
-                    ClientError::ImplementationSpecific,
-                ))
-            })
+            .ok_or(ChannelError::Connection(ConnectionError::Client(
+                ClientError::ImplementationSpecific,
+            )))
+            .map(|cs| Box::new(cs) as Box<dyn ConsensusState>)
     }
 
     fn get_next_sequence_send(

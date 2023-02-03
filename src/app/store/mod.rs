@@ -213,7 +213,7 @@ pub trait ProvableStore: Store {
 }
 
 /// Wraps a store to make it shareable by cloning
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct SharedStore<S>(Arc<RwLock<S>>);
 
 impl<S> SharedStore<S> {
@@ -312,7 +312,7 @@ impl<S> DerefMut for SharedStore<S> {
 }
 
 /// A wrapper store that implements rudimentary `apply()`/`reset()` support for other stores
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(crate) struct RevertibleStore<S> {
     /// backing store
     store: S,
@@ -320,7 +320,7 @@ pub(crate) struct RevertibleStore<S> {
     op_log: Vec<RevertOp>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 enum RevertOp {
     Delete(Path),
     Set(Path, Vec<u8>),
@@ -443,7 +443,7 @@ pub(crate) trait Codec {
 }
 
 /// A JSON codec that uses `serde_json` to encode/decode as a JSON string
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(crate) struct JsonCodec<T>(PhantomData<T>);
 
 impl<T> Codec for JsonCodec<T>
@@ -483,7 +483,7 @@ impl Codec for NullCodec {
 }
 
 /// A Protobuf codec that uses `prost` to encode/decode
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(crate) struct ProtobufCodec<T, R> {
     domain_type: PhantomData<T>,
     raw_type: PhantomData<R>,
@@ -509,7 +509,7 @@ where
 }
 
 /// A binary codec that uses `AsRef<[u8]>` and `From<Vec<u8>>` to encode and decode respectively.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(crate) struct BinCodec<T>(PhantomData<T>);
 
 impl<T> Codec for BinCodec<T>
@@ -534,7 +534,7 @@ where
 /// ```rust
 /// type CandyStore<S, K, V> = TypedStore<S, K, CandyCodec<V>>;
 /// ```
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(crate) struct TypedStore<S, K, C> {
     store: S,
     _key: PhantomData<K>,

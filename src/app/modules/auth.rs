@@ -4,24 +4,23 @@ use std::{
     str::FromStr,
 };
 
-use cosmrs::{
-    AccountId,
-};
+use cosmrs::AccountId;
 use ibc_proto::{
     cosmos::auth::v1beta1::{
         query_server::{Query, QueryServer},
         AddressBytesToStringRequest, AddressBytesToStringResponse, AddressStringToBytesRequest,
         AddressStringToBytesResponse, BaseAccount, Bech32PrefixRequest, Bech32PrefixResponse,
         QueryAccountAddressByIdRequest, QueryAccountAddressByIdResponse, QueryAccountRequest,
-        QueryAccountResponse, QueryModuleAccountByNameRequest, QueryModuleAccountByNameResponse,
+        QueryAccountResponse, QueryAccountsRequest, QueryAccountsResponse,
+        QueryModuleAccountByNameRequest, QueryModuleAccountByNameResponse,
         QueryModuleAccountsRequest, QueryModuleAccountsResponse, QueryParamsRequest,
-        QueryParamsResponse, QueryAccountsRequest, QueryAccountsResponse,
+        QueryParamsResponse,
     },
     google::protobuf::Any,
 };
 use prost::Message;
 use serde_json::Value;
-use tendermint_proto::{abci::Event, Protobuf};
+use tendermint_proto::abci::Event;
 use tonic::{Request, Response, Status};
 use tracing::{debug, trace};
 

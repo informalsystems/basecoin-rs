@@ -1,12 +1,10 @@
-use std::{collections::HashMap, convert::TryInto, fmt::Debug, num::ParseIntError, str::FromStr};
-
-use cosmrs::{bank::MsgSend, proto, AccountId, Coin as MsgCoin};
+use cosmrs::AccountId;
 use displaydoc::Display;
 use ibc_proto::{
     cosmos::{
         bank::v1beta1::{
             query_server::{Query, QueryServer},
-            QueryAllBalancesRequest, QueryAllBalancesResponse, QueryBalanceRequest,
+            MsgSend, QueryAllBalancesRequest, QueryAllBalancesResponse, QueryBalanceRequest,
             QueryBalanceResponse, QueryDenomMetadataRequest, QueryDenomMetadataResponse,
             QueryDenomOwnersRequest, QueryDenomOwnersResponse, QueryDenomsMetadataRequest,
             QueryDenomsMetadataResponse, QueryParamsRequest, QueryParamsResponse,
@@ -20,6 +18,7 @@ use ibc_proto::{
 use primitive_types::U256;
 use prost::Message;
 use serde::{Deserialize, Serialize};
+use std::{collections::HashMap, convert::TryInto, fmt::Debug, str::FromStr};
 use tendermint_proto::abci::Event;
 use tonic::{Request, Response, Status};
 use tracing::{debug, trace};
@@ -42,8 +41,8 @@ pub enum Error {
     MsgValidationFailure { reason: String },
     /// account `{account}` doesn't exist
     NonExistentAccount { account: AccountId },
-    /// invalid amount specified
-    InvalidAmount,
+    // /// invalid amount specified
+    // InvalidAmount,
     /// insufficient funds in sender account
     InsufficientSourceFunds,
     /// receiver account funds overflow
@@ -83,8 +82,8 @@ impl From<(Denom, U256)> for Coin {
     }
 }
 
-impl From<&MsgCoin> for Coin {
-    fn from(coin: &MsgCoin) -> Self {
+impl From<&RawCoin> for Coin {
+    fn from(coin: &RawCoin) -> Self {
         Self {
             denom: Denom(coin.denom.to_string()),
             amount: coin.amount.to_string().parse().unwrap(),
@@ -97,7 +96,7 @@ impl From<&MsgCoin> for Coin {
 #[serde(transparent)]
 pub struct Balances(Vec<Coin>);
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct BalancesPath(AccountId);
 
 impl From<BalancesPath> for Path {
@@ -167,7 +166,7 @@ impl<S: Store> BankReader for BankBalanceReader<S> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct BankBalanceKeeper<S> {
     balance_store: JsonStore<SharedStore<S>, BalancesPath, Balances>,
 }
@@ -203,7 +202,7 @@ impl<S: Store> BankKeeper for BankBalanceKeeper<S> {
                 .iter_mut()
                 .find(|c| c.denom == denom)
                 .filter(|c| c.amount >= amount)
-                .ok_or_else(|| Error::InsufficientSourceFunds)?;
+                .ok_or(Error::InsufficientSourceFunds)?;
 
             let dst_balance =
                 if let Some(balance) = dst_balances.iter_mut().find(|c| c.denom == denom) {
@@ -296,7 +295,7 @@ impl<S: Store> BankKeeper for BankBalanceKeeper<S> {
                 .iter_mut()
                 .find(|c| c.denom == denom)
                 .filter(|c| c.amount >= amount)
-                .ok_or_else(|| Error::InsufficientSourceFunds)?;
+                .ok_or(Error::InsufficientSourceFunds)?;
 
             balance.amount -= amount;
         }
@@ -369,23 +368,32 @@ where
     type Store = S;
 
     fn deliver(&mut self, message: Any, _signer: &AccountId) -> Result<Vec<Event>, ModuleError> {
-        let message: MsgSend = Self::decode::<proto::cosmos::bank::v1beta1::MsgSend>(message)?
-            .try_into()
-            .map_err(|e| Error::MsgValidationFailure {
+        let message: MsgSend =
+            Self::decode::<MsgSend>(message).map_err(|e| Error::MsgValidationFailure {
                 reason: format!("{e:?}"),
             })?;
-
+        let from_address = AccountId::from_str(message.from_address.as_str()).map_err(|e| {
+            Error::MsgValidationFailure {
+                reason: format!("{e:?}"),
+            }
+        })?;
+        let to_address = AccountId::from_str(message.to_address.as_str()).map_err(|e| {
+            Error::MsgValidationFailure {
+                reason: format!("{e:?}"),
+            }
+        })?;
         let _ = self
             .account_reader
-            .get_account(message.from_address.clone().into())
-            .map_err(|e| Error::NonExistentAccount {
-                account: message.from_address.clone(),
+            .get_account(from_address.clone().into())
+            .map_err(|_| Error::NonExistentAccount {
+                account: from_address.clone(),
             })?;
 
         // Note: we allow transfers to non-existent destination accounts
         let amounts: Vec<Coin> = message.amount.iter().map(|amt| amt.into()).collect();
+
         self.balance_keeper
-            .send_coins(message.from_address, message.to_address, amounts)?;
+            .send_coins(from_address, to_address, amounts)?;
 
         Ok(vec![])
     }

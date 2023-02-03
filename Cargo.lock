@@ -866,7 +866,7 @@ dependencies = [
  "dyn-clone",
  "erased-serde",
  "ibc-proto",
- "ics23 0.9.0",
+ "ics23",
  "num-traits",
  "primitive-types",
  "prost 0.11.6",
@@ -901,22 +901,6 @@ dependencies = [
  "subtle-encoding",
  "tendermint-proto 0.28.0",
  "tonic",
-]
-
-[[package]]
-name = "ics23"
-version = "0.8.0-alpha"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "18a435f2471c1b2ce14771da465d47321c5905fac866d0effa9e0a3eb5d94fcf"
-dependencies = [
- "anyhow",
- "bytes",
- "hex",
- "prost 0.10.4",
- "ripemd160",
- "sha2 0.9.9",
- "sha3 0.9.1",
- "sp-std",
 ]
 
 [[package]]
@@ -1785,12 +1769,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sp-std"
-version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "35391ea974fa5ee869cb094d5b437688fbf3d8127d64d1b9fed5822a1ed39b12"
-
-[[package]]
 name = "spki"
 version = "0.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1961,14 +1939,14 @@ dependencies = [
 
 [[package]]
 name = "tendermint-abci"
-version = "0.23.7"
+version = "0.28.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "46cb7b4d09447dfe926dc3eba8421f1225cfa13e078800bd2ee7486837274700"
+checksum = "890340677de267793c691648d8e10d5e50f5a7fb5a8b60f96c36041cc68a1f04"
 dependencies = [
  "bytes",
  "flex-error",
- "prost 0.10.4",
- "tendermint-proto 0.23.7",
+ "prost 0.11.6",
+ "tendermint-proto 0.28.0",
  "tracing",
 ]
 
@@ -1982,7 +1960,7 @@ dependencies = [
  "displaydoc",
  "ibc",
  "ibc-proto",
- "ics23 0.8.0-alpha",
+ "ics23",
  "lazy_static",
  "primitive-types",
  "proptest",
@@ -1992,9 +1970,9 @@ dependencies = [
  "serde_json",
  "sha2 0.10.6",
  "structopt",
- "tendermint 0.23.7",
+ "tendermint 0.28.0",
  "tendermint-abci",
- "tendermint-proto 0.23.7",
+ "tendermint-proto 0.28.0",
  "tokio",
  "tonic",
  "tracing",
@@ -2586,13 +2564,3 @@ dependencies = [
  "syn",
  "synstructure",
 ]
-
-[[patch.unused]]
-name = "ibc"
-version = "0.16.0"
-source = "git+https://github.com/informalsystems/ibc-rs.git?rev=e8c98d4#e8c98d440949abf971ac45a68ed9dd9e6e9f48ed"
-
-[[patch.unused]]
-name = "ibc-proto"
-version = "0.19.0"
-source = "git+https://github.com/informalsystems/ibc-rs.git?rev=e8c98d4#e8c98d440949abf971ac45a68ed9dd9e6e9f48ed"

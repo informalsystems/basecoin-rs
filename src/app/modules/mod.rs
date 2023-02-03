@@ -3,12 +3,6 @@ mod bank;
 mod ibc;
 mod staking;
 
-use cosmrs::AccountId;
-use displaydoc::Display;
-use ibc_proto::google::protobuf::Any;
-use tendermint::block::Header;
-use tendermint_proto::{abci::Event, crypto::ProofOp};
-use ::ibc::core::ContextError;
 pub(crate) use self::{
     auth::{Auth, ACCOUNT_PREFIX},
     bank::Bank,
@@ -16,6 +10,12 @@ pub(crate) use self::{
     staking::Staking,
 };
 use crate::app::store::{self, Height, Path, SharedStore};
+use ::ibc::core::ContextError;
+use cosmrs::AccountId;
+use displaydoc::Display;
+use ibc_proto::google::protobuf::Any;
+use tendermint::block::Header;
+use tendermint_proto::{abci::Event, crypto::ProofOp};
 
 #[derive(Debug, Display)]
 pub enum Error {
