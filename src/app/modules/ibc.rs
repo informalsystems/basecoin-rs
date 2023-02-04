@@ -684,7 +684,7 @@ impl<S: Store> ConnectionReader for Ibc<S> {
     }
 
     fn validate_self_client(&self, _client_state: Any) -> Result<(), ConnectionError> {
-        unimplemented!()
+        Ok(())
     }
 }
 

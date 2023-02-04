@@ -1,10 +1,10 @@
-use cosmrs::AccountId;
+use cosmrs::{bank::MsgSend, proto, AccountId, Coin as MsgCoin};
 use displaydoc::Display;
 use ibc_proto::{
     cosmos::{
         bank::v1beta1::{
             query_server::{Query, QueryServer},
-            MsgSend, QueryAllBalancesRequest, QueryAllBalancesResponse, QueryBalanceRequest,
+            QueryAllBalancesRequest, QueryAllBalancesResponse, QueryBalanceRequest,
             QueryBalanceResponse, QueryDenomMetadataRequest, QueryDenomMetadataResponse,
             QueryDenomOwnersRequest, QueryDenomOwnersResponse, QueryDenomsMetadataRequest,
             QueryDenomsMetadataResponse, QueryParamsRequest, QueryParamsResponse,
@@ -82,8 +82,8 @@ impl From<(Denom, U256)> for Coin {
     }
 }
 
-impl From<&RawCoin> for Coin {
-    fn from(coin: &RawCoin) -> Self {
+impl From<&MsgCoin> for Coin {
+    fn from(coin: &MsgCoin) -> Self {
         Self {
             denom: Denom(coin.denom.to_string()),
             amount: coin.amount.to_string().parse().unwrap(),
@@ -368,32 +368,22 @@ where
     type Store = S;
 
     fn deliver(&mut self, message: Any, _signer: &AccountId) -> Result<Vec<Event>, ModuleError> {
-        let message: MsgSend =
-            Self::decode::<MsgSend>(message).map_err(|e| Error::MsgValidationFailure {
+        let message: MsgSend = Self::decode::<proto::cosmos::bank::v1beta1::MsgSend>(message)?
+            .try_into()
+            .map_err(|e| Error::MsgValidationFailure {
                 reason: format!("{e:?}"),
             })?;
-        let from_address = AccountId::from_str(message.from_address.as_str()).map_err(|e| {
-            Error::MsgValidationFailure {
-                reason: format!("{e:?}"),
-            }
-        })?;
-        let to_address = AccountId::from_str(message.to_address.as_str()).map_err(|e| {
-            Error::MsgValidationFailure {
-                reason: format!("{e:?}"),
-            }
-        })?;
-        let _ = self
-            .account_reader
-            .get_account(from_address.clone().into())
+        self.account_reader
+            .get_account(message.from_address.clone().into())
             .map_err(|_| Error::NonExistentAccount {
-                account: from_address.clone(),
+                account: message.from_address.clone(),
             })?;
 
         // Note: we allow transfers to non-existent destination accounts
         let amounts: Vec<Coin> = message.amount.iter().map(|amt| amt.into()).collect();
 
         self.balance_keeper
-            .send_coins(from_address, to_address, amounts)?;
+            .send_coins(message.from_address, message.to_address, amounts)?;
 
         Ok(vec![])
     }
