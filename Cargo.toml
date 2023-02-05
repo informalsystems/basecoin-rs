@@ -39,3 +39,7 @@ bytes = "1.0.1"
 lazy_static = "1.4.0"
 proptest = "*"
 rand = "*"
+
+[patch.crates-io]
+ibc = { git = "https://github.com/cosmos/ibc-rs.git", rev = "1fb3547" }
+ibc-proto = { git = "https://github.com/cosmos/ibc-proto-rs.git", rev = "5d98769" }

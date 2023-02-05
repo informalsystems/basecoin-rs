@@ -37,7 +37,7 @@ use ibc::{
             context::{ChannelKeeper, ChannelReader},
             error::{ChannelError, PacketError},
             handler::ModuleExtras,
-            msgs::acknowledgement::Acknowledgement as GenericAcknowledgement,
+            msgs::acknowledgement::Acknowledgement,
             packet::{Packet, Receipt, Sequence},
             Version as ChannelVersion,
         },
@@ -49,8 +49,8 @@ use ibc::{
         },
         ics26_routing::{
             context::{
-                Module as IbcModule, ModuleId, ModuleOutputBuilder, OnRecvPacketAck, Router,
-                RouterBuilder, RouterContext,
+                Module as IbcModule, ModuleId, ModuleOutputBuilder, Router, RouterBuilder,
+                RouterContext,
             },
             handler::{decode, dispatch},
         },
@@ -1974,11 +1974,11 @@ impl<S: Store + Debug + 'static, BK: 'static + Send + Sync + Debug + BankKeeper<
     }
 
     fn on_recv_packet(
-        &self,
+        &mut self,
         output: &mut ModuleOutputBuilder,
         packet: &Packet,
         relayer: &Signer,
-    ) -> OnRecvPacketAck {
+    ) -> Acknowledgement {
         on_recv_packet(self, output, packet, relayer)
     }
 
@@ -1986,7 +1986,7 @@ impl<S: Store + Debug + 'static, BK: 'static + Send + Sync + Debug + BankKeeper<
         &mut self,
         output: &mut ModuleOutputBuilder,
         packet: &Packet,
-        acknowledgement: &GenericAcknowledgement,
+        acknowledgement: &Acknowledgement,
         relayer: &Signer,
     ) -> Result<(), PacketError> {
         on_acknowledgement_packet(self, output, packet, acknowledgement, relayer).map_err(
