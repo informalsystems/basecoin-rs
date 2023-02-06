@@ -54,7 +54,7 @@ pub(crate) trait Module: Send + Sync {
     /// *NOTE* - Implementations MUST be deterministic!
     ///
     /// ## Return
-    /// * `Error::not_handled()` if message isn't known to OR hasn't been consumed (but possibly intercepted) by this module
+    /// * `Error::NotHandled` if message isn't known to OR hasn't been consumed (but possibly intercepted) by this module
     /// * Other errors iff message was meant to be consumed by module but resulted in an error
     /// * Resulting events on success
     fn deliver(&mut self, _message: Any, _signer: &AccountId) -> Result<Vec<Event>, Error> {
@@ -68,7 +68,7 @@ pub(crate) trait Module: Send + Sync {
     /// Similar to [ABCI Query method](https://docs.tendermint.com/master/spec/abci/abci.html#query)
     ///
     /// ## Return
-    /// * `Error::not_handled()` if message isn't known to OR hasn't been responded to (but possibly intercepted) by this module
+    /// * `Error::NotHandled` if message isn't known to OR hasn't been responded to (but possibly intercepted) by this module
     /// * Other errors iff query was meant to be consumed by module but resulted in an error
     /// * Query result  on success
     fn query(

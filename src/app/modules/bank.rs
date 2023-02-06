@@ -41,8 +41,6 @@ pub enum Error {
     MsgValidationFailure { reason: String },
     /// account `{account}` doesn't exist
     NonExistentAccount { account: AccountId },
-    // /// invalid amount specified
-    // InvalidAmount,
     /// insufficient funds in sender account
     InsufficientSourceFunds,
     /// receiver account funds overflow

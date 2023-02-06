@@ -127,10 +127,10 @@ impl<S: Default + ProvableStore + 'static> Builder<S> {
 
 impl<S: Default + ProvableStore> BaseCoinApp<S> {
     // try to deliver the message to all registered modules
-    // if `module.deliver()` returns `Error::not_handled()`, try next module
+    // if `module.deliver()` returns `Error::NotHandled`, try next module
     // Return:
     // * other errors immediately OR
-    // * `Error::not_handled()` if all modules return `Error::not_handled()`
+    // * `Error::NotHandled` if all modules return `Error::NotHandled`
     // * events from first successful deliver call
     fn deliver_msg(&self, message: Any, signer: &AccountId) -> Result<Vec<Event>, Error> {
         let mut modules = self.modules.write().unwrap();
@@ -244,7 +244,7 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
                         ..Default::default()
                     };
                 }
-                // `Error::not_handled()` - implies query isn't known or was intercepted but not
+                // `Error::NotHandled` - implies query isn't known or was intercepted but not
                 // responded to by this module, so try with next module
                 Err(Error::NotHandled) => continue,
                 // Other error - return immediately
