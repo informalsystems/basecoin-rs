@@ -28,20 +28,20 @@ is supplied to the image when running it.
 From the root of this repository:
 
 ```bash
-# Build basecoin-rs (located at `pwd`) and a local version of ibc-rs located at
-# `/path/to/local/ibc-rs`.
+# Build basecoin-rs (located at `pwd`) and a local version of Hermes located at
+# `/path/to/local/hermes`.
 docker run --rm -it \
     -v `pwd`:/src/basecoin-rs \
-    -v /path/to/local/ibc-rs/:/src/ibc-rs \
+    -v /path/to/local/hermes/:/src/hermes \
     informaldev/basecoin-rs-ci
 
-# If no local ibc-rs source volume is mounted, the image will automatically pull
-# the latest ibc-rs code on master from the ibc-rs repository on GitHub.
+# If no local Hermes source volume is mounted, the image will automatically pull
+# the latest Hermes code on master from the Hermes repository on GitHub.
 docker run --rm -it \
     -v `pwd`:/src/basecoin-rs \
     informaldev/basecoin-rs-ci
 
-# Specify the branch/tag/commit at which to clone the ibc-rs repository from
+# Specify the branch/tag/commit at which to clone the Hermes repository from
 # which to build Hermes. In this case, we use branch "basecoin/phase-4-1":
 docker run --rm -it \
     -v `pwd`:/src/basecoin-rs \
@@ -62,7 +62,7 @@ docker run --rm -it \
 For even more detail, see [`entrypoint.sh`](./entrypoint.sh). In sequence, a
 container run from this image will:
 
-1. Clone the [ibc-rs repository][ibc-rs-repo] if no ibc-rs sources have been
+1. Clone the [Hermes repository][Hermes-repo] if no ibc-rs sources have been
    mounted into the container.
 2. Build the Hermes binary from the ibc-rs sources in the container.
 3. Build the basecoin-rs binary from the basecoin-rs source volume mounted into
@@ -79,6 +79,6 @@ container run from this image will:
    `CMD` arguments are provided for the container, that test will not be
    executed and the relevant `CMD` arguments will be executed instead.
 
-[ibc-rs-repo]: https://github.com/informalsystems/ibc-rs
+[Hermes-repo]: https://github.com/informalsystems/hermes
 [Gaia]: https://github.com/cosmos/gaia
 [Tendermint]: https://github.com/tendermint/tendermint

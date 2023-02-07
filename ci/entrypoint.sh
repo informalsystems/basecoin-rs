@@ -1,15 +1,15 @@
 #!/bin/bash
 set -euo pipefail
 
-IBC_SRC=${IBC_SRC:-/src/ibc-rs}
+HERMES_SRC=${HERMES_SRC:-/src/hermes}
 BASECOIN_SRC=${BASECOIN_SRC:-/src/basecoin-rs}
 BUILD_ROOT="${HOME}/build"
-IBC_BUILD="${BUILD_ROOT}/ibc-rs"
+HERMES_BUILD="${BUILD_ROOT}/hermes"
 BASECOIN_BUILD="${BUILD_ROOT}/basecoin-rs"
 BASECOIN_BIN="${BASECOIN_BUILD}/debug/tendermint-basecoin"
-HERMES_BIN="${IBC_BUILD}/release/hermes"
-IBC_REPO=https://github.com/informalsystems/ibc-rs.git
-IBC_COMMITISH=${IBC_COMMITISH:-master}
+HERMES_BIN="${HERMES_BUILD}/release/hermes"
+HERMES_REPO=https://github.com/informalsystems/hermes.git
+HERMES_COMMITISH=${HERMES_COMMITISH:-master}
 CHAIN_DATA="${HOME}/data"
 HERMES_CONFIG="${HOME}/.hermes/config.toml"
 LOG_DIR=${LOG_DIR:-/var/log/basecoin-rs}
@@ -20,19 +20,19 @@ if [ ! -f "${BASECOIN_SRC}/Cargo.toml" ]; then
   exit 1
 fi
 
-if [ ! -f "${IBC_SRC}/Cargo.toml" ]; then
-  echo "No ibc-rs sources detected. Cloning repo at ${IBC_COMMITISH}..."
-  git clone "${IBC_REPO}" "${IBC_SRC}"
-  echo "Checking out ${IBC_COMMITISH}..."
-  cd "${IBC_SRC}"
-  git checkout "${IBC_COMMITISH}"
+if [ ! -f "${HERMES_SRC}/Cargo.toml" ]; then
+  echo "No Hermes sources detected. Cloning repo at ${HERMES_COMMITISH}..."
+  git clone "${HERMES_REPO}" "${HERMES_SRC}"
+  echo "Checking out ${HERMES_COMMITISH}..."
+  cd "${HERMES_SRC}"
+  git checkout "${HERMES_COMMITISH}"
   git status
   echo ""
 fi
 
-cd "${IBC_SRC}"
+cd "${HERMES_SRC}"
 echo "Building Hermes..."
-cargo build --release --bin hermes --target-dir "${IBC_BUILD}/"
+cargo build --release --bin hermes --target-dir "${HERMES_BUILD}/"
 
 cd "${BASECOIN_SRC}"
 echo ""

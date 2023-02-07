@@ -9,7 +9,7 @@ FROM rust:${RUST_VERSION}-slim-bullseye
 COPY --from=tendermint /usr/bin/tendermint /usr/bin/tendermint
 COPY --from=gaia /usr/bin/gaiad /usr/bin/gaiad
 
-ENV IBC_SRC=/src/ibc-rs
+ENV HERMES_SRC=/src/hermes
 ENV BASECOIN_SRC=/src/basecoin-rs
 ENV LOG_DIR=/var/log/basecoin-rs
 ENV IBC_COMMITISH=master
@@ -25,18 +25,18 @@ RUN apt update && \
     apt upgrade -y && \
     apt install -y curl pkg-config libssl-dev git && \
     useradd -U -s /bin/bash -d /basecoin basecoin && \
-    mkdir -p "${IBC_SRC}" && \
+    mkdir -p "${HERMES_SRC}" && \
     mkdir -p "${BASECOIN_SRC}" && \
     mkdir -p "${LOG_DIR}" && \
     mkdir -p /basecoin && \
     mkdir -p /basecoin/.tendermint/config && \
     mkdir -p /basecoin/.hermes && \
-    chown -R basecoin:basecoin "${IBC_SRC}" && \
+    chown -R basecoin:basecoin "${HERMES_SRC}" && \
     chown -R basecoin:basecoin "${LOG_DIR}" && \
     chown -R basecoin:basecoin "${BASECOIN_SRC}" && \
     chown -R basecoin:basecoin /basecoin
 
-VOLUME "${IBC_SRC}"
+VOLUME "${HERMES_SRC}"
 VOLUME "${BASECOIN_SRC}"
 
 WORKDIR /basecoin

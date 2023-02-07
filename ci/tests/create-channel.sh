@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-HERMES_BIN=${HERMES_BIN:-${HOME}/build/ibc-rs/release/hermes}
+HERMES_BIN=${HERMES_BIN:-${HOME}/build/hermes/release/hermes}
 
 echo "Creating channel [ibc-0 -> basecoin-0]..."
 "${HERMES_BIN}" create connection --a-chain ibc-0 --b-chain basecoin-0
