@@ -320,7 +320,7 @@ impl<S: 'static + ProvableStore> Module for Ibc<S> {
                 let transfer_module = self
                     .router
                     .get_route_mut(&transfer_module_id)
-                    .ok_or_else(|| ModuleError::NotHandled)?;
+                    .ok_or(ModuleError::NotHandled)?;
                 transfer_module
                     .as_any_mut()
                     .downcast_mut::<IbcTransferModule<S, BankBalanceKeeper<S>>>()
@@ -352,7 +352,7 @@ impl<S: 'static + ProvableStore> Module for Ibc<S> {
         height: Height,
         prove: bool,
     ) -> Result<QueryResult, ModuleError> {
-        let path = path.ok_or_else(|| ModuleError::NotHandled)?;
+        let path = path.ok_or(ModuleError::NotHandled)?;
         if path.to_string() != IBC_QUERY_PATH {
             return Err(ModuleError::NotHandled);
         }
@@ -373,7 +373,9 @@ impl<S: 'static + ProvableStore> Module for Ibc<S> {
         let proof = if prove {
             let proof = self
                 .get_proof(height, &path)
-                .ok_or_else(|| ContextError::ClientError(ClientError::ImplementationSpecific))?;
+                .ok_or(ContextError::ClientError(
+                    ClientError::ImplementationSpecific,
+                ))?;
             Some(vec![ProofOp {
                 r#type: "".to_string(),
                 key: path.to_string().into_bytes(),
@@ -386,7 +388,9 @@ impl<S: 'static + ProvableStore> Module for Ibc<S> {
         let data = self
             .store
             .get(height, &path)
-            .ok_or_else(|| ContextError::ClientError(ClientError::ImplementationSpecific))?;
+            .ok_or(ContextError::ClientError(
+                ClientError::ImplementationSpecific,
+            ))?;
         Ok(QueryResult { data, proof })
     }
 
@@ -466,7 +470,7 @@ impl<S: Store> ClientReader for Ibc<S> {
             let consensus_state = self
                 .consensus_state_store
                 .get(Height::Pending, &path)
-                .ok_or_else(|| ClientError::ConsensusStateNotFound {
+                .ok_or(ClientError::ConsensusStateNotFound {
                     client_id: client_id.clone(),
                     height: *height,
                 })?;
@@ -503,7 +507,7 @@ impl<S: Store> ClientReader for Ibc<S> {
                 let consensus_state = self
                     .consensus_state_store
                     .get(Height::Pending, &prev_path)
-                    .ok_or_else(|| ClientError::ConsensusStateNotFound {
+                    .ok_or(ClientError::ConsensusStateNotFound {
                         client_id: client_id.clone(),
                         height: *height,
                     })?;
@@ -632,7 +636,7 @@ impl<S: Store> ConnectionReader for Ibc<S> {
     fn connection_end(&self, conn_id: &ConnectionId) -> Result<ConnectionEnd, ConnectionError> {
         self.connection_end_store
             .get(Height::Pending, &path::ConnectionsPath(conn_id.clone()))
-            .ok_or_else(|| ConnectionError::Client(ClientError::ImplementationSpecific))
+            .ok_or(ConnectionError::Client(ClientError::ImplementationSpecific))
     }
 
     fn client_state(&self, client_id: &ClientId) -> Result<Box<dyn ClientState>, ConnectionError> {
@@ -733,11 +737,9 @@ impl<S: Store> ChannelReader for Ibc<S> {
                 Height::Pending,
                 &path::ChannelEndsPath(port_id.clone(), chan_id.clone()),
             )
-            .ok_or_else(|| {
-                ChannelError::Connection(ConnectionError::Client(
-                    ClientError::ImplementationSpecific,
-                ))
-            })
+            .ok_or(ChannelError::Connection(ConnectionError::Client(
+                ClientError::ImplementationSpecific,
+            )))
     }
 
     fn connection_end(&self, connection_id: &ConnectionId) -> Result<ConnectionEnd, ChannelError> {
@@ -789,11 +791,7 @@ impl<S: Store> ChannelReader for Ibc<S> {
                 Height::Pending,
                 &path::SeqSendsPath(port_id.clone(), chan_id.clone()),
             )
-            .ok_or_else(|| {
-                PacketError::Connection(ConnectionError::Client(
-                    ClientError::ImplementationSpecific,
-                ))
-            })
+            .ok_or(PacketError::ImplementationSpecific)
     }
 
     fn get_next_sequence_recv(
@@ -806,11 +804,7 @@ impl<S: Store> ChannelReader for Ibc<S> {
                 Height::Pending,
                 &path::SeqRecvsPath(port_id.clone(), chan_id.clone()),
             )
-            .ok_or_else(|| {
-                PacketError::Connection(ConnectionError::Client(
-                    ClientError::ImplementationSpecific,
-                ))
-            })
+            .ok_or(PacketError::ImplementationSpecific)
     }
 
     fn get_next_sequence_ack(
@@ -823,11 +817,7 @@ impl<S: Store> ChannelReader for Ibc<S> {
                 Height::Pending,
                 &path::SeqAcksPath(port_id.clone(), chan_id.clone()),
             )
-            .ok_or_else(|| {
-                PacketError::Connection(ConnectionError::Client(
-                    ClientError::ImplementationSpecific,
-                ))
-            })
+            .ok_or(PacketError::ImplementationSpecific)
     }
 
     fn get_packet_commitment(
@@ -845,11 +835,7 @@ impl<S: Store> ChannelReader for Ibc<S> {
                     sequence: *seq,
                 },
             )
-            .ok_or_else(|| {
-                PacketError::Connection(ConnectionError::Client(
-                    ClientError::ImplementationSpecific,
-                ))
-            })
+            .ok_or(PacketError::ImplementationSpecific)
     }
 
     fn get_packet_receipt(
@@ -886,11 +872,7 @@ impl<S: Store> ChannelReader for Ibc<S> {
                     sequence: *seq,
                 },
             )
-            .ok_or_else(|| {
-                PacketError::Connection(ConnectionError::Client(
-                    ClientError::ImplementationSpecific,
-                ))
-            })
+            .ok_or(PacketError::PacketAcknowledgementNotFound { sequence: *seq })
     }
 
     fn hash(&self, value: &[u8]) -> Vec<u8> {
@@ -926,11 +908,9 @@ impl<S: Store> ChannelReader for Ibc<S> {
         self.client_processed_times
             .get(&(client_id.clone(), *height))
             .cloned()
-            .ok_or_else(|| {
-                ChannelError::Connection(ConnectionError::Client(
-                    ClientError::ImplementationSpecific,
-                ))
-            })
+            .ok_or(ChannelError::Connection(ConnectionError::Client(
+                ClientError::ImplementationSpecific,
+            )))
     }
 
     fn client_update_height(
@@ -941,11 +921,9 @@ impl<S: Store> ChannelReader for Ibc<S> {
         self.client_processed_heights
             .get(&(client_id.clone(), *height))
             .cloned()
-            .ok_or_else(|| {
-                ChannelError::Connection(ConnectionError::Client(
-                    ClientError::ImplementationSpecific,
-                ))
-            })
+            .ok_or(ChannelError::Connection(ConnectionError::Client(
+                ClientError::ImplementationSpecific,
+            )))
     }
 
     fn channel_counter(&self) -> Result<u64, ChannelError> {
@@ -974,12 +952,8 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
                 },
                 commitment,
             )
-            .map(|_| ())
-            .map_err(|_| {
-                PacketError::Connection(ConnectionError::Client(
-                    ClientError::ImplementationSpecific,
-                ))
-            })
+            .map_err(|_| PacketError::ImplementationSpecific)?;
+        Ok(())
     }
 
     fn delete_packet_commitment(
@@ -997,12 +971,8 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
                 },
                 vec![].into(),
             )
-            .map(|_| ())
-            .map_err(|_| {
-                PacketError::Connection(ConnectionError::Client(
-                    ClientError::ImplementationSpecific,
-                ))
-            })
+            .map_err(|_| PacketError::ImplementationSpecific)?;
+        Ok(())
     }
 
     fn store_packet_receipt(
@@ -1018,11 +988,7 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
                 channel_id: chan_id,
                 sequence: seq,
             })
-            .map_err(|_| {
-                PacketError::Connection(ConnectionError::Client(
-                    ClientError::ImplementationSpecific,
-                ))
-            })?;
+            .map_err(|_| PacketError::ImplementationSpecific)?;
         Ok(())
     }
 
@@ -1042,11 +1008,7 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
                 },
                 ack_commitment,
             )
-            .map_err(|_| {
-                PacketError::Connection(ConnectionError::Client(
-                    ClientError::ImplementationSpecific,
-                ))
-            })?;
+            .map_err(|_| PacketError::ImplementationSpecific)?;
         Ok(())
     }
 
@@ -1065,11 +1027,7 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
                 },
                 vec![].into(),
             )
-            .map_err(|_| {
-                PacketError::Connection(ConnectionError::Client(
-                    ClientError::ImplementationSpecific,
-                ))
-            })?;
+            .map_err(|_| PacketError::ImplementationSpecific)?;
         Ok(())
     }
 
@@ -1083,9 +1041,11 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
         let path = format!("connections/{conn_id}/channels/{port_id}-{chan_id}")
             .try_into()
             .unwrap(); // safety - path must be valid since ClientId is a valid Identifier
-        self.store.set(path, Vec::default()).map_err(|_| {
-            ChannelError::Connection(ConnectionError::Client(ClientError::ImplementationSpecific))
-        })?;
+        self.store
+            .set(path, Vec::default())
+            .map_err(|_| ClientError::ImplementationSpecific)
+            .map_err(ConnectionError::Client)
+            .map_err(ChannelError::Connection)?;
         Ok(())
     }
 
@@ -1097,11 +1057,9 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
     ) -> Result<(), ChannelError> {
         self.channel_end_store
             .set(path::ChannelEndsPath(port_id, chan_id), channel_end)
-            .map_err(|_| {
-                ChannelError::Connection(ConnectionError::Client(
-                    ClientError::ImplementationSpecific,
-                ))
-            })?;
+            .map_err(|_| ClientError::ImplementationSpecific)
+            .map_err(ConnectionError::Client)
+            .map_err(ChannelError::Connection)?;
         Ok(())
     }
 
@@ -1113,11 +1071,7 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
     ) -> Result<(), PacketError> {
         self.send_sequence_store
             .set(path::SeqSendsPath(port_id, chan_id), seq)
-            .map_err(|_| {
-                PacketError::Connection(ConnectionError::Client(
-                    ClientError::ImplementationSpecific,
-                ))
-            })?;
+            .map_err(|_| PacketError::ImplementationSpecific)?;
         Ok(())
     }
 
@@ -1129,11 +1083,8 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
     ) -> Result<(), PacketError> {
         self.recv_sequence_store
             .set(path::SeqRecvsPath(port_id, chan_id), seq)
-            .map_err(|_| {
-                PacketError::Connection(ConnectionError::Client(
-                    ClientError::ImplementationSpecific,
-                ))
-            })?;
+            .map_err(|_| PacketError::ImplementationSpecific)?;
+
         Ok(())
     }
 
@@ -1145,11 +1096,8 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
     ) -> Result<(), PacketError> {
         self.ack_sequence_store
             .set(path::SeqAcksPath(port_id, chan_id), seq)
-            .map_err(|_| {
-                PacketError::Connection(ConnectionError::Client(
-                    ClientError::ImplementationSpecific,
-                ))
-            })?;
+            .map_err(|_| PacketError::ImplementationSpecific)?;
+
         Ok(())
     }
 
@@ -1162,7 +1110,7 @@ impl<S: Store> PortReader for Ibc<S> {
     fn lookup_module_by_port(&self, port_id: &PortId) -> Result<ModuleId, PortError> {
         self.port_to_module_map
             .get(port_id)
-            .ok_or_else(|| PortError::UnknownPort {
+            .ok_or(PortError::UnknownPort {
                 port_id: port_id.clone(),
             })
             .map(Clone::clone)
@@ -2027,11 +1975,7 @@ impl<S: Store, BK> ChannelKeeper for IbcTransferModule<S, BK> {
                 },
                 commitment,
             )
-            .map_err(|_| {
-                PacketError::Connection(ConnectionError::Client(
-                    ClientError::ImplementationSpecific,
-                ))
-            })?;
+            .map_err(|_| PacketError::ImplementationSpecific)?;
         Ok(())
     }
 
@@ -2099,11 +2043,7 @@ impl<S: Store, BK> ChannelKeeper for IbcTransferModule<S, BK> {
     ) -> Result<(), PacketError> {
         self.send_sequence_store
             .set(path::SeqSendsPath(port_id, chan_id), seq)
-            .map_err(|_| {
-                PacketError::Connection(ConnectionError::Client(
-                    ClientError::ImplementationSpecific,
-                ))
-            })?;
+            .map_err(|_| PacketError::ImplementationSpecific)?;
         Ok(())
     }
 
@@ -2233,21 +2173,17 @@ impl<S: Store, BK> ChannelReader for IbcTransferModule<S, BK> {
                 Height::Pending,
                 &path::ChannelEndsPath(port_id.clone(), chan_id.clone()),
             )
-            .ok_or_else(|| {
-                ChannelError::Connection(ConnectionError::Client(
-                    ClientError::ImplementationSpecific,
-                ))
-            })
+            .ok_or(ChannelError::Connection(ConnectionError::Client(
+                ClientError::ImplementationSpecific,
+            )))
     }
 
     fn connection_end(&self, conn_id: &ConnectionId) -> Result<ConnectionEnd, ChannelError> {
         self.connection_end_store
             .get(Height::Pending, &path::ConnectionsPath(conn_id.clone()))
-            .ok_or_else(|| {
-                ChannelError::Connection(ConnectionError::Client(
-                    ClientError::ImplementationSpecific,
-                ))
-            })
+            .ok_or(ChannelError::Connection(ConnectionError::Client(
+                ClientError::ImplementationSpecific,
+            )))
     }
 
     fn connection_channels(
@@ -2294,11 +2230,7 @@ impl<S: Store, BK> ChannelReader for IbcTransferModule<S, BK> {
                 Height::Pending,
                 &path::SeqSendsPath(port_id.clone(), chan_id.clone()),
             )
-            .ok_or_else(|| {
-                PacketError::Connection(ConnectionError::Client(
-                    ClientError::ImplementationSpecific,
-                ))
-            })
+            .ok_or(PacketError::ImplementationSpecific)
     }
 
     fn get_next_sequence_recv(
