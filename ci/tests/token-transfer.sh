@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-HERMES_BIN=${HERMES_BIN:-${HOME}/build/ibc-rs/release/hermes}
+HERMES_BIN=${HERMES_BIN:-${HOME}/build/hermes/release/hermes}
 
 echo "Testing token transfer..."
 

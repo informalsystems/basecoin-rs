@@ -1,6 +1,6 @@
 //! # Test suite of tendermock AVL Tree.
 
-use ics23::{commitment_proof::Proof, verify_membership};
+use ics23::{commitment_proof::Proof, verify_membership, HostFunctionsManager};
 use sha2::{Digest, Sha256};
 
 use crate::app::store::avl::{
@@ -125,7 +125,7 @@ fn proof() {
     assert_eq!(inner_hash_a.as_slice(), node_a.merkle_hash.as_bytes());
     // Check with ics32
     let spec = get_proof_spec();
-    assert!(verify_membership(
+    assert!(verify_membership::<HostFunctionsManager>(
         &ics_proof,
         &spec,
         &root.as_bytes().to_vec(),
@@ -158,7 +158,7 @@ fn integration() {
         .get_proof("K")
         .expect("Unable to retrieve a proof for 'K'");
     let spec = get_proof_spec();
-    assert!(verify_membership(
+    assert!(verify_membership::<HostFunctionsManager>(
         &proof,
         &spec,
         &root,

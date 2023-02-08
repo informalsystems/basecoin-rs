@@ -1,25 +1,24 @@
-use std::{collections::HashMap, convert::TryInto, fmt::Debug, num::ParseIntError, str::FromStr};
-
 use cosmrs::{bank::MsgSend, proto, AccountId, Coin as MsgCoin};
-use flex_error::{define_error, TraceError};
-use ibc::bigint::U256;
+use displaydoc::Display;
 use ibc_proto::{
     cosmos::{
         bank::v1beta1::{
             query_server::{Query, QueryServer},
             QueryAllBalancesRequest, QueryAllBalancesResponse, QueryBalanceRequest,
             QueryBalanceResponse, QueryDenomMetadataRequest, QueryDenomMetadataResponse,
-            QueryDenomsMetadataRequest, QueryDenomsMetadataResponse, QueryParamsRequest,
-            QueryParamsResponse, QuerySpendableBalancesRequest, QuerySpendableBalancesResponse,
-            QuerySupplyOfRequest, QuerySupplyOfResponse, QueryTotalSupplyRequest,
-            QueryTotalSupplyResponse,
+            QueryDenomOwnersRequest, QueryDenomOwnersResponse, QueryDenomsMetadataRequest,
+            QueryDenomsMetadataResponse, QueryParamsRequest, QueryParamsResponse,
+            QuerySpendableBalancesRequest, QuerySpendableBalancesResponse, QuerySupplyOfRequest,
+            QuerySupplyOfResponse, QueryTotalSupplyRequest, QueryTotalSupplyResponse,
         },
         base::v1beta1::Coin as RawCoin,
     },
     google::protobuf::Any,
 };
-use prost::{DecodeError, Message};
+use primitive_types::U256;
+use prost::Message;
 use serde::{Deserialize, Serialize};
+use std::{collections::HashMap, convert::TryInto, fmt::Debug, str::FromStr};
 use tendermint_proto::abci::Event;
 use tonic::{Request, Response, Status};
 use tracing::{debug, trace};
@@ -34,34 +33,25 @@ use crate::app::{
     },
 };
 
-define_error! {
-    #[derive(Eq, PartialEq)]
-    Error {
-        MsgDecodeFailure
-            [ TraceError<DecodeError> ]
-            | _ | { "failed to decode message" },
-        MsgValidationFailure
-            { reason: String }
-            | e | { format!("failed to validate message: {}", e.reason) },
-        NonExistentAccount
-            { account: AccountId }
-            | e | { format!("account {} doesn't exist", e.account) },
-        InvalidAmount
-            [ TraceError<ParseIntError> ]
-            | _ | { "invalid amount specified" },
-        InsufficientSourceFunds
-            | _ | { "insufficient funds in sender account" },
-        DestFundOverflow
-            | _ | { "receiver account funds overflow" },
-        Store
-            { reason: String }
-            | e | { format!("Store error: {}", e.reason) },
-    }
+#[derive(Debug, Display)]
+pub enum Error {
+    /// failed to decode message
+    MsgDecodeFailure,
+    /// failed to validate message: `{reason}`
+    MsgValidationFailure { reason: String },
+    /// account `{account}` doesn't exist
+    NonExistentAccount { account: AccountId },
+    /// insufficient funds in sender account
+    InsufficientSourceFunds,
+    /// receiver account funds overflow
+    DestFundOverflow,
+    /// Store error: `{reason}`
+    Store { reason: String },
 }
 
 impl From<Error> for ModuleError {
     fn from(e: Error) -> Self {
-        ModuleError::bank(e)
+        ModuleError::Bank(e)
     }
 }
 
@@ -104,7 +94,7 @@ impl From<&MsgCoin> for Coin {
 #[serde(transparent)]
 pub struct Balances(Vec<Coin>);
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct BalancesPath(AccountId);
 
 impl From<BalancesPath> for Path {
@@ -174,7 +164,7 @@ impl<S: Store> BankReader for BankBalanceReader<S> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct BankBalanceKeeper<S> {
     balance_store: JsonStore<SharedStore<S>, BalancesPath, Balances>,
 }
@@ -210,7 +200,7 @@ impl<S: Store> BankKeeper for BankBalanceKeeper<S> {
                 .iter_mut()
                 .find(|c| c.denom == denom)
                 .filter(|c| c.amount >= amount)
-                .ok_or_else(Error::insufficient_source_funds)?;
+                .ok_or(Error::InsufficientSourceFunds)?;
 
             let dst_balance =
                 if let Some(balance) = dst_balances.iter_mut().find(|c| c.denom == denom) {
@@ -221,7 +211,7 @@ impl<S: Store> BankKeeper for BankBalanceKeeper<S> {
                 };
 
             if dst_balance.amount > U256::MAX - amount {
-                return Err(Error::dest_fund_overflow());
+                return Err(Error::DestFundOverflow);
             }
 
             src_balance.amount -= amount;
@@ -232,11 +222,15 @@ impl<S: Store> BankKeeper for BankBalanceKeeper<S> {
         self.balance_store
             .set(src_balance_path, Balances(src_balances))
             .map(|_| ())
-            .map_err(|e| Error::store(format!("{e:?}")))?;
+            .map_err(|e| Error::Store {
+                reason: format!("{e:?}"),
+            })?;
         self.balance_store
             .set(dst_balance_path, Balances(dst_balances))
             .map(|_| ())
-            .map_err(|e| Error::store(format!("{e:?}")))?;
+            .map_err(|e| Error::Store {
+                reason: format!("{e:?}"),
+            })?;
 
         Ok(())
     }
@@ -265,7 +259,7 @@ impl<S: Store> BankKeeper for BankBalanceKeeper<S> {
             };
 
             if balance.amount > U256::MAX - amount {
-                return Err(Error::dest_fund_overflow());
+                return Err(Error::DestFundOverflow);
             }
 
             balance.amount += amount;
@@ -275,7 +269,9 @@ impl<S: Store> BankKeeper for BankBalanceKeeper<S> {
         self.balance_store
             .set(balance_path, Balances(balances))
             .map(|_| ())
-            .map_err(|e| Error::store(format!("{e:?}")))?;
+            .map_err(|e| Error::Store {
+                reason: format!("{e:?}"),
+            })?;
 
         Ok(())
     }
@@ -297,7 +293,7 @@ impl<S: Store> BankKeeper for BankBalanceKeeper<S> {
                 .iter_mut()
                 .find(|c| c.denom == denom)
                 .filter(|c| c.amount >= amount)
-                .ok_or_else(Error::insufficient_source_funds)?;
+                .ok_or(Error::InsufficientSourceFunds)?;
 
             balance.amount -= amount;
         }
@@ -306,7 +302,9 @@ impl<S: Store> BankKeeper for BankBalanceKeeper<S> {
         self.balance_store
             .set(balance_path, Balances(balances))
             .map(|_| ())
-            .map_err(|e| Error::store(format!("{e:?}")))?;
+            .map_err(|e| Error::Store {
+                reason: format!("{e:?}"),
+            })?;
 
         Ok(())
     }
@@ -353,9 +351,9 @@ impl<S: 'static + ProvableStore + Default, AR: AccountReader, AK: AccountKeeper>
 impl<S: Store, AR: AccountReader, AK: AccountKeeper> Bank<S, AR, AK> {
     fn decode<T: Message + Default>(message: Any) -> Result<T, ModuleError> {
         if message.type_url != "/cosmos.bank.v1beta1.MsgSend" {
-            return Err(ModuleError::not_handled());
+            return Err(ModuleError::NotHandled);
         }
-        Message::decode(message.value.as_ref()).map_err(|e| Error::msg_decode_failure(e).into())
+        Message::decode(message.value.as_ref()).map_err(|_| Error::MsgDecodeFailure.into())
     }
 }
 
@@ -370,15 +368,18 @@ where
     fn deliver(&mut self, message: Any, _signer: &AccountId) -> Result<Vec<Event>, ModuleError> {
         let message: MsgSend = Self::decode::<proto::cosmos::bank::v1beta1::MsgSend>(message)?
             .try_into()
-            .map_err(|e| Error::msg_validation_failure(format!("{e:?}")))?;
-
-        let _ = self
-            .account_reader
+            .map_err(|e| Error::MsgValidationFailure {
+                reason: format!("{e:?}"),
+            })?;
+        self.account_reader
             .get_account(message.from_address.clone().into())
-            .map_err(|_| Error::non_existent_account(message.from_address.clone()))?;
+            .map_err(|_| Error::NonExistentAccount {
+                account: message.from_address.clone(),
+            })?;
 
         // Note: we allow transfers to non-existent destination accounts
         let amounts: Vec<Coin> = message.amount.iter().map(|amt| amt.into()).collect();
+
         self.balance_keeper
             .send_coins(message.from_address, message.to_address, amounts)?;
 
@@ -416,18 +417,19 @@ where
     ) -> Result<QueryResult, ModuleError> {
         let account_id = match String::from_utf8(data.to_vec()) {
             Ok(s) if s.starts_with(ACCOUNT_PREFIX) => s, // TODO(hu55a1n1): check if valid identifier
-            _ => return Err(ModuleError::not_handled()),
+            _ => return Err(ModuleError::NotHandled),
         };
 
-        let account_id =
-            AccountId::from_str(&account_id).map_err(|_| ModuleError::not_handled())?;
+        let account_id = AccountId::from_str(&account_id).map_err(|_| ModuleError::NotHandled)?;
 
         trace!("Attempting to get account ID: {}", account_id);
 
         let _ = self
             .account_reader
             .get_account(account_id.clone().into())
-            .map_err(|_| Error::non_existent_account(account_id.clone()))?;
+            .map_err(|_| Error::NonExistentAccount {
+                account: account_id.clone(),
+            })?;
 
         let balance = self
             .balance_reader
@@ -525,6 +527,13 @@ impl<S: ProvableStore + 'static> Query for BankService<S> {
         &self,
         _request: Request<QueryDenomsMetadataRequest>,
     ) -> Result<Response<QueryDenomsMetadataResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn denom_owners(
+        &self,
+        _request: Request<QueryDenomOwnersRequest>,
+    ) -> Result<Response<QueryDenomOwnersResponse>, Status> {
         unimplemented!()
     }
 }

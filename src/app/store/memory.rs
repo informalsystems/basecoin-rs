@@ -12,7 +12,7 @@ use crate::app::store::{
 type State = AvlTree<Path, Vec<u8>>;
 
 /// An in-memory store backed by an AvlTree.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(crate) struct InMemoryStore {
     /// collection of states corresponding to every committed block height
     store: Vec<State>,

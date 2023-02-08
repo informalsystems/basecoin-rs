@@ -117,8 +117,8 @@ $ hermes keys add --chain basecoin-0 --key-file user_seed.json
 ```
 
 ### Step 4: Create and Update a client
-Assuming the `basecoin-0` chain and tendermint are running (see instructions on [README.md#run-the-basecoin-app-and-tendermint](../../README.md#step-4-run-the-basecoin-app-and-tendermint)). 
+Assuming the `basecoin-0` chain and tendermint are running (see instructions on [README.md#run-the-basecoin-app-and-tendermint](../../README.md#step-4-run-the-basecoin-app-and-tendermint)).
 ```shell
-$ hermes create client basecoin-0 ibc-0
-$ hermes update client basecoin-0 07-tendermint-0
+$ hermes create client --host-chain basecoin-0 --reference-chain ibc-0
+$ hermes update client --host-chain basecoin-0 --client 07-tendermint-0
 ```

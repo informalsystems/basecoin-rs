@@ -16,10 +16,10 @@ use cosmrs::{
 use ibc_proto::{
     cosmos::{
         base::tendermint::v1beta1::{
-            service_server::Service as HealthService, GetBlockByHeightRequest,
-            GetBlockByHeightResponse, GetLatestBlockRequest, GetLatestBlockResponse,
-            GetLatestValidatorSetRequest, GetLatestValidatorSetResponse, GetNodeInfoRequest,
-            GetNodeInfoResponse, GetSyncingRequest, GetSyncingResponse,
+            service_server::Service as HealthService, AbciQueryRequest, AbciQueryResponse,
+            GetBlockByHeightRequest, GetBlockByHeightResponse, GetLatestBlockRequest,
+            GetLatestBlockResponse, GetLatestValidatorSetRequest, GetLatestValidatorSetResponse,
+            GetNodeInfoRequest, GetNodeInfoResponse, GetSyncingRequest, GetSyncingResponse,
             GetValidatorSetByHeightRequest, GetValidatorSetByHeightResponse,
             Module as VersionInfoModule, VersionInfo,
         },
@@ -47,7 +47,7 @@ use tonic::{Request, Response, Status};
 use tracing::{debug, error, info};
 
 use crate::app::{
-    modules::{Error, ErrorDetail, Module, ACCOUNT_PREFIX},
+    modules::{Error, Module, ACCOUNT_PREFIX},
     response::ResponseFromErrorExt,
     store::{Height, Identifier, Path, ProvableStore, RevertibleStore, SharedStore, Store},
 };
@@ -127,10 +127,10 @@ impl<S: Default + ProvableStore + 'static> Builder<S> {
 
 impl<S: Default + ProvableStore> BaseCoinApp<S> {
     // try to deliver the message to all registered modules
-    // if `module.deliver()` returns `Error::not_handled()`, try next module
+    // if `module.deliver()` returns `Error::NotHandled`, try next module
     // Return:
     // * other errors immediately OR
-    // * `Error::not_handled()` if all modules return `Error::not_handled()`
+    // * `Error::NotHandled` if all modules return `Error::NotHandled`
     // * events from first successful deliver call
     fn deliver_msg(&self, message: Any, signer: &AccountId) -> Result<Vec<Event>, Error> {
         let mut modules = self.modules.write().unwrap();
@@ -144,7 +144,7 @@ impl<S: Default + ProvableStore> BaseCoinApp<S> {
                     handled = true;
                     break;
                 }
-                Err(Error(ErrorDetail::NotHandled(_), _)) => continue,
+                Err(Error::NotHandled) => continue,
                 Err(e) => {
                     error!("deliver message ({:?}) failed with error: {:?}", message, e);
                     return Err(e);
@@ -154,7 +154,7 @@ impl<S: Default + ProvableStore> BaseCoinApp<S> {
         if handled {
             Ok(events)
         } else {
-            Err(Error::not_handled())
+            Err(Error::NotHandled)
         }
     }
 }
@@ -174,7 +174,7 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
             version: "0.1.0".to_string(),
             app_version: 1,
             last_block_height,
-            last_block_app_hash,
+            last_block_app_hash: last_block_app_hash.into(),
         }
     }
 
@@ -183,7 +183,8 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
 
         // safety - we panic on errors to prevent chain creation with invalid genesis config
         let app_state: Value = serde_json::from_str(
-            &String::from_utf8(request.app_state_bytes.clone()).expect("invalid genesis state"),
+            &String::from_utf8(request.app_state_bytes.clone().into())
+                .expect("invalid genesis state"),
         )
         .expect("genesis state isn't valid JSON");
         let mut modules = self.modules.write().unwrap();
@@ -196,7 +197,7 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
         ResponseInitChain {
             consensus_params: request.consensus_params,
             validators: vec![], // use validator set proposed by tendermint (ie. in the genesis file)
-            app_hash: self.store.write().unwrap().root_hash(),
+            app_hash: self.store.write().unwrap().root_hash().into(),
         }
     }
 
@@ -237,15 +238,15 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
                         code: 0,
                         log: "exists".to_string(),
                         key: request.data,
-                        value: result.data,
+                        value: result.data.into(),
                         proof_ops,
                         height: store.current_height() as i64,
                         ..Default::default()
                     };
                 }
-                // `Error::not_handled()` - implies query isn't known or was intercepted but not
+                // `Error::NotHandled` - implies query isn't known or was intercepted but not
                 // responded to by this module, so try with next module
-                Err(Error(ErrorDetail::NotHandled(_), _)) => continue,
+                Err(Error::NotHandled) => continue,
                 // Other error - return immediately
                 Err(e) => return ResponseQuery::from_error(1, format!("query error: {e:?}")),
             }
@@ -256,7 +257,7 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
     fn deliver_tx(&self, request: RequestDeliverTx) -> ResponseDeliverTx {
         debug!("Got deliverTx request: {request:?}");
 
-        let tx: Tx = match request.tx.as_slice().try_into() {
+        let tx: Tx = match request.tx.as_ref().try_into() {
             Ok(tx) => tx,
             Err(err) => {
                 return ResponseDeliverTx::from_error(
@@ -345,7 +346,7 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
             data.iter().map(|b| format!("{b:02X}")).collect::<String>()
         );
         ResponseCommit {
-            data,
+            data: data.into(),
             retain_height: 0,
         }
     }
@@ -366,6 +367,13 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
 
 #[tonic::async_trait]
 impl<S: ProvableStore + 'static> HealthService for BaseCoinApp<S> {
+    async fn abci_query(
+        &self,
+        _request: Request<AbciQueryRequest>,
+    ) -> Result<Response<AbciQueryResponse>, Status> {
+        unimplemented!()
+    }
+
     async fn get_node_info(
         &self,
         _request: Request<GetNodeInfoRequest>,

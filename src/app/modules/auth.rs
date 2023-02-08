@@ -8,14 +8,19 @@ use cosmrs::AccountId;
 use ibc_proto::{
     cosmos::auth::v1beta1::{
         query_server::{Query, QueryServer},
-        BaseAccount, QueryAccountRequest, QueryAccountResponse, QueryAccountsRequest,
-        QueryAccountsResponse, QueryParamsRequest, QueryParamsResponse,
+        AddressBytesToStringRequest, AddressBytesToStringResponse, AddressStringToBytesRequest,
+        AddressStringToBytesResponse, BaseAccount, Bech32PrefixRequest, Bech32PrefixResponse,
+        QueryAccountAddressByIdRequest, QueryAccountAddressByIdResponse, QueryAccountRequest,
+        QueryAccountResponse, QueryAccountsRequest, QueryAccountsResponse,
+        QueryModuleAccountByNameRequest, QueryModuleAccountByNameResponse,
+        QueryModuleAccountsRequest, QueryModuleAccountsResponse, QueryParamsRequest,
+        QueryParamsResponse,
     },
     google::protobuf::Any,
 };
 use prost::Message;
 use serde_json::Value;
-use tendermint_proto::{abci::Event, Protobuf};
+use tendermint_proto::abci::Event;
 use tonic::{Request, Response, Status};
 use tracing::{debug, trace};
 
@@ -88,7 +93,7 @@ impl Account for AuthAccount {
     }
 }
 
-impl Protobuf<BaseAccount> for AuthAccount {}
+impl ibc_proto::protobuf::Protobuf<BaseAccount> for AuthAccount {}
 
 impl TryFrom<BaseAccount> for AuthAccount {
     type Error = String;
@@ -201,15 +206,19 @@ impl<S: Store> Module for Auth<S> {
         let mut account = self
             .account_reader
             .get_account(signer.clone())
-            .map_err(|_| ModuleError::custom("unknown signer".to_string()))?;
+            .map_err(|_| ModuleError::Custom {
+                reason: "unknown signer".to_string(),
+            })?;
         account.sequence += 1;
 
         self.account_keeper
             .set_account(account)
-            .map_err(|_| ModuleError::custom("failed to increment signer sequence".to_string()))?;
+            .map_err(|_| ModuleError::Custom {
+                reason: "failed to increment signer sequence".to_string(),
+            })?;
 
         // we're only intercepting the deliverTx here, so return unhandled.
-        Err(ModuleError::not_handled())
+        Err(ModuleError::NotHandled)
     }
 
     fn store_mut(&mut self) -> &mut SharedStore<S> {
@@ -290,6 +299,48 @@ impl<S: ProvableStore + 'static> Query for AuthService<S> {
         &self,
         _request: Request<QueryParamsRequest>,
     ) -> Result<Response<QueryParamsResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn account_address_by_id(
+        &self,
+        _request: Request<QueryAccountAddressByIdRequest>,
+    ) -> Result<Response<QueryAccountAddressByIdResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn module_accounts(
+        &self,
+        _request: Request<QueryModuleAccountsRequest>,
+    ) -> Result<Response<QueryModuleAccountsResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn module_account_by_name(
+        &self,
+        _request: Request<QueryModuleAccountByNameRequest>,
+    ) -> Result<Response<QueryModuleAccountByNameResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn bech32_prefix(
+        &self,
+        _request: Request<Bech32PrefixRequest>,
+    ) -> Result<Response<Bech32PrefixResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn address_bytes_to_string(
+        &self,
+        _request: Request<AddressBytesToStringRequest>,
+    ) -> Result<Response<AddressBytesToStringResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn address_string_to_bytes(
+        &self,
+        _request: Request<AddressStringToBytesRequest>,
+    ) -> Result<Response<AddressStringToBytesResponse>, Status> {
         unimplemented!()
     }
 }

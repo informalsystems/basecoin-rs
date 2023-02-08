@@ -3,12 +3,6 @@ mod bank;
 mod ibc;
 mod staking;
 
-use cosmrs::AccountId;
-use flex_error::{define_error, TraceError};
-use ibc_proto::google::protobuf::Any;
-use tendermint::block::Header;
-use tendermint_proto::{abci::Event, crypto::ProofOp};
-
 pub(crate) use self::{
     auth::{Auth, ACCOUNT_PREFIX},
     bank::Bank,
@@ -16,24 +10,30 @@ pub(crate) use self::{
     staking::Staking,
 };
 use crate::app::store::{self, Height, Path, SharedStore};
+use ::ibc::core::ContextError;
+use cosmrs::AccountId;
+use displaydoc::Display;
+use ibc_proto::google::protobuf::Any;
+use tendermint::block::Header;
+use tendermint_proto::{abci::Event, crypto::ProofOp};
 
-define_error! {
-    #[derive(PartialEq, Eq)]
-    Error {
-        NotHandled
-            | _ | { "no module could handle specified message" },
-        Custom
-            { reason: String }
-            | e | { format!("custom error: {0}", e.reason) },
-        Store
-            [ TraceError<store::Error> ]
-            | _ | { "store error" },
-        Bank
-            [ TraceError<bank::Error> ]
-            | _ | { "bank module error" },
-        Ibc
-            [ TraceError<ibc::Error> ]
-            | _ | { "IBC module error" },
+#[derive(Debug, Display)]
+pub enum Error {
+    /// no module could handle specified message
+    NotHandled,
+    /// custom error: `{reason}`
+    Custom { reason: String },
+    /// store error
+    Store(store::Error),
+    /// bank module error
+    Bank(bank::Error),
+    /// IBC module error
+    Ibc(ibc::Error),
+}
+
+impl From<ContextError> for Error {
+    fn from(error: ContextError) -> Self {
+        Self::Ibc(error.into())
     }
 }
 
@@ -54,11 +54,11 @@ pub(crate) trait Module: Send + Sync {
     /// *NOTE* - Implementations MUST be deterministic!
     ///
     /// ## Return
-    /// * `Error::not_handled()` if message isn't known to OR hasn't been consumed (but possibly intercepted) by this module
+    /// * `Error::NotHandled` if message isn't known to OR hasn't been consumed (but possibly intercepted) by this module
     /// * Other errors iff message was meant to be consumed by module but resulted in an error
     /// * Resulting events on success
     fn deliver(&mut self, _message: Any, _signer: &AccountId) -> Result<Vec<Event>, Error> {
-        Err(Error::not_handled())
+        Err(Error::NotHandled)
     }
 
     /// Similar to [ABCI InitChain method](https://docs.tendermint.com/master/spec/abci/abci.html#initchain)
@@ -68,7 +68,7 @@ pub(crate) trait Module: Send + Sync {
     /// Similar to [ABCI Query method](https://docs.tendermint.com/master/spec/abci/abci.html#query)
     ///
     /// ## Return
-    /// * `Error::not_handled()` if message isn't known to OR hasn't been responded to (but possibly intercepted) by this module
+    /// * `Error::NotHandled` if message isn't known to OR hasn't been responded to (but possibly intercepted) by this module
     /// * Other errors iff query was meant to be consumed by module but resulted in an error
     /// * Query result  on success
     fn query(
@@ -78,7 +78,7 @@ pub(crate) trait Module: Send + Sync {
         _height: Height,
         _prove: bool,
     ) -> Result<QueryResult, Error> {
-        Err(Error::not_handled())
+        Err(Error::NotHandled)
     }
 
     /// Similar to [ABCI BeginBlock method](https://docs.tendermint.com/master/spec/abci/abci.html#beginblock)
