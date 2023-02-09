@@ -141,7 +141,7 @@ use crate::{
 use ibc::applications::transfer::VERSION;
 
 #[cfg(feature = "val_exec_ctx")]
-use ibc::core::handler::{execute, validate};
+use ibc::core::handler::dispatch as val_exec_dispatch;
 
 #[cfg(feature = "val_exec_ctx")]
 use ibc::applications::transfer::context::{
@@ -333,8 +333,7 @@ impl<S: 'static + ProvableStore> Module for Ibc<S> {
 
             #[cfg(feature = "val_exec_ctx")]
             if cfg!(feature = "val_exec_ctx") {
-                validate(self, message.clone())?;
-                execute(self, message)?;
+                val_exec_dispatch(self, msg)?;
                 let events = self
                     .events
                     .drain(..)
