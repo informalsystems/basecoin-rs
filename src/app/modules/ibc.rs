@@ -137,6 +137,23 @@ use crate::{
     IBC_TRANSFER_MODULE_ID,
 };
 
+#[cfg(feature = "val_exec_ctx")]
+use ibc::applications::transfer::VERSION;
+
+#[cfg(feature = "val_exec_ctx")]
+use ibc::core::handler::dispatch as val_exec_dispatch;
+
+#[cfg(feature = "val_exec_ctx")]
+use ibc::applications::transfer::context::{
+    on_acknowledgement_packet_validate, on_chan_open_ack_validate, on_chan_open_confirm_validate,
+    on_chan_open_init_execute, on_chan_open_init_validate, on_chan_open_try_execute,
+    on_chan_open_try_validate, on_recv_packet_execute, on_timeout_packet_execute,
+    on_timeout_packet_validate,
+};
+
+#[cfg(feature = "val_exec_ctx")]
+use ibc::events::IbcEvent;
+
 pub(crate) type Error = ibc::core::ics26_routing::error::RouterError;
 
 impl From<Error> for ModuleError {
@@ -235,6 +252,12 @@ pub struct Ibc<S> {
     packet_receipt_store: TypedSet<SharedStore<S>, path::ReceiptsPath>,
     /// A typed-store for packet ack
     packet_ack_store: BinStore<SharedStore<S>, path::AcksPath, AcknowledgementCommitment>,
+    /// IBC Events
+    #[cfg(feature = "val_exec_ctx")]
+    events: Vec<IbcEvent>,
+    /// message logs
+    #[cfg(feature = "val_exec_ctx")]
+    logs: Vec<String>,
 }
 
 impl<S: 'static + ProvableStore + Default> Ibc<S> {
@@ -261,6 +284,10 @@ impl<S: 'static + ProvableStore + Default> Ibc<S> {
             packet_receipt_store: TypedStore::new(store.clone()),
             packet_ack_store: TypedStore::new(store.clone()),
             store,
+            #[cfg(feature = "val_exec_ctx")]
+            events: Vec::new(),
+            #[cfg(feature = "val_exec_ctx")]
+            logs: Vec::new(),
         }
     }
 
@@ -303,6 +330,18 @@ impl<S: 'static + ProvableStore> Module for Ibc<S> {
     fn deliver(&mut self, message: Any, _signer: &AccountId) -> Result<Vec<Event>, ModuleError> {
         if let Ok(msg) = decode(message.clone()) {
             debug!("Dispatching message: {:?}", msg);
+
+            #[cfg(feature = "val_exec_ctx")]
+            if cfg!(feature = "val_exec_ctx") {
+                val_exec_dispatch(self, msg)?;
+                let events = self
+                    .events
+                    .drain(..)
+                    .into_iter()
+                    .map(|ev| TmEvent(ev.try_into().unwrap()).into())
+                    .collect();
+                return Ok(events);
+            }
 
             match dispatch(self, msg) {
                 Ok(output) => Ok(output
@@ -599,8 +638,8 @@ impl<S: Store> ClientKeeper for Ibc<S> {
                 },
                 tm_consensus_state.clone(),
             )
-            .map_err(|_| ClientError::ImplementationSpecific)
-            .map(|_| ())
+            .map_err(|_| ClientError::ImplementationSpecific)?;
+        Ok(())
     }
 
     fn increase_client_counter(&mut self) {
@@ -613,8 +652,7 @@ impl<S: Store> ClientKeeper for Ibc<S> {
         height: IbcHeight,
         timestamp: Timestamp,
     ) -> Result<(), ClientError> {
-        let _ = self
-            .client_processed_times
+        self.client_processed_times
             .insert((client_id, height), timestamp);
         Ok(())
     }
@@ -625,8 +663,7 @@ impl<S: Store> ClientKeeper for Ibc<S> {
         height: IbcHeight,
         host_height: IbcHeight,
     ) -> Result<(), ClientError> {
-        let _ = self
-            .client_processed_heights
+        self.client_processed_heights
             .insert((client_id, height), host_height);
         Ok(())
     }
@@ -1084,7 +1121,6 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
         self.recv_sequence_store
             .set(path::SeqRecvsPath(port_id, chan_id), seq)
             .map_err(|_| PacketError::ImplementationSpecific)?;
-
         Ok(())
     }
 
@@ -1097,7 +1133,6 @@ impl<S: Store> ChannelKeeper for Ibc<S> {
         self.ack_sequence_store
             .set(path::SeqAcksPath(port_id, chan_id), seq)
             .map_err(|_| PacketError::ImplementationSpecific)?;
-
         Ok(())
     }
 
@@ -1956,6 +1991,254 @@ impl<S: Store + Debug + 'static, BK: 'static + Send + Sync + Debug + BankKeeper<
             }
         })
     }
+
+    #[cfg(feature = "val_exec_ctx")]
+    #[allow(clippy::too_many_arguments)]
+    fn on_chan_open_init_validate(
+        &self,
+        order: Order,
+        connection_hops: &[ConnectionId],
+        port_id: &PortId,
+        channel_id: &ChannelId,
+        counterparty: &Counterparty,
+        version: &ChannelVersion,
+    ) -> Result<ChannelVersion, ChannelError> {
+        on_chan_open_init_validate(
+            self,
+            order,
+            connection_hops,
+            port_id,
+            channel_id,
+            counterparty,
+            version,
+        )
+        .map_err(|e: TokenTransferError| ChannelError::AppModule {
+            description: e.to_string(),
+        })?;
+        Ok(ChannelVersion::new(VERSION.to_string()))
+    }
+
+    #[cfg(feature = "val_exec_ctx")]
+    #[allow(clippy::too_many_arguments)]
+    fn on_chan_open_init_execute(
+        &mut self,
+        order: Order,
+        connection_hops: &[ConnectionId],
+        port_id: &PortId,
+        channel_id: &ChannelId,
+        counterparty: &Counterparty,
+        version: &ChannelVersion,
+    ) -> Result<(ModuleExtras, ChannelVersion), ChannelError> {
+        on_chan_open_init_execute(
+            self,
+            order,
+            connection_hops,
+            port_id,
+            channel_id,
+            counterparty,
+            version,
+        )
+        .map_err(|e: TokenTransferError| ChannelError::AppModule {
+            description: e.to_string(),
+        })
+    }
+
+    #[cfg(feature = "val_exec_ctx")]
+    #[allow(clippy::too_many_arguments)]
+    fn on_chan_open_try_validate(
+        &self,
+        order: Order,
+        connection_hops: &[ConnectionId],
+        port_id: &PortId,
+        channel_id: &ChannelId,
+        counterparty: &Counterparty,
+        counterparty_version: &ChannelVersion,
+    ) -> Result<ChannelVersion, ChannelError> {
+        on_chan_open_try_validate(
+            self,
+            order,
+            connection_hops,
+            port_id,
+            channel_id,
+            counterparty,
+            counterparty_version,
+        )
+        .map_err(|e: TokenTransferError| ChannelError::AppModule {
+            description: e.to_string(),
+        })?;
+        Ok(ChannelVersion::new(VERSION.to_string()))
+    }
+
+    #[cfg(feature = "val_exec_ctx")]
+    #[allow(clippy::too_many_arguments)]
+    fn on_chan_open_try_execute(
+        &mut self,
+        order: Order,
+        connection_hops: &[ConnectionId],
+        port_id: &PortId,
+        channel_id: &ChannelId,
+        counterparty: &Counterparty,
+        counterparty_version: &ChannelVersion,
+    ) -> Result<(ModuleExtras, ChannelVersion), ChannelError> {
+        on_chan_open_try_execute(
+            self,
+            order,
+            connection_hops,
+            port_id,
+            channel_id,
+            counterparty,
+            counterparty_version,
+        )
+        .map_err(|e: TokenTransferError| ChannelError::AppModule {
+            description: e.to_string(),
+        })
+    }
+
+    #[cfg(feature = "val_exec_ctx")]
+    fn on_chan_open_ack_validate(
+        &self,
+        port_id: &PortId,
+        channel_id: &ChannelId,
+        counterparty_version: &ChannelVersion,
+    ) -> Result<(), ChannelError> {
+        on_chan_open_ack_validate(self, port_id, channel_id, counterparty_version).map_err(
+            |e: TokenTransferError| ChannelError::AppModule {
+                description: e.to_string(),
+            },
+        )
+    }
+
+    #[cfg(feature = "val_exec_ctx")]
+    fn on_chan_open_ack_execute(
+        &mut self,
+        _port_id: &PortId,
+        _channel_id: &ChannelId,
+        _counterparty_version: &ChannelVersion,
+    ) -> Result<ModuleExtras, ChannelError> {
+        Ok(ModuleExtras::empty())
+    }
+
+    #[cfg(feature = "val_exec_ctx")]
+    fn on_chan_open_confirm_validate(
+        &self,
+        port_id: &PortId,
+        channel_id: &ChannelId,
+    ) -> Result<(), ChannelError> {
+        on_chan_open_confirm_validate(self, port_id, channel_id).map_err(|e: TokenTransferError| {
+            ChannelError::AppModule {
+                description: e.to_string(),
+            }
+        })
+    }
+
+    #[cfg(feature = "val_exec_ctx")]
+    fn on_chan_open_confirm_execute(
+        &mut self,
+        _port_id: &PortId,
+        _channel_id: &ChannelId,
+    ) -> Result<ModuleExtras, ChannelError> {
+        Ok(ModuleExtras::empty())
+    }
+
+    #[cfg(feature = "val_exec_ctx")]
+    fn on_chan_close_init_validate(
+        &self,
+        _port_id: &PortId,
+        _channel_id: &ChannelId,
+    ) -> Result<(), ChannelError> {
+        Ok(())
+    }
+
+    #[cfg(feature = "val_exec_ctx")]
+    fn on_chan_close_init_execute(
+        &mut self,
+        _port_id: &PortId,
+        _channel_id: &ChannelId,
+    ) -> Result<ModuleExtras, ChannelError> {
+        Ok(ModuleExtras::empty())
+    }
+
+    #[cfg(feature = "val_exec_ctx")]
+    fn on_chan_close_confirm_validate(
+        &self,
+        _port_id: &PortId,
+        _channel_id: &ChannelId,
+    ) -> Result<(), ChannelError> {
+        Ok(())
+    }
+
+    #[cfg(feature = "val_exec_ctx")]
+    fn on_chan_close_confirm_execute(
+        &mut self,
+        _port_id: &PortId,
+        _channel_id: &ChannelId,
+    ) -> Result<ModuleExtras, ChannelError> {
+        Ok(ModuleExtras::empty())
+    }
+
+    #[cfg(feature = "val_exec_ctx")]
+    fn on_recv_packet_execute(
+        &mut self,
+        packet: &Packet,
+        _relayer: &Signer,
+    ) -> (ModuleExtras, Acknowledgement) {
+        on_recv_packet_execute(self, packet)
+    }
+
+    #[cfg(feature = "val_exec_ctx")]
+    fn on_acknowledgement_packet_validate(
+        &self,
+        packet: &Packet,
+        acknowledgement: &Acknowledgement,
+        relayer: &Signer,
+    ) -> Result<(), PacketError> {
+        on_acknowledgement_packet_validate(self, packet, acknowledgement, relayer).map_err(
+            |e: TokenTransferError| PacketError::AppModule {
+                description: e.to_string(),
+            },
+        )
+    }
+
+    #[cfg(feature = "val_exec_ctx")]
+    fn on_acknowledgement_packet_execute(
+        &mut self,
+        _packet: &Packet,
+        _acknowledgement: &Acknowledgement,
+        _relayer: &Signer,
+    ) -> (ModuleExtras, Result<(), PacketError>) {
+        (ModuleExtras::empty(), Ok(()))
+    }
+
+    /// Note: `MsgTimeout` and `MsgTimeoutOnClose` use the same callback
+    #[cfg(feature = "val_exec_ctx")]
+    fn on_timeout_packet_validate(
+        &self,
+        packet: &Packet,
+        relayer: &Signer,
+    ) -> Result<(), PacketError> {
+        on_timeout_packet_validate(self, packet, relayer).map_err(|e: TokenTransferError| {
+            PacketError::AppModule {
+                description: e.to_string(),
+            }
+        })
+    }
+
+    /// Note: `MsgTimeout` and `MsgTimeoutOnClose` use the same callback
+    #[cfg(feature = "val_exec_ctx")]
+    fn on_timeout_packet_execute(
+        &mut self,
+        packet: &Packet,
+        relayer: &Signer,
+    ) -> (ModuleExtras, Result<(), PacketError>) {
+        let res = on_timeout_packet_execute(self, packet, relayer);
+        (
+            res.0,
+            res.1
+                .map_err(|e: TokenTransferError| PacketError::AppModule {
+                    description: e.to_string(),
+                }),
+        )
+    }
 }
 
 impl<S: Store, BK> ChannelKeeper for IbcTransferModule<S, BK> {
@@ -2324,4 +2607,689 @@ impl<S: Store, BK> ChannelReader for IbcTransferModule<S, BK> {
 
 impl<S: Store, BK: BankKeeper<Coin = Coin>> TokenTransferContext for IbcTransferModule<S, BK> {
     type AccountId = Signer;
+}
+
+#[cfg(feature = "val_exec_ctx")]
+pub use val_exec_ctx::*;
+
+#[cfg(feature = "val_exec_ctx")]
+mod val_exec_ctx {
+    use super::*;
+    use ibc::core::context::ExecutionContext;
+    use ibc::core::context::Router as NewRouter;
+    use ibc::core::context::ValidationContext;
+    use ibc::core::ics03_connection::version::pick_version;
+    use ibc::core::ics04_channel::context::calculate_block_delay;
+    use ibc::core::ics24_host::path::{
+        ClientConnectionsPath, ClientConsensusStatePath, ClientStatePath, ClientTypePath,
+        CommitmentsPath, ConnectionsPath, ReceiptsPath,
+    };
+
+    impl<S: Store> NewRouter for Ibc<S> {
+        fn get_route(&self, module_id: &ModuleId) -> Option<&dyn IbcModule> {
+            self.router.0.get(module_id).map(Arc::as_ref)
+        }
+
+        fn get_route_mut(&mut self, module_id: &ModuleId) -> Option<&mut dyn IbcModule> {
+            self.router.0.get_mut(module_id).and_then(Arc::get_mut)
+        }
+
+        fn has_route(&self, module_id: &ModuleId) -> bool {
+            self.router.0.get(module_id).is_some()
+        }
+
+        fn lookup_module_by_port(&self, port_id: &PortId) -> Option<ModuleId> {
+            self.port_to_module_map
+                .get(port_id)
+                .ok_or(PortError::UnknownPort {
+                    port_id: port_id.clone(),
+                })
+                .map(Clone::clone)
+                .ok()
+        }
+    }
+
+    impl<S: Store> ValidationContext for Ibc<S> {
+        fn client_state(&self, client_id: &ClientId) -> Result<Box<dyn ClientState>, ContextError> {
+            self.client_state_store
+                .get(Height::Pending, &path::ClientStatePath(client_id.clone()))
+                .ok_or(ClientError::ImplementationSpecific)
+                .map_err(ContextError::from)
+                .map(|cs| Box::new(cs) as Box<dyn ClientState>)
+        }
+
+        fn decode_client_state(
+            &self,
+            client_state: Any,
+        ) -> Result<Box<dyn ClientState>, ContextError> {
+            if let Ok(client_state) = TmClientState::try_from(client_state.clone()) {
+                Ok(client_state.into_box())
+            } else {
+                Err(ClientError::UnknownClientStateType {
+                    client_state_type: client_state.type_url,
+                })
+                .map_err(ContextError::from)
+            }
+        }
+
+        fn consensus_state(
+            &self,
+            client_id: &ClientId,
+            height: &IbcHeight,
+        ) -> Result<Box<dyn ConsensusState>, ContextError> {
+            tracing::info!("consensus_state 1: {:?} {:?}", client_id, height);
+            let path = path::ClientConsensusStatePath {
+                client_id: client_id.clone(),
+                epoch: height.revision_number(),
+                height: height.revision_height(),
+            };
+            let consensus_state = self
+                .consensus_state_store
+                .get(Height::Pending, &path)
+                .ok_or(ClientError::ConsensusStateNotFound {
+                    client_id: client_id.clone(),
+                    height: *height,
+                })?;
+            tracing::info!("consensus_state 2: {:?}", consensus_state);
+            Ok(Box::new(consensus_state) as Box<dyn ConsensusState>)
+        }
+
+        fn next_consensus_state(
+            &self,
+            client_id: &ClientId,
+            height: &IbcHeight,
+        ) -> Result<Option<Box<dyn ConsensusState>>, ContextError> {
+            let path = format!("clients/{client_id}/consensusStates")
+                .try_into()
+                .unwrap(); // safety - path must be valid since ClientId and height are valid Identifiers
+
+            let keys = self.store.get_keys(&path);
+            let found_path = keys.into_iter().find_map(|path| {
+                if let Ok(IbcPath::ClientConsensusState(path)) = IbcPath::try_from(path) {
+                    if height > &IbcHeight::new(path.epoch, path.height).unwrap() {
+                        return Some(path);
+                    }
+                }
+                None
+            });
+
+            if let Some(path) = found_path {
+                let consensus_state = self
+                    .consensus_state_store
+                    .get(Height::Pending, &path)
+                    .ok_or(ClientError::ConsensusStateNotFound {
+                        client_id: client_id.clone(),
+                        height: *height,
+                    })?;
+                Ok(Some(Box::new(consensus_state)))
+            } else {
+                Ok(None)
+            }
+        }
+
+        fn prev_consensus_state(
+            &self,
+            client_id: &ClientId,
+            height: &IbcHeight,
+        ) -> Result<Option<Box<dyn ConsensusState>>, ContextError> {
+            let path = format!("clients/{client_id}/consensusStates")
+                .try_into()
+                .unwrap(); // safety - path must be valid since ClientId and height are valid Identifiers
+
+            let keys = self.store.get_keys(&path);
+            let pos = keys.iter().position(|path| {
+                if let Ok(IbcPath::ClientConsensusState(path)) = IbcPath::try_from(path.clone()) {
+                    height >= &IbcHeight::new(path.epoch, path.height).unwrap()
+                } else {
+                    false
+                }
+            });
+
+            if let Some(pos) = pos {
+                if pos > 0 {
+                    let prev_path = match IbcPath::try_from(keys[pos - 1].clone()) {
+                        Ok(IbcPath::ClientConsensusState(p)) => p,
+                        _ => unreachable!(), // safety - path retrieved from store
+                    };
+                    let consensus_state = self
+                        .consensus_state_store
+                        .get(Height::Pending, &prev_path)
+                        .ok_or(ClientError::ConsensusStateNotFound {
+                            client_id: client_id.clone(),
+                            height: *height,
+                        })?;
+                    return Ok(Some(Box::new(consensus_state)));
+                }
+            }
+            Ok(None)
+        }
+
+        fn host_height(&self) -> Result<IbcHeight, ContextError> {
+            IbcHeight::new(0, self.store.current_height()).map_err(ContextError::from)
+        }
+
+        fn host_timestamp(&self) -> Result<Timestamp, ContextError> {
+            let pending_consensus_state =
+                <Self as ValidationContext>::pending_host_consensus_state(self)
+                    .expect("host must have pending consensus state");
+            Ok(pending_consensus_state.timestamp())
+        }
+
+        fn pending_host_consensus_state(&self) -> Result<Box<dyn ConsensusState>, ContextError> {
+            let pending_height = <Self as ValidationContext>::host_height(self)
+                .unwrap()
+                .increment();
+            let consensus_state = self
+                .consensus_states
+                .get(&pending_height.revision_height())
+                .ok_or(ClientError::MissingLocalConsensusState {
+                    height: pending_height,
+                })?;
+            Ok(Box::new(consensus_state.clone()))
+        }
+
+        fn host_consensus_state(
+            &self,
+            height: &IbcHeight,
+        ) -> Result<Box<dyn ConsensusState>, ContextError> {
+            let consensus_state = self
+                .consensus_states
+                .get(&height.revision_height())
+                .ok_or(ClientError::MissingLocalConsensusState { height: *height })?;
+            Ok(Box::new(consensus_state.clone()))
+        }
+
+        fn client_counter(&self) -> Result<u64, ContextError> {
+            Ok(self.client_counter)
+        }
+
+        fn connection_end(&self, conn_id: &ConnectionId) -> Result<ConnectionEnd, ContextError> {
+            self.connection_end_store
+                .get(Height::Pending, &path::ConnectionsPath(conn_id.clone()))
+                .ok_or(ConnectionError::Client(ClientError::ImplementationSpecific))
+                .map_err(ContextError::from)
+        }
+
+        fn validate_self_client(
+            &self,
+            _counterparty_client_state: Any,
+        ) -> Result<(), ConnectionError> {
+            Ok(())
+        }
+
+        fn commitment_prefix(&self) -> CommitmentPrefix {
+            use crate::prefix::Ibc as IbcPrefix;
+            CommitmentPrefix::try_from(IbcPrefix {}.identifier().as_bytes().to_vec())
+                .expect("empty prefix")
+        }
+
+        fn connection_counter(&self) -> Result<u64, ContextError> {
+            Ok(self.conn_counter)
+        }
+
+        fn get_compatible_versions(&self) -> Vec<ConnectionVersion> {
+            vec![ConnectionVersion::default()]
+        }
+
+        fn pick_version(
+            &self,
+            supported_versions: &[ConnectionVersion],
+            counterparty_candidate_versions: &[ConnectionVersion],
+        ) -> Result<ConnectionVersion, ContextError> {
+            pick_version(supported_versions, counterparty_candidate_versions)
+                .map_err(ContextError::ConnectionError)
+        }
+
+        fn channel_end(
+            &self,
+            port_channel_id: &(PortId, ChannelId),
+        ) -> Result<ChannelEnd, ContextError> {
+            self.channel_end_store
+                .get(
+                    Height::Pending,
+                    &path::ChannelEndsPath(port_channel_id.0.clone(), port_channel_id.1.clone()),
+                )
+                .ok_or(ChannelError::Connection(ConnectionError::Client(
+                    ClientError::ImplementationSpecific,
+                )))
+                .map_err(ContextError::ChannelError)
+        }
+
+        fn connection_channels(
+            &self,
+            cid: &ConnectionId,
+        ) -> Result<Vec<(PortId, ChannelId)>, ContextError> {
+            let path = "channelEnds".to_owned().try_into().unwrap(); // safety - path must be valid since ClientId is a valid Identifier
+            let keys = self.store.get_keys(&path);
+            let channels = keys
+                .into_iter()
+                .filter_map(|path| {
+                    if let Ok(IbcPath::ChannelEnds(path)) = path.try_into() {
+                        let channel_end = self.channel_end_store.get(Height::Pending, &path)?;
+                        if channel_end.connection_hops.first() == Some(cid) {
+                            return Some((path.0, path.1));
+                        }
+                    }
+
+                    None
+                })
+                .collect();
+            Ok(channels)
+        }
+
+        fn get_next_sequence_send(
+            &self,
+            port_channel_id: &(PortId, ChannelId),
+        ) -> Result<Sequence, ContextError> {
+            self.send_sequence_store
+                .get(
+                    Height::Pending,
+                    &path::SeqSendsPath(port_channel_id.0.clone(), port_channel_id.1.clone()),
+                )
+                .ok_or(PacketError::ImplementationSpecific)
+                .map_err(ContextError::PacketError)
+        }
+
+        fn get_next_sequence_recv(
+            &self,
+            port_channel_id: &(PortId, ChannelId),
+        ) -> Result<Sequence, ContextError> {
+            self.recv_sequence_store
+                .get(
+                    Height::Pending,
+                    &path::SeqRecvsPath(port_channel_id.0.clone(), port_channel_id.1.clone()),
+                )
+                .ok_or(PacketError::ImplementationSpecific)
+                .map_err(ContextError::PacketError)
+        }
+
+        fn get_next_sequence_ack(
+            &self,
+            port_channel_id: &(PortId, ChannelId),
+        ) -> Result<Sequence, ContextError> {
+            self.ack_sequence_store
+                .get(
+                    Height::Pending,
+                    &path::SeqAcksPath(port_channel_id.0.clone(), port_channel_id.1.clone()),
+                )
+                .ok_or(PacketError::ImplementationSpecific)
+                .map_err(ContextError::PacketError)
+        }
+
+        fn get_packet_commitment(
+            &self,
+            key: &(PortId, ChannelId, Sequence),
+        ) -> Result<PacketCommitment, ContextError> {
+            self.packet_commitment_store
+                .get(
+                    Height::Pending,
+                    &path::CommitmentsPath {
+                        port_id: key.0.clone(),
+                        channel_id: key.1.clone(),
+                        sequence: key.2,
+                    },
+                )
+                .ok_or(PacketError::ImplementationSpecific)
+                .map_err(ContextError::PacketError)
+        }
+
+        fn get_packet_receipt(
+            &self,
+            key: &(PortId, ChannelId, Sequence),
+        ) -> Result<Receipt, ContextError> {
+            self.packet_receipt_store
+                .is_path_set(
+                    Height::Pending,
+                    &path::ReceiptsPath {
+                        port_id: key.0.clone(),
+                        channel_id: key.1.clone(),
+                        sequence: key.2,
+                    },
+                )
+                .then_some(Receipt::Ok)
+                .ok_or(PacketError::PacketReceiptNotFound { sequence: key.2 })
+                .map_err(ContextError::PacketError)
+        }
+
+        fn get_packet_acknowledgement(
+            &self,
+            key: &(PortId, ChannelId, Sequence),
+        ) -> Result<AcknowledgementCommitment, ContextError> {
+            self.packet_ack_store
+                .get(
+                    Height::Pending,
+                    &path::AcksPath {
+                        port_id: key.0.clone(),
+                        channel_id: key.1.clone(),
+                        sequence: key.2,
+                    },
+                )
+                .ok_or(PacketError::PacketAcknowledgementNotFound { sequence: key.2 })
+                .map_err(ContextError::PacketError)
+        }
+
+        /// A hashing function for packet commitments
+        fn hash(&self, value: &[u8]) -> Vec<u8> {
+            sha2::Sha256::digest(value).to_vec()
+        }
+
+        /// Returns the time when the client state for the given [`ClientId`] was updated with a header for the given [`Height`]
+        fn client_update_time(
+            &self,
+            client_id: &ClientId,
+            height: &IbcHeight,
+        ) -> Result<Timestamp, ContextError> {
+            self.client_processed_times
+                .get(&(client_id.clone(), *height))
+                .cloned()
+                .ok_or(ChannelError::Connection(ConnectionError::Client(
+                    ClientError::ImplementationSpecific,
+                )))
+                .map_err(ContextError::ChannelError)
+        }
+
+        /// Returns the height when the client state for the given [`ClientId`] was updated with a header for the given [`Height`]
+        fn client_update_height(
+            &self,
+            client_id: &ClientId,
+            height: &IbcHeight,
+        ) -> Result<IbcHeight, ContextError> {
+            self.client_processed_heights
+                .get(&(client_id.clone(), *height))
+                .cloned()
+                .ok_or(ChannelError::Connection(ConnectionError::Client(
+                    ClientError::ImplementationSpecific,
+                )))
+                .map_err(ContextError::ChannelError)
+        }
+
+        /// Returns a counter on the number of channel ids have been created thus far.
+        /// The value of this counter should increase only via method
+        /// `ChannelKeeper::increase_channel_counter`.
+        fn channel_counter(&self) -> Result<u64, ContextError> {
+            Ok(self.channel_counter)
+        }
+
+        /// Returns the maximum expected time per block
+        fn max_expected_time_per_block(&self) -> Duration {
+            Duration::from_secs(8)
+        }
+
+        /// Calculates the block delay period using the connection's delay period and the maximum
+        /// expected time per block.
+        fn block_delay(&self, delay_period_time: &Duration) -> u64 {
+            calculate_block_delay(
+                delay_period_time,
+                &<Self as ValidationContext>::max_expected_time_per_block(self),
+            )
+        }
+    }
+
+    impl<S: Store> ExecutionContext for Ibc<S> {
+        /// Called upon successful client creation
+        fn store_client_type(
+            &mut self,
+            client_type_path: ClientTypePath,
+            client_type: ClientType,
+        ) -> Result<(), ContextError> {
+            self.client_type_store
+                .set(client_type_path, client_type)
+                .map(|_| ())
+                .map_err(|_| ClientError::ImplementationSpecific)
+                .map_err(ContextError::ClientError)
+        }
+
+        /// Called upon successful client creation and update
+        fn store_client_state(
+            &mut self,
+            client_state_path: ClientStatePath,
+            client_state: Box<dyn ClientState>,
+        ) -> Result<(), ContextError> {
+            let tm_client_state = client_state
+                .as_any()
+                .downcast_ref::<TmClientState>()
+                .ok_or(ClientError::ImplementationSpecific)?;
+            self.client_state_store
+                .set(client_state_path, tm_client_state.clone())
+                .map(|_| ())
+                .map_err(|_| ClientError::ImplementationSpecific)
+                .map_err(ContextError::ClientError)
+        }
+
+        /// Called upon successful client creation and update
+        fn store_consensus_state(
+            &mut self,
+            consensus_state_path: ClientConsensusStatePath,
+            consensus_state: Box<dyn ConsensusState>,
+        ) -> Result<(), ContextError> {
+            let tm_consensus_state = consensus_state
+                .as_any()
+                .downcast_ref::<TmConsensusState>()
+                .ok_or(ClientError::ImplementationSpecific)?;
+            self.consensus_state_store
+                .set(consensus_state_path, tm_consensus_state.clone())
+                .map_err(|_| ClientError::ImplementationSpecific)?;
+            tracing::info!("Stored consensus state: {:#?}", tm_consensus_state);
+            Ok(())
+        }
+
+        /// Called upon client creation.
+        /// Increases the counter which keeps track of how many clients have been created.
+        /// Should never fail.
+        fn increase_client_counter(&mut self) {
+            self.client_counter += 1;
+        }
+
+        /// Called upon successful client update.
+        /// Implementations are expected to use this to record the specified time as the time at which
+        /// this update (or header) was processed.
+        fn store_update_time(
+            &mut self,
+            client_id: ClientId,
+            height: IbcHeight,
+            timestamp: Timestamp,
+        ) -> Result<(), ContextError> {
+            self.client_processed_times
+                .insert((client_id, height), timestamp);
+            Ok(())
+        }
+
+        /// Called upon successful client update.
+        /// Implementations are expected to use this to record the specified height as the height at
+        /// at which this update (or header) was processed.
+        fn store_update_height(
+            &mut self,
+            client_id: ClientId,
+            height: IbcHeight,
+            host_height: IbcHeight,
+        ) -> Result<(), ContextError> {
+            self.client_processed_heights
+                .insert((client_id, height), host_height);
+            Ok(())
+        }
+
+        /// Stores the given connection_end at path
+        fn store_connection(
+            &mut self,
+            connections_path: ConnectionsPath,
+            connection_end: ConnectionEnd,
+        ) -> Result<(), ContextError> {
+            self.connection_end_store
+                .set(connections_path, connection_end)
+                .map_err(|_| ConnectionError::Client(ClientError::ImplementationSpecific))?;
+            Ok(())
+        }
+
+        /// Stores the given connection_id at a path associated with the client_id.
+        fn store_connection_to_client(
+            &mut self,
+            client_connections_path: ClientConnectionsPath,
+            conn_id: ConnectionId,
+        ) -> Result<(), ContextError> {
+            let mut conn_ids: Vec<ConnectionId> = self
+                .connection_ids_store
+                .get(Height::Pending, &client_connections_path)
+                .unwrap_or_default();
+            conn_ids.push(conn_id);
+            self.connection_ids_store
+                .set(client_connections_path, conn_ids)
+                .map_err(|_| ConnectionError::Client(ClientError::ImplementationSpecific))?;
+            Ok(())
+        }
+
+        /// Called upon connection identifier creation (Init or Try process).
+        /// Increases the counter which keeps track of how many connections have been created.
+        /// Should never fail.
+        fn increase_connection_counter(&mut self) {
+            self.conn_counter += 1;
+        }
+
+        fn store_packet_commitment(
+            &mut self,
+            commitments_path: CommitmentsPath,
+            commitment: PacketCommitment,
+        ) -> Result<(), ContextError> {
+            self.packet_commitment_store
+                .set(commitments_path, commitment)
+                .map_err(|_| PacketError::ImplementationSpecific)?;
+            Ok(())
+        }
+
+        fn delete_packet_commitment(&mut self, key: CommitmentsPath) -> Result<(), ContextError> {
+            self.packet_commitment_store
+                .set(key, vec![].into())
+                .map_err(|_| PacketError::ImplementationSpecific)?;
+            Ok(())
+        }
+
+        fn store_packet_receipt(
+            &mut self,
+            path: ReceiptsPath,
+            _receipt: Receipt,
+        ) -> Result<(), ContextError> {
+            self.packet_receipt_store
+                .set_path(path)
+                .map_err(|_| PacketError::ImplementationSpecific)?;
+            Ok(())
+        }
+
+        fn store_packet_acknowledgement(
+            &mut self,
+            key: (PortId, ChannelId, Sequence),
+            ack_commitment: AcknowledgementCommitment,
+        ) -> Result<(), ContextError> {
+            self.packet_ack_store
+                .set(
+                    path::AcksPath {
+                        port_id: key.0,
+                        channel_id: key.1,
+                        sequence: key.2,
+                    },
+                    ack_commitment,
+                )
+                .map_err(|_| PacketError::ImplementationSpecific)?;
+            Ok(())
+        }
+
+        fn delete_packet_acknowledgement(
+            &mut self,
+            key: (PortId, ChannelId, Sequence),
+        ) -> Result<(), ContextError> {
+            self.packet_ack_store
+                .set(
+                    path::AcksPath {
+                        port_id: key.0.clone(),
+                        channel_id: key.1.clone(),
+                        sequence: key.2,
+                    },
+                    vec![].into(),
+                )
+                .map_err(|_| PacketError::ImplementationSpecific)?;
+            Ok(())
+        }
+
+        fn store_connection_channels(
+            &mut self,
+            conn_id: ConnectionId,
+            port_channel_id: (PortId, ChannelId),
+        ) -> Result<(), ContextError> {
+            // FIXME(hu55a1n1): invalid path!
+            let path = format!(
+                "connections/{conn_id}/channels/{}-{}",
+                port_channel_id.0, port_channel_id.1
+            )
+            .try_into()
+            .unwrap(); // safety - path must be valid since ClientId is a valid Identifier
+            self.store
+                .set(path, Vec::default())
+                .map_err(|_| ClientError::ImplementationSpecific)?;
+            Ok(())
+        }
+
+        /// Stores the given channel_end at a path associated with the port_id and channel_id.
+        fn store_channel(
+            &mut self,
+            port_channel_id: (PortId, ChannelId),
+            channel_end: ChannelEnd,
+        ) -> Result<(), ContextError> {
+            self.channel_end_store
+                .set(
+                    path::ChannelEndsPath(port_channel_id.0, port_channel_id.1),
+                    channel_end,
+                )
+                .map_err(|_| ClientError::ImplementationSpecific)?;
+            Ok(())
+        }
+
+        fn store_next_sequence_send(
+            &mut self,
+            port_channel_id: (PortId, ChannelId),
+            seq: Sequence,
+        ) -> Result<(), ContextError> {
+            self.send_sequence_store
+                .set(
+                    path::SeqSendsPath(port_channel_id.0, port_channel_id.1),
+                    seq,
+                )
+                .map_err(|_| PacketError::ImplementationSpecific)?;
+            Ok(())
+        }
+
+        fn store_next_sequence_recv(
+            &mut self,
+            port_channel_id: (PortId, ChannelId),
+            seq: Sequence,
+        ) -> Result<(), ContextError> {
+            self.recv_sequence_store
+                .set(
+                    path::SeqRecvsPath(port_channel_id.0, port_channel_id.1),
+                    seq,
+                )
+                .map_err(|_| PacketError::ImplementationSpecific)?;
+            Ok(())
+        }
+
+        fn store_next_sequence_ack(
+            &mut self,
+            port_channel_id: (PortId, ChannelId),
+            seq: Sequence,
+        ) -> Result<(), ContextError> {
+            self.ack_sequence_store
+                .set(path::SeqAcksPath(port_channel_id.0, port_channel_id.1), seq)
+                .map_err(|_| PacketError::ImplementationSpecific)?;
+            Ok(())
+        }
+
+        fn increase_channel_counter(&mut self) {
+            self.channel_counter += 1;
+        }
+
+        fn emit_ibc_event(&mut self, event: IbcEvent) {
+            self.events.push(event);
+        }
+
+        fn log_message(&mut self, message: String) {
+            self.logs.push(message);
+        }
+    }
 }
