@@ -76,7 +76,7 @@ impl Display for Identifier {
     }
 }
 
-/// A newtype representing a valid ICS024 `Path`.
+/// A new type representing a valid ICS024 `Path`.
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Clone)]
 
 pub struct Path(Vec<Identifier>);
