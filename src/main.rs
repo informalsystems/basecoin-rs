@@ -2,10 +2,7 @@ mod app;
 
 use ibc::{
     applications::transfer::MODULE_ID_STR as IBC_TRANSFER_MODULE_ID,
-    core::{
-        ics24_host::identifier::PortId,
-        ics26_routing::context::{ModuleId, RouterBuilder},
-    },
+    core::{ics24_host::identifier::PortId, ics26_routing::context::ModuleId},
 };
 use ibc_proto::cosmos::{
     base::tendermint::v1beta1::service_server::ServiceServer as HealthServer,
@@ -18,9 +15,7 @@ use tonic::transport::Server;
 use tracing_subscriber::filter::LevelFilter;
 
 use crate::app::{
-    modules::{
-        prefix, Auth, Bank, Ibc, IbcRouterBuilder, IbcTransferModule, Identifiable, Module, Staking,
-    },
+    modules::{prefix, Auth, Bank, Ibc, IbcTransferModule, Identifiable, Module, Staking},
     store::InMemoryStore,
     Builder,
 };
@@ -86,13 +81,11 @@ fn main() {
 
         let transfer_module_id: ModuleId = IBC_TRANSFER_MODULE_ID.parse().unwrap();
         let module = IbcTransferModule::new(ibc.store().clone(), bank.bank_keeper().clone());
-        let router = IbcRouterBuilder::default()
-            .add_route(transfer_module_id.clone(), module)
-            .unwrap()
-            .build();
+        ibc.add_route(transfer_module_id.clone(), module).unwrap();
+
         ibc.scope_port_to_module(PortId::transfer(), transfer_module_id);
 
-        ibc.with_router(router)
+        ibc
     };
     let ibc_client_service = ibc.client_service();
     let ibc_conn_service = ibc.connection_service();

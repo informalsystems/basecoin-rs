@@ -3,10 +3,8 @@ use cosmrs::AccountId;
 use ibc::{
     applications::transfer::{
         context::{
-            cosmos_adr028_escrow_address, on_acknowledgement_packet, on_chan_close_confirm,
-            on_chan_close_init, on_chan_open_ack, on_chan_open_confirm, on_chan_open_init,
-            on_chan_open_try, on_recv_packet, on_timeout_packet, BankKeeper as IbcBankKeeper,
-            TokenTransferContext, TokenTransferKeeper, TokenTransferReader,
+            cosmos_adr028_escrow_address, TokenTransferExecutionContext,
+            TokenTransferValidationContext,
         },
         error::TokenTransferError,
         msgs::transfer::MsgTransfer,
@@ -31,11 +29,14 @@ use ibc::{
         ics04_channel::{
             channel::{ChannelEnd, Counterparty, IdentifiedChannelEnd, Order},
             commitment::{AcknowledgementCommitment, PacketCommitment},
-            context::{calculate_block_delay, SendPacketReader},
+            context::{
+                calculate_block_delay, SendPacketExecutionContext, SendPacketValidationContext,
+            },
             error::{ChannelError, PacketError},
             handler::ModuleExtras,
             msgs::acknowledgement::Acknowledgement,
             packet::{Packet, Receipt, Sequence},
+            timeout::TimeoutHeight,
             Version as ChannelVersion,
         },
         ics05_port::error::PortError,
@@ -50,13 +51,12 @@ use ibc::{
             Path as IbcPath, IBC_QUERY_PATH,
         },
         ics26_routing::{
-            context::{Module as IbcModule, ModuleId, ModuleOutputBuilder, Router, RouterBuilder},
+            context::{Module as IbcModule, ModuleId},
             msgs::MsgEnvelope,
         },
         ContextError,
     },
     events::IbcEvent,
-    handler::HandlerOutputBuilder,
     signer::Signer,
     timestamp::Timestamp,
     Height as IbcHeight,
@@ -278,8 +278,8 @@ impl<S: 'static + ProvableStore + Default> Ibc<S> {
         }
     }
 
-    pub fn with_router(self, router: IbcRouter) -> Self {
-        Self { router, ..self }
+    pub fn add_route(&mut self, module_id: ModuleId, module: impl IbcModule) -> Result<(), String> {
+        self.router.add_route(module_id, module)
     }
 
     pub fn scope_port_to_module(&mut self, port_id: PortId, module_id: ModuleId) {
@@ -341,16 +341,13 @@ impl<S: 'static + ProvableStore> Module for Ibc<S> {
                     .expect("Transfer Module <-> ModuleId mismatch")
             };
 
-            let mut output = HandlerOutputBuilder::new();
-            send_transfer(transfer_module, &mut output, transfer_msg).map_err(|e| {
-                ModuleError::Custom {
-                    reason: e.to_string(),
-                }
+            send_transfer(transfer_module, transfer_msg).map_err(|e| ModuleError::Custom {
+                reason: e.to_string(),
             })?;
 
-            Ok(output
-                .with_result(())
+            Ok(transfer_module
                 .events
+                .clone()
                 .into_iter()
                 .map(|ev| TmEvent(ev.try_into().unwrap()).into())
                 .collect())
@@ -1043,38 +1040,24 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
         todo!()
     }
 }
-
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 pub struct IbcRouter(BTreeMap<ModuleId, Arc<dyn IbcModule>>);
 
-impl Router for IbcRouter {
-    fn get_route_mut(&mut self, module_id: &impl Borrow<ModuleId>) -> Option<&mut dyn IbcModule> {
+impl IbcRouter {
+    pub fn get_route_mut(
+        &mut self,
+        module_id: &impl Borrow<ModuleId>,
+    ) -> Option<&mut dyn IbcModule> {
         self.0.get_mut(module_id.borrow()).and_then(Arc::get_mut)
     }
 
-    fn has_route(&self, module_id: &impl Borrow<ModuleId>) -> bool {
-        self.0.get(module_id.borrow()).is_some()
-    }
-}
-
-#[derive(Default)]
-pub struct IbcRouterBuilder(IbcRouter);
-
-impl RouterBuilder for IbcRouterBuilder {
-    type Router = IbcRouter;
-
-    fn add_route(mut self, module_id: ModuleId, module: impl IbcModule) -> Result<Self, String> {
-        match self.0 .0.insert(module_id, Arc::new(module)) {
-            None => Ok(self),
+    pub fn add_route(&mut self, module_id: ModuleId, module: impl IbcModule) -> Result<(), String> {
+        match self.0.insert(module_id, Arc::new(module)) {
+            None => Ok(()),
             Some(_) => Err("Duplicate module_id".to_owned()),
         }
     }
-
-    fn build(self) -> Self::Router {
-        self.0
-    }
 }
-
 #[derive(Clone, Debug)]
 pub struct IbcTransferModule<S, BK> {
     // store: SharedStore<S>,
@@ -1094,6 +1077,10 @@ pub struct IbcTransferModule<S, BK> {
     send_sequence_store: JsonStore<SharedStore<S>, SeqSendPath, Sequence>,
     /// A typed-store for packet commitments
     packet_commitment_store: BinStore<SharedStore<S>, CommitmentPath, PacketCommitment>,
+
+    pub events: Vec<IbcEvent>,
+
+    log: Vec<String>,
 }
 
 impl<S: 'static + Store, BK: 'static + Send + Sync + BankKeeper<Coin = Coin>>
@@ -1108,6 +1095,8 @@ impl<S: 'static + Store, BK: 'static + Send + Sync + BankKeeper<Coin = Coin>>
             channel_end_store: TypedStore::new(store.clone()),
             send_sequence_store: TypedStore::new(store.clone()),
             packet_commitment_store: TypedStore::new(store),
+            events: Vec::new(),
+            log: Vec::new(),
         }
     }
 }
@@ -1115,137 +1104,6 @@ impl<S: 'static + Store, BK: 'static + Send + Sync + BankKeeper<Coin = Coin>>
 impl<S: Store + Debug + 'static, BK: 'static + Send + Sync + Debug + BankKeeper<Coin = Coin>>
     IbcModule for IbcTransferModule<S, BK>
 {
-    fn on_chan_open_init(
-        &mut self,
-        order: Order,
-        connection_hops: &[ConnectionId],
-        port_id: &PortId,
-        channel_id: &ChannelId,
-        counterparty: &Counterparty,
-        version: &ChannelVersion,
-    ) -> Result<(ModuleExtras, ChannelVersion), ChannelError> {
-        on_chan_open_init(
-            self,
-            order,
-            connection_hops,
-            port_id,
-            channel_id,
-            counterparty,
-            version,
-        )
-        .map_err(|e: TokenTransferError| ChannelError::AppModule {
-            description: e.to_string(),
-        })
-    }
-
-    fn on_chan_open_try(
-        &mut self,
-        order: Order,
-        connection_hops: &[ConnectionId],
-        port_id: &PortId,
-        channel_id: &ChannelId,
-        counterparty: &Counterparty,
-        version: &ChannelVersion,
-    ) -> Result<(ModuleExtras, ChannelVersion), ChannelError> {
-        on_chan_open_try(
-            self,
-            order,
-            connection_hops,
-            port_id,
-            channel_id,
-            counterparty,
-            version,
-        )
-        .map_err(|e: TokenTransferError| ChannelError::AppModule {
-            description: e.to_string(),
-        })
-    }
-
-    fn on_chan_open_ack(
-        &mut self,
-        port_id: &PortId,
-        channel_id: &ChannelId,
-        counterparty_version: &ChannelVersion,
-    ) -> Result<ModuleExtras, ChannelError> {
-        on_chan_open_ack(self, port_id, channel_id, counterparty_version).map_err(
-            |e: TokenTransferError| ChannelError::AppModule {
-                description: e.to_string(),
-            },
-        )
-    }
-
-    fn on_chan_open_confirm(
-        &mut self,
-        port_id: &PortId,
-        channel_id: &ChannelId,
-    ) -> Result<ModuleExtras, ChannelError> {
-        on_chan_open_confirm(self, port_id, channel_id).map_err(|e: TokenTransferError| {
-            ChannelError::AppModule {
-                description: e.to_string(),
-            }
-        })
-    }
-
-    fn on_chan_close_init(
-        &mut self,
-        port_id: &PortId,
-        channel_id: &ChannelId,
-    ) -> Result<ModuleExtras, ChannelError> {
-        on_chan_close_init(self, port_id, channel_id).map_err(|e: TokenTransferError| {
-            ChannelError::AppModule {
-                description: e.to_string(),
-            }
-        })
-    }
-
-    fn on_chan_close_confirm(
-        &mut self,
-        port_id: &PortId,
-        channel_id: &ChannelId,
-    ) -> Result<ModuleExtras, ChannelError> {
-        on_chan_close_confirm(self, port_id, channel_id).map_err(|e: TokenTransferError| {
-            ChannelError::AppModule {
-                description: e.to_string(),
-            }
-        })
-    }
-
-    fn on_recv_packet(
-        &mut self,
-        output: &mut ModuleOutputBuilder,
-        packet: &Packet,
-        relayer: &Signer,
-    ) -> Acknowledgement {
-        on_recv_packet(self, output, packet, relayer)
-    }
-
-    fn on_acknowledgement_packet(
-        &mut self,
-        output: &mut ModuleOutputBuilder,
-        packet: &Packet,
-        acknowledgement: &Acknowledgement,
-        relayer: &Signer,
-    ) -> Result<(), PacketError> {
-        on_acknowledgement_packet(self, output, packet, acknowledgement, relayer).map_err(
-            |e: TokenTransferError| PacketError::AppModule {
-                description: e.to_string(),
-            },
-        )
-    }
-
-    fn on_timeout_packet(
-        &mut self,
-        output: &mut ModuleOutputBuilder,
-        packet: &Packet,
-        relayer: &Signer,
-    ) -> Result<(), PacketError> {
-        on_timeout_packet(self, output, packet, relayer).map_err(|e: TokenTransferError| {
-            PacketError::AppModule {
-                description: e.to_string(),
-            }
-        })
-    }
-
     #[allow(clippy::too_many_arguments)]
     fn on_chan_open_init_validate(
         &self,
@@ -1478,9 +1336,9 @@ impl<S: Store + Debug + 'static, BK: 'static + Send + Sync + Debug + BankKeeper<
     }
 }
 
-impl<S: Store, BK: BankKeeper<Coin = Coin>> IbcBankKeeper for IbcTransferModule<S, BK> {
-    type AccountId = Signer;
-
+impl<S: Store, BK: BankKeeper<Coin = Coin>> TokenTransferExecutionContext
+    for IbcTransferModule<S, BK>
+{
     fn send_coins(
         &mut self,
         from: &Self::AccountId,
@@ -1538,7 +1396,7 @@ impl<S: Store, BK: BankKeeper<Coin = Coin>> IbcBankKeeper for IbcTransferModule<
     }
 }
 
-impl<S: Store, BK> TokenTransferReader for IbcTransferModule<S, BK> {
+impl<S: Store, BK> TokenTransferValidationContext for IbcTransferModule<S, BK> {
     type AccountId = Signer;
 
     fn get_port(&self) -> Result<PortId, TokenTransferError> {
@@ -1570,7 +1428,7 @@ impl<S: Store, BK> TokenTransferReader for IbcTransferModule<S, BK> {
     }
 }
 
-impl<S: Store, BK> SendPacketReader for IbcTransferModule<S, BK> {
+impl<S: Store, BK> SendPacketValidationContext for IbcTransferModule<S, BK> {
     fn channel_end(&self, channel_end_path: &ChannelEndPath) -> Result<ChannelEnd, ContextError> {
         self.channel_end_store
             .get(Height::Pending, channel_end_path)
@@ -1631,39 +1489,60 @@ impl<S: Store, BK> SendPacketReader for IbcTransferModule<S, BK> {
     fn hash(&self, value: &[u8]) -> Vec<u8> {
         sha2::Sha256::digest(value).to_vec()
     }
+
+    fn compute_packet_commitment(
+        &self,
+        packet_data: &[u8],
+        timeout_height: &TimeoutHeight,
+        timeout_timestamp: &Timestamp,
+    ) -> PacketCommitment {
+        // copy/pasted for now; see https://github.com/cosmos/ibc-rs/issues/470
+        let mut hash_input = timeout_timestamp.nanoseconds().to_be_bytes().to_vec();
+
+        let revision_number = timeout_height.commitment_revision_number().to_be_bytes();
+        hash_input.append(&mut revision_number.to_vec());
+
+        let revision_height = timeout_height.commitment_revision_height().to_be_bytes();
+        hash_input.append(&mut revision_height.to_vec());
+
+        let packet_data_hash = self.hash(packet_data);
+        hash_input.append(&mut packet_data_hash.to_vec());
+
+        self.hash(&hash_input).into()
+    }
 }
 
-impl<S: Store, BK: BankKeeper<Coin = Coin>> TokenTransferContext for IbcTransferModule<S, BK> {
-    type AccountId = Signer;
-}
-
-impl<S: Store, BK: BankKeeper<Coin = Coin>> TokenTransferKeeper for IbcTransferModule<S, BK> {
+impl<S: Store, BK: BankKeeper<Coin = Coin>> SendPacketExecutionContext
+    for IbcTransferModule<S, BK>
+{
     fn store_packet_commitment(
         &mut self,
-        port_id: PortId,
-        channel_id: ChannelId,
-        sequence: Sequence,
+        commitment_path: &CommitmentPath,
         commitment: PacketCommitment,
     ) -> Result<(), ContextError> {
         self.packet_commitment_store
-            .set(
-                CommitmentPath::new(&port_id, &channel_id, sequence),
-                commitment,
-            )
+            .set(commitment_path.clone(), commitment)
             .map_err(|_| PacketError::ImplementationSpecific)?;
         Ok(())
     }
 
     fn store_next_sequence_send(
         &mut self,
-        port_id: PortId,
-        channel_id: ChannelId,
+        seq_send_path: &SeqSendPath,
         seq: Sequence,
     ) -> Result<(), ContextError> {
         self.send_sequence_store
-            .set(SeqSendPath::new(&port_id, &channel_id), seq)
+            .set(seq_send_path.clone(), seq)
             .map_err(|_| PacketError::ImplementationSpecific)?;
         Ok(())
+    }
+
+    fn emit_ibc_event(&mut self, event: IbcEvent) {
+        self.events.push(event)
+    }
+
+    fn log_message(&mut self, message: String) {
+        self.log.push(message)
     }
 }
 
