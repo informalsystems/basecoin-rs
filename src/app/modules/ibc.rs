@@ -278,7 +278,11 @@ impl<S: 'static + ProvableStore + Default> Ibc<S> {
         }
     }
 
-    pub fn add_route(&mut self, module_id: ModuleId, module: impl IbcModule) -> Result<(), String> {
+    pub fn add_route(
+        &mut self,
+        module_id: ModuleId,
+        module: impl IbcModuleWrapper,
+    ) -> Result<(), String> {
         self.router.add_route(module_id, module)
     }
 
@@ -1040,18 +1044,37 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
         todo!()
     }
 }
+
+pub trait IbcModuleWrapper: IbcModule + Send + Sync {
+    fn as_ibc_module(&self) -> &dyn IbcModule;
+    fn as_ibc_module_mut(&mut self) -> &mut dyn IbcModule;
+}
+
 #[derive(Clone, Default, Debug)]
-pub struct IbcRouter(BTreeMap<ModuleId, Arc<dyn IbcModule>>);
+pub struct IbcRouter(BTreeMap<ModuleId, Arc<dyn IbcModuleWrapper>>);
 
 impl IbcRouter {
+    pub fn get_route(&self, module_id: &impl Borrow<ModuleId>) -> Option<&dyn IbcModule> {
+        self.0
+            .get(module_id.borrow())
+            .map(|mod_wrapper| mod_wrapper.as_ibc_module())
+    }
+
     pub fn get_route_mut(
         &mut self,
         module_id: &impl Borrow<ModuleId>,
     ) -> Option<&mut dyn IbcModule> {
-        self.0.get_mut(module_id.borrow()).and_then(Arc::get_mut)
+        self.0
+            .get_mut(module_id.borrow())
+            .and_then(Arc::get_mut)
+            .map(|mod_wrapper| mod_wrapper.as_ibc_module_mut())
     }
 
-    pub fn add_route(&mut self, module_id: ModuleId, module: impl IbcModule) -> Result<(), String> {
+    pub fn add_route(
+        &mut self,
+        module_id: ModuleId,
+        module: impl IbcModuleWrapper,
+    ) -> Result<(), String> {
         match self.0.insert(module_id, Arc::new(module)) {
             None => Ok(()),
             Some(_) => Err("Duplicate module_id".to_owned()),
@@ -1336,6 +1359,18 @@ impl<S: Store + Debug + 'static, BK: 'static + Send + Sync + Debug + BankKeeper<
     }
 }
 
+impl<S: Store + Debug + 'static, BK: BankKeeper<Coin = Coin> + Send + Sync + Debug + 'static>
+    IbcModuleWrapper for IbcTransferModule<S, BK>
+{
+    fn as_ibc_module(&self) -> &dyn IbcModule {
+        self
+    }
+
+    fn as_ibc_module_mut(&mut self) -> &mut dyn IbcModule {
+        self
+    }
+}
+
 impl<S: Store, BK: BankKeeper<Coin = Coin>> TokenTransferExecutionContext
     for IbcTransferModule<S, BK>
 {
@@ -1548,11 +1583,11 @@ impl<S: Store, BK: BankKeeper<Coin = Coin>> SendPacketExecutionContext
 
 impl<S: Store> ContextRouter for Ibc<S> {
     fn get_route(&self, module_id: &ModuleId) -> Option<&dyn IbcModule> {
-        self.router.0.get(module_id).map(Arc::as_ref)
+        self.router.get_route(module_id)
     }
 
     fn get_route_mut(&mut self, module_id: &ModuleId) -> Option<&mut dyn IbcModule> {
-        self.router.0.get_mut(module_id).and_then(Arc::get_mut)
+        self.router.get_route_mut(module_id)
     }
 
     fn has_route(&self, module_id: &ModuleId) -> bool {
