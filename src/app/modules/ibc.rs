@@ -1743,7 +1743,7 @@ impl<S: Store> ValidationContext for Ibc<S> {
             .map_err(ContextError::from)
     }
 
-    fn validate_self_client(&self, _counterparty_client_state: Any) -> Result<(), ConnectionError> {
+    fn validate_self_client(&self, _counterparty_client_state: Any) -> Result<(), ContextError> {
         Ok(())
     }
 
@@ -1780,28 +1780,6 @@ impl<S: Store> ValidationContext for Ibc<S> {
                 ClientError::ImplementationSpecific,
             )))
             .map_err(ContextError::ChannelError)
-    }
-
-    fn connection_channels(
-        &self,
-        cid: &ConnectionId,
-    ) -> Result<Vec<(PortId, ChannelId)>, ContextError> {
-        let path = "channelEnds".to_owned().try_into().unwrap(); // safety - path must be valid since ClientId is a valid Identifier
-        let keys = self.store.get_keys(&path);
-        let channels = keys
-            .into_iter()
-            .filter_map(|path| {
-                if let Ok(IbcPath::ChannelEnd(path)) = path.try_into() {
-                    let channel_end = self.channel_end_store.get(Height::Pending, &path)?;
-                    if channel_end.connection_hops.first() == Some(cid) {
-                        return Some((path.0, path.1));
-                    }
-                }
-
-                None
-            })
-            .collect();
-        Ok(channels)
     }
 
     fn get_next_sequence_send(

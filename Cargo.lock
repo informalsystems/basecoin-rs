@@ -879,7 +879,7 @@ dependencies = [
 [[package]]
 name = "ibc"
 version = "0.30.0"
-source = "git+https://github.com/cosmos/ibc-rs?branch=plafer/480-module-send-sync#cc0d4813bf57aa20f6a916b54b83273e2c8919b1"
+source = "git+https://github.com/cosmos/ibc-rs?rev=e0442a6#e0442a6939667bb1e2e98da4d248040a534c1bff"
 dependencies = [
  "bytes",
  "derive_more",
