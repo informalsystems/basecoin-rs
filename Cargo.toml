@@ -41,3 +41,4 @@ proptest = "*"
 rand = "*"
 
 [patch.crates-io]
+ibc = { git = "https://github.com/cosmos/ibc-rs", branch = "plafer/480-module-send-sync"}

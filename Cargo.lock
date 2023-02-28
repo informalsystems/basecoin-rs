@@ -879,8 +879,7 @@ dependencies = [
 [[package]]
 name = "ibc"
 version = "0.30.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e22ea60bb7c7060a90717f20f1418ece925a237225b042d8d6336a89ac69bf94"
+source = "git+https://github.com/cosmos/ibc-rs?branch=plafer/480-module-send-sync#cc0d4813bf57aa20f6a916b54b83273e2c8919b1"
 dependencies = [
  "bytes",
  "derive_more",
