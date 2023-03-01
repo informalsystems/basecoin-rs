@@ -1,43 +1,12 @@
-mod auth;
-mod bank;
-mod ibc;
-mod staking;
-
-pub(crate) use self::{
-    auth::{Auth, ACCOUNT_PREFIX},
-    bank::Bank,
-    ibc::{Ibc, IbcTransferModule},
-    staking::Staking,
-};
-use crate::app::store::{self, Height, Path, SharedStore};
-use ::ibc::core::ContextError;
+use crate::error::Error;
+use crate::helper::{Height, Identifier as StoreIdentifier, Path, QueryResult};
+use crate::store::impls::SharedStore;
 use cosmrs::AccountId;
-use displaydoc::Display;
 use ibc_proto::google::protobuf::Any;
 use tendermint::block::Header;
-use tendermint_proto::{abci::Event, crypto::ProofOp};
+use tendermint_proto::abci::Event;
 
-#[derive(Debug, Display)]
-pub enum Error {
-    /// no module could handle specified message
-    NotHandled,
-    /// custom error: `{reason}`
-    Custom { reason: String },
-    /// store error
-    Store(store::Error),
-    /// bank module error
-    Bank(bank::Error),
-    /// IBC module error
-    Ibc(ibc::Error),
-}
-
-impl From<ContextError> for Error {
-    fn from(error: ContextError) -> Self {
-        Self::Ibc(error.into())
-    }
-}
-
-pub(crate) trait Module: Send + Sync {
+pub trait Module: Send + Sync {
     /// The module's store type.
     type Store;
 
@@ -97,32 +66,27 @@ pub(crate) trait Module: Send + Sync {
     fn store(&self) -> &SharedStore<Self::Store>;
 }
 
-pub(crate) struct QueryResult {
-    pub(crate) data: Vec<u8>,
-    pub(crate) proof: Option<Vec<ProofOp>>,
-}
-
 /// Trait for identifying modules
 /// This is used to get `Module` prefixes that are used for creating prefixed key-space proxy-stores
-pub(crate) trait Identifiable {
-    type Identifier: Into<store::Identifier>;
+pub trait Identifiable {
+    type Identifier: Into<StoreIdentifier>;
 
     /// Return an identifier
     fn identifier(&self) -> Self::Identifier;
 }
 
-pub(crate) mod prefix {
+pub mod prefix {
     use core::convert::TryInto;
 
     use super::Identifiable;
-    use crate::app::store;
+    use crate::helper::Identifier as StoreIdentifier;
 
     /// Bank module prefix
     #[derive(Clone)]
-    pub(crate) struct Bank;
+    pub struct Bank;
 
     impl Identifiable for Bank {
-        type Identifier = store::Identifier;
+        type Identifier = StoreIdentifier;
 
         fn identifier(&self) -> Self::Identifier {
             "bank".to_owned().try_into().unwrap()
@@ -131,10 +95,10 @@ pub(crate) mod prefix {
 
     /// Ibc module prefix
     #[derive(Clone)]
-    pub(crate) struct Ibc;
+    pub struct Ibc;
 
     impl Identifiable for Ibc {
-        type Identifier = store::Identifier;
+        type Identifier = StoreIdentifier;
 
         fn identifier(&self) -> Self::Identifier {
             "ibc".to_owned().try_into().unwrap()
@@ -143,10 +107,10 @@ pub(crate) mod prefix {
 
     /// Auth module prefix
     #[derive(Clone)]
-    pub(crate) struct Auth;
+    pub struct Auth;
 
     impl Identifiable for Auth {
-        type Identifier = store::Identifier;
+        type Identifier = StoreIdentifier;
 
         fn identifier(&self) -> Self::Identifier {
             "auth".to_owned().try_into().unwrap()
@@ -155,10 +119,10 @@ pub(crate) mod prefix {
 
     /// Staking module prefix
     #[derive(Clone)]
-    pub(crate) struct Staking;
+    pub struct Staking;
 
     impl Identifiable for Staking {
-        type Identifier = store::Identifier;
+        type Identifier = StoreIdentifier;
 
         fn identifier(&self) -> Self::Identifier {
             "staking".to_owned().try_into().unwrap()

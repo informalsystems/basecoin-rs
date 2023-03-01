@@ -1,4 +1,7 @@
-mod app;
+//! Main entry point for Cli
+
+#![deny(warnings, missing_docs, trivial_casts, unused_qualifications)]
+#![forbid(unsafe_code)]
 
 use ibc::{
     applications::transfer::MODULE_ID_STR as IBC_TRANSFER_MODULE_ID,
@@ -10,43 +13,16 @@ use ibc_proto::cosmos::{
 };
 use structopt::StructOpt;
 use tendermint_abci::ServerBuilder;
+use tendermint_basecoin::{
+    app::Builder,
+    cli::option::Opt,
+    modules::{prefix, Identifiable, Module},
+    modules::{Auth, Bank, Ibc, IbcTransferModule, Staking},
+    store::memory::InMemoryStore,
+};
 use tokio::runtime::Runtime;
 use tonic::transport::Server;
 use tracing_subscriber::filter::LevelFilter;
-
-use crate::app::{
-    modules::{prefix, Auth, Bank, Ibc, IbcTransferModule, Identifiable, Module, Staking},
-    store::InMemoryStore,
-    Builder,
-};
-
-#[derive(Debug, StructOpt)]
-struct Opt {
-    /// Bind the TCP server to this host.
-    #[structopt(short, long, default_value = "127.0.0.1")]
-    host: String,
-
-    /// Bind the TCP server to this port.
-    #[structopt(short, long, default_value = "26358")]
-    port: u16,
-
-    /// Bind the gRPC server to this port.
-    #[structopt(short, long, default_value = "9093")]
-    grpc_port: u16,
-
-    /// The default server read buffer size, in bytes, for each incoming client
-    /// connection.
-    #[structopt(short, long, default_value = "1048576")]
-    read_buf_size: usize,
-
-    /// Increase output logging verbosity to DEBUG level.
-    #[structopt(short, long)]
-    verbose: bool,
-
-    /// Suppress all output logging (overrides --verbose).
-    #[structopt(short, long)]
-    quiet: bool,
-}
 
 fn main() {
     let opt: Opt = Opt::from_args();
@@ -65,15 +41,11 @@ fn main() {
 
     // instantiate modules and setup inter-module communication (if required)
     let auth = Auth::new(app_builder.module_store(&prefix::Auth {}.identifier()));
-    let auth_service = auth.service();
-
     let bank = Bank::new(
         app_builder.module_store(&prefix::Bank {}.identifier()),
         auth.account_reader().clone(),
         auth.account_keeper().clone(),
     );
-    let bank_service = bank.service();
-
     let staking = Staking::new(app_builder.module_store(&prefix::Staking {}.identifier()));
 
     let ibc = {
@@ -87,6 +59,11 @@ fn main() {
 
         ibc
     };
+
+    // instantiate gRPC services for each module
+    let auth_service = auth.service();
+    let bank_service = bank.service();
+    let staking_service = staking.service();
     let ibc_client_service = ibc.client_service();
     let ibc_conn_service = ibc.connection_service();
     let ibc_channel_service = ibc.channel_service();
@@ -115,7 +92,7 @@ fn main() {
         .add_service(ibc_channel_service)
         .add_service(auth_service)
         .add_service(bank_service)
-        .add_service(staking.service())
+        .add_service(staking_service)
         .serve(format!("{}:{}", opt.host, opt.grpc_port).parse().unwrap());
     Runtime::new()
         .unwrap()
