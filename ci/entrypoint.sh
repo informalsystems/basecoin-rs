@@ -37,7 +37,7 @@ cargo build --release --bin hermes --target-dir "${HERMES_BUILD}/"
 cd "${BASECOIN_SRC}"
 echo ""
 echo "Building basecoin-rs..."
-cargo build --all-features --target-dir "${BASECOIN_BUILD}"
+cargo build --bin basecoin --all-features --target-dir "${BASECOIN_BUILD}"
 
 echo ""
 echo "Setting up chain ibc-0..."
