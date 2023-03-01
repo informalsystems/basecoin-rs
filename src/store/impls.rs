@@ -12,11 +12,11 @@ use tracing::trace;
 pub struct SharedStore<S>(Arc<RwLock<S>>);
 
 impl<S> SharedStore<S> {
-    pub(crate) fn new(store: S) -> Self {
+    pub fn new(store: S) -> Self {
         Self(Arc::new(RwLock::new(store)))
     }
 
-    pub(crate) fn share(&self) -> Self {
+    pub fn share(&self) -> Self {
         Self(self.0.clone())
     }
 }
@@ -125,7 +125,7 @@ impl<S> RevertibleStore<S>
 where
     S: Store,
 {
-    pub(crate) fn new(store: S) -> Self {
+    pub fn new(store: S) -> Self {
         Self {
             store,
             op_log: vec![],

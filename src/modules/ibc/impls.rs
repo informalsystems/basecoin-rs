@@ -507,7 +507,7 @@ impl<S: Store> ValidationContext for Ibc<S> {
     }
 
     fn commitment_prefix(&self) -> CommitmentPrefix {
-        use crate::modules::traits::prefix::Ibc as IbcPrefix;
+        use crate::modules::module::prefix::Ibc as IbcPrefix;
         CommitmentPrefix::try_from(IbcPrefix {}.identifier().as_bytes().to_vec())
             .expect("empty prefix")
     }

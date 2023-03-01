@@ -9,7 +9,7 @@ use super::context::Account;
 
 /// Address of the account that the relayer uses to sign basecoin transactions.
 /// This is hardcoded as we don't verify signatures currently.
-pub(super) const RELAYER_ACCOUNT: &str = "cosmos12xpmzmfpf7tn57xg93rne2hc2q26lcfql5efws";
+pub const RELAYER_ACCOUNT: &str = "cosmos12xpmzmfpf7tn57xg93rne2hc2q26lcfql5efws";
 pub const ACCOUNT_PREFIX: &str = "cosmos";
 
 #[derive(Clone)]

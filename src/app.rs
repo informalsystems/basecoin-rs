@@ -40,7 +40,6 @@ use tendermint_proto::{
 use tonic::{Request, Response, Status};
 use tracing::{debug, error, info};
 
-use super::modules::Module;
 use crate::{
     error::Error,
     helper::macros::ResponseFromErrorExt,
@@ -48,6 +47,7 @@ use crate::{
     modules::{
         auth::account::ACCOUNT_PREFIX,
         types::{IdentifiedModule, ModuleList, ModuleStore},
+        Module,
     },
     store::{MainStore, ProvableStore, RevertibleStore, SharedRw, SharedStore, Store},
 };

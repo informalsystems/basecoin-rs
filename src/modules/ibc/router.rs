@@ -8,7 +8,7 @@ pub trait IbcModuleWrapper: Module + Send + Sync {
 }
 
 #[derive(Clone, Default, Debug)]
-pub struct IbcRouter(pub(crate) BTreeMap<ModuleId, Arc<dyn IbcModuleWrapper>>);
+pub struct IbcRouter(pub BTreeMap<ModuleId, Arc<dyn IbcModuleWrapper>>);
 
 impl IbcRouter {
     pub fn get_route(&self, module_id: &impl Borrow<ModuleId>) -> Option<&dyn Module> {

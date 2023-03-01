@@ -13,7 +13,7 @@ pub trait Codec {
 
 /// A JSON codec that uses `serde_json` to encode/decode as a JSON string
 #[derive(Clone, Debug)]
-pub(crate) struct JsonCodec<T>(PhantomData<T>);
+pub struct JsonCodec<T>(PhantomData<T>);
 
 impl<T> Codec for JsonCodec<T>
 where
@@ -35,7 +35,7 @@ where
 /// A Null codec that can be used for paths that are only meant to be set/reset and do not hold any
 /// typed value.
 #[derive(Clone)]
-pub(crate) struct NullCodec;
+pub struct NullCodec;
 
 impl Codec for NullCodec {
     type Type = ();
@@ -53,7 +53,7 @@ impl Codec for NullCodec {
 
 /// A Protobuf codec that uses `prost` to encode/decode
 #[derive(Clone, Debug)]
-pub(crate) struct ProtobufCodec<T, R> {
+pub struct ProtobufCodec<T, R> {
     domain_type: PhantomData<T>,
     raw_type: PhantomData<R>,
 }
@@ -79,7 +79,7 @@ where
 
 /// A binary codec that uses `AsRef<[u8]>` and `From<Vec<u8>>` to encode and decode respectively.
 #[derive(Clone, Debug)]
-pub(crate) struct BinCodec<T>(PhantomData<T>);
+pub struct BinCodec<T>(PhantomData<T>);
 
 impl<T> Codec for BinCodec<T>
 where
