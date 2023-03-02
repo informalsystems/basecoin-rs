@@ -2,7 +2,4 @@
 /.idea/
 /.vscode/
 /proptest_regressions/
-
 .DS_Store
-
-Cargo.lock
