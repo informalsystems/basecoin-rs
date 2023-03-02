@@ -2,18 +2,16 @@ use ics23::CommitmentProof;
 use tendermint::{hash::Algorithm, Hash};
 use tracing::trace;
 
-use crate::app::store::{
-    avl::{AsBytes, AvlTree, ByteSlice},
-    Height, Path, ProvableStore, Store,
+use super::State;
+use crate::helper::{Height, Path};
+use crate::store::{
+    avl::{AsBytes, AvlTree},
+    context::{ProvableStore, Store},
 };
-
-// A state type that represents a snapshot of the store at every block.
-// The value is a `Vec<u8>` to allow stored types to choose their own serde.
-type State = AvlTree<Path, Vec<u8>>;
 
 /// An in-memory store backed by an AvlTree.
 #[derive(Clone, Debug)]
-pub(crate) struct InMemoryStore {
+pub struct InMemoryStore {
     /// collection of states corresponding to every committed block height
     store: Vec<State>,
     /// pending block state
@@ -110,12 +108,6 @@ impl ProvableStore for InMemoryStore {
             height
         );
         self.get_state(height).and_then(|v| v.get_proof(key))
-    }
-}
-
-impl AsBytes for Path {
-    fn as_bytes(&self) -> ByteSlice<'_> {
-        ByteSlice::Vector(self.to_string().into_bytes())
     }
 }
 

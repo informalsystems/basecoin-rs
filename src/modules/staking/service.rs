@@ -2,14 +2,14 @@ use std::marker::PhantomData;
 
 use ibc_proto::{
     cosmos::staking::v1beta1::{
-        query_server::{Query, QueryServer},
-        Params, QueryDelegationRequest, QueryDelegationResponse, QueryDelegatorDelegationsRequest,
-        QueryDelegatorDelegationsResponse, QueryDelegatorUnbondingDelegationsRequest,
-        QueryDelegatorUnbondingDelegationsResponse, QueryDelegatorValidatorRequest,
-        QueryDelegatorValidatorResponse, QueryDelegatorValidatorsRequest,
-        QueryDelegatorValidatorsResponse, QueryHistoricalInfoRequest, QueryHistoricalInfoResponse,
-        QueryParamsRequest, QueryParamsResponse, QueryPoolRequest, QueryPoolResponse,
-        QueryRedelegationsRequest, QueryRedelegationsResponse, QueryUnbondingDelegationRequest,
+        query_server::Query, Params, QueryDelegationRequest, QueryDelegationResponse,
+        QueryDelegatorDelegationsRequest, QueryDelegatorDelegationsResponse,
+        QueryDelegatorUnbondingDelegationsRequest, QueryDelegatorUnbondingDelegationsResponse,
+        QueryDelegatorValidatorRequest, QueryDelegatorValidatorResponse,
+        QueryDelegatorValidatorsRequest, QueryDelegatorValidatorsResponse,
+        QueryHistoricalInfoRequest, QueryHistoricalInfoResponse, QueryParamsRequest,
+        QueryParamsResponse, QueryPoolRequest, QueryPoolResponse, QueryRedelegationsRequest,
+        QueryRedelegationsResponse, QueryUnbondingDelegationRequest,
         QueryUnbondingDelegationResponse, QueryValidatorDelegationsRequest,
         QueryValidatorDelegationsResponse, QueryValidatorRequest, QueryValidatorResponse,
         QueryValidatorUnbondingDelegationsRequest, QueryValidatorUnbondingDelegationsResponse,
@@ -17,24 +17,13 @@ use ibc_proto::{
     },
     google::protobuf::Duration,
 };
+
 use tonic::{Request, Response, Status};
 use tracing::debug;
 
-use crate::app::store::{ProvableStore, SharedStore};
+use crate::store::ProvableStore;
 
-pub struct Staking<S>(PhantomData<S>);
-
-impl<S: 'static + ProvableStore> Staking<S> {
-    pub fn new(_store: SharedStore<S>) -> Self {
-        Self(PhantomData)
-    }
-
-    pub fn service(&self) -> QueryServer<StakingService<S>> {
-        QueryServer::new(StakingService(PhantomData))
-    }
-}
-
-pub struct StakingService<S>(PhantomData<S>);
+pub struct StakingService<S>(pub PhantomData<S>);
 
 #[tonic::async_trait]
 impl<S: ProvableStore + 'static> Query for StakingService<S> {

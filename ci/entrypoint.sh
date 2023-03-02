@@ -6,7 +6,7 @@ BASECOIN_SRC=${BASECOIN_SRC:-/src/basecoin-rs}
 BUILD_ROOT="${HOME}/build"
 HERMES_BUILD="${BUILD_ROOT}/hermes"
 BASECOIN_BUILD="${BUILD_ROOT}/basecoin-rs"
-BASECOIN_BIN="${BASECOIN_BUILD}/debug/tendermint-basecoin"
+BASECOIN_BIN="${BASECOIN_BUILD}/debug/basecoin"
 HERMES_BIN="${HERMES_BUILD}/release/hermes"
 HERMES_REPO=https://github.com/informalsystems/hermes.git
 HERMES_COMMITISH=${HERMES_COMMITISH:-master}
@@ -37,7 +37,7 @@ cargo build --release --bin hermes --target-dir "${HERMES_BUILD}/"
 cd "${BASECOIN_SRC}"
 echo ""
 echo "Building basecoin-rs..."
-cargo build --all-features --target-dir "${BASECOIN_BUILD}"
+cargo build --bin basecoin --all-features --target-dir "${BASECOIN_BUILD}"
 
 echo ""
 echo "Setting up chain ibc-0..."

@@ -1,9 +1,3 @@
-//! The basecoin ABCI application.
-
-pub(crate) mod modules;
-mod response;
-pub(crate) mod store;
-
 use std::{
     convert::TryInto,
     sync::{Arc, RwLock},
@@ -46,41 +40,27 @@ use tendermint_proto::{
 use tonic::{Request, Response, Status};
 use tracing::{debug, error, info};
 
-use crate::app::{
-    modules::{Error, Module, ACCOUNT_PREFIX},
-    response::ResponseFromErrorExt,
-    store::{Height, Identifier, Path, ProvableStore, RevertibleStore, SharedStore, Store},
+use crate::{
+    error::Error,
+    helper::macros::ResponseFromErrorExt,
+    helper::{Height, Identifier, Path},
+    modules::{
+        auth::account::ACCOUNT_PREFIX,
+        types::{IdentifiedModule, ModuleList, ModuleStore},
+        Module,
+    },
+    store::{MainStore, ProvableStore, RevertibleStore, SharedRw, SharedStore, Store},
 };
+pub(crate) const CHAIN_REVISION_NUMBER: u64 = 0;
 
-const CHAIN_REVISION_NUMBER: u64 = 0;
-
-type MainStore<S> = SharedStore<RevertibleStore<S>>;
-type ModuleStore<S> = RevertibleStore<S>;
-type ModuleList<S> = Vec<IdentifiedModule<S>>;
-type SharedRw<T> = Arc<RwLock<T>>;
-
-struct IdentifiedModule<S> {
-    id: Identifier,
-    module: Box<dyn Module<Store = ModuleStore<S>>>,
-}
-
-/// BaseCoin ABCI application.
-///
-/// Can be safely cloned and sent across threads, but not shared.
-#[derive(Clone)]
-pub(crate) struct BaseCoinApp<S> {
-    store: MainStore<S>,
-    modules: SharedRw<ModuleList<S>>,
-}
-
-pub(crate) struct Builder<S> {
+pub struct Builder<S> {
     store: MainStore<S>,
     modules: SharedRw<ModuleList<S>>,
 }
 
 impl<S: Default + ProvableStore + 'static> Builder<S> {
     /// Constructor.
-    pub(crate) fn new(store: S) -> Self {
+    pub fn new(store: S) -> Self {
         Self {
             store: SharedStore::new(RevertibleStore::new(store)),
             modules: Arc::new(RwLock::new(vec![])),
@@ -89,7 +69,7 @@ impl<S: Default + ProvableStore + 'static> Builder<S> {
 
     /// Returns a share to the module's store if a module with specified identifier was previously
     /// added, otherwise creates a new module store and returns it.
-    pub(crate) fn module_store(&self, prefix: &Identifier) -> SharedStore<ModuleStore<S>> {
+    pub fn module_store(&self, prefix: &Identifier) -> SharedStore<ModuleStore<S>> {
         let modules = self.modules.read().unwrap();
         modules
             .iter()
@@ -104,7 +84,7 @@ impl<S: Default + ProvableStore + 'static> Builder<S> {
     }
 
     /// Adds a new module. Panics if a module with the specified identifier was previously added.
-    pub(crate) fn add_module(
+    pub fn add_module(
         self,
         prefix: Identifier,
         module: impl Module<Store = ModuleStore<S>> + 'static,
@@ -117,12 +97,21 @@ impl<S: Default + ProvableStore + 'static> Builder<S> {
         self
     }
 
-    pub(crate) fn build(self) -> BaseCoinApp<S> {
+    pub fn build(self) -> BaseCoinApp<S> {
         BaseCoinApp {
             store: self.store,
             modules: self.modules,
         }
     }
+}
+
+/// BaseCoin ABCI application.
+///
+/// Can be safely cloned and sent across threads, but not shared.
+#[derive(Clone)]
+pub struct BaseCoinApp<S> {
+    store: MainStore<S>,
+    modules: SharedRw<ModuleList<S>>,
 }
 
 impl<S: Default + ProvableStore> BaseCoinApp<S> {

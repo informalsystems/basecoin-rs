@@ -13,7 +13,7 @@ use ics23::{
 };
 use tendermint::hash::Hash;
 
-use crate::app::store::avl::{
+use crate::store::avl::{
     node::{as_node_ref, NodeRef},
     proof, AsBytes,
 };
