@@ -352,14 +352,20 @@ impl<S: Store + Debug + 'static, BK: 'static + Send + Sync + Debug + BankKeeper<
     }
 }
 
-impl<S: Store + Debug + 'static, BK: BankKeeper<Coin = Coin> + Send + Sync + Debug + 'static>
-    IbcModuleWrapper for IbcTransferModule<S, BK>
+impl<S, BK> IbcModuleWrapper for IbcTransferModule<S, BK>
+where
+    S: Store + Debug + 'static,
+    BK: BankKeeper<Coin = Coin> + Send + Sync + Debug + 'static,
 {
-    fn as_ibc_module(&self) -> &dyn IbcModule {
+    fn as_ibc_module(&self) -> &(dyn IbcModule + 'static) {
         self
     }
 
-    fn as_ibc_module_mut(&mut self) -> &mut dyn IbcModule {
+    fn as_ibc_module_mut(&mut self) -> &mut (dyn IbcModule + 'static) {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
 }

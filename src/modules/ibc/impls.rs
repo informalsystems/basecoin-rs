@@ -340,13 +340,17 @@ impl From<TmEvent> for Event {
     }
 }
 
-impl<S: Store> ContextRouter for Ibc<S> {
-    fn get_route(&self, module_id: &ModuleId) -> Option<&dyn IbcModule> {
-        self.router.get_route(module_id)
+impl<S: Store> ContextRouter<'static> for Ibc<S> {
+    fn get_route(&self, module_id: &ModuleId) -> Option<&(dyn IbcModule + 'static)> {
+        self.router
+            .get_route(module_id)
+            .map(IbcModuleWrapper::as_ibc_module)
     }
 
-    fn get_route_mut(&mut self, module_id: &ModuleId) -> Option<&mut dyn IbcModule> {
-        self.router.get_route_mut(module_id)
+    fn get_route_mut(&mut self, module_id: &ModuleId) -> Option<&mut (dyn IbcModule + 'static)> {
+        self.router
+            .get_route_mut(module_id)
+            .map(IbcModuleWrapper::as_ibc_module_mut)
     }
 
     fn has_route(&self, module_id: &ModuleId) -> bool {
@@ -364,7 +368,7 @@ impl<S: Store> ContextRouter for Ibc<S> {
     }
 }
 
-impl<S: Store> ValidationContext for Ibc<S> {
+impl<S: Store> ValidationContext<'static> for Ibc<S> {
     fn client_state(&self, client_id: &ClientId) -> Result<Box<dyn ClientState>, ContextError> {
         self.client_state_store
             .get(Height::Pending, &ClientStatePath(client_id.clone()))
@@ -683,7 +687,7 @@ impl<S: Store> ValidationContext for Ibc<S> {
     }
 }
 
-impl<S: Store> ExecutionContext for Ibc<S> {
+impl<S: Store> ExecutionContext<'static> for Ibc<S> {
     /// Called upon successful client creation
     fn store_client_type(
         &mut self,
