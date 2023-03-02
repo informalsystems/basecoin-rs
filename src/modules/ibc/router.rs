@@ -14,7 +14,10 @@ pub trait IbcModuleWrapper: Debug + Send + Sync + Module + Any {
 pub struct IbcRouter(pub BTreeMap<ModuleId, Arc<dyn IbcModuleWrapper + 'static>>);
 
 impl IbcRouter {
-    pub fn get_route(&self, module_id: &impl Borrow<ModuleId>) -> Option<&(dyn IbcModuleWrapper + 'static)> {
+    pub fn get_route(
+        &self,
+        module_id: &impl Borrow<ModuleId>,
+    ) -> Option<&(dyn IbcModuleWrapper + 'static)> {
         self.0.get(module_id.borrow()).map(Arc::as_ref)
     }
 
