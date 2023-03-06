@@ -69,7 +69,6 @@ use ibc_proto::{
     },
 };
 use prost::Message;
-use sha2::Digest;
 use std::{
     collections::{BTreeMap, HashMap},
     convert::{TryFrom, TryInto},
@@ -624,11 +623,6 @@ impl<S: Store> ValidationContext for Ibc<S> {
                 sequence: ack_path.sequence,
             })
             .map_err(ContextError::PacketError)
-    }
-
-    /// A hashing function for packet commitments
-    fn hash(&self, value: &[u8]) -> Vec<u8> {
-        sha2::Sha256::digest(value).to_vec()
     }
 
     /// Returns the time when the client state for the given [`ClientId`] was updated with a header for the given [`Height`]

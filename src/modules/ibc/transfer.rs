@@ -39,7 +39,6 @@ use ibc::{
             handler::ModuleExtras,
             msgs::acknowledgement::Acknowledgement,
             packet::{Packet, Sequence},
-            timeout::TimeoutHeight,
             Version as ChannelVersion,
         },
         ics24_host::{
@@ -54,7 +53,6 @@ use ibc::{
     },
     events::IbcEvent,
     signer::Signer,
-    timestamp::Timestamp,
     Height as IbcHeight,
 };
 use ibc_proto::{
@@ -63,7 +61,6 @@ use ibc_proto::{
         channel::v1::Channel as RawChannelEnd, connection::v1::ConnectionEnd as RawConnectionEnd,
     },
 };
-use sha2::Digest;
 
 use ibc::applications::transfer::context::{
     on_acknowledgement_packet_validate, on_chan_open_ack_validate, on_chan_open_confirm_validate,
@@ -512,31 +509,6 @@ impl<S: Store, BK> SendPacketValidationContext for IbcTransferModule<S, BK> {
                 port_id: seq_send_path.0.clone(),
                 channel_id: seq_send_path.1.clone(),
             }))
-    }
-
-    fn hash(&self, value: &[u8]) -> Vec<u8> {
-        sha2::Sha256::digest(value).to_vec()
-    }
-
-    fn compute_packet_commitment(
-        &self,
-        packet_data: &[u8],
-        timeout_height: &TimeoutHeight,
-        timeout_timestamp: &Timestamp,
-    ) -> PacketCommitment {
-        // copy/pasted for now; see https://github.com/cosmos/ibc-rs/issues/470
-        let mut hash_input = timeout_timestamp.nanoseconds().to_be_bytes().to_vec();
-
-        let revision_number = timeout_height.commitment_revision_number().to_be_bytes();
-        hash_input.append(&mut revision_number.to_vec());
-
-        let revision_height = timeout_height.commitment_revision_height().to_be_bytes();
-        hash_input.append(&mut revision_height.to_vec());
-
-        let packet_data_hash = self.hash(packet_data);
-        hash_input.append(&mut packet_data_hash.to_vec());
-
-        self.hash(&hash_input).into()
     }
 }
 
