@@ -1,5 +1,5 @@
 use super::{
-    router::{IbcModuleWrapper, IbcRouter},
+    router::IbcRouter,
     service::{IbcChannelService, IbcClientService, IbcConnectionService},
 };
 use crate::{
@@ -168,11 +168,7 @@ impl<S: 'static + ProvableStore + Default> Ibc<S> {
         }
     }
 
-    pub fn add_route(
-        &mut self,
-        module_id: ModuleId,
-        module: impl IbcModuleWrapper,
-    ) -> Result<(), String> {
+    pub fn add_route(&mut self, module_id: ModuleId, module: impl IbcModule) -> Result<(), String> {
         self.router.add_route(module_id, module)
     }
 
@@ -205,7 +201,11 @@ impl<S: ProvableStore> Ibc<S> {
     }
 }
 
-impl<S: 'static + ProvableStore> Module for Ibc<S> {
+impl<S> Module for Ibc<S>
+where
+    S: 'static + ProvableStore,
+    Self: Send + Sync
+{
     type Store = S;
 
     fn deliver(&mut self, message: Any, _signer: &AccountId) -> Result<Vec<Event>, AppError> {

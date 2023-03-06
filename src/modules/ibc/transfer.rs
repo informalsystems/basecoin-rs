@@ -69,7 +69,6 @@ use ibc::applications::transfer::context::{
     on_timeout_packet_validate,
 };
 
-use super::router::IbcModuleWrapper;
 
 #[derive(Clone, Debug)]
 pub struct IbcTransferModule<S, BK> {
@@ -346,18 +345,6 @@ impl<S: Store + Debug + 'static, BK: 'static + Send + Sync + Debug + BankKeeper<
                     description: e.to_string(),
                 }),
         )
-    }
-}
-
-impl<S: Store + Debug + 'static, BK: BankKeeper<Coin = Coin> + Send + Sync + Debug + 'static>
-    IbcModuleWrapper for IbcTransferModule<S, BK>
-{
-    fn as_ibc_module(&self) -> &dyn IbcModule {
-        self
-    }
-
-    fn as_ibc_module_mut(&mut self) -> &mut dyn IbcModule {
-        self
     }
 }
 
