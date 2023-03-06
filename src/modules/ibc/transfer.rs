@@ -122,7 +122,7 @@ impl<S, BK> IbcModule for IbcTransferModule<S, BK>
 where
     S: Store + Debug + 'static,
     BK: 'static + Send + Sync + Debug + BankKeeper<Coin = Coin>,
-    Self: Send + Sync
+    Self: Send + Sync,
 {
     #[allow(clippy::too_many_arguments)]
     fn on_chan_open_init_validate(
