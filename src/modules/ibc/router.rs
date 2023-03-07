@@ -38,7 +38,7 @@ where
     }
 
     pub fn get_route(&self, module_id: &ModuleId) -> Option<&dyn IbcModule> {
-        if <ModuleId as Borrow<str>>::borrow(&module_id) == IBC_TRANSFER_MODULE_ID {
+        if <ModuleId as Borrow<str>>::borrow(module_id) == IBC_TRANSFER_MODULE_ID {
             Some(Arc::as_ref(&self.transfer) as &dyn IbcModule)
         } else {
             None
@@ -46,7 +46,7 @@ where
     }
 
     pub fn get_route_mut(&mut self, module_id: &ModuleId) -> Option<&mut dyn IbcModule> {
-        if <ModuleId as Borrow<str>>::borrow(&module_id) == IBC_TRANSFER_MODULE_ID {
+        if <ModuleId as Borrow<str>>::borrow(module_id) == IBC_TRANSFER_MODULE_ID {
             match Arc::get_mut(&mut self.transfer) {
                 Some(m) => Some(m),
                 None => None,
