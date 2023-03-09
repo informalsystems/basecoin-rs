@@ -225,7 +225,7 @@ where
             dispatch(self, msg)?;
             let events = self
                 .events
-                .clone()
+                .drain(..)
                 .into_iter()
                 .map(|ev| TmEvent(ev.try_into().unwrap()).into())
                 .collect();
