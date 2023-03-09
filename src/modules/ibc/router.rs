@@ -1,37 +1,58 @@
-use std::{borrow::Borrow, collections::BTreeMap, sync::Arc};
+use std::{borrow::Borrow, fmt::Debug, sync::Arc};
 
-use ibc::core::ics26_routing::context::{Module, ModuleId};
+use ibc::{
+    applications::transfer::MODULE_ID_STR as IBC_TRANSFER_MODULE_ID,
+    core::ics26_routing::context::{Module as IbcModule, ModuleId},
+};
 
-pub trait IbcModuleWrapper: Module + Send + Sync {
-    fn as_ibc_module(&self) -> &dyn Module;
-    fn as_ibc_module_mut(&mut self) -> &mut dyn Module;
+use crate::{
+    modules::{bank::impls::BankBalanceKeeper, IbcTransferModule},
+    store::Store,
+};
+
+#[derive(Clone, Debug)]
+pub struct IbcRouter<S>
+where
+    S: Store + Send + Sync + Debug,
+{
+    transfer: Arc<IbcTransferModule<S, BankBalanceKeeper<S>>>,
 }
 
-#[derive(Clone, Default, Debug)]
-pub struct IbcRouter(pub BTreeMap<ModuleId, Arc<dyn IbcModuleWrapper>>);
-
-impl IbcRouter {
-    pub fn get_route(&self, module_id: &impl Borrow<ModuleId>) -> Option<&dyn Module> {
-        self.0
-            .get(module_id.borrow())
-            .map(|mod_wrapper| mod_wrapper.as_ibc_module())
+impl<S> IbcRouter<S>
+where
+    S: 'static + Store + Send + Sync + Debug,
+{
+    pub fn new(transfer: IbcTransferModule<S, BankBalanceKeeper<S>>) -> Self {
+        IbcRouter {
+            transfer: Arc::new(transfer),
+        }
     }
 
-    pub fn get_route_mut(&mut self, module_id: &impl Borrow<ModuleId>) -> Option<&mut dyn Module> {
-        self.0
-            .get_mut(module_id.borrow())
-            .and_then(Arc::get_mut)
-            .map(|mod_wrapper| mod_wrapper.as_ibc_module_mut())
-    }
-
-    pub fn add_route(
+    pub fn get_transfer_module_mut(
         &mut self,
-        module_id: ModuleId,
-        module: impl IbcModuleWrapper,
-    ) -> Result<(), String> {
-        match self.0.insert(module_id, Arc::new(module)) {
-            None => Ok(()),
-            Some(_) => Err("Duplicate module_id".to_owned()),
+    ) -> Option<&mut IbcTransferModule<S, BankBalanceKeeper<S>>> {
+        match Arc::get_mut(&mut self.transfer) {
+            Some(m) => Some(m),
+            None => None,
+        }
+    }
+
+    pub fn get_route(&self, module_id: &ModuleId) -> Option<&dyn IbcModule> {
+        if <ModuleId as Borrow<str>>::borrow(module_id) == IBC_TRANSFER_MODULE_ID {
+            Some(Arc::as_ref(&self.transfer) as &dyn IbcModule)
+        } else {
+            None
+        }
+    }
+
+    pub fn get_route_mut(&mut self, module_id: &ModuleId) -> Option<&mut dyn IbcModule> {
+        if <ModuleId as Borrow<str>>::borrow(module_id) == IBC_TRANSFER_MODULE_ID {
+            match Arc::get_mut(&mut self.transfer) {
+                Some(m) => Some(m),
+                None => None,
+            }
+        } else {
+            None
         }
     }
 }

@@ -3,10 +3,6 @@
 #![deny(warnings, missing_docs, trivial_casts, unused_qualifications)]
 #![forbid(unsafe_code)]
 
-use ibc::{
-    applications::transfer::MODULE_ID_STR as IBC_TRANSFER_MODULE_ID,
-    core::{ics24_host::identifier::PortId, ics26_routing::context::ModuleId},
-};
 use ibc_proto::cosmos::{
     base::tendermint::v1beta1::service_server::ServiceServer as HealthServer,
     tx::v1beta1::service_server::ServiceServer as TxServer,
@@ -16,8 +12,8 @@ use tendermint_abci::ServerBuilder;
 use tendermint_basecoin::{
     app::Builder,
     cli::option::Opt,
-    modules::{prefix, Identifiable, Module},
-    modules::{Auth, Bank, Ibc, IbcTransferModule, Staking},
+    modules::{prefix, Identifiable},
+    modules::{Auth, Bank, Ibc, Staking},
     store::memory::InMemoryStore,
 };
 use tokio::runtime::Runtime;
@@ -48,17 +44,10 @@ fn main() {
     );
     let staking = Staking::new(app_builder.module_store(&prefix::Staking {}.identifier()));
 
-    let ibc = {
-        let mut ibc = Ibc::new(app_builder.module_store(&prefix::Ibc {}.identifier()));
-
-        let transfer_module_id: ModuleId = IBC_TRANSFER_MODULE_ID.parse().unwrap();
-        let module = IbcTransferModule::new(ibc.store().clone(), bank.bank_keeper().clone());
-        ibc.add_route(transfer_module_id.clone(), module).unwrap();
-
-        ibc.scope_port_to_module(PortId::transfer(), transfer_module_id);
-
-        ibc
-    };
+    let ibc = Ibc::new(
+        app_builder.module_store(&prefix::Ibc {}.identifier()),
+        bank.bank_keeper().clone(),
+    );
 
     // instantiate gRPC services for each module
     let auth_service = auth.service();

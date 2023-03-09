@@ -1,5 +1,5 @@
 use super::{
-    router::{IbcModuleWrapper, IbcRouter},
+    router::IbcRouter,
     service::{IbcChannelService, IbcClientService, IbcConnectionService},
 };
 use crate::{
@@ -69,10 +69,10 @@ use ibc_proto::{
     },
 };
 use prost::Message;
-use sha2::Digest;
 use std::{
     collections::{BTreeMap, HashMap},
     convert::{TryFrom, TryInto},
+    fmt::Debug,
     time::Duration,
 };
 use tendermint::{abci::Event as TendermintEvent, block::Header};
@@ -88,14 +88,17 @@ use ibc::core::handler::dispatch;
 /// Implements all ibc-rs `Reader`s and `Keeper`s
 /// Also implements gRPC endpoints required by `hermes`
 #[derive(Clone)]
-pub struct Ibc<S> {
+pub struct Ibc<S>
+where
+    S: Store + Send + Sync + Debug,
+{
     /// Handle to store instance.
     /// The module is guaranteed exclusive access to all paths in the store key-space.
     store: SharedStore<S>,
     /// Mapping of which IBC modules own which port
     port_to_module_map: BTreeMap<PortId, ModuleId>,
     /// ICS26 router impl
-    router: IbcRouter,
+    router: IbcRouter<S>,
     /// Counter for clients
     client_counter: u64,
     /// Counter for connections
@@ -140,11 +143,22 @@ pub struct Ibc<S> {
     logs: Vec<String>,
 }
 
-impl<S: 'static + ProvableStore + Default> Ibc<S> {
-    pub fn new(store: SharedStore<S>) -> Self {
+impl<S> Ibc<S>
+where
+    S: 'static + ProvableStore + Default + Debug,
+{
+    pub fn new(store: SharedStore<S>, bank_keeper: BankBalanceKeeper<S>) -> Self {
+        let mut port_to_module_map = BTreeMap::default();
+
+        let transfer_module_id: ModuleId = IBC_TRANSFER_MODULE_ID.parse().unwrap();
+        let transfer_module = IbcTransferModule::new(store.clone(), bank_keeper);
+
+        let router = IbcRouter::new(transfer_module);
+        port_to_module_map.insert(PortId::transfer(), transfer_module_id);
+
         Self {
-            port_to_module_map: Default::default(),
-            router: Default::default(),
+            port_to_module_map,
+            router,
             client_counter: 0,
             conn_counter: 0,
             channel_counter: 0,
@@ -169,18 +183,6 @@ impl<S: 'static + ProvableStore + Default> Ibc<S> {
         }
     }
 
-    pub fn add_route(
-        &mut self,
-        module_id: ModuleId,
-        module: impl IbcModuleWrapper,
-    ) -> Result<(), String> {
-        self.router.add_route(module_id, module)
-    }
-
-    pub fn scope_port_to_module(&mut self, port_id: PortId, module_id: ModuleId) {
-        self.port_to_module_map.insert(port_id, module_id);
-    }
-
     pub fn client_service(&self) -> ClientQueryServer<IbcClientService<S>> {
         ClientQueryServer::new(IbcClientService::new(self.store.clone()))
     }
@@ -194,7 +196,10 @@ impl<S: 'static + ProvableStore + Default> Ibc<S> {
     }
 }
 
-impl<S: ProvableStore> Ibc<S> {
+impl<S> Ibc<S>
+where
+    S: ProvableStore + Debug,
+{
     fn get_proof(&self, height: Height, path: &Path) -> Option<Vec<u8>> {
         if let Some(p) = self.store.get_proof(height, path) {
             let mut buffer = Vec::new();
@@ -206,7 +211,11 @@ impl<S: ProvableStore> Ibc<S> {
     }
 }
 
-impl<S: 'static + ProvableStore> Module for Ibc<S> {
+impl<S> Module for Ibc<S>
+where
+    S: 'static + ProvableStore + Debug,
+    Self: Send + Sync,
+{
     type Store = S;
 
     fn deliver(&mut self, message: Any, _signer: &AccountId) -> Result<Vec<Event>, AppError> {
@@ -224,17 +233,10 @@ impl<S: 'static + ProvableStore> Module for Ibc<S> {
         } else if let Ok(transfer_msg) = MsgTransfer::try_from(message) {
             debug!("Dispatching message: {:?}", transfer_msg);
 
-            let transfer_module_id: ModuleId = IBC_TRANSFER_MODULE_ID.parse().unwrap();
-            let transfer_module = {
-                let transfer_module = self
-                    .router
-                    .get_route_mut(&transfer_module_id)
-                    .ok_or(AppError::NotHandled)?;
-                transfer_module
-                    .as_any_mut()
-                    .downcast_mut::<IbcTransferModule<S, BankBalanceKeeper<S>>>()
-                    .expect("Transfer Module <-> ModuleId mismatch")
-            };
+            let transfer_module = self
+                .router
+                .get_transfer_module_mut()
+                .expect("Failed to get the transfer module");
 
             send_transfer(transfer_module, transfer_msg).map_err(|e| AppError::Custom {
                 reason: e.to_string(),
@@ -340,7 +342,10 @@ impl From<TmEvent> for Event {
     }
 }
 
-impl<S: Store> ContextRouter for Ibc<S> {
+impl<S> ContextRouter for Ibc<S>
+where
+    S: 'static + Store + Send + Sync + Debug,
+{
     fn get_route(&self, module_id: &ModuleId) -> Option<&dyn IbcModule> {
         self.router.get_route(module_id)
     }
@@ -350,7 +355,7 @@ impl<S: Store> ContextRouter for Ibc<S> {
     }
 
     fn has_route(&self, module_id: &ModuleId) -> bool {
-        self.router.0.get(module_id).is_some()
+        self.get_route(module_id).is_some()
     }
 
     fn lookup_module_by_port(&self, port_id: &PortId) -> Option<ModuleId> {
@@ -364,7 +369,10 @@ impl<S: Store> ContextRouter for Ibc<S> {
     }
 }
 
-impl<S: Store> ValidationContext for Ibc<S> {
+impl<S> ValidationContext for Ibc<S>
+where
+    S: 'static + Store + Send + Sync + Debug,
+{
     fn client_state(&self, client_id: &ClientId) -> Result<Box<dyn ClientState>, ContextError> {
         self.client_state_store
             .get(Height::Pending, &ClientStatePath(client_id.clone()))
@@ -626,11 +634,6 @@ impl<S: Store> ValidationContext for Ibc<S> {
             .map_err(ContextError::PacketError)
     }
 
-    /// A hashing function for packet commitments
-    fn hash(&self, value: &[u8]) -> Vec<u8> {
-        sha2::Sha256::digest(value).to_vec()
-    }
-
     /// Returns the time when the client state for the given [`ClientId`] was updated with a header for the given [`Height`]
     fn client_update_time(
         &self,
@@ -683,7 +686,10 @@ impl<S: Store> ValidationContext for Ibc<S> {
     }
 }
 
-impl<S: Store> ExecutionContext for Ibc<S> {
+impl<S> ExecutionContext for Ibc<S>
+where
+    S: 'static + Store + Send + Sync + Debug,
+{
     /// Called upon successful client creation
     fn store_client_type(
         &mut self,

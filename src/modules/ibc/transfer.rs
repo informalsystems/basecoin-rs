@@ -39,7 +39,6 @@ use ibc::{
             handler::ModuleExtras,
             msgs::acknowledgement::Acknowledgement,
             packet::{Packet, Sequence},
-            timeout::TimeoutHeight,
             Version as ChannelVersion,
         },
         ics24_host::{
@@ -54,7 +53,6 @@ use ibc::{
     },
     events::IbcEvent,
     signer::Signer,
-    timestamp::Timestamp,
     Height as IbcHeight,
 };
 use ibc_proto::{
@@ -63,7 +61,6 @@ use ibc_proto::{
         channel::v1::Channel as RawChannelEnd, connection::v1::ConnectionEnd as RawConnectionEnd,
     },
 };
-use sha2::Digest;
 
 use ibc::applications::transfer::context::{
     on_acknowledgement_packet_validate, on_chan_open_ack_validate, on_chan_open_confirm_validate,
@@ -72,10 +69,12 @@ use ibc::applications::transfer::context::{
     on_timeout_packet_validate,
 };
 
-use super::router::IbcModuleWrapper;
-
 #[derive(Clone, Debug)]
-pub struct IbcTransferModule<S, BK> {
+pub struct IbcTransferModule<S, BK>
+where
+    S: Send + Sync,
+    BK: Send + Sync,
+{
     // store: SharedStore<S>,
     /// A bank keeper to enable sending, minting and burning of tokens
     bank_keeper: BK,
@@ -99,8 +98,10 @@ pub struct IbcTransferModule<S, BK> {
     log: Vec<String>,
 }
 
-impl<S: 'static + Store, BK: 'static + Send + Sync + BankKeeper<Coin = Coin>>
-    IbcTransferModule<S, BK>
+impl<S, BK> IbcTransferModule<S, BK>
+where
+    S: 'static + Store,
+    BK: 'static + Send + Sync + BankKeeper<Coin = Coin>,
 {
     pub fn new(store: SharedStore<S>, bank_keeper: BK) -> Self {
         Self {
@@ -117,8 +118,11 @@ impl<S: 'static + Store, BK: 'static + Send + Sync + BankKeeper<Coin = Coin>>
     }
 }
 
-impl<S: Store + Debug + 'static, BK: 'static + Send + Sync + Debug + BankKeeper<Coin = Coin>>
-    IbcModule for IbcTransferModule<S, BK>
+impl<S, BK> IbcModule for IbcTransferModule<S, BK>
+where
+    S: Store + Debug + 'static,
+    BK: 'static + Send + Sync + Debug + BankKeeper<Coin = Coin>,
+    Self: Send + Sync,
 {
     #[allow(clippy::too_many_arguments)]
     fn on_chan_open_init_validate(
@@ -352,20 +356,10 @@ impl<S: Store + Debug + 'static, BK: 'static + Send + Sync + Debug + BankKeeper<
     }
 }
 
-impl<S: Store + Debug + 'static, BK: BankKeeper<Coin = Coin> + Send + Sync + Debug + 'static>
-    IbcModuleWrapper for IbcTransferModule<S, BK>
-{
-    fn as_ibc_module(&self) -> &dyn IbcModule {
-        self
-    }
-
-    fn as_ibc_module_mut(&mut self) -> &mut dyn IbcModule {
-        self
-    }
-}
-
-impl<S: Store, BK: BankKeeper<Coin = Coin>> TokenTransferExecutionContext
-    for IbcTransferModule<S, BK>
+impl<S, BK> TokenTransferExecutionContext for IbcTransferModule<S, BK>
+where
+    S: Store + Send + Sync,
+    BK: BankKeeper<Coin = Coin> + Send + Sync,
 {
     fn send_coins(
         &mut self,
@@ -424,7 +418,11 @@ impl<S: Store, BK: BankKeeper<Coin = Coin>> TokenTransferExecutionContext
     }
 }
 
-impl<S: Store, BK> TokenTransferValidationContext for IbcTransferModule<S, BK> {
+impl<S, BK> TokenTransferValidationContext for IbcTransferModule<S, BK>
+where
+    S: Store + Send + Sync,
+    BK: Send + Sync,
+{
     type AccountId = Signer;
 
     fn get_port(&self) -> Result<PortId, TokenTransferError> {
@@ -456,7 +454,11 @@ impl<S: Store, BK> TokenTransferValidationContext for IbcTransferModule<S, BK> {
     }
 }
 
-impl<S: Store, BK> SendPacketValidationContext for IbcTransferModule<S, BK> {
+impl<S, BK> SendPacketValidationContext for IbcTransferModule<S, BK>
+where
+    S: Store + Send + Sync,
+    BK: Send + Sync,
+{
     fn channel_end(&self, channel_end_path: &ChannelEndPath) -> Result<ChannelEnd, ContextError> {
         self.channel_end_store
             .get(Height::Pending, channel_end_path)
@@ -513,35 +515,12 @@ impl<S: Store, BK> SendPacketValidationContext for IbcTransferModule<S, BK> {
                 channel_id: seq_send_path.1.clone(),
             }))
     }
-
-    fn hash(&self, value: &[u8]) -> Vec<u8> {
-        sha2::Sha256::digest(value).to_vec()
-    }
-
-    fn compute_packet_commitment(
-        &self,
-        packet_data: &[u8],
-        timeout_height: &TimeoutHeight,
-        timeout_timestamp: &Timestamp,
-    ) -> PacketCommitment {
-        // copy/pasted for now; see https://github.com/cosmos/ibc-rs/issues/470
-        let mut hash_input = timeout_timestamp.nanoseconds().to_be_bytes().to_vec();
-
-        let revision_number = timeout_height.commitment_revision_number().to_be_bytes();
-        hash_input.append(&mut revision_number.to_vec());
-
-        let revision_height = timeout_height.commitment_revision_height().to_be_bytes();
-        hash_input.append(&mut revision_height.to_vec());
-
-        let packet_data_hash = self.hash(packet_data);
-        hash_input.append(&mut packet_data_hash.to_vec());
-
-        self.hash(&hash_input).into()
-    }
 }
 
-impl<S: Store, BK: BankKeeper<Coin = Coin>> SendPacketExecutionContext
-    for IbcTransferModule<S, BK>
+impl<S, BK> SendPacketExecutionContext for IbcTransferModule<S, BK>
+where
+    S: Store + Send + Sync,
+    BK: BankKeeper<Coin = Coin> + Send + Sync,
 {
     fn store_packet_commitment(
         &mut self,
