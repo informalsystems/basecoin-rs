@@ -333,8 +333,8 @@ impl From<TmEvent> for Event {
                 .attributes
                 .into_iter()
                 .map(|attr| EventAttribute {
-                    key: attr.key,
-                    value: attr.value,
+                    key: attr.key.into(),
+                    value: attr.value.into(),
                     index: true,
                 })
                 .collect(),
