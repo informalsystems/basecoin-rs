@@ -225,7 +225,7 @@ where
             dispatch(self, msg)?;
             let events = self
                 .events
-                .drain(..)
+                .clone()
                 .into_iter()
                 .map(|ev| TmEvent(ev.try_into().unwrap()).into())
                 .collect();
@@ -333,8 +333,8 @@ impl From<TmEvent> for Event {
                 .attributes
                 .into_iter()
                 .map(|attr| EventAttribute {
-                    key: attr.key.into(),
-                    value: attr.value.into(),
+                    key: attr.key,
+                    value: attr.value,
                     index: true,
                 })
                 .collect(),
