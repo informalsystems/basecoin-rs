@@ -361,7 +361,7 @@ where
     S: Store + Send + Sync,
     BK: BankKeeper<Coin = Coin> + Send + Sync,
 {
-    fn send_coins(
+    fn send_coins_execute(
         &mut self,
         from: &Self::AccountId,
         to: &Self::AccountId,
@@ -383,7 +383,7 @@ where
         Ok(())
     }
 
-    fn mint_coins(
+    fn mint_coins_execute(
         &mut self,
         account: &Self::AccountId,
         amt: &PrefixedCoin,
@@ -400,7 +400,7 @@ where
         Ok(())
     }
 
-    fn burn_coins(
+    fn burn_coins_execute(
         &mut self,
         account: &Self::AccountId,
         amt: &PrefixedCoin,
@@ -421,7 +421,7 @@ where
 impl<S, BK> TokenTransferValidationContext for IbcTransferModule<S, BK>
 where
     S: Store + Send + Sync,
-    BK: Send + Sync,
+    BK: BankKeeper<Coin = Coin> + Send + Sync,
 {
     type AccountId = Signer;
 
@@ -451,6 +451,53 @@ where
 
     fn is_receive_enabled(&self) -> bool {
         true
+    }
+
+    fn send_coins_validate(
+        &self,
+        from_account: &Self::AccountId,
+        to_account: &Self::AccountId,
+        _coin: &PrefixedCoin,
+    ) -> Result<(), TokenTransferError> {
+        let _from: <BK as BankKeeper>::Address = from_account
+            .to_string()
+            .parse()
+            .map_err(|_| TokenTransferError::ParseAccountFailure)?;
+        let _to: <BK as BankKeeper>::Address = to_account
+            .to_string()
+            .parse()
+            .map_err(|_| TokenTransferError::ParseAccountFailure)?;
+
+        // Normally here we would want to check that we can also send the coins
+        Ok(())
+    }
+
+    fn mint_coins_validate(
+        &self,
+        account: &Self::AccountId,
+        _coin: &PrefixedCoin,
+    ) -> Result<(), TokenTransferError> {
+        let _account: <BK as BankKeeper>::Address = account
+            .to_string()
+            .parse()
+            .map_err(|_| TokenTransferError::ParseAccountFailure)?;
+
+        // Normally here we would want to check that we can also mint the coins
+        Ok(())
+    }
+
+    fn burn_coins_validate(
+        &self,
+        account: &Self::AccountId,
+        _coin: &PrefixedCoin,
+    ) -> Result<(), TokenTransferError> {
+        let _account: <BK as BankKeeper>::Address = account
+            .to_string()
+            .parse()
+            .map_err(|_| TokenTransferError::ParseAccountFailure)?;
+
+        // Normally here we would want to check that we can also burn the coins
+        Ok(())
     }
 }
 
