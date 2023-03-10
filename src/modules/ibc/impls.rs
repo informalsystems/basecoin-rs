@@ -226,7 +226,6 @@ where
             let events = self
                 .events
                 .drain(..)
-                .into_iter()
                 .map(|ev| TmEvent(ev.try_into().unwrap()).into())
                 .collect();
             Ok(events)
