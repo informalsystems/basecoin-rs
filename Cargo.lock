@@ -913,7 +913,7 @@ dependencies = [
 [[package]]
 name = "ibc"
 version = "0.32.0"
-source = "git+https://github.com/cosmos/ibc-rs/?branch=farhad/generic-proof-verification#6e47f47ad33abedeea046b0b1c437368a1819406"
+source = "git+https://github.com/cosmos/ibc-rs/?rev=22fe103#22fe103e119f1e8709962a3db2875893e9a64ec4"
 dependencies = [
  "bytes",
  "derive_more",

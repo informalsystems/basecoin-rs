@@ -44,4 +44,4 @@ proptest = "*"
 rand = "*"
 
 [patch.crates-io]
-ibc = { git = "https://github.com/cosmos/ibc-rs/", branch = "farhad/generic-proof-verification"}
+ibc = { git = "https://github.com/cosmos/ibc-rs/", rev = "22fe103"}
