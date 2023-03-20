@@ -30,13 +30,13 @@ use ibc_proto::{
 };
 use prost::Message;
 use serde_json::Value;
-use tendermint::abci::{ConsensusRequest, ConsensusResponse};
+use tendermint::abci::{ConsensusRequest, ConsensusResponse, MempoolRequest, MempoolResponse};
 use tendermint_abci::Application;
 use tendermint_proto::{
     abci::{
         Event, RequestBeginBlock, RequestDeliverTx, RequestEndBlock, RequestInfo, RequestInitChain,
         RequestQuery, ResponseBeginBlock, ResponseCommit, ResponseDeliverTx, ResponseInfo,
-        ResponseInitChain, ResponseQuery,
+        ResponseInitChain, ResponseQuery, RequestCheckTx,
     },
     crypto::{ProofOp, ProofOps},
     p2p::DefaultNodeInfo,
@@ -529,5 +529,34 @@ where
         };
 
         Box::pin(future::ready(Ok(consensus_response)))
+    }
+}
+
+impl<S> Service<MempoolRequest> for BaseCoinApp<S>
+where
+    S: Default + ProvableStore + Send + 'static,
+{
+    type Response = MempoolResponse;
+
+    type Error = BoxError;
+
+    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;
+
+    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn call(&mut self, req: MempoolRequest) -> Self::Future {
+        let mempool_response = match req {
+            MempoolRequest::CheckTx(domain_req) => {
+                let proto_req: RequestCheckTx = domain_req.into();
+
+                let proto_resp = self.check_tx(proto_req);
+
+                MempoolResponse::CheckTx(proto_resp.try_into().unwrap())
+            }
+        };
+
+        Box::pin(future::ready(Ok(mempool_response)))
     }
 }
