@@ -31,14 +31,16 @@ use ibc_proto::{
 use prost::Message;
 use serde_json::Value;
 use tendermint::abci::{
-    ConsensusRequest, ConsensusResponse, InfoRequest, InfoResponse, MempoolRequest, MempoolResponse,
+    ConsensusRequest, ConsensusResponse, InfoRequest, InfoResponse, MempoolRequest,
+    MempoolResponse, SnapshotRequest, SnapshotResponse,
 };
 use tendermint_abci::Application;
 use tendermint_proto::{
     abci::{
-        Event, RequestBeginBlock, RequestCheckTx, RequestDeliverTx, RequestEcho, RequestEndBlock,
-        RequestInfo, RequestInitChain, RequestQuery, ResponseBeginBlock, ResponseCommit,
-        ResponseDeliverTx, ResponseInfo, ResponseInitChain, ResponseQuery,
+        Event, RequestApplySnapshotChunk, RequestBeginBlock, RequestCheckTx, RequestDeliverTx,
+        RequestEcho, RequestEndBlock, RequestInfo, RequestInitChain, RequestLoadSnapshotChunk,
+        RequestOfferSnapshot, RequestQuery, ResponseBeginBlock, ResponseCommit, ResponseDeliverTx,
+        ResponseInfo, ResponseInitChain, ResponseQuery,
     },
     crypto::{ProofOp, ProofOps},
     p2p::DefaultNodeInfo,
@@ -605,5 +607,53 @@ where
         };
 
         Box::pin(future::ready(Ok(info_response)))
+    }
+}
+
+impl<S> Service<SnapshotRequest> for BaseCoinApp<S>
+where
+    S: Default + ProvableStore + Send + 'static,
+{
+    type Response = SnapshotResponse;
+
+    type Error = BoxError;
+
+    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;
+
+    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn call(&mut self, req: SnapshotRequest) -> Self::Future {
+        let snapshot_response = match req {
+            SnapshotRequest::ListSnapshots => {
+                let proto_resp = self.list_snapshots();
+
+                SnapshotResponse::ListSnapshots(proto_resp.try_into().unwrap())
+            }
+            SnapshotRequest::OfferSnapshot(domain_req) => {
+                let proto_req: RequestOfferSnapshot = domain_req.into();
+
+                let proto_resp = self.offer_snapshot(proto_req);
+
+                SnapshotResponse::OfferSnapshot(proto_resp.try_into().unwrap())
+            }
+            SnapshotRequest::LoadSnapshotChunk(domain_req) => {
+                let proto_req: RequestLoadSnapshotChunk = domain_req.into();
+
+                let proto_resp = self.load_snapshot_chunk(proto_req);
+
+                SnapshotResponse::LoadSnapshotChunk(proto_resp.try_into().unwrap())
+            }
+            SnapshotRequest::ApplySnapshotChunk(domain_req) => {
+                let proto_req: RequestApplySnapshotChunk = domain_req.into();
+
+                let proto_resp = self.apply_snapshot_chunk(proto_req);
+
+                SnapshotResponse::ApplySnapshotChunk(proto_resp.try_into().unwrap())
+            }
+        };
+
+        Box::pin(future::ready(Ok(snapshot_response)))
     }
 }
