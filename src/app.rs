@@ -30,13 +30,15 @@ use ibc_proto::{
 };
 use prost::Message;
 use serde_json::Value;
-use tendermint::abci::{ConsensusRequest, ConsensusResponse, MempoolRequest, MempoolResponse};
+use tendermint::abci::{
+    ConsensusRequest, ConsensusResponse, InfoRequest, InfoResponse, MempoolRequest, MempoolResponse,
+};
 use tendermint_abci::Application;
 use tendermint_proto::{
     abci::{
-        Event, RequestBeginBlock, RequestDeliverTx, RequestEndBlock, RequestInfo, RequestInitChain,
-        RequestQuery, ResponseBeginBlock, ResponseCommit, ResponseDeliverTx, ResponseInfo,
-        ResponseInitChain, ResponseQuery, RequestCheckTx,
+        Event, RequestBeginBlock, RequestCheckTx, RequestDeliverTx, RequestEcho, RequestEndBlock,
+        RequestInfo, RequestInitChain, RequestQuery, ResponseBeginBlock, ResponseCommit,
+        ResponseDeliverTx, ResponseInfo, ResponseInitChain, ResponseQuery,
     },
     crypto::{ProofOp, ProofOps},
     p2p::DefaultNodeInfo,
@@ -558,5 +560,50 @@ where
         };
 
         Box::pin(future::ready(Ok(mempool_response)))
+    }
+}
+
+impl<S> Service<InfoRequest> for BaseCoinApp<S>
+where
+    S: Default + ProvableStore + Send + 'static,
+{
+    type Response = InfoResponse;
+
+    type Error = BoxError;
+
+    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;
+
+    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn call(&mut self, req: InfoRequest) -> Self::Future {
+        let info_response = match req {
+            InfoRequest::Info(domain_req) => {
+                let proto_req: RequestInfo = domain_req.into();
+
+                let proto_resp = self.info(proto_req);
+
+                InfoResponse::Info(proto_resp.try_into().unwrap())
+            }
+            InfoRequest::Query(domain_req) => {
+                let proto_req: RequestQuery = domain_req.into();
+
+                let proto_resp = self.query(proto_req);
+
+                InfoResponse::Query(proto_resp.try_into().unwrap())
+            }
+            InfoRequest::Echo(domain_req) => {
+                let proto_req: RequestEcho = domain_req.into();
+
+                let proto_resp = self.echo(proto_req);
+
+                InfoResponse::Echo(proto_resp.try_into().unwrap())
+            }
+            // Undocumented, non-deterministic, was removed from Tendermint in 0.35.
+            InfoRequest::SetOption(_) => unimplemented!(),
+        };
+
+        Box::pin(future::ready(Ok(info_response)))
     }
 }
