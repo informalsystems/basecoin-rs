@@ -1,6 +1,9 @@
 use std::{
     convert::TryInto,
+    future::{self, Future},
+    pin::Pin,
     sync::{Arc, RwLock},
+    task::{Context, Poll},
 };
 
 use cosmrs::{
@@ -27,17 +30,20 @@ use ibc_proto::{
 };
 use prost::Message;
 use serde_json::Value;
+use tendermint::abci::{ConsensusRequest, ConsensusResponse};
 use tendermint_abci::Application;
 use tendermint_proto::{
     abci::{
-        Event, RequestBeginBlock, RequestDeliverTx, RequestInfo, RequestInitChain, RequestQuery,
-        ResponseBeginBlock, ResponseCommit, ResponseDeliverTx, ResponseInfo, ResponseInitChain,
-        ResponseQuery,
+        Event, RequestBeginBlock, RequestDeliverTx, RequestEndBlock, RequestInfo, RequestInitChain,
+        RequestQuery, ResponseBeginBlock, ResponseCommit, ResponseDeliverTx, ResponseInfo,
+        ResponseInitChain, ResponseQuery,
     },
     crypto::{ProofOp, ProofOps},
     p2p::DefaultNodeInfo,
 };
 use tonic::{Request, Response, Status};
+use tower::Service;
+use tower_abci::BoxError;
 use tracing::{debug, error, info};
 
 use crate::{
@@ -468,5 +474,60 @@ impl<S: ProvableStore + 'static> TxService for BaseCoinApp<S> {
         _request: Request<GetBlockWithTxsRequest>,
     ) -> Result<Response<GetBlockWithTxsResponse>, Status> {
         unimplemented!()
+    }
+}
+
+impl<S> Service<ConsensusRequest> for BaseCoinApp<S>
+where
+    S: Default + ProvableStore + Send + 'static,
+{
+    type Response = ConsensusResponse;
+
+    type Error = BoxError;
+
+    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;
+
+    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn call(&mut self, req: ConsensusRequest) -> Self::Future {
+        let consensus_response = match req {
+            ConsensusRequest::InitChain(domain_req) => {
+                let proto_req: RequestInitChain = domain_req.into();
+
+                let proto_resp = self.init_chain(proto_req);
+
+                ConsensusResponse::InitChain(proto_resp.try_into().unwrap())
+            }
+            ConsensusRequest::BeginBlock(domain_req) => {
+                let proto_req: RequestBeginBlock = domain_req.into();
+
+                let proto_resp = self.begin_block(proto_req);
+
+                ConsensusResponse::BeginBlock(proto_resp.try_into().unwrap())
+            }
+            ConsensusRequest::DeliverTx(domain_req) => {
+                let proto_req: RequestDeliverTx = domain_req.into();
+
+                let proto_resp = self.deliver_tx(proto_req);
+
+                ConsensusResponse::DeliverTx(proto_resp.try_into().unwrap())
+            }
+            ConsensusRequest::EndBlock(domain_req) => {
+                let proto_req: RequestEndBlock = domain_req.into();
+
+                let proto_resp = self.end_block(proto_req);
+
+                ConsensusResponse::EndBlock(proto_resp.try_into().unwrap())
+            }
+            ConsensusRequest::Commit => {
+                let proto_resp = self.commit();
+
+                ConsensusResponse::Commit(proto_resp.try_into().unwrap())
+            }
+        };
+
+        Box::pin(future::ready(Ok(consensus_response)))
     }
 }
