@@ -30,9 +30,11 @@ use ibc_proto::{
 };
 use prost::Message;
 use serde_json::Value;
+
 use tendermint::abci::{
-    ConsensusRequest, ConsensusResponse, InfoRequest, InfoResponse, MempoolRequest,
-    MempoolResponse, SnapshotRequest, SnapshotResponse,
+    request::Request as AbciRequest, response::Response as AbciResponse, ConsensusRequest,
+    ConsensusResponse, InfoRequest, InfoResponse, MempoolRequest, MempoolResponse, SnapshotRequest,
+    SnapshotResponse,
 };
 use tendermint_abci::Application;
 use tendermint_proto::{
@@ -618,7 +620,7 @@ where
 
     type Error = BoxError;
 
-    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;
+    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send + 'static>>;
 
     fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(Ok(()))
@@ -655,5 +657,125 @@ where
         };
 
         Box::pin(future::ready(Ok(snapshot_response)))
+    }
+}
+
+/// We have to create this type since the compiler doesn't think that 
+/// `dyn Future<Output = Result<AbciResponse, BoxError>> + Send`
+/// can be sent across threads...
+pub type SendFuture = dyn Future<Output = Result<AbciResponse, BoxError>> + Send;
+
+impl<S> Service<AbciRequest> for BaseCoinApp<S>
+where
+    S: Default + ProvableStore + Send + 'static,
+{
+    type Response = AbciResponse;
+    type Error = BoxError;
+    // type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
+    type Future = Pin<Box<SendFuture>>;
+
+    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn call(&mut self, req: AbciRequest) -> Self::Future {
+        let response = match req {
+            AbciRequest::Echo(domain_req) => {
+                let proto_req: RequestEcho = domain_req.into();
+
+                let proto_resp = self.echo(proto_req);
+
+                AbciResponse::Echo(proto_resp.try_into().unwrap())
+            }
+            AbciRequest::Flush => {
+                unimplemented!()
+            }
+            AbciRequest::Info(domain_req) => {
+                let proto_req: RequestInfo = domain_req.into();
+
+                let proto_resp = self.info(proto_req);
+
+                AbciResponse::Info(proto_resp.try_into().unwrap())
+}
+            AbciRequest::SetOption(_) => {
+                // Undocumented, non-deterministic, was removed from Tendermint in 0.35.
+                unimplemented!()
+            }
+            AbciRequest::InitChain(domain_req) => {
+                let proto_req: RequestInitChain = domain_req.into();
+
+                let proto_resp = self.init_chain(proto_req);
+
+                AbciResponse::InitChain(proto_resp.try_into().unwrap())
+            }
+            AbciRequest::Query(domain_req) => {
+                let proto_req: RequestQuery = domain_req.into();
+
+                let proto_resp = self.query(proto_req);
+
+                AbciResponse::Query(proto_resp.try_into().unwrap())
+            }
+            AbciRequest::BeginBlock(domain_req) => {
+                let proto_req: RequestBeginBlock = domain_req.into();
+
+                let proto_resp = self.begin_block(proto_req);
+
+                AbciResponse::BeginBlock(proto_resp.try_into().unwrap())
+            }
+            AbciRequest::CheckTx(domain_req) => {
+                let proto_req: RequestCheckTx = domain_req.into();
+
+                let proto_resp = self.check_tx(proto_req);
+
+                AbciResponse::CheckTx(proto_resp.try_into().unwrap())
+            }
+            AbciRequest::DeliverTx(domain_req) => {
+                let proto_req: RequestDeliverTx = domain_req.into();
+
+                let proto_resp = self.deliver_tx(proto_req);
+
+                AbciResponse::DeliverTx(proto_resp.try_into().unwrap())
+            }
+            AbciRequest::EndBlock(domain_req) => {
+                let proto_req: RequestEndBlock = domain_req.into();
+
+                let proto_resp = self.end_block(proto_req);
+
+                AbciResponse::EndBlock(proto_resp.try_into().unwrap())
+            }
+            AbciRequest::Commit => {
+                let proto_resp = self.commit();
+
+                AbciResponse::Commit(proto_resp.try_into().unwrap())
+            }
+            AbciRequest::ListSnapshots => {
+                let proto_resp = self.list_snapshots();
+
+                AbciResponse::ListSnapshots(proto_resp.try_into().unwrap())
+            }
+            AbciRequest::OfferSnapshot(domain_req) => {
+                let proto_req: RequestOfferSnapshot = domain_req.into();
+
+                let proto_resp = self.offer_snapshot(proto_req);
+
+                AbciResponse::OfferSnapshot(proto_resp.try_into().unwrap())
+            }
+            AbciRequest::LoadSnapshotChunk(domain_req) => {
+                let proto_req: RequestLoadSnapshotChunk = domain_req.into();
+
+                let proto_resp = self.load_snapshot_chunk(proto_req);
+
+                AbciResponse::LoadSnapshotChunk(proto_resp.try_into().unwrap())
+            }
+            AbciRequest::ApplySnapshotChunk(domain_req) => {
+                let proto_req: RequestApplySnapshotChunk = domain_req.into();
+
+                let proto_resp = self.apply_snapshot_chunk(proto_req);
+
+                AbciResponse::ApplySnapshotChunk(proto_resp.try_into().unwrap())
+            }
+        };
+
+        Box::pin(future::ready(Ok(response)))
     }
 }
