@@ -31,11 +31,7 @@ use ibc_proto::{
 use prost::Message;
 use serde_json::Value;
 
-use tendermint::abci::{
-    request::Request as AbciRequest, response::Response as AbciResponse, ConsensusRequest,
-    ConsensusResponse, InfoRequest, InfoResponse, MempoolRequest, MempoolResponse, SnapshotRequest,
-    SnapshotResponse,
-};
+use tendermint::abci::{request::Request as AbciRequest, response::Response as AbciResponse};
 use tendermint_abci::Application;
 use tendermint_proto::{
     abci::{
@@ -483,184 +479,7 @@ impl<S: ProvableStore + 'static> TxService for BaseCoinApp<S> {
     }
 }
 
-impl<S> Service<ConsensusRequest> for BaseCoinApp<S>
-where
-    S: Default + ProvableStore + Send + 'static,
-{
-    type Response = ConsensusResponse;
-
-    type Error = BoxError;
-
-    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;
-
-    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        Poll::Ready(Ok(()))
-    }
-
-    fn call(&mut self, req: ConsensusRequest) -> Self::Future {
-        let consensus_response = match req {
-            ConsensusRequest::InitChain(domain_req) => {
-                let proto_req: RequestInitChain = domain_req.into();
-
-                let proto_resp = self.init_chain(proto_req);
-
-                ConsensusResponse::InitChain(proto_resp.try_into().unwrap())
-            }
-            ConsensusRequest::BeginBlock(domain_req) => {
-                let proto_req: RequestBeginBlock = domain_req.into();
-
-                let proto_resp = self.begin_block(proto_req);
-
-                ConsensusResponse::BeginBlock(proto_resp.try_into().unwrap())
-            }
-            ConsensusRequest::DeliverTx(domain_req) => {
-                let proto_req: RequestDeliverTx = domain_req.into();
-
-                let proto_resp = self.deliver_tx(proto_req);
-
-                ConsensusResponse::DeliverTx(proto_resp.try_into().unwrap())
-            }
-            ConsensusRequest::EndBlock(domain_req) => {
-                let proto_req: RequestEndBlock = domain_req.into();
-
-                let proto_resp = self.end_block(proto_req);
-
-                ConsensusResponse::EndBlock(proto_resp.try_into().unwrap())
-            }
-            ConsensusRequest::Commit => {
-                let proto_resp = self.commit();
-
-                ConsensusResponse::Commit(proto_resp.try_into().unwrap())
-            }
-        };
-
-        Box::pin(future::ready(Ok(consensus_response)))
-    }
-}
-
-impl<S> Service<MempoolRequest> for BaseCoinApp<S>
-where
-    S: Default + ProvableStore + Send + 'static,
-{
-    type Response = MempoolResponse;
-
-    type Error = BoxError;
-
-    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;
-
-    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        Poll::Ready(Ok(()))
-    }
-
-    fn call(&mut self, req: MempoolRequest) -> Self::Future {
-        let mempool_response = match req {
-            MempoolRequest::CheckTx(domain_req) => {
-                let proto_req: RequestCheckTx = domain_req.into();
-
-                let proto_resp = self.check_tx(proto_req);
-
-                MempoolResponse::CheckTx(proto_resp.try_into().unwrap())
-            }
-        };
-
-        Box::pin(future::ready(Ok(mempool_response)))
-    }
-}
-
-impl<S> Service<InfoRequest> for BaseCoinApp<S>
-where
-    S: Default + ProvableStore + Send + 'static,
-{
-    type Response = InfoResponse;
-
-    type Error = BoxError;
-
-    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;
-
-    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        Poll::Ready(Ok(()))
-    }
-
-    fn call(&mut self, req: InfoRequest) -> Self::Future {
-        let info_response = match req {
-            InfoRequest::Info(domain_req) => {
-                let proto_req: RequestInfo = domain_req.into();
-
-                let proto_resp = self.info(proto_req);
-
-                InfoResponse::Info(proto_resp.try_into().unwrap())
-            }
-            InfoRequest::Query(domain_req) => {
-                let proto_req: RequestQuery = domain_req.into();
-
-                let proto_resp = self.query(proto_req);
-
-                InfoResponse::Query(proto_resp.try_into().unwrap())
-            }
-            InfoRequest::Echo(domain_req) => {
-                let proto_req: RequestEcho = domain_req.into();
-
-                let proto_resp = self.echo(proto_req);
-
-                InfoResponse::Echo(proto_resp.try_into().unwrap())
-            }
-            // Undocumented, non-deterministic, was removed from Tendermint in 0.35.
-            InfoRequest::SetOption(_) => unimplemented!(),
-        };
-
-        Box::pin(future::ready(Ok(info_response)))
-    }
-}
-
-impl<S> Service<SnapshotRequest> for BaseCoinApp<S>
-where
-    S: Default + ProvableStore + Send + 'static,
-{
-    type Response = SnapshotResponse;
-
-    type Error = BoxError;
-
-    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send + 'static>>;
-
-    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        Poll::Ready(Ok(()))
-    }
-
-    fn call(&mut self, req: SnapshotRequest) -> Self::Future {
-        let snapshot_response = match req {
-            SnapshotRequest::ListSnapshots => {
-                let proto_resp = self.list_snapshots();
-
-                SnapshotResponse::ListSnapshots(proto_resp.try_into().unwrap())
-            }
-            SnapshotRequest::OfferSnapshot(domain_req) => {
-                let proto_req: RequestOfferSnapshot = domain_req.into();
-
-                let proto_resp = self.offer_snapshot(proto_req);
-
-                SnapshotResponse::OfferSnapshot(proto_resp.try_into().unwrap())
-            }
-            SnapshotRequest::LoadSnapshotChunk(domain_req) => {
-                let proto_req: RequestLoadSnapshotChunk = domain_req.into();
-
-                let proto_resp = self.load_snapshot_chunk(proto_req);
-
-                SnapshotResponse::LoadSnapshotChunk(proto_resp.try_into().unwrap())
-            }
-            SnapshotRequest::ApplySnapshotChunk(domain_req) => {
-                let proto_req: RequestApplySnapshotChunk = domain_req.into();
-
-                let proto_resp = self.apply_snapshot_chunk(proto_req);
-
-                SnapshotResponse::ApplySnapshotChunk(proto_resp.try_into().unwrap())
-            }
-        };
-
-        Box::pin(future::ready(Ok(snapshot_response)))
-    }
-}
-
-/// We have to create this type since the compiler doesn't think that 
+/// We have to create this type since the compiler doesn't think that
 /// `dyn Future<Output = Result<AbciResponse, BoxError>> + Send`
 /// can be sent across threads...
 pub type SendFuture = dyn Future<Output = Result<AbciResponse, BoxError>> + Send;
@@ -696,7 +515,7 @@ where
                 let proto_resp = self.info(proto_req);
 
                 AbciResponse::Info(proto_resp.try_into().unwrap())
-}
+            }
             AbciRequest::SetOption(_) => {
                 // Undocumented, non-deterministic, was removed from Tendermint in 0.35.
                 unimplemented!()
