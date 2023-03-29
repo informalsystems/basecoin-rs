@@ -505,9 +505,7 @@ where
 
                 AbciResponse::Echo(proto_resp.try_into().unwrap())
             }
-            AbciRequest::Flush => {
-                unimplemented!()
-            }
+            AbciRequest::Flush => AbciResponse::Flush,
             AbciRequest::Info(domain_req) => {
                 let proto_req: RequestInfo = domain_req.into();
 
