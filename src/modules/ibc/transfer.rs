@@ -518,9 +518,11 @@ where
     fn client_state(&self, client_id: &ClientId) -> Result<Box<dyn ClientState>, ContextError> {
         self.client_state_store
             .get(Height::Pending, &ClientStatePath::new(client_id))
-            .ok_or(ContextError::ClientError(ClientError::ClientNotFound {
-                client_id: client_id.clone(),
-            }))
+            .ok_or(ContextError::ClientError(
+                ClientError::ClientStateNotFound {
+                    client_id: client_id.clone(),
+                },
+            ))
             .map(|cs| Box::new(cs) as Box<dyn ClientState>)
     }
 
