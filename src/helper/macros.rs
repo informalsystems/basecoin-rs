@@ -1,8 +1,7 @@
 use super::Path;
 use ibc::core::ics24_host::path::{
     AckPath, ChannelEndPath, ClientConnectionPath, ClientConsensusStatePath, ClientStatePath,
-    ClientTypePath, CommitmentPath, ConnectionPath, ReceiptPath, SeqAckPath, SeqRecvPath,
-    SeqSendPath,
+    CommitmentPath, ConnectionPath, ReceiptPath, SeqAckPath, SeqRecvPath, SeqSendPath,
 };
 use tendermint_proto::abci::{ResponseCheckTx, ResponseDeliverTx, ResponseQuery};
 pub(crate) trait ResponseFromErrorExt {
@@ -37,7 +36,6 @@ macro_rules! impl_into_path_for {
 }
 
 impl_into_path_for!(
-    ClientTypePath,
     ClientStatePath,
     ClientConsensusStatePath,
     ConnectionPath,

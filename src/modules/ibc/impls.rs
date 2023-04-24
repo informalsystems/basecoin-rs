@@ -25,13 +25,11 @@ use ibc::{
     core::{
         context::{ExecutionContext, Router as ContextRouter, ValidationContext},
         ics02_client::{
-            client_state::ClientState, client_type::ClientType, consensus_state::ConsensusState,
-            error::ClientError,
+            client_state::ClientState, consensus_state::ConsensusState, error::ClientError,
         },
         ics03_connection::{
-            connection::ConnectionEnd,
-            error::ConnectionError,
-            version::{pick_version, Version as ConnectionVersion},
+            connection::ConnectionEnd, error::ConnectionError,
+            version::Version as ConnectionVersion,
         },
         ics04_channel::{
             channel::ChannelEnd,
@@ -46,8 +44,8 @@ use ibc::{
             identifier::{ClientId, ConnectionId},
             path::{
                 AckPath, ChannelEndPath, ClientConnectionPath, ClientConsensusStatePath,
-                ClientStatePath, ClientTypePath, CommitmentPath, ConnectionPath, ReceiptPath,
-                SeqAckPath, SeqRecvPath, SeqSendPath,
+                ClientStatePath, CommitmentPath, ConnectionPath, ReceiptPath, SeqAckPath,
+                SeqRecvPath, SeqSendPath,
             },
             Path as IbcPath, IBC_QUERY_PATH,
         },
@@ -111,8 +109,6 @@ where
     client_processed_heights: HashMap<(ClientId, IbcHeight), IbcHeight>,
     /// Map of host consensus states
     consensus_states: HashMap<u64, TmConsensusState>,
-    /// A typed-store for ClientType
-    client_type_store: JsonStore<SharedStore<S>, ClientTypePath, ClientType>,
     /// A typed-store for AnyClientState
     client_state_store: ProtobufStore<SharedStore<S>, ClientStatePath, TmClientState, Any>,
     /// A typed-store for AnyConsensusState
@@ -165,7 +161,6 @@ where
             client_processed_times: Default::default(),
             client_processed_heights: Default::default(),
             consensus_states: Default::default(),
-            client_type_store: TypedStore::new(store.clone()),
             client_state_store: TypedStore::new(store.clone()),
             consensus_state_store: TypedStore::new(store.clone()),
             connection_end_store: TypedStore::new(store.clone()),
@@ -527,68 +522,62 @@ where
         vec![ConnectionVersion::default()]
     }
 
-    fn pick_version(
-        &self,
-        supported_versions: &[ConnectionVersion],
-        counterparty_candidate_versions: &[ConnectionVersion],
-    ) -> Result<ConnectionVersion, ContextError> {
-        pick_version(supported_versions, counterparty_candidate_versions)
-            .map_err(ContextError::ConnectionError)
-    }
-
     fn channel_end(&self, channel_end_path: &ChannelEndPath) -> Result<ChannelEnd, ContextError> {
-        self.channel_end_store
+        let channel_end = self
+            .channel_end_store
             .get(
                 Height::Pending,
                 &ChannelEndPath::new(&channel_end_path.0, &channel_end_path.1),
             )
-            .ok_or(ChannelError::Connection(ConnectionError::Client(
-                ClientError::ImplementationSpecific,
-            )))
-            .map_err(ContextError::ChannelError)
+            .ok_or(ChannelError::MissingChannel)?;
+        Ok(channel_end)
     }
 
     fn get_next_sequence_send(
         &self,
         seq_send_path: &SeqSendPath,
     ) -> Result<Sequence, ContextError> {
-        self.send_sequence_store
+        let seq_send = self
+            .send_sequence_store
             .get(
                 Height::Pending,
                 &SeqSendPath::new(&seq_send_path.0, &seq_send_path.1),
             )
-            .ok_or(PacketError::ImplementationSpecific)
-            .map_err(ContextError::PacketError)
+            .ok_or(PacketError::ImplementationSpecific)?;
+        Ok(seq_send)
     }
 
     fn get_next_sequence_recv(
         &self,
         seq_recv_path: &SeqRecvPath,
     ) -> Result<Sequence, ContextError> {
-        self.recv_sequence_store
+        let seq_recv = self
+            .recv_sequence_store
             .get(
                 Height::Pending,
                 &SeqRecvPath::new(&seq_recv_path.0, &seq_recv_path.1),
             )
-            .ok_or(PacketError::ImplementationSpecific)
-            .map_err(ContextError::PacketError)
+            .ok_or(PacketError::ImplementationSpecific)?;
+        Ok(seq_recv)
     }
 
     fn get_next_sequence_ack(&self, seq_ack_path: &SeqAckPath) -> Result<Sequence, ContextError> {
-        self.ack_sequence_store
+        let seq_ack = self
+            .ack_sequence_store
             .get(
                 Height::Pending,
                 &SeqAckPath::new(&seq_ack_path.0, &seq_ack_path.1),
             )
-            .ok_or(PacketError::ImplementationSpecific)
-            .map_err(ContextError::PacketError)
+            .ok_or(PacketError::ImplementationSpecific)?;
+        Ok(seq_ack)
     }
 
     fn get_packet_commitment(
         &self,
         commitment_path: &CommitmentPath,
     ) -> Result<PacketCommitment, ContextError> {
-        self.packet_commitment_store
+        let commitment = self
+            .packet_commitment_store
             .get(
                 Height::Pending,
                 &CommitmentPath::new(
@@ -597,12 +586,13 @@ where
                     commitment_path.sequence,
                 ),
             )
-            .ok_or(PacketError::ImplementationSpecific)
-            .map_err(ContextError::PacketError)
+            .ok_or(PacketError::ImplementationSpecific)?;
+        Ok(commitment)
     }
 
     fn get_packet_receipt(&self, receipt_path: &ReceiptPath) -> Result<Receipt, ContextError> {
-        self.packet_receipt_store
+        let receipt = self
+            .packet_receipt_store
             .is_path_set(
                 Height::Pending,
                 &ReceiptPath::new(
@@ -614,23 +604,24 @@ where
             .then_some(Receipt::Ok)
             .ok_or(PacketError::PacketReceiptNotFound {
                 sequence: receipt_path.sequence,
-            })
-            .map_err(ContextError::PacketError)
+            })?;
+        Ok(receipt)
     }
 
     fn get_packet_acknowledgement(
         &self,
         ack_path: &AckPath,
     ) -> Result<AcknowledgementCommitment, ContextError> {
-        self.packet_ack_store
+        let ack = self
+            .packet_ack_store
             .get(
                 Height::Pending,
                 &AckPath::new(&ack_path.port_id, &ack_path.channel_id, ack_path.sequence),
             )
             .ok_or(PacketError::PacketAcknowledgementNotFound {
                 sequence: ack_path.sequence,
-            })
-            .map_err(ContextError::PacketError)
+            })?;
+        Ok(ack)
     }
 
     /// Returns the time when the client state for the given [`ClientId`] was updated with a header for the given [`Height`]
@@ -639,13 +630,15 @@ where
         client_id: &ClientId,
         height: &IbcHeight,
     ) -> Result<Timestamp, ContextError> {
-        self.client_processed_times
+        let processed_timestamp = self
+            .client_processed_times
             .get(&(client_id.clone(), *height))
             .cloned()
-            .ok_or(ChannelError::Connection(ConnectionError::Client(
-                ClientError::ImplementationSpecific,
-            )))
-            .map_err(ContextError::ChannelError)
+            .ok_or(ChannelError::ProcessedTimeNotFound {
+                client_id: client_id.clone(),
+                height: *height,
+            })?;
+        Ok(processed_timestamp)
     }
 
     /// Returns the height when the client state for the given [`ClientId`] was updated with a header for the given [`Height`]
@@ -654,13 +647,15 @@ where
         client_id: &ClientId,
         height: &IbcHeight,
     ) -> Result<IbcHeight, ContextError> {
-        self.client_processed_heights
+        let processed_height = self
+            .client_processed_heights
             .get(&(client_id.clone(), *height))
             .cloned()
-            .ok_or(ChannelError::Connection(ConnectionError::Client(
-                ClientError::ImplementationSpecific,
-            )))
-            .map_err(ContextError::ChannelError)
+            .ok_or(ChannelError::ProcessedHeightNotFound {
+                client_id: client_id.clone(),
+                height: *height,
+            })?;
+        Ok(processed_height)
     }
 
     /// Returns a counter on the number of channel ids have been created thus far.
@@ -689,19 +684,6 @@ impl<S> ExecutionContext for Ibc<S>
 where
     S: 'static + Store + Send + Sync + Debug,
 {
-    /// Called upon successful client creation
-    fn store_client_type(
-        &mut self,
-        client_type_path: ClientTypePath,
-        client_type: ClientType,
-    ) -> Result<(), ContextError> {
-        self.client_type_store
-            .set(client_type_path, client_type)
-            .map(|_| ())
-            .map_err(|_| ClientError::ImplementationSpecific)
-            .map_err(ContextError::ClientError)
-    }
-
     /// Called upon successful client creation and update
     fn store_client_state(
         &mut self,
