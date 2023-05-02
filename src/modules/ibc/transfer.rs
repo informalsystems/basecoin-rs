@@ -439,10 +439,8 @@ where
             &cosmos_adr028_escrow_address(port_id, channel_id),
         )
         .map_err(|_| TokenTransferError::ParseAccountFailure)?;
-        account_id
-            .to_string()
-            .parse()
-            .map_err(|_| TokenTransferError::ParseAccountFailure)
+
+        Ok(account_id.to_string().into())
     }
 
     fn send_coins_validate(

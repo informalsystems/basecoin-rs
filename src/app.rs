@@ -13,12 +13,12 @@ use cosmrs::{
 use ibc_proto::{
     cosmos::{
         base::tendermint::v1beta1::{
-            service_server::Service as HealthService, AbciQueryRequest, AbciQueryResponse,
+            service_server::Service as HealthService, AbciQueryResponse,
             GetBlockByHeightRequest, GetBlockByHeightResponse, GetLatestBlockRequest,
             GetLatestBlockResponse, GetLatestValidatorSetRequest, GetLatestValidatorSetResponse,
             GetNodeInfoRequest, GetNodeInfoResponse, GetSyncingRequest, GetSyncingResponse,
             GetValidatorSetByHeightRequest, GetValidatorSetByHeightResponse,
-            Module as VersionInfoModule, VersionInfo,
+            Module as VersionInfoModule, VersionInfo, AbciQueryRequest,
         },
         tx::v1beta1::{
             service_server::Service as TxService, BroadcastTxRequest, BroadcastTxResponse,
@@ -31,7 +31,7 @@ use ibc_proto::{
 use prost::Message;
 use serde_json::Value;
 
-use tendermint::abci::{request::Request as AbciRequest, response::Response as AbciResponse};
+use tendermint::v0_37::abci::{request::Request as AbciRequest, response::Response as AbciResponse};
 use tendermint_abci::Application;
 use tendermint_proto::{
     abci::{
@@ -513,10 +513,6 @@ where
 
                 AbciResponse::Info(proto_resp.try_into().unwrap())
             }
-            AbciRequest::SetOption(_) => {
-                // Undocumented, non-deterministic, was removed from Tendermint in 0.35.
-                unimplemented!()
-            }
             AbciRequest::InitChain(domain_req) => {
                 let proto_req: RequestInitChain = domain_req.into();
 
@@ -590,6 +586,8 @@ where
 
                 AbciResponse::ApplySnapshotChunk(proto_resp.try_into().unwrap())
             }
+            AbciRequest::PrepareProposal(_) => unimplemented!(),
+            AbciRequest::ProcessProposal(_) => unimplemented!(),
         };
 
         Box::pin(future::ready(Ok(response)))
