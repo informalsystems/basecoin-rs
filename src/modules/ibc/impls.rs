@@ -14,7 +14,8 @@ use crate::{
 use cosmrs::AccountId;
 use ibc::{
     applications::transfer::MODULE_ID_STR as IBC_TRANSFER_MODULE_ID,
-    core::{ics24_host::identifier::PortId, ics26_routing::context::ModuleId}, signer::Signer,
+    core::{ics24_host::identifier::PortId, ics26_routing::context::ModuleId},
+    signer::Signer,
 };
 use ibc::{
     applications::transfer::{msgs::transfer::MsgTransfer, relay::send_transfer::send_transfer},
