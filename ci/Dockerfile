@@ -1,21 +1,23 @@
-ARG TENDERMINT_VERSION=0.34.21
+ARG COMETBFT_VERSION=0.37.1
 ARG GAIA_VERSION=5.0.5
+ARG HERMES_VERSION=1.2.0
 ARG RUST_VERSION=1.65
 
-FROM tendermint/tendermint:v${TENDERMINT_VERSION} AS tendermint
+FROM cometbft/cometbft:v${COMETBFT_VERSION} AS cometbft
+FROM informalsystems/hermes:${HERMES_VERSION} AS hermes
 FROM cephalopodequipment/gaiad:${GAIA_VERSION} AS gaia
 FROM rust:${RUST_VERSION}-slim-bullseye
 
-COPY --from=tendermint /usr/bin/tendermint /usr/bin/tendermint
+COPY --from=cometbft /usr/bin/cometbft /usr/bin/cometbft
 COPY --from=gaia /usr/bin/gaiad /usr/bin/gaiad
+COPY --from=hermes /usr/bin/hermes /usr/bin/hermes
 
-ENV HERMES_SRC=/src/hermes
 ENV BASECOIN_SRC=/src/basecoin-rs
 ENV LOG_DIR=/var/log/basecoin-rs
 ENV IBC_COMMITISH=master
 
 COPY entrypoint.sh /usr/bin/entrypoint.sh
-COPY tendermint-config/ /basecoin/.tendermint/config
+COPY cometbft-config/ /basecoin/.cometbft/config
 COPY hermes-config.toml /basecoin/.hermes/config.toml
 COPY one-chain /basecoin/one-chain
 COPY user_seed.json /basecoin/user_seed.json
@@ -25,18 +27,15 @@ RUN apt update && \
     apt upgrade -y && \
     apt install -y curl pkg-config libssl-dev git && \
     useradd -U -s /bin/bash -d /basecoin basecoin && \
-    mkdir -p "${HERMES_SRC}" && \
     mkdir -p "${BASECOIN_SRC}" && \
     mkdir -p "${LOG_DIR}" && \
     mkdir -p /basecoin && \
-    mkdir -p /basecoin/.tendermint/config && \
+    mkdir -p /basecoin/.cometbft/config && \
     mkdir -p /basecoin/.hermes && \
-    chown -R basecoin:basecoin "${HERMES_SRC}" && \
     chown -R basecoin:basecoin "${LOG_DIR}" && \
     chown -R basecoin:basecoin "${BASECOIN_SRC}" && \
     chown -R basecoin:basecoin /basecoin
 
-VOLUME "${HERMES_SRC}"
 VOLUME "${BASECOIN_SRC}"
 
 WORKDIR /basecoin

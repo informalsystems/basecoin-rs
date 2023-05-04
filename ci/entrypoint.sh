@@ -1,15 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 
-HERMES_SRC=${HERMES_SRC:-/src/hermes}
 BASECOIN_SRC=${BASECOIN_SRC:-/src/basecoin-rs}
 BUILD_ROOT="${HOME}/build"
-HERMES_BUILD="${BUILD_ROOT}/hermes"
 BASECOIN_BUILD="${BUILD_ROOT}/basecoin-rs"
 BASECOIN_BIN="${BASECOIN_BUILD}/debug/basecoin"
-HERMES_BIN="${HERMES_BUILD}/release/hermes"
-HERMES_REPO=https://github.com/informalsystems/hermes.git
-HERMES_COMMITISH=${HERMES_COMMITISH:-dedc56a}
 CHAIN_DATA="${HOME}/data"
 HERMES_CONFIG="${HOME}/.hermes/config.toml"
 LOG_DIR=${LOG_DIR:-/var/log/basecoin-rs}
@@ -19,20 +14,6 @@ if [ ! -f "${BASECOIN_SRC}/Cargo.toml" ]; then
   echo "basecoin-rs sources must be mounted into ${BASECOIN_SRC} for this script to work properly."
   exit 1
 fi
-
-if [ ! -f "${HERMES_SRC}/Cargo.toml" ]; then
-  echo "No Hermes sources detected. Cloning repo at ${HERMES_COMMITISH}..."
-  git clone "${HERMES_REPO}" "${HERMES_SRC}"
-  echo "Checking out ${HERMES_COMMITISH}..."
-  cd "${HERMES_SRC}"
-  git checkout "${HERMES_COMMITISH}"
-  git status
-  echo ""
-fi
-
-cd "${HERMES_SRC}"
-echo "Building Hermes..."
-cargo build --release --bin hermes --target-dir "${HERMES_BUILD}/"
 
 cd "${BASECOIN_SRC}"
 echo ""
@@ -46,12 +27,12 @@ mkdir -p "${CHAIN_DATA}"
 
 echo ""
 echo "Configuring Hermes..."
-"${HERMES_BIN}" --config "${HERMES_CONFIG}" \
+hermes --config "${HERMES_CONFIG}" \
     keys add --chain ibc-0 \
     --key-file "${CHAIN_DATA}/ibc-0/user_seed.json"
 
 echo "Adding user key to basecoin-0 chain..."
-"${HERMES_BIN}" --config "${HERMES_CONFIG}" \
+hermes --config "${HERMES_CONFIG}" \
     keys add --chain basecoin-0 \
     --key-file "${HOME}/user_seed.json"
 
