@@ -37,15 +37,15 @@ hermes --config "${HERMES_CONFIG}" \
     --key-file "${HOME}/user_seed.json"
 
 echo ""
-echo "Starting Tendermint..."
-tendermint unsafe-reset-all
-tendermint node > "${LOG_DIR}/tendermint.log" 2>&1 &
+echo "Starting CometBFT..."
+cometbft unsafe-reset-all
+cometbft node > "${LOG_DIR}/cometbft.log" 2>&1 &
 
 echo "Starting basecoin-rs..."
 cd "${BASECOIN_SRC}"
 "${BASECOIN_BIN}" -p 26358 -v > "${LOG_DIR}/basecoin.log" 2>&1 &
 
-echo "Waiting for Tendermint node to be available..."
+echo "Waiting for CometBFT node to be available..."
 set +e
 for retry in {1..4}; do
   sleep 5
@@ -58,7 +58,7 @@ for retry in {1..4}; do
   fi
 done
 set -e
-# Will fail if we still can't reach the Tendermint node
+# Will fail if we still can't reach the CometBFT node
 curl "http://127.0.0.1:26357/abci_info" > /dev/null 2>&1
 
 if [ ! -z "$@" ]; then
