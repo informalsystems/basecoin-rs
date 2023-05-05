@@ -11,7 +11,6 @@ use crate::{
 };
 use core::fmt::Debug;
 use cosmrs::AccountId;
-use ibc::{core::{ics24_host::identifier::PortId, events::IbcEvent, router::ModuleExtras, ics04_channel::packet::Acknowledgement}, Signer};
 use ibc::{applications::transfer::VERSION, core::ics24_host::path::SeqSendPath};
 use ibc::{
     applications::transfer::{
@@ -50,6 +49,13 @@ use ibc::{
         ContextError,
     },
     Height as IbcHeight,
+};
+use ibc::{
+    core::{
+        events::IbcEvent, ics04_channel::packet::Acknowledgement, ics24_host::identifier::PortId,
+        router::ModuleExtras,
+    },
+    Signer,
 };
 use ibc_proto::{
     google::protobuf::Any,

@@ -44,7 +44,8 @@ use ibc::{
         router::{Module as IbcModule, Router as ContextRouter},
         ContextError, ExecutionContext, MsgEnvelope, ValidationContext,
     },
-    Height as IbcHeight, hosts::tendermint::ABCI_QUERY_PATH_FOR_IBC,
+    hosts::tendermint::ABCI_QUERY_PATH_FOR_IBC,
+    Height as IbcHeight,
 };
 use ibc::{
     applications::transfer::{send_transfer, MODULE_ID_STR as IBC_TRANSFER_MODULE_ID},
