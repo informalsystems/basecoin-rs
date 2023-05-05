@@ -11,7 +11,7 @@ use crate::{
 };
 use core::fmt::Debug;
 use cosmrs::AccountId;
-use ibc::core::ics24_host::identifier::PortId;
+use ibc::{core::{ics24_host::identifier::PortId, events::IbcEvent, router::ModuleExtras, ics04_channel::packet::Acknowledgement}, Signer};
 use ibc::{applications::transfer::VERSION, core::ics24_host::path::SeqSendPath};
 use ibc::{
     applications::transfer::{
@@ -36,8 +36,6 @@ use ibc::{
             commitment::PacketCommitment,
             context::{SendPacketExecutionContext, SendPacketValidationContext},
             error::{ChannelError, PacketError},
-            handler::ModuleExtras,
-            msgs::acknowledgement::Acknowledgement,
             packet::{Packet, Sequence},
             Version as ChannelVersion,
         },
@@ -48,11 +46,9 @@ use ibc::{
                 ConnectionPath,
             },
         },
-        ics26_routing::context::Module as IbcModule,
+        router::Module as IbcModule,
         ContextError,
     },
-    events::IbcEvent,
-    signer::Signer,
     Height as IbcHeight,
 };
 use ibc_proto::{

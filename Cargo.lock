@@ -922,8 +922,7 @@ dependencies = [
 [[package]]
 name = "ibc"
 version = "0.39.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e0370ed0e8916ffc7199ca1d9fc6bdd8627fd460d743f31fa03e82ac4b9d7fd0"
+source = "git+https://github.com/cosmos/ibc-rs/?rev=9e79fa6#9e79fa6debfe6e3a967907acfc33114fa44d6c93"
 dependencies = [
  "bytes",
  "derive_more",
