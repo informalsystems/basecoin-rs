@@ -59,7 +59,7 @@ async fn main() {
     let app_split = app.clone();
     let (consensus, mempool, snapshot, info) = split::service(app_split, 10);
 
-    let server = tower_abci::Server::builder()
+    let server = tower_abci::v037::Server::builder()
         .consensus(consensus)
         .mempool(mempool)
         .info(info)

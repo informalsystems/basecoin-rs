@@ -15,6 +15,7 @@ use cosmrs::AccountId;
 use ibc::{
     applications::transfer::MODULE_ID_STR as IBC_TRANSFER_MODULE_ID,
     core::{ics24_host::identifier::PortId, ics26_routing::context::ModuleId},
+    signer::Signer,
 };
 use ibc::{
     applications::transfer::{msgs::transfer::MsgTransfer, relay::send_transfer::send_transfer},
@@ -327,8 +328,8 @@ impl From<TmEvent> for Event {
                 .attributes
                 .into_iter()
                 .map(|attr| EventAttribute {
-                    key: attr.key.into(),
-                    value: attr.value.into(),
+                    key: attr.key,
+                    value: attr.value,
                     index: true,
                 })
                 .collect(),
@@ -677,6 +678,10 @@ where
             delay_period_time,
             &<Self as ValidationContext>::max_expected_time_per_block(self),
         )
+    }
+
+    fn validate_message_signer(&self, _signer: &Signer) -> Result<(), ContextError> {
+        Ok(())
     }
 }
 

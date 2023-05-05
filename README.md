@@ -6,17 +6,17 @@ A rudimentary Tendermint ABCI application that implements the following function
 ## Requirements
 So far this app has been tested with:
 * Rust >v1.52.1
-* Tendermint v0.34.10
+* CometBFT v0.37
 
 ## Usage
-### Step 1: Reset your local Tendermint node
+### Step 1: Reset your local CometBFT node
 ```shell
-$ tendermint init
-$ tendermint unsafe-reset-all
+$ cometbft init
+$ cometbft unsafe-reset-all
 ```
 
 ### Step 2: Modify Tendermint config
-Edit the Tendermint `config.toml` file (default location `~/.tendermint/config/config.toml`) to update the `proxy_app` and P2P `laddr` as follows.
+Edit the Tendermint `config.toml` file (default location `~/.cometbft/config/config.toml`) to update the `proxy_app` and P2P `laddr` as follows.
 ```toml
 proxy_app = "tcp://127.0.0.1:26358"
 # ...
