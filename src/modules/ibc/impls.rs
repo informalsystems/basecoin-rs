@@ -13,18 +13,12 @@ use crate::{
 };
 use cosmrs::AccountId;
 use ibc::{
-    applications::transfer::MODULE_ID_STR as IBC_TRANSFER_MODULE_ID,
-    core::{ics24_host::identifier::PortId, ics26_routing::context::ModuleId},
-    signer::Signer,
-};
-use ibc::{
-    applications::transfer::{msgs::transfer::MsgTransfer, relay::send_transfer::send_transfer},
+    applications::transfer::msgs::transfer::MsgTransfer,
     clients::ics07_tendermint::{
         client_state::ClientState as TmClientState,
         consensus_state::ConsensusState as TmConsensusState,
     },
     core::{
-        context::{ExecutionContext, Router as ContextRouter, ValidationContext},
         ics02_client::{
             client_state::ClientState, consensus_state::ConsensusState, error::ClientError,
         },
@@ -35,27 +29,31 @@ use ibc::{
         ics04_channel::{
             channel::ChannelEnd,
             commitment::{AcknowledgementCommitment, PacketCommitment},
-            context::calculate_block_delay,
             error::{ChannelError, PacketError},
             packet::{Receipt, Sequence},
         },
-        ics05_port::error::PortError,
         ics23_commitment::commitment::{CommitmentPrefix, CommitmentRoot},
         ics24_host::{
             identifier::{ClientId, ConnectionId},
             path::{
                 AckPath, ChannelEndPath, ClientConnectionPath, ClientConsensusStatePath,
-                ClientStatePath, CommitmentPath, ConnectionPath, ReceiptPath, SeqAckPath,
-                SeqRecvPath, SeqSendPath,
+                ClientStatePath, CommitmentPath, ConnectionPath, Path as IbcPath, ReceiptPath,
+                SeqAckPath, SeqRecvPath, SeqSendPath,
             },
-            Path as IbcPath, IBC_QUERY_PATH,
         },
-        ics26_routing::{context::Module as IbcModule, msgs::MsgEnvelope},
-        ContextError,
+        router::{Module as IbcModule, Router as ContextRouter},
+        ContextError, ExecutionContext, MsgEnvelope, ValidationContext,
     },
-    events::IbcEvent,
-    timestamp::Timestamp,
+    hosts::tendermint::ABCI_QUERY_PATH_FOR_IBC,
     Height as IbcHeight,
+};
+use ibc::{
+    applications::transfer::{send_transfer, MODULE_ID_STR as IBC_TRANSFER_MODULE_ID},
+    core::{
+        events::IbcEvent, ics04_channel::error::PortError, ics24_host::identifier::PortId,
+        router::ModuleId, timestamp::Timestamp,
+    },
+    Signer,
 };
 use ibc_proto::{
     google::protobuf::Any,
@@ -81,7 +79,7 @@ use tendermint_proto::{
 };
 use tracing::debug;
 
-use ibc::core::handler::dispatch;
+use ibc::core::dispatch;
 
 /// The Ibc module
 /// Implements all ibc-rs `Reader`s and `Keeper`s
@@ -147,7 +145,7 @@ where
     pub fn new(store: SharedStore<S>, bank_keeper: BankBalanceKeeper<S>) -> Self {
         let mut port_to_module_map = BTreeMap::default();
 
-        let transfer_module_id: ModuleId = IBC_TRANSFER_MODULE_ID.parse().unwrap();
+        let transfer_module_id: ModuleId = ModuleId::new(IBC_TRANSFER_MODULE_ID.to_string());
         let transfer_module = IbcTransferModule::new(store.clone(), bank_keeper);
 
         let router = IbcRouter::new(transfer_module);
@@ -256,7 +254,7 @@ where
         prove: bool,
     ) -> Result<QueryResult, AppError> {
         let path = path.ok_or(AppError::NotHandled)?;
-        if path.to_string() != IBC_QUERY_PATH {
+        if path.to_string() != ABCI_QUERY_PATH_FOR_IBC {
             return Err(AppError::NotHandled);
         }
 
@@ -669,15 +667,6 @@ where
     /// Returns the maximum expected time per block
     fn max_expected_time_per_block(&self) -> Duration {
         Duration::from_secs(8)
-    }
-
-    /// Calculates the block delay period using the connection's delay period and the maximum
-    /// expected time per block.
-    fn block_delay(&self, delay_period_time: &Duration) -> u64 {
-        calculate_block_delay(
-            delay_period_time,
-            &<Self as ValidationContext>::max_expected_time_per_block(self),
-        )
     }
 
     fn validate_message_signer(&self, _signer: &Signer) -> Result<(), ContextError> {

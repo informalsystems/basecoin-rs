@@ -1,9 +1,6 @@
 use super::error::Error;
 use crate::store::avl::{AsBytes, ByteSlice};
-use ibc::core::ics24_host::{
-    path::{Path as IbcPath, PathError},
-    validate::validate_identifier,
-};
+use ibc::core::ics24_host::path::{Path as IbcPath, PathError};
 use std::{
     convert::{TryFrom, TryInto},
     fmt::{Debug, Display, Formatter},
@@ -18,25 +15,6 @@ use tendermint_proto::crypto::ProofOp;
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Clone)]
 pub struct Identifier(String);
 
-impl Identifier {
-    /// Identifiers MUST be non-empty (of positive integer length).
-    /// Identifiers MUST consist of characters in one of the following categories only:
-    /// * Alphanumeric
-    /// * `.`, `_`, `+`, `-`, `#`
-    /// * `[`, `]`, `<`, `>`
-    fn validate(s: impl AsRef<str>) -> Result<(), Error> {
-        let s = s.as_ref();
-
-        // give a `min` parameter of 0 here to allow id's of arbitrary
-        // length as inputs; `validate_identifier` itself checks for
-        // empty inputs and returns an error as appropriate
-        validate_identifier(s, 0, s.len()).map_err(|v| Error::InvalidIdentifier {
-            identifier: s.to_string(),
-            error: v,
-        })
-    }
-}
-
 impl Deref for Identifier {
     type Target = String;
 
@@ -45,11 +23,9 @@ impl Deref for Identifier {
     }
 }
 
-impl TryFrom<String> for Identifier {
-    type Error = Error;
-
-    fn try_from(s: String) -> Result<Self, Self::Error> {
-        Identifier::validate(&s).map(|_| Self(s))
+impl From<String> for Identifier {
+    fn from(value: String) -> Self {
+        Self(value)
     }
 }
 
@@ -77,7 +53,7 @@ impl TryFrom<String> for Path {
         let mut identifiers = vec![];
         let parts = s.split('/'); // split will never return an empty iterator
         for part in parts {
-            identifiers.push(Identifier::try_from(part.to_owned())?);
+            identifiers.push(Identifier::from(part.to_owned()));
         }
         Ok(Self(identifiers))
     }
@@ -159,13 +135,12 @@ pub struct QueryResult {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use std::{collections::HashSet, convert::TryFrom};
 
     use lazy_static::lazy_static;
     use proptest::prelude::*;
     use rand::{distributions::Standard, seq::SliceRandom};
-
-    use super::{Identifier, Path};
 
     const ALLOWED_CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ\
                                    abcdefghijklmnopqrstuvwxyz\
@@ -206,28 +181,6 @@ mod tests {
     }
 
     proptest! {
-        #[test]
-        fn validate_method_doesnt_crash(s in "\\PC*") {
-            let _ = Identifier::validate(s);
-        }
-
-        #[test]
-        fn valid_identifier_is_ok(l in 1usize..=10) {
-            let id = gen_valid_identifier(l);
-            let validated = Identifier::validate(id);
-
-            assert!(validated.is_ok())
-        }
-
-        #[test]
-        #[ignore]
-        fn invalid_identifier_errors(l in 1usize..=10) {
-            let id = gen_invalid_identifier(l);
-            let validated = Identifier::validate(id);
-
-            assert!(validated.is_err())
-        }
-
         #[test]
         fn path_with_valid_parts_is_valid(n_parts in 1usize..=10) {
             let mut rng = rand::thread_rng();

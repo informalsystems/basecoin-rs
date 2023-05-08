@@ -2,7 +2,7 @@ use std::{borrow::Borrow, fmt::Debug, sync::Arc};
 
 use ibc::{
     applications::transfer::MODULE_ID_STR as IBC_TRANSFER_MODULE_ID,
-    core::ics26_routing::context::{Module as IbcModule, ModuleId},
+    core::router::{Module as IbcModule, ModuleId},
 };
 
 use crate::{
