@@ -24,9 +24,8 @@ use ibc::{
             identifier::{ChannelId, ConnectionId},
             path::{
                 AckPath, ChannelEndPath, ClientConnectionPath, ClientConsensusStatePath,
-                ClientStatePath, CommitmentPath, ConnectionPath, ReceiptPath,
+                ClientStatePath, CommitmentPath, ConnectionPath, Path as IbcPath, ReceiptPath,
             },
-            Path as IbcPath,
         },
     },
 };
