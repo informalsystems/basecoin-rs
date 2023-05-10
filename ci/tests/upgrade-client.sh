@@ -3,8 +3,7 @@ set -euo pipefail
 
 echo "Testing client upgradability..."
 
-hermes create client --host-chain basecoin-0 --reference-chain ibc-0
-hermes tx upgrade-chain --reference-chain ibc-0 --host-chain basecoin-0 --host-client 07-tendermint-0 --amount 10000000 --height-offset 20
+hermes tx upgrade-chain --reference-chain ibc-0 --host-chain basecoin-0 --host-client 07-tendermint-0 --amount 10000000 --height-offset 15
 gaiad --node tcp://localhost:26657 tx gov vote 1 yes --home $HOME/data/ibc-0/data --keyring-backend test --keyring-dir $HOME/data/ibc-0 --chain-id ibc-0 --from validator --yes
 
 sleep 3s
