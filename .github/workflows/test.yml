@@ -1,4 +1,4 @@
-name: Test
+name: Tests
 on:
   pull_request:
   push:
@@ -42,4 +42,3 @@ jobs:
           docker run --rm \
             -v `pwd`:/src/basecoin-rs \
             informaldev/basecoin-rs-ci
-

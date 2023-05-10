@@ -672,6 +672,20 @@ where
     fn validate_message_signer(&self, _signer: &Signer) -> Result<(), ContextError> {
         Ok(())
     }
+
+    // fn upgraded_client_state(
+    //     &self,
+    //     _upgrade_height: &IbcHeight,
+    // ) -> Result<Option<Box<dyn ClientState>>, ContextError> {
+    //     todo!()
+    // }
+
+    // fn upgraded_consensus_state(
+    //     &self,
+    //     _last_height: &IbcHeight,
+    // ) -> Result<Option<Box<dyn ConsensusState>>, ContextError> {
+    //     todo!()
+    // }
 }
 
 impl<S> ExecutionContext for Ibc<S>
@@ -885,4 +899,20 @@ where
     fn log_message(&mut self, message: String) {
         self.logs.push(message);
     }
+
+    // fn store_upgraded_client_state(
+    //     &mut self,
+    //     _planed_height: IbcHeight,
+    //     _upgraded_client_state: Box<dyn ClientState>,
+    // ) -> Result<(), ContextError> {
+    //     todo!()
+    // }
+
+    // fn store_upgraded_consensus_state(
+    //     &mut self,
+    //     _planed_height: IbcHeight,
+    //     _upgraded_consensus_state: Box<dyn ConsensusState>,
+    // ) -> Result<(), ContextError> {
+    //     todo!()
+    // }
 }
