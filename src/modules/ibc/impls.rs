@@ -367,11 +367,12 @@ where
     S: 'static + Store + Send + Sync + Debug,
 {
     fn client_state(&self, client_id: &ClientId) -> Result<Box<dyn ClientState>, ContextError> {
-        self.client_state_store
+        let client_state = self
+            .client_state_store
             .get(Height::Pending, &ClientStatePath(client_id.clone()))
             .ok_or(ClientError::ImplementationSpecific)
-            .map_err(ContextError::from)
-            .map(|cs| Box::new(cs) as Box<dyn ClientState>)
+            .map_err(ContextError::from)?;
+        Ok(Box::new(client_state))
     }
 
     fn decode_client_state(&self, client_state: Any) -> Result<Box<dyn ClientState>, ContextError> {
@@ -398,7 +399,7 @@ where
                 client_id: client_cons_state_path.client_id.clone(),
                 height,
             })?;
-        Ok(Box::new(consensus_state) as Box<dyn ConsensusState>)
+        Ok(Box::new(consensus_state))
     }
 
     fn next_consensus_state(
@@ -691,8 +692,8 @@ where
         self.client_state_store
             .set(client_state_path, tm_client_state.clone())
             .map(|_| ())
-            .map_err(|_| ClientError::ImplementationSpecific)
-            .map_err(ContextError::ClientError)
+            .map_err(|_| ClientError::ImplementationSpecific)?;
+        Ok(())
     }
 
     /// Called upon successful client creation and update
