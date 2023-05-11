@@ -38,7 +38,7 @@ use ibc::{
             path::{
                 AckPath, ChannelEndPath, ClientConnectionPath, ClientConsensusStatePath,
                 ClientStatePath, CommitmentPath, ConnectionPath, Path as IbcPath, ReceiptPath,
-                SeqAckPath, SeqRecvPath, SeqSendPath, UpgradeClientPath,
+                SeqAckPath, SeqRecvPath, SeqSendPath,
             },
         },
         router::{Module as IbcModule, Router as ContextRouter},
@@ -113,12 +113,6 @@ where
     /// A typed-store for AnyConsensusState
     consensus_state_store:
         ProtobufStore<SharedStore<S>, ClientConsensusStatePath, TmConsensusState, Any>,
-    /// A typed-store for tendermint upgraded client states
-    upgraded_client_state_store:
-        ProtobufStore<SharedStore<S>, UpgradeClientPath, TmClientState, Any>,
-    /// A typed-store for tendermint upgraded consensus states
-    upgraded_consensus_state_store:
-        ProtobufStore<SharedStore<S>, UpgradeClientPath, TmConsensusState, Any>,
     /// A typed-store for ConnectionEnd
     connection_end_store:
         ProtobufStore<SharedStore<S>, ConnectionPath, ConnectionEnd, RawConnectionEnd>,
@@ -168,8 +162,6 @@ where
             consensus_states: Default::default(),
             client_state_store: TypedStore::new(store.clone()),
             consensus_state_store: TypedStore::new(store.clone()),
-            upgraded_client_state_store: TypedStore::new(store.clone()),
-            upgraded_consensus_state_store: TypedStore::new(store.clone()),
             connection_end_store: TypedStore::new(store.clone()),
             connection_ids_store: TypedStore::new(store.clone()),
             channel_end_store: TypedStore::new(store.clone()),
@@ -383,18 +375,6 @@ where
         Ok(Box::new(client_state))
     }
 
-    fn upgraded_client_state(
-        &self,
-        client_upgrade_path: &UpgradeClientPath,
-    ) -> Result<Box<dyn ClientState>, ContextError> {
-        let upgraded_client_state = self
-            .upgraded_client_state_store
-            .get(Height::Pending, client_upgrade_path)
-            .ok_or(ClientError::ImplementationSpecific)
-            .map_err(ContextError::from)?;
-        Ok(Box::new(upgraded_client_state))
-    }
-
     fn decode_client_state(&self, client_state: Any) -> Result<Box<dyn ClientState>, ContextError> {
         if let Ok(client_state) = TmClientState::try_from(client_state.clone()) {
             Ok(client_state.into_box())
@@ -420,19 +400,6 @@ where
                 height,
             })?;
         Ok(Box::new(consensus_state))
-    }
-
-    fn upgraded_consensus_state(
-        &self,
-        upgraded_cons_state_path: &UpgradeClientPath,
-    ) -> Result<Box<dyn ConsensusState>, ContextError> {
-        let upgraded_consensus_state = self
-            .upgraded_consensus_state_store
-            .get(Height::Pending, upgraded_cons_state_path)
-            .ok_or(ClientError::Other {
-                description: "upgraded consensus state not found".to_string(),
-            })?;
-        Ok(Box::new(upgraded_consensus_state))
     }
 
     fn next_consensus_state(
@@ -729,22 +696,6 @@ where
         Ok(())
     }
 
-    fn store_upgraded_client_state(
-        &mut self,
-        upgraded_client_state_path: UpgradeClientPath,
-        upgraded_client_state: Box<dyn ClientState>,
-    ) -> Result<(), ContextError> {
-        let tm_client_state = upgraded_client_state
-            .as_any()
-            .downcast_ref::<TmClientState>()
-            .ok_or(ClientError::ImplementationSpecific)?;
-        self.upgraded_client_state_store
-            .set(upgraded_client_state_path, tm_client_state.clone())
-            .map(|_| ())
-            .map_err(|_| ClientError::ImplementationSpecific)?;
-        Ok(())
-    }
-
     /// Called upon successful client creation and update
     fn store_consensus_state(
         &mut self,
@@ -757,21 +708,6 @@ where
             .ok_or(ClientError::ImplementationSpecific)?;
         self.consensus_state_store
             .set(consensus_state_path, tm_consensus_state.clone())
-            .map_err(|_| ClientError::ImplementationSpecific)?;
-        Ok(())
-    }
-
-    fn store_upgraded_consensus_state(
-        &mut self,
-        upgraded_cons_state_path: UpgradeClientPath,
-        upgraded_consensus_state: Box<dyn ConsensusState>,
-    ) -> Result<(), ContextError> {
-        let tm_consensus_state = upgraded_consensus_state
-            .as_any()
-            .downcast_ref::<TmConsensusState>()
-            .ok_or(ClientError::ImplementationSpecific)?;
-        self.upgraded_consensus_state_store
-            .set(upgraded_cons_state_path, tm_consensus_state.clone())
             .map_err(|_| ClientError::ImplementationSpecific)?;
         Ok(())
     }
