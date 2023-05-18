@@ -1,8 +1,8 @@
 use ibc::clients::ics07_tendermint::client_state::ClientState as TmClientState;
 use ibc::core::ics02_client::client_state::ClientState;
+use ibc::core::ics02_client::error::UpgradeClientError;
 use ibc::core::ics02_client::events::UpgradeClientProposal;
 use ibc::core::ics24_host::path::UpgradeClientPath;
-use ibc::hosts::tendermint::upgrade_proposal::UpgradeError;
 use ibc::hosts::tendermint::upgrade_proposal::UpgradeExecutionContext;
 use ibc::hosts::tendermint::upgrade_proposal::UpgradeProposal;
 
@@ -16,7 +16,7 @@ use tendermint_proto::abci::Event;
 pub fn upgrade_client_proposal_handler<Ctx>(
     ctx: &mut Ctx,
     proposal: UpgradeProposal,
-) -> Result<Vec<Event>, UpgradeError>
+) -> Result<Vec<Event>, UpgradeClientError>
 where
     Ctx: UpgradeExecutionContext,
 {
@@ -26,7 +26,7 @@ where
 
     let mut client_state =
         TmClientState::try_from(proposal.upgraded_client_state).map_err(|e| {
-            UpgradeError::InvalidUpgradeProposal {
+            UpgradeClientError::InvalidUpgradeProposal {
                 reason: e.to_string(),
             }
         })?;
@@ -37,7 +37,7 @@ where
 
     let upgraded_client_state_path = UpgradeClientPath::UpgradedClientState(proposal.plan.height);
 
-    ctx.store_upgraded_client_state(upgraded_client_state_path, client_state)?;
+    ctx.store_upgraded_client_state(upgraded_client_state_path, Box::new(client_state))?;
 
     let event: tendermint::abci::Event =
         UpgradeClientProposal::new(proposal.title, proposal.plan.height).into();

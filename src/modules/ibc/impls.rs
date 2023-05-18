@@ -44,7 +44,7 @@ use ibc::{
         router::{Module as IbcModule, ModuleId, Router as ContextRouter},
         ContextError, ExecutionContext, MsgEnvelope, ValidationContext,
     },
-    hosts::tendermint::IBC_STORE_KEY,
+    hosts::tendermint::IBC_QUERY_PATH,
     Height as IbcHeight,
 };
 use ibc::{
@@ -255,7 +255,7 @@ where
         prove: bool,
     ) -> Result<QueryResult, AppError> {
         let path = path.ok_or(AppError::NotHandled)?;
-        if path.to_string() != IBC_STORE_KEY {
+        if path.to_string() != IBC_QUERY_PATH {
             return Err(AppError::NotHandled);
         }
 

@@ -6,7 +6,7 @@ use cosmrs::AccountId;
 
 use ibc::core::ics02_client::events::UpgradeChain;
 use ibc::core::ics23_commitment::commitment::CommitmentRoot;
-use ibc::hosts::tendermint::UPGRADE_STORE_KEY;
+use ibc::hosts::tendermint::SDK_UPGRADE_QUERY_PATH;
 
 use ibc_proto::cosmos::upgrade::v1beta1::query_server::QueryServer;
 use ibc_proto::cosmos::upgrade::v1beta1::Plan as RawPlan;
@@ -15,9 +15,11 @@ use ibc_proto::google::protobuf::Any;
 use ibc::clients::ics07_tendermint::{
     client_state::ClientState as TmClientState, consensus_state::ConsensusState as TmConsensusState,
 };
+use ibc::core::ics02_client::client_state::ClientState;
+use ibc::core::ics02_client::consensus_state::ConsensusState;
+use ibc::core::ics02_client::error::UpgradeClientError;
 use ibc::core::ics24_host::path::UpgradeClientPath;
 use ibc::hosts::tendermint::upgrade_proposal::Plan;
-use ibc::hosts::tendermint::upgrade_proposal::UpgradeError;
 use ibc::hosts::tendermint::upgrade_proposal::UpgradeExecutionContext;
 use ibc::hosts::tendermint::upgrade_proposal::UpgradeValidationContext;
 
@@ -86,7 +88,7 @@ where
         prove: bool,
     ) -> Result<QueryResult, AppError> {
         let path = path.ok_or(AppError::NotHandled)?;
-        if path.to_string() == UPGRADE_STORE_KEY {
+        if path.to_string() == SDK_UPGRADE_QUERY_PATH {
             let path: Path = String::from_utf8(data.to_vec())
                 .map_err(|_| AppError::Custom {
                     reason: "Invalid path".to_string(),
@@ -121,7 +123,7 @@ where
         if path.to_string() == "/cosmos.upgrade.v1beta1.Query/CurrentPlan" {
             let data = self
                 .store
-                .get(Height::Pending, &upgrade_path().unwrap())
+                .get(Height::Pending, &sdk_upgrade_plan_path().unwrap())
                 .ok_or(AppError::Custom {
                     reason: "Data not found".to_string(),
                 })?;
@@ -158,12 +160,12 @@ where
 
                 self.store_upgraded_consensus_state(
                     upgraded_cons_state_path,
-                    upgraded_consensus_state,
+                    Box::new(upgraded_consensus_state),
                 )
                 .unwrap();
 
                 let event: tendermint::abci::Event =
-                    UpgradeChain::new(plan.height, UPGRADE_STORE_KEY.to_string()).into();
+                    UpgradeChain::new(plan.height, "upgrade".to_string()).into();
 
                 return vec![event.try_into().unwrap()];
             }
@@ -205,11 +207,11 @@ impl<S> UpgradeValidationContext for Upgrade<S>
 where
     S: 'static + Store + Send + Sync + Debug,
 {
-    fn upgrade_plan(&self) -> Result<Plan, UpgradeError> {
+    fn upgrade_plan(&self) -> Result<Plan, UpgradeClientError> {
         let upgrade_plan = self
             .upgrade_plan
-            .get(Height::Pending, &upgrade_path()?)
-            .ok_or(UpgradeError::Other {
+            .get(Height::Pending, &sdk_upgrade_plan_path()?)
+            .ok_or(UpgradeClientError::InvalidUpgradePlan {
                 reason: "No upgrade plan set".to_string(),
             })?;
         Ok(upgrade_plan)
@@ -218,27 +220,27 @@ where
     fn upgraded_client_state(
         &self,
         upgrade_path: &UpgradeClientPath,
-    ) -> Result<TmClientState, UpgradeError> {
+    ) -> Result<Box<dyn ClientState>, UpgradeClientError> {
         let upgraded_tm_client_state = self
             .upgraded_client_state_store
             .get(Height::Pending, upgrade_path)
-            .ok_or(UpgradeError::Other {
+            .ok_or(UpgradeClientError::Other {
                 reason: "No upgraded client state set".to_string(),
             })?;
-        Ok(upgraded_tm_client_state)
+        Ok(Box::new(upgraded_tm_client_state))
     }
 
     fn upgraded_consensus_state(
         &self,
         upgrade_path: &UpgradeClientPath,
-    ) -> Result<TmConsensusState, UpgradeError> {
+    ) -> Result<Box<dyn ConsensusState>, UpgradeClientError> {
         let upgraded_tm_consensus_state = self
             .upgraded_consensus_state_store
             .get(Height::Pending, upgrade_path)
-            .ok_or(UpgradeError::Other {
+            .ok_or(UpgradeClientError::Other {
                 reason: "No upgraded consensus state set".to_string(),
             })?;
-        Ok(upgraded_tm_consensus_state)
+        Ok(Box::new(upgraded_tm_consensus_state))
     }
 }
 
@@ -246,11 +248,11 @@ impl<S> UpgradeExecutionContext for Upgrade<S>
 where
     S: 'static + Store + Send + Sync + Debug,
 {
-    fn schedule_upgrade(&mut self, plan: Plan) -> Result<(), UpgradeError> {
+    fn schedule_upgrade(&mut self, plan: Plan) -> Result<(), UpgradeClientError> {
         let host_height = self.store.current_height();
 
         if plan.height < host_height {
-            return Err(UpgradeError::InvalidUpgradeProposal {
+            return Err(UpgradeClientError::InvalidUpgradeProposal {
                 reason: "upgrade plan height is in the past".to_string(),
             })?;
         }
@@ -260,26 +262,20 @@ where
         }
 
         self.upgrade_plan
-            .set(upgrade_path()?, plan)
-            .map_err(|e| UpgradeError::Other {
+            .set(sdk_upgrade_plan_path()?, plan)
+            .map_err(|e| UpgradeClientError::Other {
                 reason: format!("Error storing upgrade plan: {e:?}"),
             })?;
         Ok(())
     }
 
-    fn clear_upgrade_plan(&mut self, plan_height: u64) -> Result<(), UpgradeError> {
-        let path: Path =
-            UPGRADE_STORE_KEY
-                .to_string()
-                .try_into()
-                .map_err(|_| UpgradeError::Other {
-                    reason: "invalid path".to_string(),
-                })?;
+    fn clear_upgrade_plan(&mut self, plan_height: u64) -> Result<(), UpgradeClientError> {
+        let path = sdk_upgrade_plan_path()?;
 
         let upgrade_plan = self.upgrade_plan.get(Height::Pending, &path);
 
         if upgrade_plan.is_none() {
-            return Err(UpgradeError::InvalidUpgradePlan {
+            return Err(UpgradeClientError::InvalidUpgradePlan {
                 reason: "No upgrade plan set".to_string(),
             });
         }
@@ -302,11 +298,17 @@ where
     fn store_upgraded_client_state(
         &mut self,
         upgrade_path: UpgradeClientPath,
-        client_state: TmClientState,
-    ) -> Result<(), UpgradeError> {
+        client_state: Box<dyn ClientState>,
+    ) -> Result<(), UpgradeClientError> {
+        let tm_upgraded_client_state = client_state
+            .as_any()
+            .downcast_ref::<TmClientState>()
+            .ok_or(UpgradeClientError::Other {
+                reason: "client state downcast failed".to_string(),
+            })?;
         self.upgraded_client_state_store
-            .set(upgrade_path, client_state)
-            .map_err(|e| UpgradeError::Other {
+            .set(upgrade_path, tm_upgraded_client_state.clone())
+            .map_err(|e| UpgradeClientError::Other {
                 reason: format!("Error storing upgraded client state: {e:?}"),
             })?;
 
@@ -316,23 +318,27 @@ where
     fn store_upgraded_consensus_state(
         &mut self,
         upgrade_path: UpgradeClientPath,
-        consensus_state: TmConsensusState,
-    ) -> Result<(), UpgradeError> {
+        consensus_state: Box<dyn ConsensusState>,
+    ) -> Result<(), UpgradeClientError> {
+        let tm_upgraded_cons_state = consensus_state
+            .as_any()
+            .downcast_ref::<TmConsensusState>()
+            .ok_or(UpgradeClientError::Other {
+                reason: "consensus state downcast failed".to_string(),
+            })?;
         self.upgraded_consensus_state_store
-            .set(upgrade_path, consensus_state)
-            .map_err(|e| UpgradeError::Other {
+            .set(upgrade_path, tm_upgraded_cons_state.clone())
+            .map_err(|e| UpgradeClientError::Other {
                 reason: format!("Error storing upgraded consensus state: {e:?}"),
             })?;
         Ok(())
     }
 }
 
-pub fn upgrade_path() -> Result<Path, UpgradeError> {
-    let path: Path = UPGRADE_STORE_KEY
-        .to_string()
-        .try_into()
-        .map_err(|_| UpgradeError::Other {
-            reason: "invalid path".to_string(),
-        })?;
+pub fn sdk_upgrade_plan_path() -> Result<Path, UpgradeClientError> {
+    const PLAN_BYTE: &[u8] = b"0x0";
+    let path = Path::try_from(PLAN_BYTE).map_err(|_| UpgradeClientError::Other {
+        reason: "invalid path".to_string(),
+    })?;
     Ok(path)
 }
