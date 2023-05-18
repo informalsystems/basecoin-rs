@@ -117,6 +117,18 @@ pub mod prefix {
         }
     }
 
+    /// Governance module prefix
+    #[derive(Clone)]
+    pub struct Governance;
+
+    impl Identifiable for Governance {
+        type Identifier = StoreIdentifier;
+
+        fn identifier(&self) -> Self::Identifier {
+            "gov".to_owned().try_into().unwrap()
+        }
+    }
+
     /// Staking module prefix
     #[derive(Clone)]
     pub struct Staking;
@@ -126,6 +138,18 @@ pub mod prefix {
 
         fn identifier(&self) -> Self::Identifier {
             "staking".to_owned().try_into().unwrap()
+        }
+    }
+
+    /// Governance module prefix
+    #[derive(Clone)]
+    pub struct Upgrade;
+
+    impl Identifiable for Upgrade {
+        type Identifier = StoreIdentifier;
+
+        fn identifier(&self) -> Self::Identifier {
+            "upgrade".to_owned().try_into().unwrap()
         }
     }
 }

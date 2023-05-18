@@ -58,6 +58,11 @@ where
     }
 
     #[inline]
+    pub fn delete(&mut self, path: K) {
+        self.store.delete(&path.into())
+    }
+
+    #[inline]
     pub fn get(&self, height: Height, path: &K) -> Option<V> {
         self.store
             .get(height, &path.clone().into())

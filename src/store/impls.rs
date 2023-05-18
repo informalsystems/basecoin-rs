@@ -167,8 +167,8 @@ where
     }
 
     #[inline]
-    fn delete(&mut self, _path: &Path) {
-        unimplemented!("RevertibleStore doesn't support delete operations yet!")
+    fn delete(&mut self, path: &Path) {
+        self.store.delete(path)
     }
 
     #[inline]

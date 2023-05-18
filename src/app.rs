@@ -206,15 +206,13 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
         let path: Option<Path> = request.path.try_into().ok();
         let modules = self.modules.read().unwrap();
         let height = Height::from(request.height as u64);
-        for IdentifiedModule { module, .. } in modules.iter() {
+        for IdentifiedModule { id, module } in modules.iter() {
             match module.query(&request.data, path.as_ref(), height, request.prove) {
                 // success - implies query was handled by this module, so return response
                 Ok(result) => {
                     let store = self.store.read().unwrap();
                     let proof_ops = if request.prove {
-                        let proof = store
-                            .get_proof(height, &"ibc".to_owned().try_into().unwrap())
-                            .unwrap();
+                        let proof = store.get_proof(height, &id.clone().into()).unwrap();
                         let mut buffer = Vec::new();
                         proof.encode(&mut buffer).unwrap(); // safety - cannot fail since buf is a vector
 
@@ -224,15 +222,14 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
                         }
                         ops.push(ProofOp {
                             r#type: "".to_string(),
-                            // FIXME(hu55a1n1)
-                            key: "ibc".to_string().into_bytes(),
+                            key: id.to_string().into_bytes(),
                             data: buffer,
                         });
                         Some(ProofOps { ops })
                     } else {
                         None
                     };
-
+                    debug!("Query result: {:?}", result.data);
                     return ResponseQuery {
                         code: 0,
                         log: "exists".to_string(),

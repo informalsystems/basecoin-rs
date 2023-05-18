@@ -6,7 +6,7 @@ use structopt::StructOpt;
 use tendermint_basecoin::{
     app::Builder,
     cli::option::Opt,
-    modules::{prefix, Auth, Bank, Ibc, Identifiable, Staking},
+    modules::{prefix, Auth, Bank, Governance, Ibc, Identifiable, Staking, Upgrade},
     store::InMemoryStore,
 };
 use tower_abci::split;
@@ -41,19 +41,30 @@ async fn main() {
         bank.bank_keeper().clone(),
     );
 
+    let upgrade = Upgrade::new(app_builder.module_store(&prefix::Upgrade {}.identifier()));
+
+    let governance = Governance::new(
+        app_builder.module_store(&prefix::Governance {}.identifier()),
+        upgrade.clone(),
+    );
+
     // instantiate gRPC services for each module
     let auth_service = auth.service();
     let bank_service = bank.service();
-    let staking_service = staking.service();
     let ibc_client_service = ibc.client_service();
     let ibc_conn_service = ibc.connection_service();
     let ibc_channel_service = ibc.channel_service();
+    let governance_service = governance.service();
+    let staking_service = staking.service();
+    let upgrade_service = upgrade.service();
 
     // register modules with the app
     let app = app_builder
         .add_module(prefix::Auth {}.identifier(), auth)
         .add_module(prefix::Bank {}.identifier(), bank)
         .add_module(prefix::Ibc {}.identifier(), ibc)
+        // .add_module(prefix::Governance {}.identifier(), governance)
+        // .add_module(prefix::Upgrade {}.identifier(), upgrade)
         .build();
 
     let app_split = app.clone();
@@ -82,7 +93,9 @@ async fn main() {
         .add_service(ibc_channel_service)
         .add_service(auth_service)
         .add_service(bank_service)
+        .add_service(governance_service)
         .add_service(staking_service)
+        .add_service(upgrade_service)
         .serve(format!("{}:{}", opt.host, opt.grpc_port).parse().unwrap());
 
     grpc_server.await.unwrap();
