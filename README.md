@@ -15,8 +15,8 @@ $ cometbft init
 $ cometbft unsafe-reset-all
 ```
 
-### Step 2: Modify Tendermint config
-Edit the Tendermint `config.toml` file (default location `~/.cometbft/config/config.toml`) to update the `proxy_app` and P2P `laddr` as follows.
+### Step 2: Modify CometBFT config
+Edit the CometBFT `config.toml` file (default location `~/.cometbft/config/config.toml`) to update the `proxy_app` and P2P `laddr` as follows.
 ```toml
 proxy_app = "tcp://127.0.0.1:26358"
 # ...
@@ -29,14 +29,14 @@ See the module documentation for more details -
 * [Bank module](docs/modules/bank.md)
 * [Ibc module](docs/modules/ibc.md)
 
-### Step 4: Run the basecoin app and Tendermint
+### Step 4: Run the basecoin app and CometBFT
 ```shell
 # See all supported CLI options
 $ cargo run -- --help
-tendermint-basecoin 0.1.0
+basecoin 0.1.0
 
 USAGE:
-    tendermint-basecoin [FLAGS] [OPTIONS]
+    basecoin [FLAGS] [OPTIONS]
 
 FLAGS:
         --help       Prints help information
@@ -56,7 +56,7 @@ OPTIONS:
 $ cargo run -- -v
 
 # In another terminal
-$ tendermint node
+$ cometbft node
 ```
 
 ## UML diagrams

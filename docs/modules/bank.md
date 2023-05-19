@@ -3,7 +3,7 @@ This module keeps track of different accounts' balances (in-memory only) and fac
 
 ## Usage
 ### Step 1: Setup 
-Edit your `genesis.json` file (default location `~/.tendermint/config/genesis.json`) to update the `app_state` with initial account balances. This is a
+Edit your `genesis.json` file (default location `~/.cometbft/config/genesis.json`) to update the `app_state` with initial account balances. This is a
 simple hash map of account IDs to balances (where each balance is a map of denomination and amount). Here's an
 example `genesis.json` file:
 

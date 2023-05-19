@@ -12,13 +12,15 @@ use ibc_proto::protobuf::Protobuf;
 
 use tendermint_proto::abci::Event;
 
+use super::path::ProposalPath;
+use super::proposal::Proposal;
 use super::service::GovernanceService;
 use crate::error::Error as AppError;
 use crate::helper::{Height, Path, QueryResult};
 use crate::modules::gov::msg::MsgSubmitProposal;
 use crate::modules::upgrade::handler::upgrade_client_proposal_handler;
 use crate::modules::{Module, Upgrade};
-use crate::store::{SharedRw, SharedStore, Store};
+use crate::store::{ProtobufStore, SharedRw, SharedStore, Store, TypedStore};
 
 #[derive(Clone)]
 pub struct Governance<S>
@@ -26,6 +28,8 @@ where
     S: Store + Debug + 'static,
 {
     pub store: SharedStore<S>,
+    pub proposal_counter: u64,
+    pub proposal: ProtobufStore<SharedStore<S>, ProposalPath, Proposal, Any>,
     pub upgrade_ctx: SharedRw<Upgrade<S>>,
 }
 
@@ -38,8 +42,10 @@ where
         S: Store + 'static,
     {
         Self {
-            store,
+            proposal_counter: 0,
+            proposal: TypedStore::new(store.clone()),
             upgrade_ctx: Arc::new(RwLock::new(upgrade_ctx)),
+            store,
         }
     }
 
@@ -65,6 +71,15 @@ where
 
             let event =
                 upgrade_client_proposal_handler(upgrade_ctx.deref_mut(), upgrade_proposal).unwrap();
+
+            let proposal = message.proposal(self.proposal_counter);
+
+            self.proposal
+                .set(ProposalPath::sdk_path(), proposal)
+                .unwrap();
+
+            self.proposal_counter += 1;
+
             Ok(event)
         } else {
             Err(AppError::NotHandled)
@@ -74,11 +89,24 @@ where
     fn query(
         &self,
         _data: &[u8],
-        _path: Option<&Path>,
+        path: Option<&Path>,
         _height: Height,
         _prove: bool,
     ) -> Result<QueryResult, AppError> {
-        Err(AppError::NotHandled)
+        let path = path.ok_or(AppError::NotHandled)?;
+
+        if path.to_string() != "/cosmos.gov.v1beta1.Query/Proposal" {
+            return Err(AppError::NotHandled);
+        }
+
+        let data = self
+            .store
+            .get(Height::Pending, &Path::from(ProposalPath::sdk_path()))
+            .ok_or(AppError::Custom {
+                reason: "Data not found".to_string(),
+            })?;
+
+        Ok(QueryResult { data, proof: None })
     }
 
     fn store_mut(&mut self) -> &mut SharedStore<S> {

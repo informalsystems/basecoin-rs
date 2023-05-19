@@ -4,12 +4,7 @@ use tracing::{debug, error};
 
 use cosmrs::AccountId;
 
-use ibc::core::ics02_client::events::UpgradeChain;
-use ibc::core::ics23_commitment::commitment::CommitmentRoot;
-use ibc::hosts::tendermint::SDK_UPGRADE_QUERY_PATH;
-
 use ibc_proto::cosmos::upgrade::v1beta1::query_server::QueryServer;
-use ibc_proto::cosmos::upgrade::v1beta1::Plan as RawPlan;
 use ibc_proto::google::protobuf::Any;
 
 use ibc::clients::ics07_tendermint::{
@@ -18,14 +13,17 @@ use ibc::clients::ics07_tendermint::{
 use ibc::core::ics02_client::client_state::ClientState;
 use ibc::core::ics02_client::consensus_state::ConsensusState;
 use ibc::core::ics02_client::error::UpgradeClientError;
+use ibc::core::ics23_commitment::commitment::CommitmentRoot;
 use ibc::core::ics24_host::path::UpgradeClientPath;
-use ibc::hosts::tendermint::upgrade_proposal::Plan;
 use ibc::hosts::tendermint::upgrade_proposal::UpgradeExecutionContext;
 use ibc::hosts::tendermint::upgrade_proposal::UpgradeValidationContext;
+use ibc::hosts::tendermint::upgrade_proposal::{Plan, UpgradeChain};
+use ibc::hosts::tendermint::SDK_UPGRADE_QUERY_PATH;
 
 use tendermint_proto::abci::Event;
 use tendermint_proto::crypto::ProofOp;
 
+use super::path::UpgradePlanPath;
 use super::service::UpgradeService;
 use crate::error::Error as AppError;
 use crate::helper::{Height, Path, QueryResult};
@@ -39,7 +37,7 @@ where
 {
     pub store: SharedStore<S>,
     /// Upgrade plan
-    upgrade_plan: ProtobufStore<SharedStore<S>, Path, Plan, RawPlan>,
+    upgrade_plan: ProtobufStore<SharedStore<S>, UpgradePlanPath, Plan, Any>,
     /// A typed-store for upgraded ClientState
     upgraded_client_state_store:
         ProtobufStore<SharedStore<S>, UpgradeClientPath, TmClientState, Any>,
@@ -123,7 +121,10 @@ where
         if path.to_string() == "/cosmos.upgrade.v1beta1.Query/CurrentPlan" {
             let data = self
                 .store
-                .get(Height::Pending, &sdk_upgrade_plan_path().unwrap())
+                .get(
+                    Height::Pending,
+                    &Path::from(UpgradePlanPath::sdk_pending_path()),
+                )
                 .ok_or(AppError::Custom {
                     reason: "Data not found".to_string(),
                 })?;
@@ -210,7 +211,7 @@ where
     fn upgrade_plan(&self) -> Result<Plan, UpgradeClientError> {
         let upgrade_plan = self
             .upgrade_plan
-            .get(Height::Pending, &sdk_upgrade_plan_path()?)
+            .get(Height::Pending, &UpgradePlanPath::sdk_pending_path())
             .ok_or(UpgradeClientError::InvalidUpgradePlan {
                 reason: "No upgrade plan set".to_string(),
             })?;
@@ -262,7 +263,7 @@ where
         }
 
         self.upgrade_plan
-            .set(sdk_upgrade_plan_path()?, plan)
+            .set(UpgradePlanPath::sdk_pending_path(), plan)
             .map_err(|e| UpgradeClientError::Other {
                 reason: format!("Error storing upgrade plan: {e:?}"),
             })?;
@@ -270,7 +271,7 @@ where
     }
 
     fn clear_upgrade_plan(&mut self, plan_height: u64) -> Result<(), UpgradeClientError> {
-        let path = sdk_upgrade_plan_path()?;
+        let path = UpgradePlanPath::sdk_pending_path();
 
         let upgrade_plan = self.upgrade_plan.get(Height::Pending, &path);
 
@@ -333,12 +334,4 @@ where
             })?;
         Ok(())
     }
-}
-
-pub fn sdk_upgrade_plan_path() -> Result<Path, UpgradeClientError> {
-    const PLAN_BYTE: &[u8] = b"0x0";
-    let path = Path::try_from(PLAN_BYTE).map_err(|_| UpgradeClientError::Other {
-        reason: "invalid path".to_string(),
-    })?;
-    Ok(path)
 }

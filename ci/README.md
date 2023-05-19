@@ -70,7 +70,7 @@ container run from this image will:
 4. Set up a single [Gaia] instance to act as a foreign chain for interacting
    with basecoin-rs. The ID of this chain will be `ibc-0`.
 5. Configure Hermes.
-6. Start a [Tendermint] node and the basecoin-rs binary (the Tendermint node
+6. Start a [CometBFT] node and the basecoin-rs binary (the CometBFT node
    will automatically connect to the basecoin-rs binary, providing a chain with
    ID `basecoin-0`).
 7. If no `CMD` arguments are provided for the container, it will automatically
@@ -81,4 +81,4 @@ container run from this image will:
 
 [Hermes-repo]: https://github.com/informalsystems/hermes
 [Gaia]: https://github.com/cosmos/gaia
-[Tendermint]: https://github.com/tendermint/tendermint
+[CometBFT]: https://github.com/cometbft/cometbft

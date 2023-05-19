@@ -3,31 +3,31 @@
 #![deny(warnings, missing_docs, trivial_casts, unused_qualifications)]
 #![forbid(unsafe_code)]
 
-use ibc_proto::cosmos::{
-    base::tendermint::v1beta1::service_server::ServiceServer as HealthServer,
-    tx::v1beta1::service_server::ServiceServer as TxServer,
-};
-use structopt::StructOpt;
-use tendermint_abci::ServerBuilder;
-use tendermint_basecoin::{
+use basecoin::{
     app::Builder,
     cli::option::Opt,
     modules::{prefix, Governance, Identifiable, Upgrade},
     modules::{Auth, Bank, Ibc, Staking},
     store::memory::InMemoryStore,
 };
+use ibc_proto::cosmos::{
+    base::tendermint::v1beta1::service_server::ServiceServer as HealthServer,
+    tx::v1beta1::service_server::ServiceServer as TxServer,
+};
+use structopt::StructOpt;
+use tendermint_abci::ServerBuilder;
 use tokio::runtime::Runtime;
 use tonic::transport::Server;
 use tracing_subscriber::filter::LevelFilter;
 
 fn main() {
     let opt: Opt = Opt::from_args();
-    let log_level = if opt.quiet {
-        LevelFilter::OFF
+    let log_level: LevelFilter = if opt.quiet {
+        LevelFilter::DEBUG
     } else if opt.verbose {
-        LevelFilter::TRACE
+        LevelFilter::DEBUG
     } else {
-        LevelFilter::INFO
+        LevelFilter::DEBUG
     };
     tracing_subscriber::fmt().with_max_level(log_level).init();
     tracing::info!("Starting app and waiting for Tendermint to connect...");

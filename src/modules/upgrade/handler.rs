@@ -1,8 +1,8 @@
 use ibc::clients::ics07_tendermint::client_state::ClientState as TmClientState;
 use ibc::core::ics02_client::client_state::ClientState;
 use ibc::core::ics02_client::error::UpgradeClientError;
-use ibc::core::ics02_client::events::UpgradeClientProposal;
 use ibc::core::ics24_host::path::UpgradeClientPath;
+use ibc::hosts::tendermint::upgrade_proposal::UpgradeClientProposal;
 use ibc::hosts::tendermint::upgrade_proposal::UpgradeExecutionContext;
 use ibc::hosts::tendermint::upgrade_proposal::UpgradeProposal;
 
