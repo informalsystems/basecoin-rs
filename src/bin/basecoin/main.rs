@@ -22,12 +22,12 @@ use tracing_subscriber::filter::LevelFilter;
 
 fn main() {
     let opt: Opt = Opt::from_args();
-    let log_level: LevelFilter = if opt.quiet {
-        LevelFilter::DEBUG
+    let log_level = if opt.quiet {
+        LevelFilter::OFF
     } else if opt.verbose {
-        LevelFilter::DEBUG
+        LevelFilter::TRACE
     } else {
-        LevelFilter::DEBUG
+        LevelFilter::INFO
     };
     tracing_subscriber::fmt().with_max_level(log_level).init();
     tracing::info!("Starting app and waiting for Tendermint to connect...");
