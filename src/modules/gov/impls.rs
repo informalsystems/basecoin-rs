@@ -5,6 +5,7 @@ use std::sync::{Arc, RwLock};
 use tracing::debug;
 
 use cosmrs::AccountId;
+use ibc::hosts::tendermint::upgrade_proposal::upgrade_client_proposal_handler;
 use ibc::hosts::tendermint::upgrade_proposal::UpgradeProposal;
 use ibc_proto::cosmos::gov::v1beta1::query_server::QueryServer;
 use ibc_proto::google::protobuf::Any;
@@ -18,7 +19,6 @@ use super::service::GovernanceService;
 use crate::error::Error as AppError;
 use crate::helper::{Height, Path, QueryResult};
 use crate::modules::gov::msg::MsgSubmitProposal;
-use crate::modules::upgrade::handler::upgrade_client_proposal_handler;
 use crate::modules::{Module, Upgrade};
 use crate::store::{ProtobufStore, SharedRw, SharedStore, Store, TypedStore};
 
@@ -80,7 +80,7 @@ where
 
             self.proposal_counter += 1;
 
-            Ok(event)
+            Ok(vec![event])
         } else {
             Err(AppError::NotHandled)
         }

@@ -1,6 +1,6 @@
 use prost::Message;
 use std::fmt::Debug;
-use tracing::{debug, error};
+use tracing::debug;
 
 use cosmrs::AccountId;
 
@@ -74,7 +74,6 @@ where
     type Store = S;
 
     fn deliver(&mut self, _message: Any, _signer: &AccountId) -> Result<Vec<Event>, AppError> {
-        error!("Upgrade module does not handle messages");
         Err(AppError::NotHandled)
     }
 
@@ -130,6 +129,7 @@ where
                 })?;
             return Ok(QueryResult { data, proof: None });
         }
+
         Err(AppError::NotHandled)
     }
 
