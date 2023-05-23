@@ -45,7 +45,7 @@ use ibc::{
                 ConnectionPath,
             },
         },
-        router::Module as IbcModule,
+        router::{Module as IbcModule, ModuleExtras},
         ContextError,
     },
     Height as IbcHeight,
@@ -53,7 +53,6 @@ use ibc::{
 use ibc::{
     core::{
         events::IbcEvent, ics04_channel::packet::Acknowledgement, ics24_host::identifier::PortId,
-        router::ModuleExtras,
     },
     Signer,
 };
@@ -77,7 +76,6 @@ where
     S: Send + Sync,
     BK: Send + Sync,
 {
-    // store: SharedStore<S>,
     /// A bank keeper to enable sending, minting and burning of tokens
     bank_keeper: BK,
     /// A typed-store for AnyClientState
@@ -126,7 +124,6 @@ where
     BK: 'static + Send + Sync + Debug + BankKeeper<Coin = Coin>,
     Self: Send + Sync,
 {
-    #[allow(clippy::too_many_arguments)]
     fn on_chan_open_init_validate(
         &self,
         order: Order,
@@ -151,7 +148,6 @@ where
         Ok(ChannelVersion::new(VERSION.to_string()))
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn on_chan_open_init_execute(
         &mut self,
         order: Order,
@@ -175,7 +171,6 @@ where
         })
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn on_chan_open_try_validate(
         &self,
         order: Order,
@@ -200,7 +195,6 @@ where
         Ok(ChannelVersion::new(VERSION.to_string()))
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn on_chan_open_try_execute(
         &mut self,
         order: Order,

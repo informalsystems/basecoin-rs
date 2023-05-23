@@ -41,17 +41,17 @@ use ibc::{
                 SeqAckPath, SeqRecvPath, SeqSendPath,
             },
         },
-        router::{Module as IbcModule, Router as ContextRouter},
+        router::{Module as IbcModule, ModuleId, Router as ContextRouter},
         ContextError, ExecutionContext, MsgEnvelope, ValidationContext,
     },
-    hosts::tendermint::ABCI_QUERY_PATH_FOR_IBC,
+    hosts::tendermint::IBC_QUERY_PATH,
     Height as IbcHeight,
 };
 use ibc::{
     applications::transfer::{send_transfer, MODULE_ID_STR as IBC_TRANSFER_MODULE_ID},
     core::{
         events::IbcEvent, ics04_channel::error::PortError, ics24_host::identifier::PortId,
-        router::ModuleId, timestamp::Timestamp,
+        timestamp::Timestamp,
     },
     Signer,
 };
@@ -81,9 +81,10 @@ use tracing::debug;
 
 use ibc::core::dispatch;
 
-/// The Ibc module
-/// Implements all ibc-rs `Reader`s and `Keeper`s
-/// Also implements gRPC endpoints required by `hermes`
+/// The IBC module
+///
+/// Implements all IBC-rs validation and execution contexts and gRPC endpoints
+/// required by `hermes` as well.
 #[derive(Clone)]
 pub struct Ibc<S>
 where
@@ -133,7 +134,7 @@ where
     /// A typed-store for packet ack
     packet_ack_store: BinStore<SharedStore<S>, AckPath, AcknowledgementCommitment>,
     /// IBC Events
-    events: Vec<IbcEvent>,
+    pub(crate) events: Vec<IbcEvent>,
     /// message logs
     logs: Vec<String>,
 }
@@ -254,14 +255,15 @@ where
         prove: bool,
     ) -> Result<QueryResult, AppError> {
         let path = path.ok_or(AppError::NotHandled)?;
-        if path.to_string() != ABCI_QUERY_PATH_FOR_IBC {
+        if path.to_string() != IBC_QUERY_PATH {
             return Err(AppError::NotHandled);
         }
 
         let path: Path = String::from_utf8(data.to_vec())
-            .map_err(|_| ContextError::ClientError(ClientError::ImplementationSpecific))?
+            .map_err(|_| AppError::Custom {
+                reason: "Invalid path".to_string(),
+            })?
             .try_into()?;
-
         let _ = IbcPath::try_from(path.clone())
             .map_err(|_| ContextError::ClientError(ClientError::ImplementationSpecific))?;
 
@@ -272,11 +274,9 @@ where
         );
 
         let proof = if prove {
-            let proof = self
-                .get_proof(height, &path)
-                .ok_or(ContextError::ClientError(
-                    ClientError::ImplementationSpecific,
-                ))?;
+            let proof = self.get_proof(height, &path).ok_or(AppError::Custom {
+                reason: "Proof not found".to_string(),
+            })?;
             Some(vec![ProofOp {
                 r#type: "".to_string(),
                 key: path.to_string().into_bytes(),
@@ -286,12 +286,9 @@ where
             None
         };
 
-        let data = self
-            .store
-            .get(height, &path)
-            .ok_or(ContextError::ClientError(
-                ClientError::ImplementationSpecific,
-            ))?;
+        let data = self.store.get(height, &path).ok_or(AppError::Custom {
+            reason: "Data not found".to_string(),
+        })?;
         Ok(QueryResult { data, proof })
     }
 
@@ -315,7 +312,7 @@ where
     }
 }
 
-struct TmEvent(TendermintEvent);
+pub(crate) struct TmEvent(pub TendermintEvent);
 
 impl From<TmEvent> for Event {
     fn from(value: TmEvent) -> Self {

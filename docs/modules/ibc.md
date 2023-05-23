@@ -8,8 +8,8 @@ This module has been tested with `hermes`.
 ## Usage
 
 ### Step 1: Setup
-Edit your `genesis.json` file (default location `~/.tendermint/config/genesis.json`) to update the `chain_id` and setup the genesis `app_state`. 
-(See [genesis.json](../../ci/tendermint-config/genesis.json) for a sample genesis file.)
+Edit your `genesis.json` file (default location `~/.cometbft/config/genesis.json`) to update the `chain_id` and setup the genesis `app_state`. 
+(See [genesis.json](../../ci/cometbft-config/genesis.json) for a sample genesis file.)
 ```json
 {
   "chain_id": "basecoin-0",
@@ -102,7 +102,7 @@ proof_specs = '''
 ]
 '''
 ```
-**Note:** The above settings must match the corresponding settings in Tendermint's `config.toml`. 
+**Note:** The above settings must match the corresponding settings in CometBFT's `config.toml`. 
 
 ### Step 2: Bootstrap a chain with IBC support
 This can be done using the `dev-env` script provided by `ibc-rs`.
@@ -117,7 +117,7 @@ $ hermes keys add --chain basecoin-0 --key-file user_seed.json
 ```
 
 ### Step 4: Create and Update a client
-Assuming the `basecoin-0` chain and tendermint are running (see instructions on [README.md#run-the-basecoin-app-and-tendermint](../../README.md#step-4-run-the-basecoin-app-and-tendermint)).
+Assuming the `basecoin-0` chain and CometBFT are running (see instructions on [README.md#run-the-basecoin-app-and-tendermint](../../README.md#step-4-run-the-basecoin-app-and-cometbft)).
 ```shell
 $ hermes create client --host-chain basecoin-0 --reference-chain ibc-0
 $ hermes update client --host-chain basecoin-0 --client 07-tendermint-0

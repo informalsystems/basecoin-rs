@@ -2,7 +2,9 @@ use cosmrs::{AccountId, Coin as MsgCoin};
 use primitive_types::U256;
 use serde::{Deserialize, Serialize};
 
-use crate::helper::Path;
+use ibc_proto::{cosmos::base::v1beta1::Coin as ProtoCoin, protobuf::Protobuf};
+
+use crate::helper::{error::Error, Path};
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq, Clone, Hash, Eq)]
 #[serde(transparent)]
@@ -19,6 +21,32 @@ impl Coin {
         Self {
             denom,
             amount: 0u64.into(),
+        }
+    }
+}
+
+impl Protobuf<ProtoCoin> for Coin {}
+
+impl TryFrom<ProtoCoin> for Coin {
+    type Error = Error;
+
+    fn try_from(raw: ProtoCoin) -> Result<Self, Self::Error> {
+        let amount = U256::from_str_radix(&raw.amount, 10).map_err(|e| Error::Other {
+            reason: e.to_string(),
+        })?;
+
+        Ok(Self {
+            denom: Denom(raw.denom),
+            amount,
+        })
+    }
+}
+
+impl From<Coin> for ProtoCoin {
+    fn from(value: Coin) -> Self {
+        Self {
+            denom: value.denom.0,
+            amount: value.amount.to_string(),
         }
     }
 }

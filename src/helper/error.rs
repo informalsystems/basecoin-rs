@@ -12,6 +12,9 @@ pub enum Error {
     },
     /// path isn't a valid string: `{error}`
     MalformedPathString { error: Utf8Error },
+
+    /// Other: `{reason}`
+    Other { reason: String },
 }
 
 impl From<Error> for AppError {

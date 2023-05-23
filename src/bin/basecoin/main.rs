@@ -3,19 +3,19 @@
 #![deny(warnings, missing_docs, trivial_casts, unused_qualifications)]
 #![forbid(unsafe_code)]
 
+use basecoin::{
+    app::Builder,
+    cli::option::Opt,
+    modules::{prefix, Governance, Identifiable, Upgrade},
+    modules::{Auth, Bank, Ibc, Staking},
+    store::memory::InMemoryStore,
+};
 use ibc_proto::cosmos::{
     base::tendermint::v1beta1::service_server::ServiceServer as HealthServer,
     tx::v1beta1::service_server::ServiceServer as TxServer,
 };
 use structopt::StructOpt;
 use tendermint_abci::ServerBuilder;
-use tendermint_basecoin::{
-    app::Builder,
-    cli::option::Opt,
-    modules::{prefix, Identifiable},
-    modules::{Auth, Bank, Ibc, Staking},
-    store::memory::InMemoryStore,
-};
 use tokio::runtime::Runtime;
 use tonic::transport::Server;
 use tracing_subscriber::filter::LevelFilter;
@@ -42,6 +42,7 @@ fn main() {
         auth.account_reader().clone(),
         auth.account_keeper().clone(),
     );
+
     let staking = Staking::new(app_builder.module_store(&prefix::Staking {}.identifier()));
 
     let ibc = Ibc::new(
@@ -49,19 +50,30 @@ fn main() {
         bank.bank_keeper().clone(),
     );
 
+    let upgrade = Upgrade::new(app_builder.module_store(&prefix::Upgrade {}.identifier()));
+
+    let governance = Governance::new(
+        app_builder.module_store(&prefix::Governance {}.identifier()),
+        upgrade.clone(),
+    );
+
     // instantiate gRPC services for each module
     let auth_service = auth.service();
     let bank_service = bank.service();
-    let staking_service = staking.service();
     let ibc_client_service = ibc.client_service();
     let ibc_conn_service = ibc.connection_service();
     let ibc_channel_service = ibc.channel_service();
+    let governance_service = governance.service();
+    let staking_service = staking.service();
+    let upgrade_service = upgrade.service();
 
     // register modules with the app
     let app = app_builder
         .add_module(prefix::Auth {}.identifier(), auth)
         .add_module(prefix::Bank {}.identifier(), bank)
         .add_module(prefix::Ibc {}.identifier(), ibc)
+        .add_module(prefix::Governance {}.identifier(), governance)
+        .add_module(prefix::Upgrade {}.identifier(), upgrade)
         .build();
 
     // run the blocking ABCI server on a separate thread
@@ -81,7 +93,9 @@ fn main() {
         .add_service(ibc_channel_service)
         .add_service(auth_service)
         .add_service(bank_service)
+        .add_service(governance_service)
         .add_service(staking_service)
+        .add_service(upgrade_service)
         .serve(format!("{}:{}", opt.host, opt.grpc_port).parse().unwrap());
     Runtime::new()
         .unwrap()

@@ -1,10 +1,13 @@
 use super::Path;
+use crate::modules::{gov::path::ProposalPath, upgrade::path::UpgradePlanPath};
+
 use ibc::core::ics24_host::path::{
     AckPath, ChannelEndPath, ClientConnectionPath, ClientConsensusStatePath, ClientStatePath,
     CommitmentPath, ConnectionPath, ReceiptPath, SeqAckPath, SeqRecvPath, SeqSendPath,
     UpgradeClientPath,
 };
 use tendermint_proto::abci::{ResponseCheckTx, ResponseDeliverTx, ResponseQuery};
+
 pub(crate) trait ResponseFromErrorExt {
     fn from_error(code: u32, log: impl ToString) -> Self;
 }
@@ -37,7 +40,6 @@ macro_rules! impl_into_path_for {
 }
 
 impl_into_path_for!(
-    UpgradeClientPath,
     ClientStatePath,
     ClientConsensusStatePath,
     ConnectionPath,
@@ -48,5 +50,8 @@ impl_into_path_for!(
     SeqAckPath,
     CommitmentPath,
     ReceiptPath,
-    AckPath
+    AckPath,
+    UpgradeClientPath,
+    UpgradePlanPath,
+    ProposalPath
 );

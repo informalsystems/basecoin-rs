@@ -1,6 +1,7 @@
 use super::helper::error::Error as HelperError;
 use super::modules::bank::error::Error as BankError;
 use super::modules::ibc::error::Error as IbcError;
+use crate::modules::gov::error::Error as GovError;
 use displaydoc::Display;
 use ibc::core::ContextError;
 
@@ -16,6 +17,8 @@ pub enum Error {
     Bank(BankError),
     /// IBC module error
     Ibc(IbcError),
+    /// Governance module error
+    Gov(GovError),
 }
 
 impl From<ContextError> for Error {
