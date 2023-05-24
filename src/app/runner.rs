@@ -94,7 +94,7 @@ pub async fn default_app_runner(server_cfg: ServerConfig) {
             .expect("tower_abci::Server building failed");
 
         // run the blocking ABCI server on a separate thread
-        let server_listen_addr = format!("{}:{}", cfg.server.host, cfg.server.port);
+        let server_listen_addr = format!("{}:{}", server_cfg.host, server_cfg.port);
         tokio::task::spawn(async move {
             server.listen(server_listen_addr).await.unwrap();
         });
