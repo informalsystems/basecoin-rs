@@ -29,19 +29,19 @@ jobs:
 
   # This job creates the "clippy-results" GitHub Action that lists the clippy results in a nice format.
   clippy-no-features:
-  runs-on: ubuntu-latest
-  steps:
-    - uses: actions/checkout@v2
-    - uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-        components: clippy
-        override: true
-    - uses: Swatinem/rust-cache@v1
-    - uses: actions-rs/clippy-check@v1
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        args: --lib -- -Dwarnings -Drust-2018-idioms
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          components: clippy
+          override: true
+      - uses: Swatinem/rust-cache@v1
+      - uses: actions-rs/clippy-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: --lib -- -Dwarnings -Drust-2018-idioms
 
   clippy-all-features:
     runs-on: ubuntu-latest
