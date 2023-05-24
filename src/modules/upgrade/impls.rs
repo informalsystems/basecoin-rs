@@ -118,16 +118,18 @@ where
         }
 
         if path.to_string() == "/cosmos.upgrade.v1beta1.Query/CurrentPlan" {
-            let data = self
-                .store
-                .get(
-                    Height::Pending,
-                    &Path::from(UpgradePlanPath::sdk_pending_path()),
-                )
+            let plan: Any = self
+                .upgrade_plan
+                .get(Height::Pending, &UpgradePlanPath::sdk_pending_path())
                 .ok_or(AppError::Custom {
                     reason: "Data not found".to_string(),
-                })?;
-            return Ok(QueryResult { data, proof: None });
+                })?
+                .into();
+
+            return Ok(QueryResult {
+                data: plan.value,
+                proof: None,
+            });
         }
 
         Err(AppError::NotHandled)

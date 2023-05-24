@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
+BASECOIN_BIN=${BASECOIN_BIN:-${HOME}/build/basecoin-rs/debug/basecoin}
+
 echo "Test client upgradability of ibc-0 on basecoin-0"
 
 hermes tx upgrade-chain --reference-chain ibc-0 --host-chain basecoin-0 --host-client 07-tendermint-0 --amount 10000000 --height-offset 35
@@ -13,6 +15,7 @@ hermes upgrade client --host-chain basecoin-0 --client 07-tendermint-0 --upgrade
 echo "Test client upgradability of basecoin-0 on ibc-0"
 
 hermes tx upgrade-chain --reference-chain basecoin-0 --host-chain ibc-0 --host-client 07-tendermint-0 --amount 10000000 --height-offset 20
-
-### TODO: uncomment below when we could extract the plan height
-# hermes upgrade client --host-chain ibc-0 --client 07-tendermint-0 --upgrade-height $plan_height
+sleep 3s
+plan_height=$("${BASECOIN_BIN}" query upgrade plan | grep -o 'height: [0-9]*' | awk '{print $2}')
+echo "Waiting for upgrade plan to execute at height $plan_height..."
+hermes upgrade client --host-chain ibc-0 --client 07-tendermint-0 --upgrade-height $plan_height

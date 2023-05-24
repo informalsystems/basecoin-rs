@@ -189,6 +189,7 @@ impl<S: Store> BankKeeper for BankBalanceKeeper<S> {
 }
 
 /// The bank module
+#[derive(Clone)]
 pub struct Bank<S, AR, AK> {
     /// Handle to store instance
     /// The module is guaranteed exclusive access to all paths in the store key-space.
