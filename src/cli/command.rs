@@ -10,15 +10,20 @@ pub struct BasecoinCli {
     pub command: Commands,
 
     /// The path to the configuration file.
-    #[arg(long, value_name = "FILE", default_value = "config.toml")]
+    #[arg(
+        long,
+        value_name = "FILE",
+        default_value = "config.toml",
+        global = true
+    )]
     pub config: PathBuf,
 
     /// Increase output logging verbosity to DEBUG level.
-    #[arg(long)]
+    #[arg(long, global = true)]
     pub verbose: bool,
 
     /// Suppress all output logging (overrides --verbose).
-    #[arg(long)]
+    #[arg(long, global = true)]
     pub quiet: bool,
 }
 
