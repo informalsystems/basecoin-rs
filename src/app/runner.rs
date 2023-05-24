@@ -42,15 +42,6 @@ pub async fn default_app_runner(server_cfg: ServerConfig) {
         upgrade.clone(),
     );
 
-    // register modules with the app
-    let app = app_builder
-        .add_module(prefix::Auth {}.identifier(), auth.clone())
-        .add_module(prefix::Bank {}.identifier(), bank.clone())
-        .add_module(prefix::Ibc {}.identifier(), ibc.clone())
-        .add_module(prefix::Governance {}.identifier(), governance.clone())
-        .add_module(prefix::Upgrade {}.identifier(), upgrade.clone())
-        .build();
-
     // instantiate gRPC services for each module
     let auth_service = auth.service();
     let bank_service = bank.service();
@@ -60,6 +51,15 @@ pub async fn default_app_runner(server_cfg: ServerConfig) {
     let governance_service = governance.service();
     let staking_service = staking.service();
     let upgrade_service = upgrade.service();
+
+    // register modules with the app
+    let app = app_builder
+        .add_module(prefix::Auth {}.identifier(), auth.clone())
+        .add_module(prefix::Bank {}.identifier(), bank.clone())
+        .add_module(prefix::Ibc {}.identifier(), ibc)
+        .add_module(prefix::Governance {}.identifier(), governance.clone())
+        .add_module(prefix::Upgrade {}.identifier(), upgrade.clone())
+        .build();
 
     #[cfg(not(feature = "tower-abci"))]
     {
