@@ -4,6 +4,8 @@ jobs:
   cache-dependencies:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
       - name: Cache Rust dependencies
         uses: actions/cache@v2
         with:
