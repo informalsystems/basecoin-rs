@@ -8,7 +8,7 @@ use tracing_subscriber::filter::LevelFilter;
 pub struct Config {
     pub global: GlobalConfig,
     pub server: ServerConfig,
-    pub cometbft: CometBFTConfig,
+    pub cometbft: CometbftConfig,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -46,7 +46,7 @@ pub struct ServerConfig {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct CometBFTConfig {
+pub struct CometbftConfig {
     pub rpc_addr: Url,
     pub grpc_addr: Url,
 }

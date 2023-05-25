@@ -12,9 +12,9 @@ pub struct BasecoinCli {
     /// The path to the configuration file.
     #[arg(
         long,
+        global = true,
         value_name = "FILE",
-        default_value = "config.toml",
-        global = true
+        default_value = "config.toml"
     )]
     pub config: PathBuf,
 

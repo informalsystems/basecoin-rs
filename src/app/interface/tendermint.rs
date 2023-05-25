@@ -102,7 +102,7 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
                     } else {
                         None
                     };
-                    debug!("Query result: {:?}", result.data);
+
                     return ResponseQuery {
                         code: 0,
                         log: "exists".to_string(),

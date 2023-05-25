@@ -27,7 +27,7 @@ use super::path::UpgradePlanPath;
 use super::service::UpgradeService;
 use crate::error::Error as AppError;
 use crate::helper::{Height, Path, QueryResult};
-use crate::modules::Module;
+use crate::modules::{Module, UPGRADE_PLAN_QUERY_PATH};
 use crate::store::{ProtobufStore, ProvableStore, SharedStore, Store, TypedStore};
 
 #[derive(Clone)]
@@ -117,7 +117,7 @@ where
             return Ok(QueryResult { data, proof });
         }
 
-        if path.to_string() == "/cosmos.upgrade.v1beta1.Query/CurrentPlan" {
+        if path.to_string() == UPGRADE_PLAN_QUERY_PATH {
             let plan: Any = self
                 .upgrade_plan
                 .get(Height::Pending, &UpgradePlanPath::sdk_pending_path())
