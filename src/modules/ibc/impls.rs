@@ -261,11 +261,12 @@ where
 
         let path: Path = String::from_utf8(data.to_vec())
             .map_err(|_| AppError::Custom {
-                reason: "Invalid path".to_string(),
+                reason: "Invalid domain path".to_string(),
             })?
             .try_into()?;
-        let _ = IbcPath::try_from(path.clone())
-            .map_err(|_| ContextError::ClientError(ClientError::ImplementationSpecific))?;
+        let _ = IbcPath::try_from(path.clone()).map_err(|_| AppError::Custom {
+            reason: "Invalid IBC path".to_string(),
+        })?;
 
         debug!(
             "Querying for path ({}) at height {:?}",
@@ -367,7 +368,9 @@ where
         let client_state = self
             .client_state_store
             .get(Height::Pending, &ClientStatePath(client_id.clone()))
-            .ok_or(ClientError::ImplementationSpecific)
+            .ok_or(ClientError::ClientStateNotFound {
+                client_id: client_id.clone(),
+            })
             .map_err(ContextError::from)?;
         Ok(Box::new(client_state))
     }
@@ -497,7 +500,9 @@ where
     fn connection_end(&self, conn_id: &ConnectionId) -> Result<ConnectionEnd, ContextError> {
         self.connection_end_store
             .get(Height::Pending, &ConnectionPath::new(conn_id))
-            .ok_or(ConnectionError::Client(ClientError::ImplementationSpecific))
+            .ok_or(ConnectionError::ConnectionNotFound {
+                connection_id: conn_id.clone(),
+            })
             .map_err(ContextError::from)
     }
 
@@ -685,11 +690,15 @@ where
         let tm_client_state = client_state
             .as_any()
             .downcast_ref::<TmClientState>()
-            .ok_or(ClientError::ImplementationSpecific)?;
+            .ok_or(ClientError::Other {
+                description: "Client state type mismatch".to_string(),
+            })?;
         self.client_state_store
             .set(client_state_path, tm_client_state.clone())
             .map(|_| ())
-            .map_err(|_| ClientError::ImplementationSpecific)?;
+            .map_err(|_| ClientError::Other {
+                description: "Client state store error".to_string(),
+            })?;
         Ok(())
     }
 
@@ -702,10 +711,14 @@ where
         let tm_consensus_state = consensus_state
             .as_any()
             .downcast_ref::<TmConsensusState>()
-            .ok_or(ClientError::ImplementationSpecific)?;
+            .ok_or(ClientError::Other {
+                description: "Consensus state type mismatch".to_string(),
+            })?;
         self.consensus_state_store
             .set(consensus_state_path, tm_consensus_state.clone())
-            .map_err(|_| ClientError::ImplementationSpecific)?;
+            .map_err(|_| ClientError::Other {
+                description: "Consensus state store error".to_string(),
+            })?;
         Ok(())
     }
 
@@ -752,7 +765,9 @@ where
     ) -> Result<(), ContextError> {
         self.connection_end_store
             .set(connection_path.clone(), connection_end)
-            .map_err(|_| ConnectionError::Client(ClientError::ImplementationSpecific))?;
+            .map_err(|_| ConnectionError::Other {
+                description: "Connection end store error".to_string(),
+            })?;
         Ok(())
     }
 
@@ -769,7 +784,9 @@ where
         conn_ids.push(conn_id);
         self.connection_ids_store
             .set(client_connection_path.clone(), conn_ids)
-            .map_err(|_| ConnectionError::Client(ClientError::ImplementationSpecific))?;
+            .map_err(|_| ConnectionError::Other {
+                description: "Connection ids store error".to_string(),
+            })?;
         Ok(())
     }
 
@@ -835,7 +852,9 @@ where
     ) -> Result<(), ContextError> {
         self.channel_end_store
             .set(channel_end_path.clone(), channel_end)
-            .map_err(|_| ClientError::ImplementationSpecific)?;
+            .map_err(|_| ChannelError::Other {
+                description: "Channel end store error".to_string(),
+            })?;
         Ok(())
     }
 
