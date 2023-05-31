@@ -16,3 +16,4 @@ pub use bank::impls::Bank;
 pub use gov::impls::Governance;
 pub use staking::impls::Staking;
 pub use upgrade::impls::Upgrade;
+pub use upgrade::query::*;

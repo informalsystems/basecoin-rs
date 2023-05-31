@@ -1,0 +1,29 @@
+# The global section has parameters that apply globally to Basecoin operations.
+[global]
+
+# Specify the verbosity for basecoin logging output. Default: 'Info'
+# Valid options are 'Error', 'Warn', 'Info', 'Debug', 'Trace'.
+log_level = 'Debug'
+
+[server]
+
+# Bind TCP server to the this host
+host = '127.0.0.1'
+
+# Bind TCP server to the this port
+port = 26358
+
+# Bind gRPC server to the this port
+grpc_port = 9093
+
+# Server read buffer size, in bytes, for each incoming client connection.
+read_buf_size = 1048576
+
+
+[cometbft]
+
+# Specify the RPC address and port where the consensus RPC server listens on.
+rpc_addr = 'http://127.0.0.1:26357'
+
+# Specify the GRPC address and port where the consensus GRPC server listens on.
+grpc_addr = 'http://127.0.0.1:9090'
