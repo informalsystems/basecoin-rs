@@ -27,6 +27,7 @@ pub fn get_proof_spec() -> ProofSpec {
         }),
         max_depth: 0,
         min_depth: 0,
+        prehash_key_before_comparison: false,
     }
 }
 
