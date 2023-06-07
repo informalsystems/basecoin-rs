@@ -3,7 +3,7 @@ on:
   pull_request:
   push:
     branches:
-      - rano/ci/integration-test
+      - master
   workflow_dispatch:
 
 env:
