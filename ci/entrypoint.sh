@@ -10,7 +10,7 @@ HERMES_CONFIG="${HOME}/.hermes/config.toml"
 LOG_DIR=${LOG_DIR:-/var/log/basecoin-rs}
 TESTS_DIR=${TESTS_DIR:-${HOME}/tests}
 
-if [ ! -f "${BASECOIN_SRC}/Cargo.toml" ]; then
+if [[ ! -f "${BASECOIN_SRC}/Cargo.toml" ]]; then
   echo "basecoin-rs sources must be mounted into ${BASECOIN_SRC} for this script to work properly."
   exit 1
 fi
@@ -61,7 +61,7 @@ set -e
 # Will fail if we still can't reach the CometBFT node
 curl "http://127.0.0.1:26357/abci_info" > /dev/null 2>&1
 
-if [ ! -z "$@" ]; then
+if [[ ! -z "$@" ]]; then
   cd "${HOME}"
   exec "$@"
 else
