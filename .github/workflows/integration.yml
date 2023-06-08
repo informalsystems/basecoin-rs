@@ -16,11 +16,7 @@ env:
 jobs:
   gh-native-ibc-integration:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        test:
-          - create-channel,token-transfer
-          - create-channel,upgrade-client
+
     steps:
       - uses: actions/checkout@v3
 
@@ -59,15 +55,9 @@ jobs:
           cp user_seed.json ~
 
       - name: Prepare tests
-        env:
-          TESTS: ${{ matrix.test }}
         working-directory: ci/
         run: |
-          mkdir -p ~/tests
-          for test in ${TESTS//,/ }; do
-            echo "Copying test: ${test}"
-            cp tests/${test}.sh ~/tests
-          done
+          cp -r tests/ ~
 
       - name: Download and setup binaries
         run: |
