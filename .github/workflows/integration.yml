@@ -103,4 +103,4 @@ jobs:
         working-directory: ~
         run: |
           mkdir -p "${LOG_DIR}"
-          entrypoint.sh
+          entrypoint.sh make -C ~/tests/ -j2
