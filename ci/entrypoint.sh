@@ -62,7 +62,7 @@ set -e
 curl "http://127.0.0.1:26357/abci_info" > /dev/null 2>&1
 
 if [[ ! -z "$@" ]]; then
-  cd "${HOME}"
+  # cd "${HOME}"
   exec "$@"
 else
   echo ""

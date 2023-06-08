@@ -53,10 +53,7 @@ jobs:
           cp hermes-config.toml ~/.hermes/config.toml
           cp one-chain ~
           cp user_seed.json ~
-
-      - name: Prepare tests
-        working-directory: ci/
-        run: |
+          cp Makefile ..
           cp -r tests/ ~
 
       - name: Download and setup binaries
@@ -103,4 +100,4 @@ jobs:
         working-directory: ~
         run: |
           mkdir -p "${LOG_DIR}"
-          entrypoint.sh make -C ~/tests/ -j2
+          entrypoint.sh make test -j4
