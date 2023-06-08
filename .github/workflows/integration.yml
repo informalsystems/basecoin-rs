@@ -17,7 +17,7 @@ jobs:
   gh-native-ibc-integration:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Download CometBFT
         uses: dsaltares/fetch-gh-release-asset@master
@@ -74,7 +74,7 @@ jobs:
           gaiad version
           hermes version
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         with:
           path: |
             ~/.cargo
