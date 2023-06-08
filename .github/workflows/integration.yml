@@ -16,6 +16,11 @@ env:
 jobs:
   gh-native-ibc-integration:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        test:
+          - create-channel,token-transfer
+          - create-channel,upgrade-client
     steps:
       - uses: actions/checkout@v3
 
@@ -52,7 +57,17 @@ jobs:
           cp hermes-config.toml ~/.hermes/config.toml
           cp one-chain ~
           cp user_seed.json ~
-          cp -r tests/ ~
+
+      - name: Prepare tests
+        env:
+          TESTS: ${{ matrix.test }}
+        working-directory: ci/
+        run: |
+          mkdir -p ~/tests
+          for test in ${TESTS//,/ }; do
+            echo "Copying test: ${test}"
+            cp tests/${test}.sh ~/tests
+          done
 
       - name: Download and setup binaries
         run: |
