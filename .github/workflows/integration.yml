@@ -56,9 +56,9 @@ jobs:
 
       - name: Download and setup binaries
         run: |
-          tar -xzf "cometbft_${{ env.COMETBFT_VERSION }}_linux_amd64.tar.gz"
-          mv "gaiad-v${{ env.GAIA_VERSION }}-linux-amd64" gaiad
-          tar -xzf "hermes-v${{ env.HERMES_VERSION }}-x86_64-unknown-linux-gnu.tar.gz"
+          tar -xzf "cometbft_${COMETBFT_VERSION}_linux_amd64.tar.gz"
+          mv "gaiad-v${GAIA_VERSION}-linux-amd64" gaiad
+          tar -xzf "hermes-v${HERMES_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
           chmod +x cometbft
           chmod +x gaiad
           chmod +x hermes
@@ -73,11 +73,6 @@ jobs:
           cometbft version
           gaiad version
           hermes version
-
-      - name: Set env vars
-        run: |
-          echo "BASECOIN_SRC=$(pwd)" >> $GITHUB_ENV
-          echo "LOG_DIR=$(pwd)/log/basecoin-rs" >> $GITHUB_ENV
 
       - uses: actions/cache@v2
         with:
@@ -94,9 +89,13 @@ jobs:
           toolchain: stable
           override: true
 
+      - name: Set environment variables
+        run: |
+          echo "BASECOIN_SRC=$(pwd)" >> $GITHUB_ENV
+          echo "LOG_DIR=$(pwd)/log" >> $GITHUB_ENV
+
       - name: Run integration tests
         working-directory: ~
         run: |
-          pwd
           mkdir -p "${LOG_DIR}"
           entrypoint.sh
