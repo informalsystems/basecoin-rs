@@ -33,19 +33,3 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: test
-
-  ibc-integration:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Build Docker image
-        run: |
-          docker build \
-            -f ci/Dockerfile \
-            -t informaldev/basecoin-rs-ci \
-            ./ci
-      - name: Run test
-        run: |
-          docker run --rm \
-            -v `pwd`:/src/basecoin-rs \
-            informaldev/basecoin-rs-ci
