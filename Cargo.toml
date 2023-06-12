@@ -45,7 +45,7 @@ tonic = "0.9"
 tracing = "0.1.26"
 tracing-subscriber = "0.3.16"
 
-tower-abci = { version = "0.7", optional = true }
+tower-abci = { version = "0.8", optional = true }
 tower = { version = "0.4", features = ["full"], optional = true }
 
 [dev-dependencies]
