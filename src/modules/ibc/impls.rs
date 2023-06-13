@@ -626,7 +626,7 @@ where
         Ok(ack)
     }
 
-    /// Returns the time when the client state for the given [`ClientId`] was updated with a header for the given [`Height`]
+    /// Returns the time when the client state for the given [`ClientId`] was updated with a header for the given [`IbcHeight`]
     fn client_update_time(
         &self,
         client_id: &ClientId,
@@ -643,7 +643,7 @@ where
         Ok(processed_timestamp)
     }
 
-    /// Returns the height when the client state for the given [`ClientId`] was updated with a header for the given [`Height`]
+    /// Returns the height when the client state for the given [`ClientId`] was updated with a header for the given [`IbcHeight`]
     fn client_update_height(
         &self,
         client_id: &ClientId,
