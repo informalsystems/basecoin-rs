@@ -1,0 +1,22 @@
+[package]
+name = "cosmos-sdk-rs-auth"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[dependencies]
+cosmrs = "0.14.0"
+ibc-proto = { version = "=0.31.0", default-features = false, features = ["server"] }
+prost = { version = "0.11.6", default-features = false }
+serde_json = "1.0"
+tendermint-proto = "=0.32.0"
+tonic = "0.9"
+anyhow = "1.0.71"
+tracing = "0.1.26"
+
+cosmos-sdk-rs-store = { version = "0.1", path = "../../store" }
+cosmos-sdk-rs-helper = { version = "0.1", path = "../../helper" }
+cosmos-sdk-rs-module-api = { version = "0.1", path = "../module-api" }
+cosmos-sdk-rs-bank-type = { version = "0.1", path = "../bank/bank-type" }
+
+

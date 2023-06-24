@@ -1,0 +1,63 @@
+use serde_derive::{Deserialize, Serialize};
+pub use std::path::Path;
+use tendermint_rpc::Url;
+use tracing_subscriber::filter::LevelFilter;
+
+pub const CHAIN_REVISION_NUMBER: u64 = 0;
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct Config {
+    pub global: GlobalConfig,
+    pub server: ServerConfig,
+    pub cometbft: CometbftConfig,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct GlobalConfig {
+    pub log_level: LogLevel,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
+pub enum LogLevel {
+    Trace,
+    Debug,
+    Info,
+    Warn,
+    Error,
+}
+
+impl From<LogLevel> for LevelFilter {
+    fn from(level: LogLevel) -> Self {
+        match level {
+            LogLevel::Trace => LevelFilter::TRACE,
+            LogLevel::Debug => LevelFilter::DEBUG,
+            LogLevel::Info => LevelFilter::INFO,
+            LogLevel::Warn => LevelFilter::WARN,
+            LogLevel::Error => LevelFilter::ERROR,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct ServerConfig {
+    pub host: String,
+    pub port: u16,
+    pub grpc_port: u16,
+    pub read_buf_size: usize,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct CometbftConfig {
+    pub rpc_addr: Url,
+    pub grpc_addr: Url,
+}
+
+/// Attempt to load and parse the TOML config file as a `Config`.
+pub fn load_config(path: impl AsRef<Path>) -> anyhow::Result<Config> {
+    let config_toml = std::fs::read_to_string(&path).map_err(|e| anyhow::anyhow!("{e:?}"))?;
+
+    let config =
+        toml::from_str::<Config>(&config_toml[..]).map_err(|e| anyhow::anyhow!("{e:?}"))?;
+
+    Ok(config)
+}

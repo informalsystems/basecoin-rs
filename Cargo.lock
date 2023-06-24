@@ -156,6 +156,7 @@ dependencies = [
  "base64 0.21.0",
  "bytes",
  "clap",
+ "cosmos-sdk-rs-store",
  "cosmrs",
  "derive_more",
  "displaydoc",
@@ -382,6 +383,29 @@ dependencies = [
  "prost",
  "prost-types",
  "tendermint-proto",
+]
+
+[[package]]
+name = "cosmos-sdk-rs-helper"
+version = "0.1.0"
+dependencies = [
+ "displaydoc",
+ "ibc",
+ "tendermint-proto",
+]
+
+[[package]]
+name = "cosmos-sdk-rs-store"
+version = "0.1.0"
+dependencies = [
+ "cosmos-sdk-rs-helper",
+ "ics23",
+ "prost",
+ "serde",
+ "serde_json",
+ "sha2 0.10.6",
+ "tendermint",
+ "tracing",
 ]
 
 [[package]]

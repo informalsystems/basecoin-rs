@@ -1,0 +1,16 @@
+[package]
+name = "cosmos-sdk-rs-module-api"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.71"
+tendermint = "=0.32.0"
+tendermint-proto = "=0.32.0"
+ibc-proto = { version = "=0.31.0", default-features = false, features = ["server"] }
+cosmrs = "0.14.0"
+serde_json = "1.0"
+cosmos-sdk-rs-helper = { version = "0.1", path = "../../helper" }
+cosmos-sdk-rs-store = { version = "0.1", path = "../../store" }
