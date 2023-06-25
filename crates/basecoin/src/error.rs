@@ -26,3 +26,27 @@ impl From<ContextError> for Error {
         Self::Ibc(error.into())
     }
 }
+
+impl From<IbcError> for Error {
+    fn from(value: IbcError) -> Self {
+        Self::Ibc(value)
+    }
+}
+
+impl From<HelperError> for Error {
+    fn from(value: HelperError) -> Self {
+        Self::Helper(value)
+    }
+}
+
+impl From<GovError> for Error {
+    fn from(value: GovError) -> Self {
+        Self::Gov(value)
+    }
+}
+
+impl From<BankError> for Error {
+    fn from(value: BankError) -> Self {
+        Self::Bank(value)
+    }
+}

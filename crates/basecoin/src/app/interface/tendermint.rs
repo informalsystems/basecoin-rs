@@ -3,6 +3,7 @@ use serde_json::Value;
 use std::convert::TryInto;
 use tracing::{debug, info};
 
+use crate::error::Error;
 use cosmrs::tx::SignerInfo;
 use cosmrs::tx::SignerPublicKey;
 use cosmrs::Tx;
@@ -116,7 +117,9 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
                 // `Error::NotHandled` - implies query isn't known or was intercepted but not
                 // responded to by this module, so try with next module
                 // todo(davirain)
-                Err(e) if e.to_string() == "not handled" => continue,
+                Err(e) if e.to_string() == anyhow::anyhow!(Error::NotHandled).to_string() => {
+                    continue
+                }
                 // Other error - return immediately
                 Err(e) => return ResponseQuery::from_error(1, format!("query error: {e:?}")),
             }

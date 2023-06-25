@@ -1,11 +1,11 @@
 use std::sync::{Arc, RwLock};
 use tracing::error;
 
+use crate::error::Error;
 use cosmrs::AccountId;
 use ibc_proto::google::protobuf::Any;
 use tendermint_proto::abci::Event;
 
-use crate::error::Error;
 use cosmos_sdk_rs_helper::Identifier;
 use cosmos_sdk_rs_module_api::types::IdentifiedModule;
 use cosmos_sdk_rs_module_api::types::ModuleList;
@@ -96,7 +96,9 @@ impl<S: Default + ProvableStore> BaseCoinApp<S> {
                     break;
                 }
                 // todo(davirain)
-                Err(e) if e.to_string() == "not handled" => continue,
+                Err(e) if e.to_string() == anyhow::anyhow!(Error::NotHandled).to_string() => {
+                    continue
+                }
                 Err(e) => {
                     error!("deliver message ({:?}) failed with error: {:?}", message, e);
                     return Err(Error::Custom {
