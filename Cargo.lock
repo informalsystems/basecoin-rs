@@ -168,7 +168,6 @@ dependencies = [
  "cosmos-sdk-rs-store",
  "cosmos-sdk-rs-upgrade",
  "cosmrs",
- "displaydoc",
  "ibc",
  "ibc-proto",
  "lazy_static",
@@ -178,6 +177,7 @@ dependencies = [
  "serde_json",
  "tendermint-abci",
  "tendermint-proto",
+ "thiserror",
  "tokio",
  "tonic",
  "tower",
@@ -476,12 +476,12 @@ name = "cosmos-sdk-rs-helper"
 version = "0.1.0"
 dependencies = [
  "bytes",
- "displaydoc",
  "ibc",
  "lazy_static",
  "proptest",
  "rand",
  "tendermint-proto",
+ "thiserror",
 ]
 
 [[package]]

@@ -2,22 +2,22 @@ use cosmos_sdk_rs_bank::error::Error as BankError;
 use cosmos_sdk_rs_gov::error::Error as GovError;
 use cosmos_sdk_rs_helper::error::Error as HelperError;
 use cosmos_sdk_rs_ibc::error::Error as IbcError;
-use displaydoc::Display;
 use ibc::core::ContextError;
+use thiserror::Error;
 
-#[derive(Debug, Display)]
+#[derive(Debug, Error)]
 pub enum Error {
-    /// no module could handle specified message
+    #[error("no module could handle specified message")]
     NotHandled,
-    /// custom error: `{reason}`
+    #[error("custom error: `{reason}`")]
     Custom { reason: String },
-    /// helper error
+    #[error("helper error: `{0}`")]
     Helper(HelperError),
-    /// bank module error
+    #[error("bank module error: `{0}`")]
     Bank(BankError),
-    /// IBC module error
+    #[error("IBC module error: `{0}`")]
     Ibc(IbcError),
-    /// Governance module error
+    #[error("Governance module error: `{0}`")]
     Gov(GovError),
 }
 

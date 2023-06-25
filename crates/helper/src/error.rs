@@ -1,24 +1,18 @@
-// use crate::error::Error as AppError;
-use displaydoc::Display;
 use ibc::core::ics24_host::identifier::IdentifierError;
 use std::str::Utf8Error;
+use thiserror::Error;
 
-#[derive(Debug, Display)]
+#[derive(Debug, Error)]
 pub enum Error {
-    /// '{identifier}' is not a valid identifier: `{error}`
+    #[error("'{identifier}' is not a valid identifier: `{error}`")]
     InvalidIdentifier {
         identifier: String,
         error: IdentifierError,
     },
-    /// path isn't a valid string: `{error}`
+
+    #[error("path isn't a valid string: `{error}`")]
     MalformedPathString { error: Utf8Error },
 
-    /// Other: `{reason}`
+    #[error("Other: `{reason}`")]
     Other { reason: String },
 }
-
-// impl From<Error> for AppError {
-//     fn from(e: Error) -> Self {
-//         AppError::Helper(e)
-//     }
-// }
