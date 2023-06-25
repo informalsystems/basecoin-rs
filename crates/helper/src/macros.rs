@@ -8,7 +8,7 @@ use ibc::core::ics24_host::path::{
 };
 use tendermint_proto::abci::{ResponseCheckTx, ResponseDeliverTx, ResponseQuery};
 
-pub(crate) trait ResponseFromErrorExt {
+pub trait ResponseFromErrorExt {
     fn from_error(code: u32, log: impl ToString) -> Self;
 }
 

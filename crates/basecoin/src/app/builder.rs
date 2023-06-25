@@ -6,18 +6,14 @@ use ibc_proto::google::protobuf::Any;
 use tendermint_proto::abci::Event;
 
 use crate::error::Error;
-use crate::helper::Identifier;
-use crate::modules::types::IdentifiedModule;
-use crate::modules::types::ModuleList;
-use crate::modules::types::ModuleStore;
+use cosmos_sdk_rs_helper::Identifier;
+use cosmos_sdk_rs_module_api::types::IdentifiedModule;
+use cosmos_sdk_rs_module_api::types::ModuleList;
+use cosmos_sdk_rs_module_api::types::ModuleStore;
 
-use crate::modules::Module;
+use cosmos_sdk_rs_module_api::module::Module;
 
-use crate::store::MainStore;
-use crate::store::ProvableStore;
-use crate::store::RevertibleStore;
-use crate::store::SharedRw;
-use crate::store::SharedStore;
+use cosmos_sdk_rs_store::{MainStore, ProvableStore,  RevertibleStore, SharedRw,SharedStore };
 
 pub struct Builder<S> {
     store: MainStore<S>,
@@ -99,10 +95,11 @@ impl<S: Default + ProvableStore> BaseCoinApp<S> {
                     handled = true;
                     break;
                 }
-                Err(Error::NotHandled) => continue,
+                // todo(davirain)
+                Err(e) if e.to_string() == "not handled" => continue,
                 Err(e) => {
                     error!("deliver message ({:?}) failed with error: {:?}", message, e);
-                    return Err(e);
+                    return Err(Error::Custom { reason: e.to_string() });
                 }
             }
         }

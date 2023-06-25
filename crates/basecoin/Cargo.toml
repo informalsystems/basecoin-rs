@@ -12,8 +12,9 @@ description = """
     use of tendermint-rs.
 """
 
-default-run = "basecoin"
-
+[[bin]]
+name = "basecoin"
+path = "bin/basecoin/main.rs"
 
 [features]
 default = []
@@ -44,11 +45,22 @@ tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
 tonic = "0.9"
 tracing = "0.1.26"
 tracing-subscriber = "0.3.16"
+anyhow = "1"
 
 tower-abci = { version = "0.8", optional = true }
 tower = { version = "0.4", features = ["full"], optional = true }
 
-cosmos-sdk-rs-store = { version = "0.1", path = "./store" }
+cosmos-sdk-rs-store = { version = "0.1", path = "../store" }
+cosmos-sdk-rs-config = { version = "0.1", path = "../config" }
+cosmos-sdk-rs-helper = { version = "0.1", path = "../helper" }
+cosmos-sdk-rs-auth = { version = "0.1", path = "../modules/auth" }
+cosmos-sdk-rs-bank = { version = "0.1", path = "../modules/bank" }
+cosmos-sdk-rs-bank-type = { version = "0.1", path = "../modules/bank/bank-type" }
+cosmos-sdk-rs-gov = { version = "0.1", path = "../modules/gov" }
+cosmos-sdk-rs-ibc = { version = "0.1", path = "../modules/ibc" }
+cosmos-sdk-rs-module-api = { version = "0.1", path = "../modules/module-api" }
+cosmos-sdk-rs-staking = { version = "0.1", path = "../modules/staking" }
+cosmos-sdk-rs-upgrade = { version = "0.1", path = "../modules/upgrade" }
 
 [dev-dependencies]
 bytes = "1.0.1"

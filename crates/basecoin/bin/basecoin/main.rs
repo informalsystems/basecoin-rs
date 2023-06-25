@@ -6,10 +6,10 @@
 use basecoin::{
     app::default_app_runner,
     cli::command::{BasecoinCli, Commands, QueryCmd, UpgradeCmd},
-    config::load_config,
-    modules::query_upgrade_plan,
 };
 
+use cosmos_sdk_rs_config::load_config;
+use cosmos_sdk_rs_upgrade::query::query_upgrade_plan;
 use clap::Parser;
 use tracing::metadata::LevelFilter;
 

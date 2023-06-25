@@ -25,11 +25,11 @@ use tendermint_proto::crypto::ProofOp;
 use tendermint_proto::crypto::ProofOps;
 
 use crate::app::BaseCoinApp;
-use crate::error::Error;
-use crate::helper::macros::ResponseFromErrorExt;
-use crate::helper::{Height, Path};
-use crate::modules::{auth::account::ACCOUNT_PREFIX, types::IdentifiedModule};
-use crate::store::{ProvableStore, Store};
+use cosmos_sdk_rs_helper::macros::ResponseFromErrorExt;
+use cosmos_sdk_rs_helper::{Height, Path};
+use cosmos_sdk_rs_auth::account::ACCOUNT_PREFIX;
+use cosmos_sdk_rs_module_api::types::IdentifiedModule;
+use cosmos_sdk_rs_store::{ProvableStore, Store};
 
 impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
     fn info(&self, request: RequestInfo) -> ResponseInfo {
@@ -115,7 +115,8 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
                 }
                 // `Error::NotHandled` - implies query isn't known or was intercepted but not
                 // responded to by this module, so try with next module
-                Err(Error::NotHandled) => continue,
+                // todo(davirain)
+                Err(e) if e.to_string() == "not handled" => continue,
                 // Other error - return immediately
                 Err(e) => return ResponseQuery::from_error(1, format!("query error: {e:?}")),
             }

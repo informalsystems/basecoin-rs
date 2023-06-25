@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    # "crates/basecoin",
+    "crates/basecoin",
     "crates/config",
     "crates/helper",
     "crates/modules/auth",

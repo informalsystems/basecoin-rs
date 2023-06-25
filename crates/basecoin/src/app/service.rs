@@ -36,7 +36,7 @@ use ibc_proto::cosmos::tx::v1beta1::SimulateRequest;
 use ibc_proto::cosmos::tx::v1beta1::SimulateResponse;
 
 use super::builder::BaseCoinApp;
-use crate::store::ProvableStore;
+use cosmos_sdk_rs_store::ProvableStore;
 
 #[tonic::async_trait]
 impl<S: ProvableStore + 'static> HealthService for BaseCoinApp<S> {
