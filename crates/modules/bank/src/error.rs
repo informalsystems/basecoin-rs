@@ -1,19 +1,27 @@
 use cosmrs::AccountId;
 
-pub use displaydoc::Display;
+use thiserror::Error;
 
-#[derive(Debug, Display)]
+#[derive(Debug, Error)]
 pub enum Error {
-    /// failed to decode message
+    #[error("failed to decode message")]
     MsgDecodeFailure,
-    /// failed to validate message: `{reason}`
+
+    #[error("failed to validate message: `{reason}`")]
     MsgValidationFailure { reason: String },
-    /// account `{account}` doesn't exist
+
+    #[error("account `{account}` doesn't exist")]
     NonExistentAccount { account: AccountId },
-    /// insufficient funds in sender account
+
+    #[error("insufficient funds in sender account")]
     InsufficientSourceFunds,
-    /// receiver account funds overflow
+
+    #[error("receiver account funds overflow")]
     DestFundOverflow,
-    /// Store error: `{reason}`
+
+    #[error("Store error: `{reason}`")]
     Store { reason: String },
+
+    #[error("not handled")]
+    NotHandled,
 }

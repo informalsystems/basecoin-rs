@@ -1,6 +1,5 @@
-use std::{collections::HashMap, str::FromStr};
-
 use crate::account::AuthAccount;
+use crate::error::Error;
 use anyhow::Result;
 use cosmos_sdk_rs_bank_type::Denom;
 use cosmos_sdk_rs_helper::Height;
@@ -12,6 +11,7 @@ use ibc_proto::{
     google::protobuf::Any,
 };
 use serde_json::Value;
+use std::{collections::HashMap, str::FromStr};
 use tendermint_proto::abci::Event;
 use tracing::{debug, trace};
 
@@ -79,16 +79,16 @@ impl<S: Store> Module for Auth<S> {
         let mut account = self
             .account_reader
             .get_account(signer.clone())
-            .map_err(|_| anyhow::anyhow!("unknown signer"))?;
+            .map_err(|_| Error::UnknownSigner)?;
 
         account.sequence += 1;
 
         self.account_keeper
             .set_account(account)
-            .map_err(|_| anyhow::anyhow!("failed to increment signer sequence"))?;
+            .map_err(|_| Error::FailedToIncrementSignerSequence)?;
 
         // we're only intercepting the deliverTx here, so return unhandled.
-        Err(anyhow::anyhow!("not handled"))
+        Err(Error::NotHandled.into())
     }
 
     fn store_mut(&mut self) -> &mut SharedStore<S> {
