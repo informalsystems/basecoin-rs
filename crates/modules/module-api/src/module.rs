@@ -1,3 +1,4 @@
+use crate::error::Error;
 use anyhow::Result;
 use cosmos_sdk_rs_helper::{Height, Identifier as StoreIdentifier, Path, QueryResult};
 use cosmos_sdk_rs_store::impls::SharedStore;
@@ -27,7 +28,7 @@ pub trait Module: Send + Sync {
     /// * Other errors iff message was meant to be consumed by module but resulted in an error
     /// * Resulting events on success
     fn deliver(&mut self, _message: Any, _signer: &AccountId) -> Result<Vec<Event>> {
-        Err(anyhow::anyhow!("NotHandled"))
+        Err(Error::NotHandled.into())
     }
 
     /// Similar to [ABCI InitChain method](https://docs.tendermint.com/master/spec/abci/abci.html#initchain)
@@ -47,7 +48,7 @@ pub trait Module: Send + Sync {
         _height: Height,
         _prove: bool,
     ) -> Result<QueryResult> {
-        Err(anyhow::anyhow!("NotHandled"))
+        Err(Error::NotHandled.into())
     }
 
     /// Similar to [ABCI BeginBlock method](https://docs.tendermint.com/master/spec/abci/abci.html#beginblock)

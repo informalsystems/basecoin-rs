@@ -2,6 +2,7 @@ use super::{
     router::IbcRouter,
     service::{IbcChannelService, IbcClientService, IbcConnectionService},
 };
+use crate::error::Error;
 use crate::transfer::IbcTransferModule;
 use anyhow::Result;
 use cosmos_sdk_rs_bank::impls::BankBalanceKeeper;
@@ -231,7 +232,8 @@ where
                 .get_transfer_module_mut()
                 .expect("Failed to get the transfer module");
 
-            send_transfer(transfer_module, transfer_msg).map_err(|e| anyhow::anyhow!("{e:?}"))?;
+            send_transfer(transfer_module, transfer_msg)
+                .map_err(|e| Error::Unknown(e.to_string()))?;
 
             Ok(transfer_module
                 .events
@@ -240,7 +242,7 @@ where
                 .map(|ev| TmEvent(ev.try_into().unwrap()).into())
                 .collect())
         } else {
-            Err(anyhow::anyhow!("not handled"))
+            Err(Error::NotHandled.into())
         }
     }
 
@@ -251,18 +253,20 @@ where
         height: Height,
         prove: bool,
     ) -> Result<QueryResult> {
-        let path = path.ok_or(anyhow::anyhow!("not handled"))?;
+        let path = path.ok_or(Error::NotHandled)?;
         if path.to_string() != IBC_QUERY_PATH {
-            return Err(anyhow::anyhow!("not handled"));
+            return Err(Error::NotHandled.into());
         }
 
         let path: Path = String::from_utf8(data.to_vec())
-            .map_err(|e| anyhow::anyhow!("Invalid domain path({e:?})"))?
+            .map_err(|e| Error::InvalidDomainPath(e.to_string()))?
             .try_into()
-            .map_err(|e| anyhow::anyhow!("Invalid domain path({e:?})"))?;
+            .map_err(|e: cosmos_sdk_rs_helper::error::Error| {
+                Error::InvalidDomainPath(e.to_string())
+            })?;
 
-        let _ = IbcPath::try_from(path.clone())
-            .map_err(|e| anyhow::anyhow!("Invalid IBC path({e:?})"))?;
+        let _ =
+            IbcPath::try_from(path.clone()).map_err(|e| Error::InvalidIbcPath(e.to_string()))?;
 
         debug!(
             "Querying for path ({}) at height {:?}",
@@ -271,9 +275,7 @@ where
         );
 
         let proof = if prove {
-            let proof = self
-                .get_proof(height, &path)
-                .ok_or(anyhow::anyhow!("Proof not found"))?;
+            let proof = self.get_proof(height, &path).ok_or(Error::ProofNotFound)?;
 
             Some(vec![ProofOp {
                 r#type: "".to_string(),
@@ -284,10 +286,7 @@ where
             None
         };
 
-        let data = self
-            .store
-            .get(height, &path)
-            .ok_or(anyhow::anyhow!("Data not found"))?;
+        let data = self.store.get(height, &path).ok_or(Error::DataNotFound)?;
 
         Ok(QueryResult { data, proof })
     }

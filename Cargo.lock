@@ -499,6 +499,7 @@ dependencies = [
  "prost",
  "tendermint",
  "tendermint-proto",
+ "thiserror",
  "tonic",
  "tracing",
 ]
@@ -515,6 +516,7 @@ dependencies = [
  "serde_json",
  "tendermint",
  "tendermint-proto",
+ "thiserror",
 ]
 
 [[package]]
