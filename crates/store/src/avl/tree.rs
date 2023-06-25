@@ -1,4 +1,4 @@
-use core::{
+use std::{
     borrow::Borrow,
     cmp::{Ord, Ordering},
     marker::Sized,
@@ -20,7 +20,7 @@ use crate::avl::{
 
 /// An AVL Tree that supports `get` and `insert` operation and can be used to prove existence of a
 /// given key-value couple.
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, Default)]
 pub struct AvlTree<K: Ord + AsBytes, V> {
     pub root: NodeRef<K, V>,
 }

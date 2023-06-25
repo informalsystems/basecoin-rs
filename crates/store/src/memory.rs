@@ -2,7 +2,7 @@ use ics23::CommitmentProof;
 use tendermint::{hash::Algorithm, Hash};
 use tracing::trace;
 
-use super::State;
+use crate::State;
 use crate::{
     avl::{AsBytes, AvlTree},
     context::{ProvableStore, Store},

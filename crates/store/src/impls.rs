@@ -1,4 +1,4 @@
-use super::context::{ProvableStore, Store};
+use crate::context::{ProvableStore, Store};
 use cosmos_sdk_rs_helper::{Height, Path, RawHeight};
 use ics23::CommitmentProof;
 use std::{
