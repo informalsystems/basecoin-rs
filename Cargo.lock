@@ -342,8 +342,12 @@ dependencies = [
 name = "cosmos-sdk-rs-helper"
 version = "0.1.0"
 dependencies = [
+ "bytes",
  "displaydoc",
  "ibc",
+ "lazy_static",
+ "proptest",
+ "rand",
  "tendermint-proto",
 ]
 

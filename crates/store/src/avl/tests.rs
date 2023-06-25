@@ -3,7 +3,7 @@
 use ics23::{commitment_proof::Proof, verify_membership, HostFunctionsManager};
 use sha2::{Digest, Sha256};
 
-use crate::store::avl::{
+use crate::avl::{
     node::{as_node_ref, NodeRef},
     tree::AvlTree,
     *,
