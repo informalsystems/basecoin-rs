@@ -2,6 +2,7 @@ use prost::Message;
 use std::fmt::Debug;
 use tracing::debug;
 
+use crate::error::Error;
 use anyhow::Result;
 use cosmrs::AccountId;
 use ibc_proto::cosmos::upgrade::v1beta1::query_server::QueryServer;
@@ -74,7 +75,7 @@ where
     type Store = S;
 
     fn deliver(&mut self, _message: Any, _signer: &AccountId) -> Result<Vec<Event>> {
-        Err(anyhow::anyhow!("not handled"))
+        Err(Error::NotHandled.into())
     }
 
     fn query(
@@ -84,12 +85,12 @@ where
         height: Height,
         prove: bool,
     ) -> Result<QueryResult> {
-        let path = path.ok_or(anyhow::anyhow!("not handled"))?;
+        let path = path.ok_or(Error::NotHandled)?;
         if path.to_string() == SDK_UPGRADE_QUERY_PATH {
             let path: Path = String::from_utf8(data.to_vec())
-                .map_err(|_| anyhow::anyhow!("Invalid path"))?
+                .map_err(|_| Error::InvalidPath)?
                 .try_into()
-                .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+                .map_err(|e: cosmos_sdk_rs_helper::error::Error| Error::Unknown(e.to_string()))?;
 
             debug!(
                 "Querying for path ({}) at height {:?}",
@@ -98,9 +99,7 @@ where
             );
 
             let proof = if prove {
-                let proof = self
-                    .get_proof(height, &path)
-                    .ok_or(anyhow::anyhow!("Proof not Found"))?;
+                let proof = self.get_proof(height, &path).ok_or(Error::ProofNotFound)?;
                 Some(vec![ProofOp {
                     r#type: "".to_string(),
                     key: path.to_string().into_bytes(),
@@ -110,10 +109,7 @@ where
                 None
             };
 
-            let data = self
-                .store
-                .get(height, &path)
-                .ok_or(anyhow::anyhow!("Data not Found"))?;
+            let data = self.store.get(height, &path).ok_or(Error::DataNotFound)?;
             return Ok(QueryResult { data, proof });
         }
 
@@ -121,7 +117,7 @@ where
             let plan: Any = self
                 .upgrade_plan
                 .get(Height::Pending, &UpgradePlanPath::sdk_pending_path())
-                .ok_or(anyhow::anyhow!("Data not Found"))?
+                .ok_or(Error::DataNotFound)?
                 .into();
 
             return Ok(QueryResult {
@@ -130,7 +126,7 @@ where
             });
         }
 
-        Err(anyhow::anyhow!("not handled"))
+        Err(Error::NotHandled.into())
     }
 
     fn begin_block(&mut self, header: &tendermint::block::Header) -> Vec<Event> {

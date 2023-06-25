@@ -17,6 +17,7 @@ tendermint-rpc = {version = "0.32.0", features = ["http-client"] }
 tonic = "0.9"
 anyhow = "1.0.71"
 tracing = "0.1.26"
+thiserror = "1"
 
 cosmos-sdk-rs-store = { version = "0.1", path = "../../store" }
 cosmos-sdk-rs-helper = { version = "0.1", path = "../../helper" }
