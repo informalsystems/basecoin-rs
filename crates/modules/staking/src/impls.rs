@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use ibc_proto::cosmos::staking::v1beta1::query_server::QueryServer;
 
-use crate::store::{ProvableStore, SharedStore};
+use cosmos_sdk_rs_store::{ProvableStore, SharedStore};
 
 use super::service::StakingService;
 

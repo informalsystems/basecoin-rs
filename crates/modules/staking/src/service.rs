@@ -21,7 +21,7 @@ use ibc_proto::{
 use tonic::{Request, Response, Status};
 use tracing::debug;
 
-use crate::store::ProvableStore;
+use cosmos_sdk_rs_store::ProvableStore;
 
 pub struct StakingService<S>(pub PhantomData<S>);
 
