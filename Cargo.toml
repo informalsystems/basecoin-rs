@@ -5,6 +5,7 @@ members = [
     "crates/helper",
     "crates/modules/auth",
     "crates/modules/bank",
+    "crates/modules/bank/bank-type",
     "crates/modules/gov",
     "crates/modules/ibc",
     "crates/modules/module-api",
