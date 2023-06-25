@@ -13,7 +13,7 @@ use cosmos_sdk_rs_module_api::types::ModuleStore;
 
 use cosmos_sdk_rs_module_api::module::Module;
 
-use cosmos_sdk_rs_store::{MainStore, ProvableStore,  RevertibleStore, SharedRw,SharedStore };
+use cosmos_sdk_rs_store::{MainStore, ProvableStore, RevertibleStore, SharedRw, SharedStore};
 
 pub struct Builder<S> {
     store: MainStore<S>,
@@ -99,7 +99,9 @@ impl<S: Default + ProvableStore> BaseCoinApp<S> {
                 Err(e) if e.to_string() == "not handled" => continue,
                 Err(e) => {
                     error!("deliver message ({:?}) failed with error: {:?}", message, e);
-                    return Err(Error::Custom { reason: e.to_string() });
+                    return Err(Error::Custom {
+                        reason: e.to_string(),
+                    });
                 }
             }
         }

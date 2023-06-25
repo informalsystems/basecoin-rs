@@ -3,9 +3,9 @@ use super::{
     context::Store,
     RevertibleStore, SharedStore,
 };
+use crate::avl::AvlTree;
 use crate::avl::{AsBytes, ByteSlice};
 use cosmos_sdk_rs_helper::{Height, Path, RawHeight};
-use crate::avl::AvlTree;
 use std::sync::{Arc, RwLock};
 use std::{fmt::Debug, marker::PhantomData};
 

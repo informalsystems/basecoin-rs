@@ -1,18 +1,18 @@
 use super::context::{BankKeeper, BankReader};
 use super::service::BankService;
+use anyhow::Result;
 use cosmos_sdk_rs_bank_type::{Balances, BalancesPath, Coin, Denom};
 use cosmrs::{bank::MsgSend, proto, AccountId};
 use ibc_proto::{cosmos::bank::v1beta1::query_server::QueryServer, google::protobuf::Any};
 use primitive_types::U256;
 use prost::Message;
-use anyhow::Result;
 use std::{collections::HashMap, convert::TryInto, fmt::Debug, str::FromStr};
 use tendermint_proto::abci::Event;
 use tracing::{debug, trace};
 
-use cosmos_sdk_rs_module_api::module::Module;
 use cosmos_sdk_rs_auth::account::{AuthAccount, ACCOUNT_PREFIX};
 use cosmos_sdk_rs_auth::context::{AccountKeeper, AccountReader};
+use cosmos_sdk_rs_module_api::module::Module;
 
 use cosmos_sdk_rs_helper::{Height, Path, QueryResult};
 use cosmos_sdk_rs_store::{
@@ -77,7 +77,6 @@ impl<S: Store> BankKeeper for BankBalanceKeeper<S> {
                 .find(|c| c.denom == denom)
                 .filter(|c| c.amount >= amount)
                 .ok_or(anyhow::anyhow!("InsufficientSourceFunds"))?;
-               
 
             let dst_balance =
                 if let Some(balance) = dst_balances.iter_mut().find(|c| c.denom == denom) {
@@ -175,7 +174,6 @@ impl<S: Store> BankKeeper for BankBalanceKeeper<S> {
             .set(balance_path, Balances(balances))
             .map(|_| ())
             .map_err(|e| anyhow::anyhow!("Store({e:?})"))?;
-           
 
         Ok(())
     }
@@ -226,7 +224,7 @@ impl<S: Store, AR: AccountReader, AK: AccountKeeper> Bank<S, AR, AK> {
             return Err(anyhow::anyhow!("not handled"));
         }
         Message::decode(message.value.as_ref())
-        .map_err(|e| anyhow::anyhow!("MsgDecodeFailure({e:?})"))
+            .map_err(|e| anyhow::anyhow!("MsgDecodeFailure({e:?})"))
     }
 }
 
@@ -242,12 +240,12 @@ where
         let message: MsgSend = Self::decode::<proto::cosmos::bank::v1beta1::MsgSend>(message)?
             .try_into()
             .map_err(|e| anyhow::anyhow!("MsgValidationFailure({e:?})"))?;
-        
 
         self.account_reader
             .get_account(message.from_address.clone().into())
-            .map_err(|_| anyhow::anyhow!("NonExistentAccount({:?})", message.from_address.clone()))?;
-            
+            .map_err(|_| {
+                anyhow::anyhow!("NonExistentAccount({:?})", message.from_address.clone())
+            })?;
 
         // Note: we allow transfers to non-existent destination accounts
         let amounts: Vec<Coin> = message.amount.iter().map(|amt| amt.into()).collect();
@@ -289,10 +287,11 @@ where
     ) -> Result<QueryResult> {
         let account_id = match String::from_utf8(data.to_vec()) {
             Ok(s) if s.starts_with(ACCOUNT_PREFIX) => s, // TODO(hu55a1n1): check if valid identifier
-            _ => return Err(anyhow::anyhow!("not handled"))
+            _ => return Err(anyhow::anyhow!("not handled")),
         };
 
-        let account_id = AccountId::from_str(&account_id).map_err(|_| anyhow::anyhow!("not handled"))?;
+        let account_id =
+            AccountId::from_str(&account_id).map_err(|_| anyhow::anyhow!("not handled"))?;
 
         trace!("Attempting to get account ID: {}", account_id);
 
@@ -300,7 +299,6 @@ where
             .account_reader
             .get_account(account_id.clone().into())
             .map_err(|_| anyhow::anyhow!("NonExistentAccount({:?})", account_id))?;
-        
 
         let balance = self
             .balance_reader

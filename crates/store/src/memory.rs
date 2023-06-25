@@ -3,11 +3,11 @@ use tendermint::{hash::Algorithm, Hash};
 use tracing::trace;
 
 use super::State;
-use cosmos_sdk_rs_helper::{Height, Path};
 use crate::{
     avl::{AsBytes, AvlTree},
     context::{ProvableStore, Store},
 };
+use cosmos_sdk_rs_helper::{Height, Path};
 
 /// An in-memory store backed by an AvlTree.
 #[derive(Clone, Debug)]

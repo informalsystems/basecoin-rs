@@ -2,8 +2,8 @@ use prost::Message;
 use std::fmt::Debug;
 use tracing::debug;
 
-use cosmrs::AccountId;
 use anyhow::Result;
+use cosmrs::AccountId;
 use ibc_proto::cosmos::upgrade::v1beta1::query_server::QueryServer;
 use ibc_proto::google::protobuf::Any;
 
@@ -25,9 +25,9 @@ use tendermint_proto::crypto::ProofOp;
 
 use super::path::UpgradePlanPath;
 use super::service::UpgradeService;
+use crate::query::UPGRADE_PLAN_QUERY_PATH;
 use cosmos_sdk_rs_helper::{Height, Path, QueryResult};
 use cosmos_sdk_rs_module_api::module::Module;
-use crate::query::UPGRADE_PLAN_QUERY_PATH;
 use cosmos_sdk_rs_store::{ProtobufStore, ProvableStore, SharedStore, Store, TypedStore};
 
 #[derive(Clone)]
@@ -98,7 +98,9 @@ where
             );
 
             let proof = if prove {
-                let proof = self.get_proof(height, &path).ok_or(anyhow::anyhow!("Proof not Found"))?;
+                let proof = self
+                    .get_proof(height, &path)
+                    .ok_or(anyhow::anyhow!("Proof not Found"))?;
                 Some(vec![ProofOp {
                     r#type: "".to_string(),
                     key: path.to_string().into_bytes(),
@@ -108,7 +110,10 @@ where
                 None
             };
 
-            let data = self.store.get(height, &path).ok_or(anyhow::anyhow!("Data not Found"))?;
+            let data = self
+                .store
+                .get(height, &path)
+                .ok_or(anyhow::anyhow!("Data not Found"))?;
             return Ok(QueryResult { data, proof });
         }
 

@@ -1,11 +1,11 @@
 use std::{collections::HashMap, str::FromStr};
 
 use crate::account::AuthAccount;
-use cosmos_sdk_rs_bank_type::Denom;
-use cosmos_sdk_rs_module_api::module::Module;
-use cosmos_sdk_rs_helper::Height;
-use cosmos_sdk_rs_store::{ProtobufStore, ProvableStore, SharedStore, Store, TypedStore};
 use anyhow::Result;
+use cosmos_sdk_rs_bank_type::Denom;
+use cosmos_sdk_rs_helper::Height;
+use cosmos_sdk_rs_module_api::module::Module;
+use cosmos_sdk_rs_store::{ProtobufStore, ProvableStore, SharedStore, Store, TypedStore};
 use cosmrs::AccountId;
 use ibc_proto::{
     cosmos::auth::v1beta1::{query_server::QueryServer, BaseAccount},
@@ -80,13 +80,12 @@ impl<S: Store> Module for Auth<S> {
             .account_reader
             .get_account(signer.clone())
             .map_err(|_| anyhow::anyhow!("unknown signer"))?;
-          
+
         account.sequence += 1;
 
         self.account_keeper
             .set_account(account)
             .map_err(|_| anyhow::anyhow!("failed to increment signer sequence"))?;
-            
 
         // we're only intercepting the deliverTx here, so return unhandled.
         Err(anyhow::anyhow!("not handled"))

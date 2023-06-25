@@ -1,5 +1,4 @@
 use super::Path;
-// use crate::modules::{gov::path::ProposalPath, upgrade::path::UpgradePlanPath};
 
 use ibc::core::ics24_host::path::{
     AckPath, ChannelEndPath, ClientConnectionPath, ClientConsensusStatePath, ClientStatePath,
@@ -52,6 +51,4 @@ impl_into_path_for!(
     ReceiptPath,
     AckPath,
     UpgradeClientPath
-    // UpgradePlanPath,
-    // ProposalPath
 );

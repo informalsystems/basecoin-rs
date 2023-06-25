@@ -40,7 +40,10 @@ impl TryFrom<RawMsgSubmitProposal> for MsgSubmitProposal {
     type Error = anyhow::Error;
 
     fn try_from(raw: RawMsgSubmitProposal) -> Result<Self, Self::Error> {
-        let coin: Coin = raw.initial_deposit[0].clone().try_into().map_err(|e| anyhow::anyhow!("{e:?}"))?;
+        let coin: Coin = raw.initial_deposit[0]
+            .clone()
+            .try_into()
+            .map_err(|e| anyhow::anyhow!("{e:?}"))?;
 
         Ok(Self {
             content: raw.content.unwrap(),
@@ -65,10 +68,11 @@ impl TryFrom<Any> for MsgSubmitProposal {
 
     fn try_from(raw: Any) -> Result<Self, Self::Error> {
         match raw.type_url.as_str() {
-            TYPE_URL => MsgSubmitProposal::decode_vec(&raw.value)
-            .map_err(|e| anyhow::anyhow!("{e:?}")),
-       
-            e => Err(anyhow::anyhow!("Unknown type url: {e:?}"))
+            TYPE_URL => {
+                MsgSubmitProposal::decode_vec(&raw.value).map_err(|e| anyhow::anyhow!("{e:?}"))
+            }
+
+            e => Err(anyhow::anyhow!("Unknown type url: {e:?}")),
         }
     }
 }

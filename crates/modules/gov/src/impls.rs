@@ -1,9 +1,9 @@
+use anyhow::Result;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::ops::DerefMut;
 use std::sync::{Arc, RwLock};
 use tracing::debug;
-use anyhow::Result;
 
 use cosmrs::AccountId;
 use ibc::hosts::tendermint::upgrade_proposal::upgrade_client_proposal_handler;
@@ -17,11 +17,11 @@ use tendermint_proto::abci::Event;
 use super::path::ProposalPath;
 use super::proposal::Proposal;
 use super::service::GovernanceService;
-use cosmos_sdk_rs_helper::{Height, Path, QueryResult};
 use crate::msg::MsgSubmitProposal;
+use cosmos_sdk_rs_helper::{Height, Path, QueryResult};
 use cosmos_sdk_rs_module_api::module::Module;
-use cosmos_sdk_rs_upgrade::impls::Upgrade;
 use cosmos_sdk_rs_store::{ProtobufStore, SharedRw, SharedStore, Store, TypedStore};
+use cosmos_sdk_rs_upgrade::impls::Upgrade;
 
 #[derive(Clone)]
 pub struct Governance<S>
@@ -96,7 +96,7 @@ where
     ) -> Result<QueryResult> {
         let path = path.ok_or(anyhow::anyhow!("not handled"))?;
 
-        if path.to_string() != "/cosmos.gov.v1beta1.Query/Proposal" {            
+        if path.to_string() != "/cosmos.gov.v1beta1.Query/Proposal" {
             return Err(anyhow::anyhow!("not handled"));
         }
 
@@ -104,7 +104,6 @@ where
             .store
             .get(Height::Pending, &Path::from(ProposalPath::sdk_path()))
             .ok_or(anyhow::anyhow!("Data not found"))?;
-           
 
         Ok(QueryResult { data, proof: None })
     }

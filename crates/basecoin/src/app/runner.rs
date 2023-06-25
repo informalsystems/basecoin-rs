@@ -3,16 +3,16 @@ use ibc_proto::cosmos::tx::v1beta1::service_server::ServiceServer as TxServer;
 use tracing::info;
 
 use super::Builder;
-use cosmos_sdk_rs_config::ServerConfig;
-use cosmos_sdk_rs_module_api::module::prefix;
 use cosmos_sdk_rs_auth::impls::Auth;
 use cosmos_sdk_rs_bank::impls::Bank;
+use cosmos_sdk_rs_config::ServerConfig;
 use cosmos_sdk_rs_gov::impls::Governance;
 use cosmos_sdk_rs_ibc::impls::Ibc;
+use cosmos_sdk_rs_module_api::module::prefix;
 use cosmos_sdk_rs_module_api::module::Identifiable;
 use cosmos_sdk_rs_staking::impls::Staking;
-use cosmos_sdk_rs_upgrade::impls::Upgrade;
 use cosmos_sdk_rs_store::memory::InMemoryStore;
+use cosmos_sdk_rs_upgrade::impls::Upgrade;
 
 #[cfg(not(feature = "tower-abci"))]
 use tendermint_abci::ServerBuilder;

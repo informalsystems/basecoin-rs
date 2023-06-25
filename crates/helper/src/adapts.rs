@@ -101,7 +101,6 @@ impl From<IbcPath> for Path {
     }
 }
 
-
 /// Block height
 pub type RawHeight = u64;
 
