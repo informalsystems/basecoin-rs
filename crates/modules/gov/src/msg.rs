@@ -1,5 +1,4 @@
-use displaydoc::Display;
-
+use crate::error::Error;
 use ibc_proto::cosmos::gov::v1beta1::MsgSubmitProposal as RawMsgSubmitProposal;
 use ibc_proto::cosmos::gov::v1beta1::ProposalStatus;
 use ibc_proto::google::protobuf::Any;
@@ -11,7 +10,7 @@ use super::proposal::Proposal;
 
 pub(crate) const TYPE_URL: &str = "/cosmos.gov.v1beta1.MsgSubmitProposal";
 
-#[derive(Clone, Debug, Display)]
+#[derive(Clone, Debug)]
 pub struct MsgSubmitProposal {
     pub content: Any,
     pub initial_deposit: Coin,
@@ -43,7 +42,7 @@ impl TryFrom<RawMsgSubmitProposal> for MsgSubmitProposal {
         let coin: Coin = raw.initial_deposit[0]
             .clone()
             .try_into()
-            .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+            .map_err(|e: cosmos_sdk_rs_helper::error::Error| Error::Custom(e.to_string()))?;
 
         Ok(Self {
             content: raw.content.unwrap(),
@@ -68,11 +67,10 @@ impl TryFrom<Any> for MsgSubmitProposal {
 
     fn try_from(raw: Any) -> Result<Self, Self::Error> {
         match raw.type_url.as_str() {
-            TYPE_URL => {
-                MsgSubmitProposal::decode_vec(&raw.value).map_err(|e| anyhow::anyhow!("{e:?}"))
-            }
+            TYPE_URL => Ok(MsgSubmitProposal::decode_vec(&raw.value)
+                .map_err(|e| Error::Custom(e.to_string()))?),
 
-            e => Err(anyhow::anyhow!("Unknown type url: {e:?}")),
+            e => Err(Error::UnknownTypeUrl(e.to_string()).into()),
         }
     }
 }

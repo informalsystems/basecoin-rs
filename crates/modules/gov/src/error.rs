@@ -1,7 +1,19 @@
-pub use displaydoc::Display;
+use thiserror::Error;
 
-#[derive(Debug, Display)]
+#[derive(Debug, Error)]
 pub enum Error {
-    /// invalid proposal: `{reason}`
+    #[error("custom error: `{0}`")]
+    Custom(String),
+
+    #[error("Unknown type url: `{0}`")]
+    UnknownTypeUrl(String),
+
+    #[error("invalid proposal: `{reason}`")]
     InvalidProposal { reason: String },
+
+    #[error("data not found")]
+    DataNotFound,
+
+    #[error("not handled")]
+    NotHandled,
 }

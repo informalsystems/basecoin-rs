@@ -1,3 +1,4 @@
+use crate::error::Error;
 use anyhow::Result;
 use std::fmt::Debug;
 use std::marker::PhantomData;
@@ -83,7 +84,7 @@ where
 
             Ok(vec![event])
         } else {
-            Err(anyhow::anyhow!("not handled"))
+            Err(Error::NotHandled.into())
         }
     }
 
@@ -94,16 +95,16 @@ where
         _height: Height,
         _prove: bool,
     ) -> Result<QueryResult> {
-        let path = path.ok_or(anyhow::anyhow!("not handled"))?;
+        let path = path.ok_or(Error::NotHandled)?;
 
         if path.to_string() != "/cosmos.gov.v1beta1.Query/Proposal" {
-            return Err(anyhow::anyhow!("not handled"));
+            return Err(Error::NotHandled.into());
         }
 
         let data = self
             .store
             .get(Height::Pending, &Path::from(ProposalPath::sdk_path()))
-            .ok_or(anyhow::anyhow!("Data not found"))?;
+            .ok_or(Error::DataNotFound)?;
 
         Ok(QueryResult { data, proof: None })
     }

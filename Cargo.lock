@@ -460,11 +460,11 @@ dependencies = [
  "cosmos-sdk-rs-upgrade",
  "cosmrs",
  "derive_more",
- "displaydoc",
  "ibc",
  "ibc-proto",
  "tendermint",
  "tendermint-proto",
+ "thiserror",
  "tonic",
  "tracing",
 ]
