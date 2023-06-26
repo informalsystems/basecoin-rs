@@ -84,7 +84,7 @@ where
     S: 'static + Store + Send + Sync + Debug,
 {
     fn host_timestamp(&self) -> Result<Timestamp, ContextError> {
-        todo!()
+        ValidationContext::host_timestamp(self)
     }
 
     fn next_consensus_state(
