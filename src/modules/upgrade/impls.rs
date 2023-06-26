@@ -25,7 +25,8 @@ use super::path::UpgradePlanPath;
 use super::service::UpgradeService;
 use crate::error::Error as AppError;
 use crate::helper::{Height, Path, QueryResult};
-use crate::modules::{Module, UPGRADE_PLAN_QUERY_PATH};
+use crate::modules::ibc::impls::AnyConsensusState;
+use crate::modules::{Ibc, Module, UPGRADE_PLAN_QUERY_PATH};
 use crate::store::{ProtobufStore, ProvableStore, SharedStore, Store, TypedStore};
 
 #[derive(Clone)]
@@ -161,7 +162,7 @@ where
 
                 self.store_upgraded_consensus_state(
                     upgraded_cons_state_path,
-                    upgraded_consensus_state,
+                    upgraded_consensus_state.into(),
                 )
                 .unwrap();
 
@@ -208,6 +209,11 @@ impl<S> UpgradeValidationContext for Upgrade<S>
 where
     S: 'static + Store + Send + Sync + Debug,
 {
+    type ClientValidationContext = Ibc<S>;
+    type E = Ibc<S>;
+    type AnyConsensusState = AnyConsensusState;
+    type AnyClientState = TmClientState;
+
     fn upgrade_plan(&self) -> Result<Plan, UpgradeClientError> {
         let upgrade_plan = self
             .upgrade_plan
@@ -234,14 +240,14 @@ where
     fn upgraded_consensus_state(
         &self,
         upgrade_path: &UpgradeClientPath,
-    ) -> Result<TmConsensusState, UpgradeClientError> {
+    ) -> Result<Self::AnyConsensusState, UpgradeClientError> {
         let upgraded_tm_consensus_state = self
             .upgraded_consensus_state_store
             .get(Height::Pending, upgrade_path)
             .ok_or(UpgradeClientError::Other {
                 reason: "No upgraded consensus state set".to_string(),
             })?;
-        Ok(upgraded_tm_consensus_state)
+        Ok(upgraded_tm_consensus_state.into())
     }
 }
 
@@ -313,13 +319,21 @@ where
     fn store_upgraded_consensus_state(
         &mut self,
         upgrade_path: UpgradeClientPath,
-        consensus_state: TmConsensusState,
+        consensus_state: Self::AnyConsensusState,
     ) -> Result<(), UpgradeClientError> {
+        let tm_consensus_state: TmConsensusState =
+            consensus_state
+                .try_into()
+                .map_err(|err: &str| UpgradeClientError::Other {
+                    reason: err.to_string(),
+                })?;
+
         self.upgraded_consensus_state_store
-            .set(upgrade_path, consensus_state)
+            .set(upgrade_path, tm_consensus_state)
             .map_err(|e| UpgradeClientError::Other {
                 reason: format!("Error storing upgraded consensus state: {e:?}"),
             })?;
+
         Ok(())
     }
 }
