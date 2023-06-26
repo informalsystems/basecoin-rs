@@ -64,7 +64,8 @@ use ibc_proto::{
             IdentifiedConnection as RawIdentifiedConnection, QueryClientConnectionsRequest,
             QueryClientConnectionsResponse, QueryConnectionClientStateRequest,
             QueryConnectionClientStateResponse, QueryConnectionConsensusStateRequest,
-            QueryConnectionConsensusStateResponse, QueryConnectionRequest, QueryConnectionResponse,
+            QueryConnectionConsensusStateResponse, QueryConnectionParamsRequest,
+            QueryConnectionParamsResponse, QueryConnectionRequest, QueryConnectionResponse,
             QueryConnectionsRequest, QueryConnectionsResponse,
         },
     },
@@ -317,6 +318,13 @@ impl<S: ProvableStore + 'static> ConnectionQuery for IbcConnectionService<S> {
         &self,
         _request: Request<QueryConnectionConsensusStateRequest>,
     ) -> Result<Response<QueryConnectionConsensusStateResponse>, Status> {
+        todo!()
+    }
+
+    async fn connection_params(
+        &self,
+        _request: Request<QueryConnectionParamsRequest>,
+    ) -> Result<Response<QueryConnectionParamsResponse>, Status> {
         todo!()
     }
 }
