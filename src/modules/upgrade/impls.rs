@@ -10,8 +10,6 @@ use ibc_proto::google::protobuf::Any;
 use ibc::clients::ics07_tendermint::{
     client_state::ClientState as TmClientState, consensus_state::ConsensusState as TmConsensusState,
 };
-use ibc::core::ics02_client::client_state::ClientState;
-use ibc::core::ics02_client::consensus_state::ConsensusState;
 use ibc::core::ics02_client::error::UpgradeClientError;
 use ibc::core::ics23_commitment::commitment::CommitmentRoot;
 use ibc::core::ics24_host::path::UpgradeClientPath;
@@ -163,7 +161,7 @@ where
 
                 self.store_upgraded_consensus_state(
                     upgraded_cons_state_path,
-                    Box::new(upgraded_consensus_state),
+                    upgraded_consensus_state,
                 )
                 .unwrap();
 
@@ -223,27 +221,27 @@ where
     fn upgraded_client_state(
         &self,
         upgrade_path: &UpgradeClientPath,
-    ) -> Result<Box<dyn ClientState>, UpgradeClientError> {
+    ) -> Result<TmClientState, UpgradeClientError> {
         let upgraded_tm_client_state = self
             .upgraded_client_state_store
             .get(Height::Pending, upgrade_path)
             .ok_or(UpgradeClientError::Other {
                 reason: "No upgraded client state set".to_string(),
             })?;
-        Ok(Box::new(upgraded_tm_client_state))
+        Ok(upgraded_tm_client_state)
     }
 
     fn upgraded_consensus_state(
         &self,
         upgrade_path: &UpgradeClientPath,
-    ) -> Result<Box<dyn ConsensusState>, UpgradeClientError> {
+    ) -> Result<TmConsensusState, UpgradeClientError> {
         let upgraded_tm_consensus_state = self
             .upgraded_consensus_state_store
             .get(Height::Pending, upgrade_path)
             .ok_or(UpgradeClientError::Other {
                 reason: "No upgraded consensus state set".to_string(),
             })?;
-        Ok(Box::new(upgraded_tm_consensus_state))
+        Ok(upgraded_tm_consensus_state)
     }
 }
 
@@ -301,16 +299,10 @@ where
     fn store_upgraded_client_state(
         &mut self,
         upgrade_path: UpgradeClientPath,
-        client_state: Box<dyn ClientState>,
+        client_state: TmClientState,
     ) -> Result<(), UpgradeClientError> {
-        let tm_upgraded_client_state = client_state
-            .as_any()
-            .downcast_ref::<TmClientState>()
-            .ok_or(UpgradeClientError::Other {
-                reason: "client state downcast failed".to_string(),
-            })?;
         self.upgraded_client_state_store
-            .set(upgrade_path, tm_upgraded_client_state.clone())
+            .set(upgrade_path, client_state)
             .map_err(|e| UpgradeClientError::Other {
                 reason: format!("Error storing upgraded client state: {e:?}"),
             })?;
@@ -321,16 +313,10 @@ where
     fn store_upgraded_consensus_state(
         &mut self,
         upgrade_path: UpgradeClientPath,
-        consensus_state: Box<dyn ConsensusState>,
+        consensus_state: TmConsensusState,
     ) -> Result<(), UpgradeClientError> {
-        let tm_upgraded_cons_state = consensus_state
-            .as_any()
-            .downcast_ref::<TmConsensusState>()
-            .ok_or(UpgradeClientError::Other {
-                reason: "consensus state downcast failed".to_string(),
-            })?;
         self.upgraded_consensus_state_store
-            .set(upgrade_path, tm_upgraded_cons_state.clone())
+            .set(upgrade_path, consensus_state)
             .map_err(|e| UpgradeClientError::Other {
                 reason: format!("Error storing upgraded consensus state: {e:?}"),
             })?;

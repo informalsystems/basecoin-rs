@@ -4,6 +4,7 @@ use crate::{
         auth::account::ACCOUNT_PREFIX,
         bank::context::BankKeeper,
         bank::util::{Coin, Denom},
+        Ibc,
     },
     store::{
         SharedStore, Store, {BinStore, JsonStore, ProtobufStore, TypedStore},
@@ -26,9 +27,7 @@ use ibc::{
         consensus_state::ConsensusState as TmConsensusState,
     },
     core::{
-        ics02_client::{
-            client_state::ClientState, consensus_state::ConsensusState, error::ClientError,
-        },
+        ics02_client::error::ClientError,
         ics03_connection::{connection::ConnectionEnd, error::ConnectionError},
         ics04_channel::{
             channel::{ChannelEnd, Counterparty, Order},
@@ -69,6 +68,8 @@ use ibc::applications::transfer::context::{
     on_chan_open_try_validate, on_recv_packet_execute, on_timeout_packet_execute,
     on_timeout_packet_validate,
 };
+
+use super::impls::AnyConsensusState;
 
 #[derive(Clone, Debug)]
 pub struct IbcTransferModule<S, BK>
@@ -354,7 +355,7 @@ where
 
 impl<S, BK> TokenTransferExecutionContext for IbcTransferModule<S, BK>
 where
-    S: Store + Send + Sync,
+    S: Store + Send + Sync + Debug + 'static,
     BK: BankKeeper<Coin = Coin> + Send + Sync,
 {
     fn send_coins_execute(
@@ -416,7 +417,7 @@ where
 
 impl<S, BK> TokenTransferValidationContext for IbcTransferModule<S, BK>
 where
-    S: Store + Send + Sync,
+    S: Store + Send + Sync + Debug + 'static,
     BK: BankKeeper<Coin = Coin> + Send + Sync,
 {
     type AccountId = Signer;
@@ -487,9 +488,14 @@ where
 
 impl<S, BK> SendPacketValidationContext for IbcTransferModule<S, BK>
 where
-    S: Store + Send + Sync,
+    S: Store + Send + Sync + Debug + 'static,
     BK: Send + Sync,
 {
+    type ClientValidationContext = Ibc<S>;
+    type E = Ibc<S>;
+    type AnyConsensusState = AnyConsensusState;
+    type AnyClientState = TmClientState;
+
     fn channel_end(&self, channel_end_path: &ChannelEndPath) -> Result<ChannelEnd, ContextError> {
         self.channel_end_store
             .get(Height::Pending, channel_end_path)
@@ -509,7 +515,7 @@ where
             ))
     }
 
-    fn client_state(&self, client_id: &ClientId) -> Result<Box<dyn ClientState>, ContextError> {
+    fn client_state(&self, client_id: &ClientId) -> Result<Self::AnyClientState, ContextError> {
         self.client_state_store
             .get(Height::Pending, &ClientStatePath::new(client_id))
             .ok_or(ContextError::ClientError(
@@ -517,13 +523,12 @@ where
                     client_id: client_id.clone(),
                 },
             ))
-            .map(|cs| Box::new(cs) as Box<dyn ClientState>)
     }
 
     fn client_consensus_state(
         &self,
         client_cons_state_path: &ClientConsensusStatePath,
-    ) -> Result<Box<dyn ConsensusState>, ContextError> {
+    ) -> Result<Self::AnyConsensusState, ContextError> {
         let height = IbcHeight::new(client_cons_state_path.epoch, client_cons_state_path.height)
             .map_err(|_| ContextError::ClientError(ClientError::InvalidHeight))?;
         self.consensus_state_store
@@ -534,7 +539,7 @@ where
                     height,
                 },
             ))
-            .map(|cs| Box::new(cs) as Box<dyn ConsensusState>)
+            .map(|cs| cs.into())
     }
 
     fn get_next_sequence_send(
@@ -552,7 +557,7 @@ where
 
 impl<S, BK> SendPacketExecutionContext for IbcTransferModule<S, BK>
 where
-    S: Store + Send + Sync,
+    S: Store + Send + Sync + Debug + 'static,
     BK: BankKeeper<Coin = Coin> + Send + Sync,
 {
     fn store_packet_commitment(
