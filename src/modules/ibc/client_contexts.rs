@@ -69,6 +69,7 @@ impl<S> CommonContext for Ibc<S>
 where
     S: 'static + Store + Send + Sync + Debug,
 {
+    type ConversionError = &'static str;
     type AnyConsensusState = AnyConsensusState;
 
     fn consensus_state(
