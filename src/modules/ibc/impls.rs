@@ -353,10 +353,6 @@ where
         self.router.get_route_mut(module_id)
     }
 
-    fn has_route(&self, module_id: &ModuleId) -> bool {
-        self.get_route(module_id).is_some()
-    }
-
     fn lookup_module_by_port(&self, port_id: &PortId) -> Option<ModuleId> {
         self.port_to_module_map
             .get(port_id)
