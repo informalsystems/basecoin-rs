@@ -19,9 +19,7 @@ use ibc::{
         consensus_state::ConsensusState as TmConsensusState,
     },
     core::{
-        ics02_client::{
-            client_state::ClientState, consensus_state::ConsensusState, error::ClientError,
-        },
+        ics02_client::{consensus_state::ConsensusState, error::ClientError},
         ics03_connection::{
             connection::ConnectionEnd, error::ConnectionError,
             version::Version as ConnectionVersion,
@@ -79,7 +77,17 @@ use tendermint_proto::{
 };
 use tracing::debug;
 
+use derive_more::{From, TryInto};
+
 use ibc::core::dispatch;
+
+// Note: We define `AnyConsensusState` just to showcase the use of the
+// derive macro. Technically, we could just use `TmConsensusState`
+// as the `AnyConsensusState`, since we only support this one variant.
+#[derive(ConsensusState, From, TryInto)]
+pub enum AnyConsensusState {
+    Tendermint(TmConsensusState),
+}
 
 /// The IBC module
 ///
@@ -92,7 +100,7 @@ where
 {
     /// Handle to store instance.
     /// The module is guaranteed exclusive access to all paths in the store key-space.
-    store: SharedStore<S>,
+    pub store: SharedStore<S>,
     /// Mapping of which IBC modules own which port
     port_to_module_map: BTreeMap<PortId, ModuleId>,
     /// ICS26 router impl
@@ -110,9 +118,9 @@ where
     /// Map of host consensus states
     consensus_states: HashMap<u64, TmConsensusState>,
     /// A typed-store for AnyClientState
-    client_state_store: ProtobufStore<SharedStore<S>, ClientStatePath, TmClientState, Any>,
+    pub client_state_store: ProtobufStore<SharedStore<S>, ClientStatePath, TmClientState, Any>,
     /// A typed-store for AnyConsensusState
-    consensus_state_store:
+    pub consensus_state_store:
         ProtobufStore<SharedStore<S>, ClientConsensusStatePath, TmConsensusState, Any>,
     /// A typed-store for ConnectionEnd
     connection_end_store:
@@ -364,7 +372,12 @@ impl<S> ValidationContext for Ibc<S>
 where
     S: 'static + Store + Send + Sync + Debug,
 {
-    fn client_state(&self, client_id: &ClientId) -> Result<Box<dyn ClientState>, ContextError> {
+    type ClientValidationContext = Self;
+    type E = Self;
+    type AnyConsensusState = AnyConsensusState;
+    type AnyClientState = TmClientState;
+
+    fn client_state(&self, client_id: &ClientId) -> Result<Self::AnyClientState, ContextError> {
         let client_state = self
             .client_state_store
             .get(Height::Pending, &ClientStatePath(client_id.clone()))
@@ -372,12 +385,13 @@ where
                 client_id: client_id.clone(),
             })
             .map_err(ContextError::from)?;
-        Ok(Box::new(client_state))
+
+        Ok(client_state)
     }
 
-    fn decode_client_state(&self, client_state: Any) -> Result<Box<dyn ClientState>, ContextError> {
+    fn decode_client_state(&self, client_state: Any) -> Result<Self::AnyClientState, ContextError> {
         if let Ok(client_state) = TmClientState::try_from(client_state.clone()) {
-            Ok(client_state.into_box())
+            Ok(client_state)
         } else {
             Err(ClientError::UnknownClientStateType {
                 client_state_type: client_state.type_url,
@@ -389,7 +403,7 @@ where
     fn consensus_state(
         &self,
         client_cons_state_path: &ClientConsensusStatePath,
-    ) -> Result<Box<dyn ConsensusState>, ContextError> {
+    ) -> Result<Self::AnyConsensusState, ContextError> {
         let height = IbcHeight::new(client_cons_state_path.epoch, client_cons_state_path.height)
             .map_err(|_| ClientError::InvalidHeight)?;
         let consensus_state = self
@@ -399,77 +413,8 @@ where
                 client_id: client_cons_state_path.client_id.clone(),
                 height,
             })?;
-        Ok(Box::new(consensus_state))
-    }
 
-    fn next_consensus_state(
-        &self,
-        client_id: &ClientId,
-        height: &IbcHeight,
-    ) -> Result<Option<Box<dyn ConsensusState>>, ContextError> {
-        let path = format!("clients/{client_id}/consensusStates")
-            .try_into()
-            .unwrap(); // safety - path must be valid since ClientId and height are valid Identifiers
-
-        let keys = self.store.get_keys(&path);
-        let found_path = keys.into_iter().find_map(|path| {
-            if let Ok(IbcPath::ClientConsensusState(path)) = IbcPath::try_from(path) {
-                if height > &IbcHeight::new(path.epoch, path.height).unwrap() {
-                    return Some(path);
-                }
-            }
-            None
-        });
-
-        if let Some(path) = found_path {
-            let consensus_state = self
-                .consensus_state_store
-                .get(Height::Pending, &path)
-                .ok_or(ClientError::ConsensusStateNotFound {
-                    client_id: client_id.clone(),
-                    height: *height,
-                })?;
-            Ok(Some(Box::new(consensus_state)))
-        } else {
-            Ok(None)
-        }
-    }
-
-    fn prev_consensus_state(
-        &self,
-        client_id: &ClientId,
-        height: &IbcHeight,
-    ) -> Result<Option<Box<dyn ConsensusState>>, ContextError> {
-        let path = format!("clients/{client_id}/consensusStates")
-            .try_into()
-            .unwrap(); // safety - path must be valid since ClientId and height are valid Identifiers
-
-        let keys = self.store.get_keys(&path);
-        let pos = keys.iter().position(|path| {
-            if let Ok(IbcPath::ClientConsensusState(path)) = IbcPath::try_from(path.clone()) {
-                height >= &IbcHeight::new(path.epoch, path.height).unwrap()
-            } else {
-                false
-            }
-        });
-
-        if let Some(pos) = pos {
-            if pos > 0 {
-                let prev_path = match IbcPath::try_from(keys[pos - 1].clone()) {
-                    Ok(IbcPath::ClientConsensusState(p)) => p,
-                    _ => unreachable!(), // safety - path retrieved from store
-                };
-                let consensus_state = self
-                    .consensus_state_store
-                    .get(Height::Pending, &prev_path)
-                    .ok_or(ClientError::ConsensusStateNotFound {
-                        client_id: client_id.clone(),
-                        height: *height,
-                    })?;
-                return Ok(Some(Box::new(consensus_state)));
-            }
-        }
-        Ok(None)
+        Ok(consensus_state.into())
     }
 
     fn host_height(&self) -> Result<IbcHeight, ContextError> {
@@ -485,12 +430,13 @@ where
     fn host_consensus_state(
         &self,
         height: &IbcHeight,
-    ) -> Result<Box<dyn ConsensusState>, ContextError> {
+    ) -> Result<Self::AnyConsensusState, ContextError> {
         let consensus_state = self
             .consensus_states
             .get(&height.revision_height())
             .ok_or(ClientError::MissingLocalConsensusState { height: *height })?;
-        Ok(Box::new(consensus_state.clone()))
+
+        Ok(consensus_state.clone().into())
     }
 
     fn client_counter(&self) -> Result<u64, ContextError> {
@@ -675,53 +621,16 @@ where
     fn validate_message_signer(&self, _signer: &Signer) -> Result<(), ContextError> {
         Ok(())
     }
+
+    fn get_client_validation_context(&self) -> &Self::ClientValidationContext {
+        self
+    }
 }
 
 impl<S> ExecutionContext for Ibc<S>
 where
     S: 'static + Store + Send + Sync + Debug,
 {
-    /// Called upon successful client creation and update
-    fn store_client_state(
-        &mut self,
-        client_state_path: ClientStatePath,
-        client_state: Box<dyn ClientState>,
-    ) -> Result<(), ContextError> {
-        let tm_client_state = client_state
-            .as_any()
-            .downcast_ref::<TmClientState>()
-            .ok_or(ClientError::Other {
-                description: "Client state type mismatch".to_string(),
-            })?;
-        self.client_state_store
-            .set(client_state_path, tm_client_state.clone())
-            .map(|_| ())
-            .map_err(|_| ClientError::Other {
-                description: "Client state store error".to_string(),
-            })?;
-        Ok(())
-    }
-
-    /// Called upon successful client creation and update
-    fn store_consensus_state(
-        &mut self,
-        consensus_state_path: ClientConsensusStatePath,
-        consensus_state: Box<dyn ConsensusState>,
-    ) -> Result<(), ContextError> {
-        let tm_consensus_state = consensus_state
-            .as_any()
-            .downcast_ref::<TmConsensusState>()
-            .ok_or(ClientError::Other {
-                description: "Consensus state type mismatch".to_string(),
-            })?;
-        self.consensus_state_store
-            .set(consensus_state_path, tm_consensus_state.clone())
-            .map_err(|_| ClientError::Other {
-                description: "Consensus state store error".to_string(),
-            })?;
-        Ok(())
-    }
-
     /// Called upon client creation.
     /// Increases the counter which keeps track of how many clients have been created.
     /// Should never fail.
@@ -901,5 +810,9 @@ where
 
     fn log_message(&mut self, message: String) {
         self.logs.push(message);
+    }
+
+    fn get_client_execution_context(&mut self) -> &mut Self::E {
+        self
     }
 }
