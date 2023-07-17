@@ -51,7 +51,8 @@ use ibc::{
 };
 use ibc::{
     core::{
-        events::IbcEvent, ics04_channel::packet::Acknowledgement, ics24_host::identifier::PortId,
+        events::IbcEvent, ics04_channel::acknowledgement::Acknowledgement,
+        ics24_host::identifier::PortId,
     },
     Signer,
 };
