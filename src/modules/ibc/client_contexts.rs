@@ -17,13 +17,21 @@ use ibc::{
     },
 };
 
-use crate::{helper::Height, modules::Ibc, store::Store};
+use crate::{
+    helper::Height,
+    modules::{
+        bank::{context::BankKeeper, util::Coin},
+        Ibc,
+    },
+    store::Store,
+};
 
 use super::impls::AnyConsensusState;
 
-impl<S> ClientExecutionContext for Ibc<S>
+impl<S, BK> ClientExecutionContext for Ibc<S, BK>
 where
     S: 'static + Store + Send + Sync + Debug,
+    BK: 'static + Send + Sync + BankKeeper<Coin = Coin> + Debug,
 {
     type ClientValidationContext = Self;
 
@@ -65,9 +73,10 @@ where
     }
 }
 
-impl<S> CommonContext for Ibc<S>
+impl<S, BK> CommonContext for Ibc<S, BK>
 where
     S: 'static + Store + Send + Sync + Debug,
+    BK: 'static + Send + Sync + BankKeeper<Coin = Coin> + Debug,
 {
     type ConversionError = &'static str;
     type AnyConsensusState = AnyConsensusState;
@@ -80,9 +89,10 @@ where
     }
 }
 
-impl<S> TmValidationContext for Ibc<S>
+impl<S, BK> TmValidationContext for Ibc<S, BK>
 where
     S: 'static + Store + Send + Sync + Debug,
+    BK: 'static + Send + Sync + BankKeeper<Coin = Coin> + Debug,
 {
     fn host_timestamp(&self) -> Result<Timestamp, ContextError> {
         ValidationContext::host_timestamp(self)

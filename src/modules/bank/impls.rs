@@ -23,7 +23,7 @@ use crate::{
     },
 };
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct BankBalanceReader<S> {
     balance_store: JsonStore<SharedStore<S>, BalancesPath, Balances>,
 }
@@ -189,7 +189,7 @@ impl<S: Store> BankKeeper for BankBalanceKeeper<S> {
 }
 
 /// The bank module
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Bank<S, AR, AK> {
     /// Handle to store instance
     /// The module is guaranteed exclusive access to all paths in the store key-space.

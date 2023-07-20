@@ -1,5 +1,6 @@
 use prost::Message;
 use std::fmt::Debug;
+use std::marker::PhantomData;
 use tracing::debug;
 
 use cosmrs::AccountId;
@@ -25,12 +26,14 @@ use super::path::UpgradePlanPath;
 use super::service::UpgradeService;
 use crate::error::Error as AppError;
 use crate::helper::{Height, Path, QueryResult};
+use crate::modules::bank::context::BankKeeper;
+use crate::modules::bank::util::Coin;
 use crate::modules::ibc::impls::AnyConsensusState;
 use crate::modules::{Ibc, Module, UPGRADE_PLAN_QUERY_PATH};
 use crate::store::{ProtobufStore, ProvableStore, SharedStore, Store, TypedStore};
 
 #[derive(Clone)]
-pub struct Upgrade<S>
+pub struct Upgrade<S, BK>
 where
     S: Store + Debug + 'static,
 {
@@ -43,9 +46,10 @@ where
     /// A typed-store for upgraded ConsensusState
     upgraded_consensus_state_store:
         ProtobufStore<SharedStore<S>, UpgradeClientPath, TmConsensusState, Any>,
+    _phantom: PhantomData<BK>,
 }
 
-impl<S> Upgrade<S>
+impl<S, BK> Upgrade<S, BK>
 where
     S: Store + Debug + 'static,
 {
@@ -58,6 +62,7 @@ where
             upgraded_consensus_state_store: TypedStore::new(store.clone()),
             upgrade_plan: TypedStore::new(store.clone()),
             store,
+            _phantom: PhantomData,
         }
     }
 
@@ -66,9 +71,10 @@ where
     }
 }
 
-impl<S> Module for Upgrade<S>
+impl<S, BK> Module for Upgrade<S, BK>
 where
     S: ProvableStore + Debug + 'static,
+    BK: 'static + Send + Sync + BankKeeper<Coin = Coin> + Debug,
 {
     type Store = S;
 
@@ -190,7 +196,7 @@ where
     }
 }
 
-impl<S> Upgrade<S>
+impl<S, BK> Upgrade<S, BK>
 where
     S: ProvableStore + Debug,
 {
@@ -205,12 +211,13 @@ where
     }
 }
 
-impl<S> UpgradeValidationContext for Upgrade<S>
+impl<S, BK> UpgradeValidationContext for Upgrade<S, BK>
 where
     S: 'static + Store + Send + Sync + Debug,
+    BK: 'static + Send + Sync + BankKeeper<Coin = Coin> + Debug,
 {
-    type ClientValidationContext = Ibc<S>;
-    type E = Ibc<S>;
+    type ClientValidationContext = Ibc<S, BK>;
+    type E = Ibc<S, BK>;
     type AnyConsensusState = AnyConsensusState;
     type AnyClientState = TmClientState;
 
@@ -251,9 +258,10 @@ where
     }
 }
 
-impl<S> UpgradeExecutionContext for Upgrade<S>
+impl<S, BK> UpgradeExecutionContext for Upgrade<S, BK>
 where
     S: 'static + Store + Send + Sync + Debug,
+    BK: 'static + Send + Sync + BankKeeper<Coin = Coin> + Debug,
 {
     fn schedule_upgrade(&mut self, plan: Plan) -> Result<(), UpgradeClientError> {
         let host_height = self.store.current_height();

@@ -1,11 +1,11 @@
-use super::{
-    router::IbcRouter,
-    service::{IbcChannelService, IbcClientService, IbcConnectionService},
-};
+use super::service::{IbcChannelService, IbcClientService, IbcConnectionService};
 use crate::{
     error::Error as AppError,
     helper::{Height, Path, QueryResult},
-    modules::{bank::impls::BankBalanceKeeper, IbcTransferModule, Identifiable, Module},
+    modules::{
+        bank::{context::BankKeeper, util::Coin},
+        Identifiable, Module,
+    },
     store::{
         SharedStore, {BinStore, JsonStore, ProtobufStore, TypedSet, TypedStore},
         {ProvableStore, Store},
@@ -65,6 +65,7 @@ use ibc_proto::{
 };
 use prost::Message;
 use std::{
+    borrow::Borrow,
     collections::{BTreeMap, HashMap},
     convert::{TryFrom, TryInto},
     fmt::Debug,
@@ -93,76 +94,75 @@ pub enum AnyConsensusState {
 ///
 /// Implements all IBC-rs validation and execution contexts and gRPC endpoints
 /// required by `hermes` as well.
-#[derive(Clone)]
-pub struct Ibc<S>
+#[derive(Clone, Debug)]
+pub struct Ibc<S, BK>
 where
     S: Store + Send + Sync + Debug,
+    BK: Send + Sync,
 {
+    /// A bank keeper to enable sending, minting and burning of tokens
+    pub bank_keeper: BK,
     /// Handle to store instance.
     /// The module is guaranteed exclusive access to all paths in the store key-space.
     pub store: SharedStore<S>,
     /// Mapping of which IBC modules own which port
-    port_to_module_map: BTreeMap<PortId, ModuleId>,
-    /// ICS26 router impl
-    router: IbcRouter<S>,
+    pub port_to_module_map: BTreeMap<PortId, ModuleId>,
     /// Counter for clients
-    client_counter: u64,
+    pub client_counter: u64,
     /// Counter for connections
-    conn_counter: u64,
+    pub conn_counter: u64,
     /// Counter for channels
-    channel_counter: u64,
+    pub channel_counter: u64,
     /// Tracks the processed time for client updates
-    client_processed_times: HashMap<(ClientId, IbcHeight), Timestamp>,
+    pub client_processed_times: HashMap<(ClientId, IbcHeight), Timestamp>,
     /// Tracks the processed height for client updates
-    client_processed_heights: HashMap<(ClientId, IbcHeight), IbcHeight>,
+    pub client_processed_heights: HashMap<(ClientId, IbcHeight), IbcHeight>,
     /// Map of host consensus states
-    consensus_states: HashMap<u64, TmConsensusState>,
+    pub consensus_states: HashMap<u64, TmConsensusState>,
     /// A typed-store for AnyClientState
     pub client_state_store: ProtobufStore<SharedStore<S>, ClientStatePath, TmClientState, Any>,
     /// A typed-store for AnyConsensusState
     pub consensus_state_store:
         ProtobufStore<SharedStore<S>, ClientConsensusStatePath, TmConsensusState, Any>,
     /// A typed-store for ConnectionEnd
-    connection_end_store:
+    pub connection_end_store:
         ProtobufStore<SharedStore<S>, ConnectionPath, ConnectionEnd, RawConnectionEnd>,
     /// A typed-store for ConnectionIds
-    connection_ids_store: JsonStore<SharedStore<S>, ClientConnectionPath, Vec<ConnectionId>>,
+    pub connection_ids_store: JsonStore<SharedStore<S>, ClientConnectionPath, Vec<ConnectionId>>,
     /// A typed-store for ChannelEnd
-    channel_end_store: ProtobufStore<SharedStore<S>, ChannelEndPath, ChannelEnd, RawChannelEnd>,
+    pub channel_end_store: ProtobufStore<SharedStore<S>, ChannelEndPath, ChannelEnd, RawChannelEnd>,
     /// A typed-store for send sequences
-    send_sequence_store: JsonStore<SharedStore<S>, SeqSendPath, Sequence>,
+    pub send_sequence_store: JsonStore<SharedStore<S>, SeqSendPath, Sequence>,
     /// A typed-store for receive sequences
-    recv_sequence_store: JsonStore<SharedStore<S>, SeqRecvPath, Sequence>,
+    pub recv_sequence_store: JsonStore<SharedStore<S>, SeqRecvPath, Sequence>,
     /// A typed-store for ack sequences
-    ack_sequence_store: JsonStore<SharedStore<S>, SeqAckPath, Sequence>,
+    pub ack_sequence_store: JsonStore<SharedStore<S>, SeqAckPath, Sequence>,
     /// A typed-store for packet commitments
-    packet_commitment_store: BinStore<SharedStore<S>, CommitmentPath, PacketCommitment>,
+    pub packet_commitment_store: BinStore<SharedStore<S>, CommitmentPath, PacketCommitment>,
     /// A typed-store for packet receipts
-    packet_receipt_store: TypedSet<SharedStore<S>, ReceiptPath>,
+    pub packet_receipt_store: TypedSet<SharedStore<S>, ReceiptPath>,
     /// A typed-store for packet ack
-    packet_ack_store: BinStore<SharedStore<S>, AckPath, AcknowledgementCommitment>,
+    pub packet_ack_store: BinStore<SharedStore<S>, AckPath, AcknowledgementCommitment>,
     /// IBC Events
     pub(crate) events: Vec<IbcEvent>,
     /// message logs
-    logs: Vec<String>,
+    pub logs: Vec<String>,
 }
 
-impl<S> Ibc<S>
+impl<S, BK> Ibc<S, BK>
 where
     S: 'static + ProvableStore + Default + Debug,
+    BK: 'static + Send + Sync + BankKeeper<Coin = Coin>,
 {
-    pub fn new(store: SharedStore<S>, bank_keeper: BankBalanceKeeper<S>) -> Self {
+    pub fn new(store: SharedStore<S>, bank_keeper: BK) -> Self {
         let mut port_to_module_map = BTreeMap::default();
 
         let transfer_module_id: ModuleId = ModuleId::new(IBC_TRANSFER_MODULE_ID.to_string());
-        let transfer_module = IbcTransferModule::new(store.clone(), bank_keeper);
-
-        let router = IbcRouter::new(transfer_module);
         port_to_module_map.insert(PortId::transfer(), transfer_module_id);
 
         Self {
+            bank_keeper,
             port_to_module_map,
-            router,
             client_counter: 0,
             conn_counter: 0,
             channel_counter: 0,
@@ -199,9 +199,10 @@ where
     }
 }
 
-impl<S> Ibc<S>
+impl<S, BK> Ibc<S, BK>
 where
     S: ProvableStore + Debug,
+    BK: Send + Sync,
 {
     fn get_proof(&self, height: Height, path: &Path) -> Option<Vec<u8>> {
         if let Some(p) = self.store.get_proof(height, path) {
@@ -214,10 +215,11 @@ where
     }
 }
 
-impl<S> Module for Ibc<S>
+impl<S, BK> Module for Ibc<S, BK>
 where
     S: 'static + ProvableStore + Debug,
     Self: Send + Sync,
+    BK: 'static + Send + Sync + BankKeeper<Coin = Coin> + Debug,
 {
     type Store = S;
 
@@ -235,16 +237,11 @@ where
         } else if let Ok(transfer_msg) = MsgTransfer::try_from(message) {
             debug!("Dispatching message: {:?}", transfer_msg);
 
-            let transfer_module = self
-                .router
-                .get_transfer_module_mut()
-                .expect("Failed to get the transfer module");
-
-            send_transfer(transfer_module, transfer_msg).map_err(|e| AppError::Custom {
+            send_transfer(self, transfer_msg).map_err(|e| AppError::Custom {
                 reason: e.to_string(),
             })?;
 
-            Ok(transfer_module
+            Ok(self
                 .events
                 .clone()
                 .into_iter()
@@ -341,16 +338,25 @@ impl From<TmEvent> for Event {
     }
 }
 
-impl<S> ContextRouter for Ibc<S>
+impl<S, BK> ContextRouter for Ibc<S, BK>
 where
     S: 'static + Store + Send + Sync + Debug,
+    BK: 'static + Send + Sync + BankKeeper<Coin = Coin> + Debug,
 {
     fn get_route(&self, module_id: &ModuleId) -> Option<&dyn IbcModule> {
-        self.router.get_route(module_id)
+        if <ModuleId as Borrow<str>>::borrow(module_id) == IBC_TRANSFER_MODULE_ID {
+            Some(self as &dyn IbcModule)
+        } else {
+            None
+        }
     }
 
     fn get_route_mut(&mut self, module_id: &ModuleId) -> Option<&mut dyn IbcModule> {
-        self.router.get_route_mut(module_id)
+        if <ModuleId as Borrow<str>>::borrow(module_id) == IBC_TRANSFER_MODULE_ID {
+            Some(self as &mut dyn IbcModule)
+        } else {
+            None
+        }
     }
 
     fn lookup_module_by_port(&self, port_id: &PortId) -> Option<ModuleId> {
@@ -364,9 +370,10 @@ where
     }
 }
 
-impl<S> ValidationContext for Ibc<S>
+impl<S, BK> ValidationContext for Ibc<S, BK>
 where
     S: 'static + Store + Send + Sync + Debug,
+    BK: 'static + Send + Sync + BankKeeper<Coin = Coin> + Debug,
 {
     type ClientValidationContext = Self;
     type E = Self;
@@ -623,9 +630,10 @@ where
     }
 }
 
-impl<S> ExecutionContext for Ibc<S>
+impl<S, BK> ExecutionContext for Ibc<S, BK>
 where
     S: 'static + Store + Send + Sync + Debug,
+    BK: 'static + Send + Sync + BankKeeper<Coin = Coin> + Debug,
 {
     /// Called upon client creation.
     /// Increases the counter which keeps track of how many clients have been created.

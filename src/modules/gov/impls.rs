@@ -18,26 +18,28 @@ use super::proposal::Proposal;
 use super::service::GovernanceService;
 use crate::error::Error as AppError;
 use crate::helper::{Height, Path, QueryResult};
+use crate::modules::bank::context::BankKeeper;
+use crate::modules::bank::util::Coin;
 use crate::modules::gov::msg::MsgSubmitProposal;
 use crate::modules::{Module, Upgrade};
 use crate::store::{ProtobufStore, SharedRw, SharedStore, Store, TypedStore};
 
 #[derive(Clone)]
-pub struct Governance<S>
+pub struct Governance<S, BK>
 where
     S: Store + Debug + 'static,
 {
     pub store: SharedStore<S>,
     pub proposal_counter: u64,
     pub proposal: ProtobufStore<SharedStore<S>, ProposalPath, Proposal, Any>,
-    pub upgrade_ctx: SharedRw<Upgrade<S>>,
+    pub upgrade_ctx: SharedRw<Upgrade<S, BK>>,
 }
 
-impl<S> Governance<S>
+impl<S, BK> Governance<S, BK>
 where
     S: Store + Debug + 'static,
 {
-    pub fn new(store: SharedStore<S>, upgrade_ctx: Upgrade<S>) -> Self
+    pub fn new(store: SharedStore<S>, upgrade_ctx: Upgrade<S, BK>) -> Self
     where
         S: Store + 'static,
     {
@@ -54,9 +56,10 @@ where
     }
 }
 
-impl<S> Module for Governance<S>
+impl<S, BK> Module for Governance<S, BK>
 where
     S: Store + Debug + 'static,
+    BK: 'static + Send + Sync + BankKeeper<Coin = Coin> + Debug,
 {
     type Store = S;
 

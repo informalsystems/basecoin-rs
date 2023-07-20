@@ -4,6 +4,7 @@ use tracing::info;
 
 use super::Builder;
 use crate::config::ServerConfig;
+use crate::modules::bank::impls::BankBalanceKeeper;
 use crate::modules::prefix;
 use crate::modules::Auth;
 use crate::modules::Bank;
@@ -13,6 +14,7 @@ use crate::modules::Identifiable;
 use crate::modules::Staking;
 use crate::modules::Upgrade;
 use crate::store::memory::InMemoryStore;
+use crate::store::RevertibleStore;
 
 #[cfg(not(feature = "tower-abci"))]
 use tendermint_abci::ServerBuilder;
@@ -36,7 +38,9 @@ pub async fn default_app_runner(server_cfg: ServerConfig) {
         app_builder.module_store(&prefix::Ibc {}.identifier()),
         bank.bank_keeper().clone(),
     );
-    let upgrade = Upgrade::new(app_builder.module_store(&prefix::Upgrade {}.identifier()));
+    let upgrade = Upgrade::<_, BankBalanceKeeper<RevertibleStore<InMemoryStore>>>::new(
+        app_builder.module_store(&prefix::Upgrade {}.identifier()),
+    );
     let governance = Governance::new(
         app_builder.module_store(&prefix::Governance {}.identifier()),
         upgrade.clone(),

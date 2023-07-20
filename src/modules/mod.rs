@@ -10,7 +10,7 @@ pub mod types;
 
 pub use module::{prefix, Identifiable, Module};
 
-pub use self::ibc::{impls::Ibc, transfer::IbcTransferModule};
+pub use self::ibc::impls::Ibc;
 pub use auth::impls::Auth;
 pub use bank::impls::Bank;
 pub use gov::impls::Governance;
