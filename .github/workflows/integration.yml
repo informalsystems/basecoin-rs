@@ -17,7 +17,7 @@ jobs:
   ibc-integration:
     runs-on: ubuntu-latest
     env:
-      COMETBFT_VERSION: 0.37.1
+      COMETBFT_VERSION: 0.37.2
       GAIA_VERSION: 6.0.0
       HERMES_VERSION: 1.4.0
       RUST_VERSION: 1.65
