@@ -43,7 +43,7 @@ cometbft node > "${LOG_DIR}/cometbft.log" 2>&1 &
 
 echo "Starting basecoin-rs..."
 cd "${BASECOIN_SRC}"
-"${BASECOIN_BIN}" start --verbose 2>&1 &
+"${BASECOIN_BIN}" start 2>&1 &
 
 echo "Waiting for CometBFT node to be available..."
 set +e
