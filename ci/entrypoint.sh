@@ -36,10 +36,23 @@ hermes --config "${HERMES_CONFIG}" \
     keys add --chain basecoin-0 \
     --key-file "${HOME}/user_seed.json"
 
+# echo ""
+# echo "Starting CometBFT..."
+# cometbft unsafe-reset-all
+# cometbft node > "${LOG_DIR}/cometbft.log" 2>&1 &
+
 echo ""
-echo "Starting CometBFT..."
-cometbft unsafe-reset-all
-cometbft node > "${LOG_DIR}/cometbft.log" 2>&1 &
+echo "Starting CometMock..."
+mkdir -p "${HOME}/.cometbft/data"
+cat > "${HOME}/.cometbft/data/priv_validator_state.json" <<EOF
+{
+  "height": "0",
+  "round": 0,
+  "step": 0
+}
+EOF
+# cometmock <basecoin-app-addr> <genesis.json> <cometmock-rpc-addr> <basecoin-dir> <basecoin-transport>
+cometmock localhost:26358 "${HOME}/.cometbft/config/genesis.json" localhost:26357 "${HOME}/.cometbft" socket > "${LOG_DIR}/cometbft.log" 2>&1 &
 
 echo "Starting basecoin-rs..."
 cd "${BASECOIN_SRC}"
@@ -49,7 +62,8 @@ echo "Waiting for CometBFT node to be available..."
 set +e
 for retry in {1..4}; do
   sleep 5
-  curl "http://127.0.0.1:26357/abci_info"
+  # curl "http://127.0.0.1:26357/abci_info"
+  curl -H 'Content-Type: application/json' -H 'Accept:application/json' --data '{"jsonrpc":"2.0","method":"status","id":1}' "http://127.0.0.1:26357"
   CURL_STATUS=$?
   if [ ${CURL_STATUS} -eq 0 ]; then
     break
@@ -58,8 +72,13 @@ for retry in {1..4}; do
   fi
 done
 set -e
+echo "----------------------------------------"
+cat "${LOG_DIR}/basecoin.log"
+cat "${LOG_DIR}/cometbft.log"
+echo "----------------------------------------"
 # Will fail if we still can't reach the CometBFT node
-curl "http://127.0.0.1:26357/abci_info" > /dev/null 2>&1
+# curl "http://127.0.0.1:26357/abci_info" > /dev/null 2>&1
+curl -H 'Content-Type: application/json' -H 'Accept:application/json' --data '{"jsonrpc":"2.0","method":"status","id":1}' "http://127.0.0.1:26357" > /dev/null 2>&1
 
 if [[ ! -z "$@" ]]; then
   # cd "${HOME}"
