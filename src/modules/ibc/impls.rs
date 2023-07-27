@@ -39,18 +39,14 @@ use ibc::{
                 SeqAckPath, SeqRecvPath, SeqSendPath,
             },
         },
-        router::{Module as IbcModule, ModuleId, Router as ContextRouter},
         ContextError, ExecutionContext, MsgEnvelope, ValidationContext,
     },
     hosts::tendermint::IBC_QUERY_PATH,
     Height as IbcHeight,
 };
 use ibc::{
-    applications::transfer::{send_transfer, MODULE_ID_STR as IBC_TRANSFER_MODULE_ID},
-    core::{
-        events::IbcEvent, ics04_channel::error::PortError, ics24_host::identifier::PortId,
-        timestamp::Timestamp,
-    },
+    applications::transfer::send_transfer,
+    core::{events::IbcEvent, timestamp::Timestamp},
     Signer,
 };
 use ibc_proto::{
@@ -65,7 +61,7 @@ use ibc_proto::{
 };
 use prost::Message;
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::HashMap,
     convert::{TryFrom, TryInto},
     fmt::Debug,
     time::Duration,
@@ -101,8 +97,6 @@ where
     /// Handle to store instance.
     /// The module is guaranteed exclusive access to all paths in the store key-space.
     pub store: SharedStore<S>,
-    /// Mapping of which IBC modules own which port
-    port_to_module_map: BTreeMap<PortId, ModuleId>,
     /// ICS26 router impl
     router: IbcRouter<S>,
     /// Counter for clients
@@ -152,16 +146,11 @@ where
     S: 'static + ProvableStore + Default + Debug,
 {
     pub fn new(store: SharedStore<S>, bank_keeper: BankBalanceKeeper<S>) -> Self {
-        let mut port_to_module_map = BTreeMap::default();
-
-        let transfer_module_id: ModuleId = ModuleId::new(IBC_TRANSFER_MODULE_ID.to_string());
         let transfer_module = IbcTransferModule::new(store.clone(), bank_keeper);
 
         let router = IbcRouter::new(transfer_module);
-        port_to_module_map.insert(PortId::transfer(), transfer_module_id);
 
         Self {
-            port_to_module_map,
             router,
             client_counter: 0,
             conn_counter: 0,
@@ -225,7 +214,7 @@ where
         if let Ok(msg) = MsgEnvelope::try_from(message.clone()) {
             debug!("Dispatching message: {:?}", msg);
 
-            dispatch(self, msg)?;
+            dispatch(self, &mut self.router, msg)?;
             let events = self
                 .events
                 .drain(..)
@@ -338,29 +327,6 @@ impl From<TmEvent> for Event {
                 })
                 .collect(),
         }
-    }
-}
-
-impl<S> ContextRouter for Ibc<S>
-where
-    S: 'static + Store + Send + Sync + Debug,
-{
-    fn get_route(&self, module_id: &ModuleId) -> Option<&dyn IbcModule> {
-        self.router.get_route(module_id)
-    }
-
-    fn get_route_mut(&mut self, module_id: &ModuleId) -> Option<&mut dyn IbcModule> {
-        self.router.get_route_mut(module_id)
-    }
-
-    fn lookup_module_by_port(&self, port_id: &PortId) -> Option<ModuleId> {
-        self.port_to_module_map
-            .get(port_id)
-            .ok_or(PortError::UnknownPort {
-                port_id: port_id.clone(),
-            })
-            .map(Clone::clone)
-            .ok()
     }
 }
 
