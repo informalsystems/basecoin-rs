@@ -36,7 +36,7 @@ where
 
         IbcRouter {
             transfer: Arc::new(transfer),
-            port_to_module_map: BTreeMap::new(),
+            port_to_module_map,
         }
     }
 
