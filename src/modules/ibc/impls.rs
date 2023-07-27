@@ -85,20 +85,53 @@ pub enum AnyConsensusState {
     Tendermint(TmConsensusState),
 }
 
+pub struct Ibc<S>
+where
+    S: Store + Send + Sync + Debug,
+{
+    ctx: IbcContext<S>,
+    router: IbcRouter<S>,
+}
+
+impl<S> Ibc<S>
+where
+    S: 'static + ProvableStore + Default + Debug,
+{
+    pub fn new(store: SharedStore<S>, bank_keeper: BankBalanceKeeper<S>) -> Self {
+        let transfer_module = IbcTransferModule::new(store.clone(), bank_keeper);
+        let router = IbcRouter::new(transfer_module);
+
+        Self {
+            ctx: IbcContext::new(store),
+            router,
+        }
+    }
+
+    pub fn client_service(&self) -> ClientQueryServer<IbcClientService<S>> {
+        ClientQueryServer::new(IbcClientService::new(self.ctx.store.clone()))
+    }
+
+    pub fn connection_service(&self) -> ConnectionQueryServer<IbcConnectionService<S>> {
+        ConnectionQueryServer::new(IbcConnectionService::new(self.ctx.store.clone()))
+    }
+
+    pub fn channel_service(&self) -> ChannelQueryServer<IbcChannelService<S>> {
+        ChannelQueryServer::new(IbcChannelService::new(self.ctx.store.clone()))
+    }
+}
+
 /// The IBC module
 ///
 /// Implements all IBC-rs validation and execution contexts and gRPC endpoints
 /// required by `hermes` as well.
 #[derive(Clone)]
-pub struct Ibc<S>
+pub struct IbcContext<S>
 where
     S: Store + Send + Sync + Debug,
 {
     /// Handle to store instance.
     /// The module is guaranteed exclusive access to all paths in the store key-space.
     pub store: SharedStore<S>,
-    /// ICS26 router impl
-    router: IbcRouter<S>,
     /// Counter for clients
     client_counter: u64,
     /// Counter for connections
@@ -141,17 +174,12 @@ where
     logs: Vec<String>,
 }
 
-impl<S> Ibc<S>
+impl<S> IbcContext<S>
 where
     S: 'static + ProvableStore + Default + Debug,
 {
-    pub fn new(store: SharedStore<S>, bank_keeper: BankBalanceKeeper<S>) -> Self {
-        let transfer_module = IbcTransferModule::new(store.clone(), bank_keeper);
-
-        let router = IbcRouter::new(transfer_module);
-
+    pub fn new(store: SharedStore<S>) -> Self {
         Self {
-            router,
             client_counter: 0,
             conn_counter: 0,
             channel_counter: 0,
@@ -174,18 +202,6 @@ where
             logs: Vec::new(),
         }
     }
-
-    pub fn client_service(&self) -> ClientQueryServer<IbcClientService<S>> {
-        ClientQueryServer::new(IbcClientService::new(self.store.clone()))
-    }
-
-    pub fn connection_service(&self) -> ConnectionQueryServer<IbcConnectionService<S>> {
-        ConnectionQueryServer::new(IbcConnectionService::new(self.store.clone()))
-    }
-
-    pub fn channel_service(&self) -> ChannelQueryServer<IbcChannelService<S>> {
-        ChannelQueryServer::new(IbcChannelService::new(self.store.clone()))
-    }
 }
 
 impl<S> Ibc<S>
@@ -193,7 +209,7 @@ where
     S: ProvableStore + Debug,
 {
     fn get_proof(&self, height: Height, path: &Path) -> Option<Vec<u8>> {
-        if let Some(p) = self.store.get_proof(height, path) {
+        if let Some(p) = self.ctx.store.get_proof(height, path) {
             let mut buffer = Vec::new();
             if p.encode(&mut buffer).is_ok() {
                 return Some(buffer);
@@ -214,8 +230,9 @@ where
         if let Ok(msg) = MsgEnvelope::try_from(message.clone()) {
             debug!("Dispatching message: {:?}", msg);
 
-            dispatch(self, &mut self.router, msg)?;
+            dispatch(&mut self.ctx, &mut self.router, msg)?;
             let events = self
+                .ctx
                 .events
                 .drain(..)
                 .map(|ev| TmEvent(ev.try_into().unwrap()).into())
@@ -284,7 +301,7 @@ where
             None
         };
 
-        let data = self.store.get(height, &path).ok_or(AppError::Custom {
+        let data = self.ctx.store.get(height, &path).ok_or(AppError::Custom {
             reason: "Data not found".to_string(),
         })?;
         Ok(QueryResult { data, proof })
@@ -296,17 +313,18 @@ where
             header.time,
             header.next_validators_hash,
         );
-        self.consensus_states
+        self.ctx
+            .consensus_states
             .insert(header.height.value(), consensus_state);
         vec![]
     }
 
     fn store_mut(&mut self) -> &mut SharedStore<S> {
-        &mut self.store
+        &mut self.ctx.store
     }
 
     fn store(&self) -> &SharedStore<S> {
-        &self.store
+        &self.ctx.store
     }
 }
 
@@ -330,7 +348,7 @@ impl From<TmEvent> for Event {
     }
 }
 
-impl<S> ValidationContext for Ibc<S>
+impl<S> ValidationContext for IbcContext<S>
 where
     S: 'static + Store + Send + Sync + Debug,
 {
@@ -589,7 +607,7 @@ where
     }
 }
 
-impl<S> ExecutionContext for Ibc<S>
+impl<S> ExecutionContext for IbcContext<S>
 where
     S: 'static + Store + Send + Sync + Debug,
 {

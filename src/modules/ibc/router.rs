@@ -1,8 +1,12 @@
-use std::{borrow::Borrow, fmt::Debug, sync::Arc, collections::BTreeMap};
+use std::{borrow::Borrow, collections::BTreeMap, fmt::Debug, sync::Arc};
 
 use ibc::{
     applications::transfer::MODULE_ID_STR as IBC_TRANSFER_MODULE_ID,
-    core::{router::{Module as IbcModule, ModuleId, Router}, ics24_host::identifier::PortId, ics04_channel::error::PortError},
+    core::{
+        ics04_channel::error::PortError,
+        ics24_host::identifier::PortId,
+        router::{Module as IbcModule, ModuleId, Router},
+    },
 };
 
 use crate::{

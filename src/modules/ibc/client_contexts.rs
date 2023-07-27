@@ -17,11 +17,11 @@ use ibc::{
     },
 };
 
-use crate::{helper::Height, modules::Ibc, store::Store};
+use crate::{helper::Height, store::Store};
 
-use super::impls::AnyConsensusState;
+use super::impls::{AnyConsensusState, IbcContext};
 
-impl<S> ClientExecutionContext for Ibc<S>
+impl<S> ClientExecutionContext for IbcContext<S>
 where
     S: 'static + Store + Send + Sync + Debug,
 {
@@ -65,7 +65,7 @@ where
     }
 }
 
-impl<S> CommonContext for Ibc<S>
+impl<S> CommonContext for IbcContext<S>
 where
     S: 'static + Store + Send + Sync + Debug,
 {
@@ -80,7 +80,7 @@ where
     }
 }
 
-impl<S> TmValidationContext for Ibc<S>
+impl<S> TmValidationContext for IbcContext<S>
 where
     S: 'static + Store + Send + Sync + Debug,
 {
