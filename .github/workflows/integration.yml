@@ -20,10 +20,17 @@ jobs:
       COMETBFT_VERSION: 0.37.1
       GAIA_VERSION: 6.0.0
       HERMES_VERSION: 1.4.0
+      COMETMOCK_VERSION: main
       RUST_VERSION: 1.65
+      GO_VERSION: 1.20
       IBC_COMMITISH: master
     steps:
       - uses: actions/checkout@v3
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "${{ env.GO_VERSION }}"
 
       - name: Download CometBFT
         uses: dsaltares/fetch-gh-release-asset@master
@@ -71,6 +78,10 @@ jobs:
           chmod +x hermes
           mv cometbft gaiad hermes ~/local/bin
 
+      - name: Setup CometMock
+        run: |
+          go install "github.com/informalsystems/CometMock/cometmock@${{ env.COMETMOCK_VERSION }}"
+
       - name: Update environment path
         run: |
           echo "${HOME}/local/bin" >> $GITHUB_PATH
@@ -80,6 +91,7 @@ jobs:
           cometbft version
           gaiad version
           hermes version
+          command -v cometmock
 
       - uses: actions/cache@v3
         with:
