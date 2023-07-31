@@ -1048,8 +1048,8 @@ dependencies = [
 
 [[package]]
 name = "ibc"
-version = "0.42.0"
-source = "git+https://github.com/cosmos/ibc-rs.git?rev=963b7be#963b7be67c1a97aac665774addb573a8e1cc1b2a"
+version = "0.43.0"
+source = "git+https://github.com/cosmos/ibc-rs.git?rev=faf0c5d#faf0c5d8f32c5381871096274d60a5546d9ebbcf"
 dependencies = [
  "bytes",
  "derive_more",
@@ -1077,7 +1077,7 @@ dependencies = [
 [[package]]
 name = "ibc-derive"
 version = "0.1.0"
-source = "git+https://github.com/cosmos/ibc-rs.git?rev=963b7be#963b7be67c1a97aac665774addb573a8e1cc1b2a"
+source = "git+https://github.com/cosmos/ibc-rs.git?rev=faf0c5d#faf0c5d8f32c5381871096274d60a5546d9ebbcf"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -1087,8 +1087,9 @@ dependencies = [
 
 [[package]]
 name = "ibc-proto"
-version = "0.32.0"
-source = "git+https://github.com/cosmos/ibc-proto-rs?rev=e8b6d0e9#e8b6d0e9a6669a01fca2b15106bd054adcc9f2bd"
+version = "0.32.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "11c352715b36685c2543556a77091fb16af5d26257d5ce9c28e6756c1ccd71aa"
 dependencies = [
  "base64 0.21.2",
  "bytes",
@@ -3094,3 +3095,8 @@ dependencies = [
  "quote",
  "syn 2.0.22",
 ]
+
+[[patch.unused]]
+name = "ibc-proto"
+version = "0.32.0"
+source = "git+https://github.com/cosmos/ibc-proto-rs?rev=e8b6d0e9#e8b6d0e9a6669a01fca2b15106bd054adcc9f2bd"
