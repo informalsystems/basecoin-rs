@@ -1048,8 +1048,8 @@ dependencies = [
 
 [[package]]
 name = "ibc"
-version = "0.43.0"
-source = "git+https://github.com/cosmos/ibc-rs.git?rev=faf0c5d#faf0c5d8f32c5381871096274d60a5546d9ebbcf"
+version = "0.43.1"
+source = "git+https://github.com/cosmos/ibc-rs.git?rev=48bb25e#48bb25eeb1a1ed8885123c4f6af1f62484b739f8"
 dependencies = [
  "bytes",
  "derive_more",
@@ -1076,8 +1076,8 @@ dependencies = [
 
 [[package]]
 name = "ibc-derive"
-version = "0.1.0"
-source = "git+https://github.com/cosmos/ibc-rs.git?rev=faf0c5d#faf0c5d8f32c5381871096274d60a5546d9ebbcf"
+version = "0.2.0"
+source = "git+https://github.com/cosmos/ibc-rs.git?rev=48bb25e#48bb25eeb1a1ed8885123c4f6af1f62484b739f8"
 dependencies = [
  "darling",
  "proc-macro2",
