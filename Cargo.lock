@@ -179,6 +179,7 @@ dependencies = [
  "tokio",
  "toml 0.7.5",
  "tonic",
+ "tonic-reflection",
  "tower",
  "tower-abci",
  "tracing",
@@ -1087,8 +1088,7 @@ dependencies = [
 [[package]]
 name = "ibc-proto"
 version = "0.32.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c888103095b45bee90cb9104513ade30abd69902153b0682b5ad81940ae1f865"
+source = "git+https://github.com/cosmos/ibc-proto-rs?rev=e8b6d0e9#e8b6d0e9a6669a01fca2b15106bd054adcc9f2bd"
 dependencies = [
  "base64 0.21.2",
  "bytes",
@@ -2562,6 +2562,19 @@ dependencies = [
  "tower-layer",
  "tower-service",
  "tracing",
+]
+
+[[package]]
+name = "tonic-reflection"
+version = "0.9.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0543d7092032041fbeac1f2c84304537553421a11a623c2301b12ef0264862c7"
+dependencies = [
+ "prost",
+ "prost-types",
+ "tokio",
+ "tokio-stream",
+ "tonic",
 ]
 
 [[package]]

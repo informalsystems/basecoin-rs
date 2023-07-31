@@ -100,8 +100,16 @@ pub async fn default_app_runner(server_cfg: ServerConfig) {
         });
     }
 
+    // the gRPC reflection service
+    let service = tonic_reflection::server::Builder::configure()
+        .register_encoded_file_descriptor_set(ibc_proto::FILE_DESCRIPTOR_SET)
+        .build()
+        .unwrap();
+
     // run the gRPC server
     let grpc_server = tonic::transport::Server::builder()
+        // register the gRPC reflection service
+        .add_service(service)
         .add_service(HealthServer::new(app.clone()))
         .add_service(TxServer::new(app.clone()))
         .add_service(ibc_client_service)
