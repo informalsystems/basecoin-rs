@@ -26,8 +26,8 @@ cosmrs = "0.14.0"
 displaydoc = { version = "0.2", default-features = false }
 derive_more = { version = "0.99.17", default-features = false, features = ["from", "into", "display"] }
 ed25519 = { version = "2.1.0", default-features = false }
-ibc = { git = "https://github.com/cosmos/ibc-rs.git", rev= "963b7be" }
-ibc-proto = { version = "0.32", default-features = false, features = ["server", "proto-descriptor"] }
+ibc = "0.43.1"
+ibc-proto = { version = "0.32.1", default-features = false, features = ["server", "proto-descriptor"] }
 ics23 = { version = "0.10.1", default-features = false, features = ["host-functions"] }
 primitive-types = { version = "0.12.0", default-features = false, features = ["serde_no_std"] }
 prost = { version = "0.11.6", default-features = false }
