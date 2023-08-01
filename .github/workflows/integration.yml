@@ -20,6 +20,7 @@ jobs:
       COMETBFT_VERSION: 0.37.1
       GAIA_VERSION: 6.0.0
       HERMES_VERSION: 1.4.0
+      GRPCURL_VERSION: 1.8.7
       RUST_VERSION: 1.65
       IBC_COMMITISH: master
     steps:
@@ -46,6 +47,13 @@ jobs:
           version: "tags/v${{ env.HERMES_VERSION }}"
           file: "hermes-v${{ env.HERMES_VERSION }}-x86_64-unknown-linux-gnu.tar.gz"
 
+      - name: Download grpcurl
+        uses: dsaltares/fetch-gh-release-asset@master
+        with:
+          repo: fullstorydev/grpcurl
+          version: "tags/v${{ env.GRPCURL_VERSION }}"
+          file: "grpcurl_${{ env.GRPCURL_VERSION}}_linux_x86_64.tar.gz"
+
       - name: Setup scripts and directories
         working-directory: ci/
         run: |
@@ -66,10 +74,9 @@ jobs:
           tar -xzf "cometbft_${COMETBFT_VERSION}_linux_amd64.tar.gz"
           mv "gaiad-v${GAIA_VERSION}-linux-amd64" gaiad
           tar -xzf "hermes-v${HERMES_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
-          chmod +x cometbft
-          chmod +x gaiad
-          chmod +x hermes
-          mv cometbft gaiad hermes ~/local/bin
+          tar -xzf "grpcurl_${GRPCURL_VERSION}_linux_x86_64.tar.gz"
+          chmod +x cometbft gaiad hermes grpcurl
+          mv cometbft gaiad hermes grpcurl ~/local/bin
 
       - name: Update environment path
         run: |
@@ -80,6 +87,7 @@ jobs:
           cometbft version
           gaiad version
           hermes version
+          grpcurl -version
 
       - uses: actions/cache@v3
         with:
