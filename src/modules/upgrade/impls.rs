@@ -25,8 +25,8 @@ use super::path::UpgradePlanPath;
 use super::service::UpgradeService;
 use crate::error::Error as AppError;
 use crate::helper::{Height, Path, QueryResult};
-use crate::modules::ibc::impls::AnyConsensusState;
-use crate::modules::{Ibc, Module, UPGRADE_PLAN_QUERY_PATH};
+use crate::modules::ibc::impls::{AnyConsensusState, IbcContext};
+use crate::modules::{Module, UPGRADE_PLAN_QUERY_PATH};
 use crate::store::{ProtobufStore, ProvableStore, SharedStore, Store, TypedStore};
 
 #[derive(Clone)]
@@ -209,8 +209,8 @@ impl<S> UpgradeValidationContext for Upgrade<S>
 where
     S: 'static + Store + Send + Sync + Debug,
 {
-    type ClientValidationContext = Ibc<S>;
-    type E = Ibc<S>;
+    type ClientValidationContext = IbcContext<S>;
+    type E = IbcContext<S>;
     type AnyConsensusState = AnyConsensusState;
     type AnyClientState = TmClientState;
 

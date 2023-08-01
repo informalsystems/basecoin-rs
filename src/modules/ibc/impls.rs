@@ -39,18 +39,14 @@ use ibc::{
                 SeqAckPath, SeqRecvPath, SeqSendPath,
             },
         },
-        router::{Module as IbcModule, ModuleId, Router as ContextRouter},
         ContextError, ExecutionContext, MsgEnvelope, ValidationContext,
     },
     hosts::tendermint::IBC_QUERY_PATH,
     Height as IbcHeight,
 };
 use ibc::{
-    applications::transfer::{send_transfer, MODULE_ID_STR as IBC_TRANSFER_MODULE_ID},
-    core::{
-        events::IbcEvent, ics04_channel::error::PortError, ics24_host::identifier::PortId,
-        timestamp::Timestamp,
-    },
+    applications::transfer::send_transfer,
+    core::{events::IbcEvent, timestamp::Timestamp},
     Signer,
 };
 use ibc_proto::{
@@ -65,7 +61,7 @@ use ibc_proto::{
 };
 use prost::Message;
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::HashMap,
     convert::{TryFrom, TryInto},
     fmt::Debug,
     time::Duration,
@@ -89,22 +85,53 @@ pub enum AnyConsensusState {
     Tendermint(TmConsensusState),
 }
 
+pub struct Ibc<S>
+where
+    S: Store + Send + Sync + Debug,
+{
+    ctx: IbcContext<S>,
+    router: IbcRouter<S>,
+}
+
+impl<S> Ibc<S>
+where
+    S: 'static + ProvableStore + Default + Debug,
+{
+    pub fn new(store: SharedStore<S>, bank_keeper: BankBalanceKeeper<S>) -> Self {
+        let transfer_module = IbcTransferModule::new(store.clone(), bank_keeper);
+        let router = IbcRouter::new(transfer_module);
+
+        Self {
+            ctx: IbcContext::new(store),
+            router,
+        }
+    }
+
+    pub fn client_service(&self) -> ClientQueryServer<IbcClientService<S>> {
+        ClientQueryServer::new(IbcClientService::new(self.ctx.store.clone()))
+    }
+
+    pub fn connection_service(&self) -> ConnectionQueryServer<IbcConnectionService<S>> {
+        ConnectionQueryServer::new(IbcConnectionService::new(self.ctx.store.clone()))
+    }
+
+    pub fn channel_service(&self) -> ChannelQueryServer<IbcChannelService<S>> {
+        ChannelQueryServer::new(IbcChannelService::new(self.ctx.store.clone()))
+    }
+}
+
 /// The IBC module
 ///
 /// Implements all IBC-rs validation and execution contexts and gRPC endpoints
 /// required by `hermes` as well.
 #[derive(Clone)]
-pub struct Ibc<S>
+pub struct IbcContext<S>
 where
     S: Store + Send + Sync + Debug,
 {
     /// Handle to store instance.
     /// The module is guaranteed exclusive access to all paths in the store key-space.
     pub store: SharedStore<S>,
-    /// Mapping of which IBC modules own which port
-    port_to_module_map: BTreeMap<PortId, ModuleId>,
-    /// ICS26 router impl
-    router: IbcRouter<S>,
     /// Counter for clients
     client_counter: u64,
     /// Counter for connections
@@ -147,22 +174,12 @@ where
     logs: Vec<String>,
 }
 
-impl<S> Ibc<S>
+impl<S> IbcContext<S>
 where
     S: 'static + ProvableStore + Default + Debug,
 {
-    pub fn new(store: SharedStore<S>, bank_keeper: BankBalanceKeeper<S>) -> Self {
-        let mut port_to_module_map = BTreeMap::default();
-
-        let transfer_module_id: ModuleId = ModuleId::new(IBC_TRANSFER_MODULE_ID.to_string());
-        let transfer_module = IbcTransferModule::new(store.clone(), bank_keeper);
-
-        let router = IbcRouter::new(transfer_module);
-        port_to_module_map.insert(PortId::transfer(), transfer_module_id);
-
+    pub fn new(store: SharedStore<S>) -> Self {
         Self {
-            port_to_module_map,
-            router,
             client_counter: 0,
             conn_counter: 0,
             channel_counter: 0,
@@ -185,18 +202,6 @@ where
             logs: Vec::new(),
         }
     }
-
-    pub fn client_service(&self) -> ClientQueryServer<IbcClientService<S>> {
-        ClientQueryServer::new(IbcClientService::new(self.store.clone()))
-    }
-
-    pub fn connection_service(&self) -> ConnectionQueryServer<IbcConnectionService<S>> {
-        ConnectionQueryServer::new(IbcConnectionService::new(self.store.clone()))
-    }
-
-    pub fn channel_service(&self) -> ChannelQueryServer<IbcChannelService<S>> {
-        ChannelQueryServer::new(IbcChannelService::new(self.store.clone()))
-    }
 }
 
 impl<S> Ibc<S>
@@ -204,7 +209,7 @@ where
     S: ProvableStore + Debug,
 {
     fn get_proof(&self, height: Height, path: &Path) -> Option<Vec<u8>> {
-        if let Some(p) = self.store.get_proof(height, path) {
+        if let Some(p) = self.ctx.store.get_proof(height, path) {
             let mut buffer = Vec::new();
             if p.encode(&mut buffer).is_ok() {
                 return Some(buffer);
@@ -225,8 +230,9 @@ where
         if let Ok(msg) = MsgEnvelope::try_from(message.clone()) {
             debug!("Dispatching message: {:?}", msg);
 
-            dispatch(self, msg)?;
+            dispatch(&mut self.ctx, &mut self.router, msg)?;
             let events = self
+                .ctx
                 .events
                 .drain(..)
                 .map(|ev| TmEvent(ev.try_into().unwrap()).into())
@@ -295,7 +301,7 @@ where
             None
         };
 
-        let data = self.store.get(height, &path).ok_or(AppError::Custom {
+        let data = self.ctx.store.get(height, &path).ok_or(AppError::Custom {
             reason: "Data not found".to_string(),
         })?;
         Ok(QueryResult { data, proof })
@@ -307,17 +313,18 @@ where
             header.time,
             header.next_validators_hash,
         );
-        self.consensus_states
+        self.ctx
+            .consensus_states
             .insert(header.height.value(), consensus_state);
         vec![]
     }
 
     fn store_mut(&mut self) -> &mut SharedStore<S> {
-        &mut self.store
+        &mut self.ctx.store
     }
 
     fn store(&self) -> &SharedStore<S> {
-        &self.store
+        &self.ctx.store
     }
 }
 
@@ -341,30 +348,7 @@ impl From<TmEvent> for Event {
     }
 }
 
-impl<S> ContextRouter for Ibc<S>
-where
-    S: 'static + Store + Send + Sync + Debug,
-{
-    fn get_route(&self, module_id: &ModuleId) -> Option<&dyn IbcModule> {
-        self.router.get_route(module_id)
-    }
-
-    fn get_route_mut(&mut self, module_id: &ModuleId) -> Option<&mut dyn IbcModule> {
-        self.router.get_route_mut(module_id)
-    }
-
-    fn lookup_module_by_port(&self, port_id: &PortId) -> Option<ModuleId> {
-        self.port_to_module_map
-            .get(port_id)
-            .ok_or(PortError::UnknownPort {
-                port_id: port_id.clone(),
-            })
-            .map(Clone::clone)
-            .ok()
-    }
-}
-
-impl<S> ValidationContext for Ibc<S>
+impl<S> ValidationContext for IbcContext<S>
 where
     S: 'static + Store + Send + Sync + Debug,
 {
@@ -623,7 +607,7 @@ where
     }
 }
 
-impl<S> ExecutionContext for Ibc<S>
+impl<S> ExecutionContext for IbcContext<S>
 where
     S: 'static + Store + Send + Sync + Debug,
 {

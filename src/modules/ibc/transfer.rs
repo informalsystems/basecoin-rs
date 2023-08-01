@@ -4,7 +4,6 @@ use crate::{
         auth::account::ACCOUNT_PREFIX,
         bank::context::BankKeeper,
         bank::util::{Coin, Denom},
-        Ibc,
     },
     store::{
         SharedStore, Store, {BinStore, JsonStore, ProtobufStore, TypedStore},
@@ -70,7 +69,7 @@ use ibc::applications::transfer::context::{
     on_timeout_packet_validate,
 };
 
-use super::impls::AnyConsensusState;
+use super::impls::{AnyConsensusState, IbcContext};
 
 #[derive(Clone, Debug)]
 pub struct IbcTransferModule<S, BK>
@@ -492,8 +491,8 @@ where
     S: Store + Send + Sync + Debug + 'static,
     BK: Send + Sync,
 {
-    type ClientValidationContext = Ibc<S>;
-    type E = Ibc<S>;
+    type ClientValidationContext = IbcContext<S>;
+    type E = IbcContext<S>;
     type AnyConsensusState = AnyConsensusState;
     type AnyClientState = TmClientState;
 
