@@ -1084,7 +1084,7 @@ dependencies = [
 [[package]]
 name = "ibc"
 version = "0.43.1"
-source = "git+https://github.com/cosmos/ibc-rs.git?rev=0f841fa#0f841faca8f392b2fb0851260041bae5a95b57da"
+source = "git+https://github.com/cosmos/ibc-rs.git?rev=12317a0#12317a08bc46c7ee9fb65127c70351c70bb445b4"
 dependencies = [
  "bytes",
  "derive_more",
