@@ -3,9 +3,9 @@ use std::{borrow::Borrow, collections::BTreeMap, fmt::Debug, sync::Arc};
 use ibc::{
     applications::transfer::MODULE_ID_STR as IBC_TRANSFER_MODULE_ID,
     core::{
-        ics04_channel::error::PortError,
         ics24_host::identifier::PortId,
         router::{Module as IbcModule, ModuleId, Router},
+        RouterError,
     },
 };
 
@@ -73,10 +73,10 @@ where
         }
     }
 
-    fn lookup_module_by_port(&self, port_id: &PortId) -> Option<ModuleId> {
+    fn lookup_module(&self, port_id: &PortId) -> Option<ModuleId> {
         self.port_to_module_map
             .get(port_id)
-            .ok_or(PortError::UnknownPort {
+            .ok_or(RouterError::UnknownPort {
                 port_id: port_id.clone(),
             })
             .map(Clone::clone)
