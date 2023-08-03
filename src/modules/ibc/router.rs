@@ -19,7 +19,7 @@ pub struct IbcRouter<S>
 where
     S: Store + Send + Sync + Debug,
 {
-    transfer: Arc<IbcTransferModule<S, BankBalanceKeeper<S>>>,
+    transfer: Arc<IbcTransferModule<BankBalanceKeeper<S>>>,
 
     /// Mapping of which IBC modules own which port
     port_to_module_map: BTreeMap<PortId, ModuleId>,
@@ -29,7 +29,7 @@ impl<S> IbcRouter<S>
 where
     S: 'static + Store + Send + Sync + Debug,
 {
-    pub fn new(transfer: IbcTransferModule<S, BankBalanceKeeper<S>>) -> Self {
+    pub fn new(transfer: IbcTransferModule<BankBalanceKeeper<S>>) -> Self {
         let mut port_to_module_map = BTreeMap::default();
         let transfer_module_id: ModuleId = ModuleId::new(IBC_TRANSFER_MODULE_ID.to_string());
         port_to_module_map.insert(PortId::transfer(), transfer_module_id);
@@ -42,7 +42,7 @@ where
 
     pub fn get_transfer_module_mut(
         &mut self,
-    ) -> Option<&mut IbcTransferModule<S, BankBalanceKeeper<S>>> {
+    ) -> Option<&mut IbcTransferModule<BankBalanceKeeper<S>>> {
         match Arc::get_mut(&mut self.transfer) {
             Some(m) => Some(m),
             None => None,
