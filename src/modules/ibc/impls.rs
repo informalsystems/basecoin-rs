@@ -98,7 +98,7 @@ where
     S: 'static + ProvableStore + Default + Debug,
 {
     pub fn new(store: SharedStore<S>, bank_keeper: BankBalanceKeeper<S>) -> Self {
-        let transfer_module = IbcTransferModule::new(store.clone(), bank_keeper);
+        let transfer_module = IbcTransferModule::new(bank_keeper);
         let router = IbcRouter::new(transfer_module);
 
         Self {
@@ -117,6 +117,132 @@ where
 
     pub fn channel_service(&self) -> ChannelQueryServer<IbcChannelService<S>> {
         ChannelQueryServer::new(IbcChannelService::new(self.ctx.store.clone()))
+    }
+}
+
+impl<S> Ibc<S>
+where
+    S: ProvableStore + Debug,
+{
+    fn get_proof(&self, height: Height, path: &Path) -> Option<Vec<u8>> {
+        if let Some(p) = self.ctx.store.get_proof(height, path) {
+            let mut buffer = Vec::new();
+            if p.encode(&mut buffer).is_ok() {
+                return Some(buffer);
+            }
+        }
+        None
+    }
+}
+
+impl<S> Module for Ibc<S>
+where
+    S: 'static + ProvableStore + Debug,
+    Self: Send + Sync,
+{
+    type Store = S;
+
+    fn deliver(&mut self, message: Any, _signer: &AccountId) -> Result<Vec<Event>, AppError> {
+        if let Ok(msg) = MsgEnvelope::try_from(message.clone()) {
+            debug!("Dispatching message: {:?}", msg);
+
+            dispatch(&mut self.ctx, &mut self.router, msg)?;
+            let events = self
+                .ctx
+                .events
+                .drain(..)
+                .map(|ev| TmEvent(ev.try_into().unwrap()).into())
+                .collect();
+            Ok(events)
+        } else if let Ok(transfer_msg) = MsgTransfer::try_from(message) {
+            debug!("Dispatching message: {:?}", transfer_msg);
+
+            let transfer_module = self
+                .router
+                .get_transfer_module_mut()
+                .expect("Failed to get the transfer module");
+
+            send_transfer(&mut self.ctx, transfer_module, transfer_msg).map_err(|e| {
+                AppError::Custom {
+                    reason: e.to_string(),
+                }
+            })?;
+
+            Ok(transfer_module
+                .events
+                .clone()
+                .into_iter()
+                .map(|ev| TmEvent(ev.try_into().unwrap()).into())
+                .collect())
+        } else {
+            Err(AppError::NotHandled)
+        }
+    }
+
+    fn query(
+        &self,
+        data: &[u8],
+        path: Option<&Path>,
+        height: Height,
+        prove: bool,
+    ) -> Result<QueryResult, AppError> {
+        let path = path.ok_or(AppError::NotHandled)?;
+        if path.to_string() != IBC_QUERY_PATH {
+            return Err(AppError::NotHandled);
+        }
+
+        let path: Path = String::from_utf8(data.to_vec())
+            .map_err(|_| AppError::Custom {
+                reason: "Invalid domain path".to_string(),
+            })?
+            .try_into()?;
+        let _ = IbcPath::try_from(path.clone()).map_err(|_| AppError::Custom {
+            reason: "Invalid IBC path".to_string(),
+        })?;
+
+        debug!(
+            "Querying for path ({}) at height {:?}",
+            path.to_string(),
+            height
+        );
+
+        let proof = if prove {
+            let proof = self.get_proof(height, &path).ok_or(AppError::Custom {
+                reason: "Proof not found".to_string(),
+            })?;
+            Some(vec![ProofOp {
+                r#type: "".to_string(),
+                key: path.to_string().into_bytes(),
+                data: proof,
+            }])
+        } else {
+            None
+        };
+
+        let data = self.ctx.store.get(height, &path).ok_or(AppError::Custom {
+            reason: "Data not found".to_string(),
+        })?;
+        Ok(QueryResult { data, proof })
+    }
+
+    fn begin_block(&mut self, header: &Header) -> Vec<Event> {
+        let consensus_state = TmConsensusState::new(
+            CommitmentRoot::from_bytes(header.app_hash.as_ref()),
+            header.time,
+            header.next_validators_hash,
+        );
+        self.ctx
+            .consensus_states
+            .insert(header.height.value(), consensus_state);
+        vec![]
+    }
+
+    fn store_mut(&mut self) -> &mut SharedStore<S> {
+        &mut self.ctx.store
+    }
+
+    fn store(&self) -> &SharedStore<S> {
+        &self.ctx.store
     }
 }
 
@@ -201,130 +327,6 @@ where
             events: Vec::new(),
             logs: Vec::new(),
         }
-    }
-}
-
-impl<S> Ibc<S>
-where
-    S: ProvableStore + Debug,
-{
-    fn get_proof(&self, height: Height, path: &Path) -> Option<Vec<u8>> {
-        if let Some(p) = self.ctx.store.get_proof(height, path) {
-            let mut buffer = Vec::new();
-            if p.encode(&mut buffer).is_ok() {
-                return Some(buffer);
-            }
-        }
-        None
-    }
-}
-
-impl<S> Module for Ibc<S>
-where
-    S: 'static + ProvableStore + Debug,
-    Self: Send + Sync,
-{
-    type Store = S;
-
-    fn deliver(&mut self, message: Any, _signer: &AccountId) -> Result<Vec<Event>, AppError> {
-        if let Ok(msg) = MsgEnvelope::try_from(message.clone()) {
-            debug!("Dispatching message: {:?}", msg);
-
-            dispatch(&mut self.ctx, &mut self.router, msg)?;
-            let events = self
-                .ctx
-                .events
-                .drain(..)
-                .map(|ev| TmEvent(ev.try_into().unwrap()).into())
-                .collect();
-            Ok(events)
-        } else if let Ok(transfer_msg) = MsgTransfer::try_from(message) {
-            debug!("Dispatching message: {:?}", transfer_msg);
-
-            let transfer_module = self
-                .router
-                .get_transfer_module_mut()
-                .expect("Failed to get the transfer module");
-
-            send_transfer(transfer_module, transfer_msg).map_err(|e| AppError::Custom {
-                reason: e.to_string(),
-            })?;
-
-            Ok(transfer_module
-                .events
-                .clone()
-                .into_iter()
-                .map(|ev| TmEvent(ev.try_into().unwrap()).into())
-                .collect())
-        } else {
-            Err(AppError::NotHandled)
-        }
-    }
-
-    fn query(
-        &self,
-        data: &[u8],
-        path: Option<&Path>,
-        height: Height,
-        prove: bool,
-    ) -> Result<QueryResult, AppError> {
-        let path = path.ok_or(AppError::NotHandled)?;
-        if path.to_string() != IBC_QUERY_PATH {
-            return Err(AppError::NotHandled);
-        }
-
-        let path: Path = String::from_utf8(data.to_vec())
-            .map_err(|_| AppError::Custom {
-                reason: "Invalid domain path".to_string(),
-            })?
-            .try_into()?;
-        let _ = IbcPath::try_from(path.clone()).map_err(|_| AppError::Custom {
-            reason: "Invalid IBC path".to_string(),
-        })?;
-
-        debug!(
-            "Querying for path ({}) at height {:?}",
-            path.to_string(),
-            height
-        );
-
-        let proof = if prove {
-            let proof = self.get_proof(height, &path).ok_or(AppError::Custom {
-                reason: "Proof not found".to_string(),
-            })?;
-            Some(vec![ProofOp {
-                r#type: "".to_string(),
-                key: path.to_string().into_bytes(),
-                data: proof,
-            }])
-        } else {
-            None
-        };
-
-        let data = self.ctx.store.get(height, &path).ok_or(AppError::Custom {
-            reason: "Data not found".to_string(),
-        })?;
-        Ok(QueryResult { data, proof })
-    }
-
-    fn begin_block(&mut self, header: &Header) -> Vec<Event> {
-        let consensus_state = TmConsensusState::new(
-            CommitmentRoot::from_bytes(header.app_hash.as_ref()),
-            header.time,
-            header.next_validators_hash,
-        );
-        self.ctx
-            .consensus_states
-            .insert(header.height.value(), consensus_state);
-        vec![]
-    }
-
-    fn store_mut(&mut self) -> &mut SharedStore<S> {
-        &mut self.ctx.store
-    }
-
-    fn store(&self) -> &SharedStore<S> {
-        &self.ctx.store
     }
 }
 
