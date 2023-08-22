@@ -66,16 +66,25 @@ use std::{
     fmt::Debug,
     time::Duration,
 };
-use tendermint::{abci::Event as TendermintEvent, block::Header};
-use tendermint_proto::{
-    abci::{Event, EventAttribute},
-    crypto::ProofOp,
-};
 use tracing::debug;
 
 use derive_more::{From, TryInto};
 
 use ibc::core::dispatch;
+
+use tendermint::{abci::Event as TendermintEvent, block::Header};
+
+#[cfg(all(feature = "v0_37", not(feature = "v0_38")))]
+use tendermint_proto::v0_37::{
+    abci::{Event, EventAttribute},
+    crypto::ProofOp,
+};
+
+#[cfg(any(feature = "v0_38", not(feature = "v0_37")))]
+use tendermint_proto::{
+    abci::{Event, EventAttribute},
+    crypto::ProofOp,
+};
 
 // Note: We define `AnyConsensusState` just to showcase the use of the
 // derive macro. Technically, we could just use `TmConsensusState`

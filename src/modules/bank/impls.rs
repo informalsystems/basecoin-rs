@@ -7,7 +7,6 @@ use ibc_proto::{cosmos::bank::v1beta1::query_server::QueryServer, google::protob
 use primitive_types::U256;
 use prost::Message;
 use std::{collections::HashMap, convert::TryInto, fmt::Debug, str::FromStr};
-use tendermint_proto::abci::Event;
 use tracing::{debug, trace};
 
 use crate::modules::Module;
@@ -22,6 +21,12 @@ use crate::{
         {JsonStore, TypedStore}, {ProvableStore, Store},
     },
 };
+
+#[cfg(all(feature = "v0_37", not(feature = "v0_38")))]
+use tendermint_proto::v0_37::abci::Event;
+
+#[cfg(any(feature = "v0_38", not(feature = "v0_37")))]
+use tendermint_proto::abci::Event;
 
 #[derive(Clone)]
 pub struct BankBalanceReader<S> {

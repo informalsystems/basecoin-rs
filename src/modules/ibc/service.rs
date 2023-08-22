@@ -40,7 +40,8 @@ use ibc_proto::{
             QueryChannelConsensusStateResponse, QueryChannelRequest, QueryChannelResponse,
             QueryChannelsRequest, QueryChannelsResponse, QueryConnectionChannelsRequest,
             QueryConnectionChannelsResponse, QueryNextSequenceReceiveRequest,
-            QueryNextSequenceReceiveResponse, QueryPacketAcknowledgementRequest,
+            QueryNextSequenceReceiveResponse, QueryNextSequenceSendRequest,
+            QueryNextSequenceSendResponse, QueryPacketAcknowledgementRequest,
             QueryPacketAcknowledgementResponse, QueryPacketAcknowledgementsRequest,
             QueryPacketAcknowledgementsResponse, QueryPacketCommitmentRequest,
             QueryPacketCommitmentResponse, QueryPacketCommitmentsRequest,
@@ -665,6 +666,13 @@ impl<S: ProvableStore + 'static> ChannelQuery for IbcChannelService<S> {
                 revision_height: self.packet_commitment_store.current_height(),
             }),
         }))
+    }
+
+    async fn next_sequence_send(
+        &self,
+        _request: Request<QueryNextSequenceSendRequest>,
+    ) -> Result<Response<QueryNextSequenceSendResponse>, Status> {
+        todo!()
     }
 
     /// NextSequenceReceive returns the next receive sequence for a given channel.

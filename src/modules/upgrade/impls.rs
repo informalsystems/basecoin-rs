@@ -18,8 +18,11 @@ use ibc::hosts::tendermint::upgrade_proposal::UpgradeValidationContext;
 use ibc::hosts::tendermint::upgrade_proposal::{Plan, UpgradeChain};
 use ibc::hosts::tendermint::SDK_UPGRADE_QUERY_PATH;
 
-use tendermint_proto::abci::Event;
-use tendermint_proto::crypto::ProofOp;
+#[cfg(all(feature = "v0_37", not(feature = "v0_38")))]
+use tendermint_proto::v0_37::{abci::Event, crypto::ProofOp};
+
+#[cfg(any(feature = "v0_38", not(feature = "v0_37")))]
+use tendermint_proto::{abci::Event, crypto::ProofOp};
 
 use super::path::UpgradePlanPath;
 use super::service::UpgradeService;

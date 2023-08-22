@@ -1,11 +1,3 @@
-use ibc_proto::cosmos::base::tendermint::v1beta1::GetNodeInfoResponse;
-use std::convert::TryInto;
-use tracing::debug;
-
-use cosmrs::Tx;
-use tendermint_proto::p2p::DefaultNodeInfo;
-use tonic::{Request, Response, Status};
-
 use ibc_proto::cosmos::base::tendermint::v1beta1::service_server::Service as HealthService;
 use ibc_proto::cosmos::base::tendermint::v1beta1::AbciQueryRequest;
 use ibc_proto::cosmos::base::tendermint::v1beta1::AbciQueryResponse;
@@ -16,13 +8,13 @@ use ibc_proto::cosmos::base::tendermint::v1beta1::GetLatestBlockResponse;
 use ibc_proto::cosmos::base::tendermint::v1beta1::GetLatestValidatorSetRequest;
 use ibc_proto::cosmos::base::tendermint::v1beta1::GetLatestValidatorSetResponse;
 use ibc_proto::cosmos::base::tendermint::v1beta1::GetNodeInfoRequest;
+use ibc_proto::cosmos::base::tendermint::v1beta1::GetNodeInfoResponse;
 use ibc_proto::cosmos::base::tendermint::v1beta1::GetSyncingRequest;
 use ibc_proto::cosmos::base::tendermint::v1beta1::GetSyncingResponse;
 use ibc_proto::cosmos::base::tendermint::v1beta1::GetValidatorSetByHeightRequest;
 use ibc_proto::cosmos::base::tendermint::v1beta1::GetValidatorSetByHeightResponse;
 use ibc_proto::cosmos::base::tendermint::v1beta1::Module as VersionInfoModule;
 use ibc_proto::cosmos::base::tendermint::v1beta1::VersionInfo;
-
 use ibc_proto::cosmos::tx::v1beta1::service_server::Service as TxService;
 use ibc_proto::cosmos::tx::v1beta1::BroadcastTxRequest;
 use ibc_proto::cosmos::tx::v1beta1::BroadcastTxResponse;
@@ -34,6 +26,21 @@ use ibc_proto::cosmos::tx::v1beta1::GetTxsEventRequest;
 use ibc_proto::cosmos::tx::v1beta1::GetTxsEventResponse;
 use ibc_proto::cosmos::tx::v1beta1::SimulateRequest;
 use ibc_proto::cosmos::tx::v1beta1::SimulateResponse;
+use ibc_proto::cosmos::tx::v1beta1::TxDecodeAminoRequest;
+use ibc_proto::cosmos::tx::v1beta1::TxDecodeAminoResponse;
+use ibc_proto::cosmos::tx::v1beta1::TxDecodeRequest;
+use ibc_proto::cosmos::tx::v1beta1::TxDecodeResponse;
+use ibc_proto::cosmos::tx::v1beta1::TxEncodeAminoRequest;
+use ibc_proto::cosmos::tx::v1beta1::TxEncodeAminoResponse;
+use ibc_proto::cosmos::tx::v1beta1::TxEncodeRequest;
+use ibc_proto::cosmos::tx::v1beta1::TxEncodeResponse;
+
+use std::convert::TryInto;
+use tracing::debug;
+
+use cosmrs::Tx;
+use tendermint_proto::p2p::DefaultNodeInfo;
+use tonic::{Request, Response, Status};
 
 use super::builder::BaseCoinApp;
 use crate::store::ProvableStore;
@@ -151,6 +158,34 @@ impl<S: ProvableStore + 'static> TxService for BaseCoinApp<S> {
         &self,
         _request: Request<GetBlockWithTxsRequest>,
     ) -> Result<Response<GetBlockWithTxsResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn tx_decode(
+        &self,
+        _request: Request<TxDecodeRequest>,
+    ) -> Result<Response<TxDecodeResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn tx_encode(
+        &self,
+        _request: Request<TxEncodeRequest>,
+    ) -> Result<Response<TxEncodeResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn tx_encode_amino(
+        &self,
+        _request: Request<TxEncodeAminoRequest>,
+    ) -> Result<Response<TxEncodeAminoResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn tx_decode_amino(
+        &self,
+        _request: Request<TxDecodeAminoRequest>,
+    ) -> Result<Response<TxDecodeAminoResponse>, Status> {
         unimplemented!()
     }
 }

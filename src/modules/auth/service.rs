@@ -6,9 +6,10 @@ use ibc_proto::cosmos::auth::v1beta1::{
     query_server::Query, AddressBytesToStringRequest, AddressBytesToStringResponse,
     AddressStringToBytesRequest, AddressStringToBytesResponse, Bech32PrefixRequest,
     Bech32PrefixResponse, QueryAccountAddressByIdRequest, QueryAccountAddressByIdResponse,
-    QueryAccountRequest, QueryAccountResponse, QueryAccountsRequest, QueryAccountsResponse,
-    QueryModuleAccountByNameRequest, QueryModuleAccountByNameResponse, QueryModuleAccountsRequest,
-    QueryModuleAccountsResponse, QueryParamsRequest, QueryParamsResponse,
+    QueryAccountInfoRequest, QueryAccountInfoResponse, QueryAccountRequest, QueryAccountResponse,
+    QueryAccountsRequest, QueryAccountsResponse, QueryModuleAccountByNameRequest,
+    QueryModuleAccountByNameResponse, QueryModuleAccountsRequest, QueryModuleAccountsResponse,
+    QueryParamsRequest, QueryParamsResponse,
 };
 
 use tonic::{Request, Response, Status};
@@ -41,6 +42,13 @@ impl<S: ProvableStore + 'static> Query for AuthService<S> {
         Ok(Response::new(QueryAccountResponse {
             account: Some(account.into()),
         }))
+    }
+
+    async fn account_info(
+        &self,
+        _request: Request<QueryAccountInfoRequest>,
+    ) -> Result<Response<QueryAccountInfoResponse>, Status> {
+        unimplemented!()
     }
 
     async fn params(

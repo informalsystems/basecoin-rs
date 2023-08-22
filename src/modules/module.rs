@@ -4,6 +4,11 @@ use crate::store::impls::SharedStore;
 use cosmrs::AccountId;
 use ibc_proto::google::protobuf::Any;
 use tendermint::block::Header;
+
+#[cfg(all(feature = "v0_37", not(feature = "v0_38")))]
+use tendermint_proto::v0_37::abci::Event;
+
+#[cfg(any(feature = "v0_38", not(feature = "v0_37")))]
 use tendermint_proto::abci::Event;
 
 pub trait Module: Send + Sync {

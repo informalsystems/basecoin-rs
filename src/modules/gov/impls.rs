@@ -11,8 +11,6 @@ use ibc_proto::cosmos::gov::v1beta1::query_server::QueryServer;
 use ibc_proto::google::protobuf::Any;
 use ibc_proto::protobuf::Protobuf;
 
-use tendermint_proto::abci::Event;
-
 use super::path::ProposalPath;
 use super::proposal::Proposal;
 use super::service::GovernanceService;
@@ -21,6 +19,12 @@ use crate::helper::{Height, Path, QueryResult};
 use crate::modules::gov::msg::MsgSubmitProposal;
 use crate::modules::{Module, Upgrade};
 use crate::store::{ProtobufStore, SharedRw, SharedStore, Store, TypedStore};
+
+#[cfg(all(feature = "v0_37", not(feature = "v0_38")))]
+use tendermint_proto::v0_37::abci::Event;
+
+#[cfg(any(feature = "v0_38", not(feature = "v0_37")))]
+use tendermint_proto::abci::Event;
 
 #[derive(Clone)]
 pub struct Governance<S>
@@ -69,8 +73,10 @@ where
 
             let mut upgrade_ctx = self.upgrade_ctx.write().unwrap();
 
-            let event =
-                upgrade_client_proposal_handler(upgrade_ctx.deref_mut(), upgrade_proposal).unwrap();
+            let event = upgrade_client_proposal_handler(upgrade_ctx.deref_mut(), upgrade_proposal)
+                .map_err(|e| AppError::Custom {
+                    reason: format!("Error handling upgrade proposal: {:?}", e),
+                })?;
 
             let proposal = message.proposal(self.proposal_counter);
 
@@ -80,7 +86,9 @@ where
 
             self.proposal_counter += 1;
 
-            Ok(vec![event])
+            Ok(vec![event.try_into().map_err(|e| AppError::Custom {
+                reason: format!("Error converting tendermint event to proto type: {:?}", e),
+            })?])
         } else {
             Err(AppError::NotHandled)
         }

@@ -1,12 +1,14 @@
 use ibc_proto::cosmos::{
     bank::v1beta1::{
         query_server::Query, QueryAllBalancesRequest, QueryAllBalancesResponse,
-        QueryBalanceRequest, QueryBalanceResponse, QueryDenomMetadataRequest,
+        QueryBalanceRequest, QueryBalanceResponse, QueryDenomMetadataByQueryStringRequest,
+        QueryDenomMetadataByQueryStringResponse, QueryDenomMetadataRequest,
         QueryDenomMetadataResponse, QueryDenomOwnersRequest, QueryDenomOwnersResponse,
         QueryDenomsMetadataRequest, QueryDenomsMetadataResponse, QueryParamsRequest,
-        QueryParamsResponse, QuerySpendableBalancesRequest, QuerySpendableBalancesResponse,
-        QuerySupplyOfRequest, QuerySupplyOfResponse, QueryTotalSupplyRequest,
-        QueryTotalSupplyResponse,
+        QueryParamsResponse, QuerySendEnabledRequest, QuerySendEnabledResponse,
+        QuerySpendableBalanceByDenomRequest, QuerySpendableBalanceByDenomResponse,
+        QuerySpendableBalancesRequest, QuerySpendableBalancesResponse, QuerySupplyOfRequest,
+        QuerySupplyOfResponse, QueryTotalSupplyRequest, QueryTotalSupplyResponse,
     },
     base::v1beta1::Coin as RawCoin,
 };
@@ -102,6 +104,27 @@ impl<S: ProvableStore + 'static> Query for BankService<S> {
         &self,
         _request: Request<QueryDenomOwnersRequest>,
     ) -> Result<Response<QueryDenomOwnersResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn send_enabled(
+        &self,
+        _request: Request<QuerySendEnabledRequest>,
+    ) -> Result<Response<QuerySendEnabledResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn spendable_balance_by_denom(
+        &self,
+        _request: Request<QuerySpendableBalanceByDenomRequest>,
+    ) -> Result<Response<QuerySpendableBalanceByDenomResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn denom_metadata_by_query_string(
+        &self,
+        _request: Request<QueryDenomMetadataByQueryStringRequest>,
+    ) -> Result<Response<QueryDenomMetadataByQueryStringResponse>, Status> {
         unimplemented!()
     }
 }

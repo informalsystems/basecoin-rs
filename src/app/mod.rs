@@ -1,4 +1,4 @@
-pub mod interface;
+pub mod abci;
 pub mod service;
 
 mod builder;

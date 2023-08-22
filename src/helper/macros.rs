@@ -6,7 +6,12 @@ use ibc::core::ics24_host::path::{
     CommitmentPath, ConnectionPath, ReceiptPath, SeqAckPath, SeqRecvPath, SeqSendPath,
     UpgradeClientPath,
 };
-use tendermint_proto::abci::{ResponseCheckTx, ResponseDeliverTx, ResponseQuery};
+
+#[cfg(all(feature = "v0_37", not(feature = "v0_38")))]
+use tendermint_proto::v0_37::abci::{ResponseCheckTx, ResponseDeliverTx, ResponseQuery};
+
+#[cfg(any(feature = "v0_38", not(feature = "v0_37")))]
+use tendermint_proto::abci::{ResponseCheckTx, ResponseQuery};
 
 pub(crate) trait ResponseFromErrorExt {
     fn from_error(code: u32, log: impl ToString) -> Self;
@@ -27,7 +32,11 @@ macro_rules! impl_response_error_for {
     };
 }
 
+#[cfg(all(feature = "v0_37", not(feature = "v0_38")))]
 impl_response_error_for!(ResponseQuery, ResponseCheckTx, ResponseDeliverTx);
+
+#[cfg(any(feature = "v0_38", not(feature = "v0_37")))]
+impl_response_error_for!(ResponseQuery, ResponseCheckTx);
 
 macro_rules! impl_into_path_for {
     ($($path:ty),+) => {

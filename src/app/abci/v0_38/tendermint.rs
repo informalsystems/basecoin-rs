@@ -1,23 +1,15 @@
 use prost::Message;
 use serde_json::Value;
 use std::convert::TryInto;
+use tendermint_proto::abci::RequestFinalizeBlock;
+use tendermint_proto::abci::ResponseFinalizeBlock;
 use tracing::{debug, info};
 
-use cosmrs::tx::SignerInfo;
-use cosmrs::tx::SignerPublicKey;
-use cosmrs::Tx;
-
-use ibc_proto::google::protobuf::Any;
-
 use tendermint_abci::Application;
-use tendermint_proto::abci::RequestBeginBlock;
-use tendermint_proto::abci::RequestDeliverTx;
 use tendermint_proto::abci::RequestInfo;
 use tendermint_proto::abci::RequestInitChain;
 use tendermint_proto::abci::RequestQuery;
-use tendermint_proto::abci::ResponseBeginBlock;
 use tendermint_proto::abci::ResponseCommit;
-use tendermint_proto::abci::ResponseDeliverTx;
 use tendermint_proto::abci::ResponseInfo;
 use tendermint_proto::abci::ResponseInitChain;
 use tendermint_proto::abci::ResponseQuery;
@@ -28,7 +20,7 @@ use crate::app::BaseCoinApp;
 use crate::error::Error;
 use crate::helper::macros::ResponseFromErrorExt;
 use crate::helper::{Height, Path};
-use crate::modules::{auth::account::ACCOUNT_PREFIX, types::IdentifiedModule};
+use crate::modules::types::IdentifiedModule;
 use crate::store::{ProvableStore, Store};
 
 impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
@@ -123,77 +115,6 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
         ResponseQuery::from_error(1, "query msg not handled")
     }
 
-    fn deliver_tx(&self, request: RequestDeliverTx) -> ResponseDeliverTx {
-        debug!("Got deliverTx request: {request:?}");
-
-        let tx: Tx = match request.tx.as_ref().try_into() {
-            Ok(tx) => tx,
-            Err(err) => {
-                return ResponseDeliverTx::from_error(
-                    1,
-                    format!("failed to decode incoming tx bytes: {err}"),
-                );
-            }
-        };
-
-        // Extract `AccountId` of first signer
-        let signer = {
-            let pubkey = match tx.auth_info.signer_infos.first() {
-                Some(&SignerInfo {
-                    public_key: Some(SignerPublicKey::Single(pubkey)),
-                    ..
-                }) => pubkey,
-                _ => return ResponseDeliverTx::from_error(2, "Empty signers"),
-            };
-            if let Ok(signer) = pubkey.account_id(ACCOUNT_PREFIX) {
-                signer
-            } else {
-                return ResponseDeliverTx::from_error(2, "Invalid signer");
-            }
-        };
-
-        if tx.body.messages.is_empty() {
-            return ResponseDeliverTx::from_error(2, "Empty Tx");
-        }
-
-        let mut events = vec![];
-        for message in tx.body.messages {
-            let message = Any {
-                type_url: message.type_url,
-                value: message.value,
-            };
-
-            // try to deliver message to every module
-            match self.deliver_msg(message, &signer) {
-                // success - append events and continue with next message
-                Ok(mut msg_events) => {
-                    events.append(&mut msg_events);
-                }
-                // return on first error -
-                // either an error that occurred during execution of this message OR no module
-                // could handle this message
-                Err(e) => {
-                    // reset changes from other messages in this tx
-                    let mut modules = self.modules.write().unwrap();
-                    for IdentifiedModule { module, .. } in modules.iter_mut() {
-                        module.store_mut().reset();
-                    }
-                    self.store.write().unwrap().reset();
-                    return ResponseDeliverTx::from_error(
-                        2,
-                        format!("deliver failed with error: {e}"),
-                    );
-                }
-            }
-        }
-
-        ResponseDeliverTx {
-            log: "success".to_owned(),
-            events,
-            ..ResponseDeliverTx::default()
-        }
-    }
-
     fn commit(&self) -> ResponseCommit {
         let mut modules = self.modules.write().unwrap();
         for IdentifiedModule { id, module } in modules.iter_mut() {
@@ -214,22 +135,10 @@ impl<S: Default + ProvableStore + 'static> Application for BaseCoinApp<S> {
             state.current_height() - 1,
             data.iter().map(|b| format!("{b:02X}")).collect::<String>()
         );
-        ResponseCommit {
-            data: data.into(),
-            retain_height: 0,
-        }
+        ResponseCommit { retain_height: 0 }
     }
 
-    fn begin_block(&self, request: RequestBeginBlock) -> ResponseBeginBlock {
-        debug!("Got begin block request.");
-
-        let mut modules = self.modules.write().unwrap();
-        let mut events = vec![];
-        let header = request.header.unwrap().try_into().unwrap();
-        for IdentifiedModule { module, .. } in modules.iter_mut() {
-            events.extend(module.begin_block(&header));
-        }
-
-        ResponseBeginBlock { events }
+    fn finalize_block(&self, _request: RequestFinalizeBlock) -> ResponseFinalizeBlock {
+        unimplemented!()
     }
 }
