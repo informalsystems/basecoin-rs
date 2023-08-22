@@ -18,7 +18,7 @@ fi
 cd "${BASECOIN_SRC}"
 echo ""
 echo "Building basecoin-rs..."
-cargo build --bin basecoin --all-features --target-dir "${BASECOIN_BUILD}"
+cargo build --bin basecoin --target-dir "${BASECOIN_BUILD}"
 
 echo ""
 echo "Setting up chain ibc-0..."
