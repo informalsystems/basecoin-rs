@@ -3,6 +3,7 @@ use tracing::error;
 
 use cosmrs::AccountId;
 use ibc_proto::google::protobuf::Any;
+use tendermint::abci::Event;
 
 use crate::error::Error;
 use crate::helper::Identifier;
@@ -15,12 +16,6 @@ use crate::store::ProvableStore;
 use crate::store::RevertibleStore;
 use crate::store::SharedRw;
 use crate::store::SharedStore;
-
-#[cfg(all(feature = "v0_37", not(feature = "v0_38")))]
-use tendermint_proto::v0_37::abci::Event;
-
-#[cfg(any(feature = "v0_38", not(feature = "v0_37")))]
-use tendermint_proto::abci::Event;
 
 pub struct Builder<S> {
     store: MainStore<S>,

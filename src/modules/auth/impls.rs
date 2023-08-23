@@ -14,6 +14,7 @@ use ibc_proto::{
     google::protobuf::Any,
 };
 use serde_json::Value;
+use tendermint::abci::Event;
 use tracing::{debug, trace};
 
 use super::account::AccountsPath;
@@ -21,12 +22,6 @@ use super::{
     context::{Account, AccountKeeper, AccountReader},
     service::AuthService,
 };
-
-#[cfg(all(feature = "v0_37", not(feature = "v0_38")))]
-use tendermint_proto::v0_37::abci::Event;
-
-#[cfg(any(feature = "v0_38", not(feature = "v0_37")))]
-use tendermint_proto::abci::Event;
 
 #[derive(Clone)]
 pub struct Auth<S> {

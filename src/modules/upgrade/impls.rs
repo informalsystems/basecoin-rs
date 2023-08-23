@@ -17,12 +17,13 @@ use ibc::hosts::tendermint::upgrade_proposal::UpgradeExecutionContext;
 use ibc::hosts::tendermint::upgrade_proposal::UpgradeValidationContext;
 use ibc::hosts::tendermint::upgrade_proposal::{Plan, UpgradeChain};
 use ibc::hosts::tendermint::SDK_UPGRADE_QUERY_PATH;
+use tendermint::abci::Event;
 
 #[cfg(all(feature = "v0_37", not(feature = "v0_38")))]
-use tendermint_proto::v0_37::{abci::Event, crypto::ProofOp};
+use tendermint_proto::v0_37::crypto::ProofOp;
 
 #[cfg(any(feature = "v0_38", not(feature = "v0_37")))]
-use tendermint_proto::{abci::Event, crypto::ProofOp};
+use tendermint_proto::crypto::ProofOp;
 
 use super::path::UpgradePlanPath;
 use super::service::UpgradeService;
@@ -169,10 +170,9 @@ where
                 )
                 .unwrap();
 
-                let event: tendermint::abci::Event =
-                    UpgradeChain::new(plan.height, "upgrade".to_string()).into();
+                let event = UpgradeChain::new(plan.height, "upgrade".to_string()).into();
 
-                return vec![event.try_into().unwrap()];
+                return vec![event];
             }
 
             // It should clear the upgrade plan & states once the upgrade is completed.

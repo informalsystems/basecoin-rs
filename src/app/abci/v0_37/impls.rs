@@ -8,6 +8,7 @@ use ibc::Any;
 use prost::Message;
 use serde_json::Value;
 use tendermint_proto::v0_37::abci::response_process_proposal;
+use tendermint_proto::v0_37::abci::Event as ProtoEvent;
 use tendermint_proto::v0_37::abci::RequestApplySnapshotChunk;
 use tendermint_proto::v0_37::abci::RequestBeginBlock;
 use tendermint_proto::v0_37::abci::RequestCheckTx;
@@ -38,7 +39,6 @@ use tendermint_proto::v0_37::abci::ResponseProcessProposal;
 use tendermint_proto::v0_37::abci::ResponseQuery;
 use tendermint_proto::v0_37::crypto::ProofOp;
 use tendermint_proto::v0_37::crypto::ProofOps;
-use tracing::{debug, info};
 
 use crate::app::BaseCoinApp;
 use crate::error::Error;
@@ -49,6 +49,7 @@ use crate::modules::auth::account::ACCOUNT_PREFIX;
 use crate::modules::types::IdentifiedModule;
 use crate::store::ProvableStore;
 use crate::store::Store;
+use tracing::{debug, info};
 
 pub fn echo<S: Default + ProvableStore + 'static>(
     _app: &BaseCoinApp<S>,
@@ -215,8 +216,13 @@ pub fn deliver_tx<S: Default + ProvableStore + 'static>(
         // try to deliver message to every module
         match app.deliver_msg(message, &signer) {
             // success - append events and continue with next message
-            Ok(mut msg_events) => {
-                events.append(&mut msg_events);
+            Ok(msg_events) => {
+                let mut proto_events: Vec<ProtoEvent> = msg_events
+                    .into_iter()
+                    .map(|event| event.try_into().unwrap())
+                    .collect();
+
+                events.append(&mut proto_events);
             }
             // return on first error -
             // either an error that occurred during execution of this message OR no module
@@ -276,7 +282,14 @@ pub fn begin_block<S: Default + ProvableStore + 'static>(
     let mut events = vec![];
     let header = request.header.unwrap().try_into().unwrap();
     for IdentifiedModule { module, .. } in modules.iter_mut() {
-        events.extend(module.begin_block(&header));
+        let tm_event = module.begin_block(&header);
+
+        let proto_events: Vec<ProtoEvent> = tm_event
+            .into_iter()
+            .map(|event| event.try_into().unwrap())
+            .collect();
+
+        events.extend(proto_events);
     }
 
     ResponseBeginBlock { events }
