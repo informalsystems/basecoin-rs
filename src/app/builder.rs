@@ -3,16 +3,14 @@ use tracing::error;
 
 use cosmrs::AccountId;
 use ibc_proto::google::protobuf::Any;
-use tendermint_proto::abci::Event;
+use tendermint::abci::Event;
 
 use crate::error::Error;
 use crate::helper::Identifier;
 use crate::modules::types::IdentifiedModule;
 use crate::modules::types::ModuleList;
 use crate::modules::types::ModuleStore;
-
 use crate::modules::Module;
-
 use crate::store::MainStore;
 use crate::store::ProvableStore;
 use crate::store::RevertibleStore;

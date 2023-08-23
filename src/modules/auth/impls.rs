@@ -14,7 +14,7 @@ use ibc_proto::{
     google::protobuf::Any,
 };
 use serde_json::Value;
-use tendermint_proto::abci::Event;
+use tendermint::abci::Event;
 use tracing::{debug, trace};
 
 use super::account::AccountsPath;

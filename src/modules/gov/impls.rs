@@ -10,8 +10,7 @@ use ibc::hosts::tendermint::upgrade_proposal::UpgradeProposal;
 use ibc_proto::cosmos::gov::v1beta1::query_server::QueryServer;
 use ibc_proto::google::protobuf::Any;
 use ibc_proto::protobuf::Protobuf;
-
-use tendermint_proto::abci::Event;
+use tendermint::abci::Event;
 
 use super::path::ProposalPath;
 use super::proposal::Proposal;
@@ -69,8 +68,10 @@ where
 
             let mut upgrade_ctx = self.upgrade_ctx.write().unwrap();
 
-            let event =
-                upgrade_client_proposal_handler(upgrade_ctx.deref_mut(), upgrade_proposal).unwrap();
+            let event = upgrade_client_proposal_handler(upgrade_ctx.deref_mut(), upgrade_proposal)
+                .map_err(|e| AppError::Custom {
+                    reason: format!("Error handling upgrade proposal: {:?}", e),
+                })?;
 
             let proposal = message.proposal(self.proposal_counter);
 

@@ -8,6 +8,11 @@ use std::{
     str::from_utf8,
     str::FromStr,
 };
+
+#[cfg(all(feature = "v0_37", not(feature = "v0_38")))]
+use tendermint_proto::v0_37::crypto::ProofOp;
+
+#[cfg(any(feature = "v0_38", not(feature = "v0_37")))]
 use tendermint_proto::crypto::ProofOp;
 
 /// A new type representing a valid ICS024 identifier.

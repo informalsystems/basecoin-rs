@@ -1,6 +1,5 @@
 use ibc_proto::cosmos::base::tendermint::v1beta1::service_server::ServiceServer as HealthServer;
 use ibc_proto::cosmos::tx::v1beta1::service_server::ServiceServer as TxServer;
-use tracing::info;
 
 use super::Builder;
 use crate::config::ServerConfig;
@@ -14,11 +13,11 @@ use crate::modules::Staking;
 use crate::modules::Upgrade;
 use crate::store::memory::InMemoryStore;
 
-#[cfg(not(feature = "tower-abci"))]
+#[cfg(all(feature = "v0_38", not(feature = "v0_37")))]
 use tendermint_abci::ServerBuilder;
 
-#[cfg(feature = "tower-abci")]
-use tower_abci::split;
+#[cfg(all(feature = "v0_37", not(feature = "v0_38")))]
+use tower_abci::v037::split;
 
 pub async fn default_app_runner(server_cfg: ServerConfig) {
     // instantiate the application with a KV store implementation of choice
@@ -61,9 +60,9 @@ pub async fn default_app_runner(server_cfg: ServerConfig) {
         .add_module(prefix::Upgrade {}.identifier(), upgrade.clone())
         .build();
 
-    #[cfg(not(feature = "tower-abci"))]
+    #[cfg(all(feature = "v0_38", not(feature = "v0_37")))]
     {
-        info!("Starting Tendermint ABCI server");
+        tracing::info!("Starting Tendermint ABCI server");
 
         // run the blocking ABCI server on a separate thread
         let server = ServerBuilder::new(server_cfg.read_buf_size)
@@ -78,9 +77,9 @@ pub async fn default_app_runner(server_cfg: ServerConfig) {
         });
     }
 
-    #[cfg(feature = "tower-abci")]
+    #[cfg(all(feature = "v0_37", not(feature = "v0_38")))]
     {
-        info!("Starting tower ABCI server");
+        tracing::info!("Starting tower ABCI server");
 
         let app_split = app.clone();
         let (consensus, mempool, snapshot, info) = split::service(app_split, 10);

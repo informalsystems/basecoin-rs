@@ -66,16 +66,19 @@ use std::{
     fmt::Debug,
     time::Duration,
 };
-use tendermint::{abci::Event as TendermintEvent, block::Header};
-use tendermint_proto::{
-    abci::{Event, EventAttribute},
-    crypto::ProofOp,
-};
 use tracing::debug;
 
 use derive_more::{From, TryInto};
 
 use ibc::core::dispatch;
+
+use tendermint::{abci::Event, block::Header};
+
+#[cfg(all(feature = "v0_37", not(feature = "v0_38")))]
+use tendermint_proto::v0_37::crypto::ProofOp;
+
+#[cfg(any(feature = "v0_38", not(feature = "v0_37")))]
+use tendermint_proto::crypto::ProofOp;
 
 // Note: We define `AnyConsensusState` just to showcase the use of the
 // derive macro. Technically, we could just use `TmConsensusState`
@@ -151,7 +154,7 @@ where
                 .ctx
                 .events
                 .drain(..)
-                .map(|ev| TmEvent(ev.try_into().unwrap()).into())
+                .map(|ev| Event::try_from(ev).unwrap())
                 .collect();
             Ok(events)
         } else if let Ok(transfer_msg) = MsgTransfer::try_from(message) {
@@ -172,7 +175,7 @@ where
                 .events
                 .clone()
                 .into_iter()
-                .map(|ev| TmEvent(ev.try_into().unwrap()).into())
+                .map(|ev| Event::try_from(ev).unwrap())
                 .collect())
         } else {
             Err(AppError::NotHandled)
@@ -326,26 +329,6 @@ where
             store,
             events: Vec::new(),
             logs: Vec::new(),
-        }
-    }
-}
-
-pub(crate) struct TmEvent(pub TendermintEvent);
-
-impl From<TmEvent> for Event {
-    fn from(value: TmEvent) -> Self {
-        Self {
-            r#type: value.0.kind,
-            attributes: value
-                .0
-                .attributes
-                .into_iter()
-                .map(|attr| EventAttribute {
-                    key: attr.key,
-                    value: attr.value,
-                    index: true,
-                })
-                .collect(),
         }
     }
 }

@@ -7,7 +7,7 @@ use ibc_proto::{cosmos::bank::v1beta1::query_server::QueryServer, google::protob
 use primitive_types::U256;
 use prost::Message;
 use std::{collections::HashMap, convert::TryInto, fmt::Debug, str::FromStr};
-use tendermint_proto::abci::Event;
+use tendermint::abci::Event;
 use tracing::{debug, trace};
 
 use crate::modules::Module;

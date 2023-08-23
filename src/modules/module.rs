@@ -3,8 +3,8 @@ use crate::helper::{Height, Identifier as StoreIdentifier, Path, QueryResult};
 use crate::store::impls::SharedStore;
 use cosmrs::AccountId;
 use ibc_proto::google::protobuf::Any;
+use tendermint::abci::Event;
 use tendermint::block::Header;
-use tendermint_proto::abci::Event;
 
 pub trait Module: Send + Sync {
     /// The module's store type.
