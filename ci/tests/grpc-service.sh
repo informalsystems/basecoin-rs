@@ -8,9 +8,14 @@ grpcurl -plaintext localhost:9093 list ibc.core.client.v1.Query
 grpcurl -plaintext localhost:9093 list ibc.core.connection.v1.Query
 grpcurl -plaintext localhost:9093 list ibc.core.channel.v1.Query
 
+
 # client services
 grpcurl -plaintext localhost:9093 ibc.core.client.v1.Query/ClientStates
-grpcurl -plaintext localhost:9093 ibc.core.client.v1.Query/ConsensusStates
+grpcurl -plaintext -d @ localhost:9093 ibc.core.client.v1.Query/ConsensusStates <<EOM
+{
+  "client_id": "07-tendermint-0"
+}
+EOM
 
 # connection services
 grpcurl -plaintext -d @ localhost:9093 ibc.core.connection.v1.Query/Connection <<EOM
