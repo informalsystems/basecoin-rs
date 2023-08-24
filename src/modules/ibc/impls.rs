@@ -1,7 +1,4 @@
-use super::{
-    router::IbcRouter,
-    service::{IbcChannelService, IbcClientService, IbcConnectionService},
-};
+use super::router::IbcRouter;
 use crate::{
     error::Error as AppError,
     helper::{Height, Path, QueryResult},
@@ -12,6 +9,11 @@ use crate::{
     },
 };
 use cosmrs::AccountId;
+use ibc::services::{
+    channel::ChannelQueryServer as ChannelQueryService,
+    client::ClientQueryServer as ClientQueryService,
+    connection::ConnectionQueryServer as ConnectionQueryService,
+};
 use ibc::{
     applications::transfer::msgs::transfer::MsgTransfer,
     clients::ics07_tendermint::{
@@ -19,7 +21,11 @@ use ibc::{
         consensus_state::ConsensusState as TmConsensusState,
     },
     core::{
-        ics02_client::{consensus_state::ConsensusState, error::ClientError},
+        ics02_client::{
+            client_state::{ClientStateValidation, Status},
+            consensus_state::ConsensusState,
+            error::ClientError,
+        },
         ics03_connection::{
             connection::ConnectionEnd, error::ConnectionError,
             version::Version as ConnectionVersion,
@@ -39,7 +45,7 @@ use ibc::{
                 SeqAckPath, SeqRecvPath, SeqSendPath,
             },
         },
-        ContextError, ExecutionContext, MsgEnvelope, ValidationContext,
+        ContextError, ExecutionContext, MsgEnvelope, QueryContext, ValidationContext,
     },
     hosts::tendermint::IBC_QUERY_PATH,
     Height as IbcHeight,
