@@ -124,16 +124,18 @@ where
         }
     }
 
-    pub fn client_service(&self) -> ClientQueryServer<IbcClientService<S>> {
-        ClientQueryServer::new(IbcClientService::new(self.ctx.store.clone()))
+    pub fn client_service(&self) -> ClientQueryServer<ClientQueryService<IbcContext<S>>> {
+        ClientQueryServer::new(ClientQueryService::new(self.ctx.clone()))
     }
 
-    pub fn connection_service(&self) -> ConnectionQueryServer<IbcConnectionService<S>> {
-        ConnectionQueryServer::new(IbcConnectionService::new(self.ctx.store.clone()))
+    pub fn connection_service(
+        &self,
+    ) -> ConnectionQueryServer<ConnectionQueryService<IbcContext<S>>> {
+        ConnectionQueryServer::new(ConnectionQueryService::new(self.ctx.clone()))
     }
 
-    pub fn channel_service(&self) -> ChannelQueryServer<IbcChannelService<S>> {
-        ChannelQueryServer::new(IbcChannelService::new(self.ctx.store.clone()))
+    pub fn channel_service(&self) -> ChannelQueryServer<ChannelQueryService<IbcContext<S>>> {
+        ChannelQueryServer::new(ChannelQueryService::new(self.ctx.clone()))
     }
 }
 
