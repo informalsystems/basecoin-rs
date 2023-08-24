@@ -88,6 +88,14 @@ pub enum AnyConsensusState {
     Tendermint(TmConsensusState),
 }
 
+impl From<AnyConsensusState> for Any {
+    fn from(value: AnyConsensusState) -> Self {
+        match value {
+            AnyConsensusState::Tendermint(tm_consensus_state) => tm_consensus_state.into(),
+        }
+    }
+}
+
 pub struct Ibc<S>
 where
     S: Store + Send + Sync + Debug,
