@@ -592,6 +592,328 @@ where
     }
 }
 
+impl<S> QueryContext for IbcContext<S>
+where
+    S: 'static + Store + Send + Sync + Debug,
+{
+    fn client_states(&self) -> Result<Vec<(ClientId, Self::AnyClientState)>, ContextError> {
+        let path = "clients".to_owned().try_into().map_err(|_| {
+            ContextError::from(ClientError::Other {
+                description: "Invalid client state path: clients".into(),
+            })
+        })?;
+
+        self.client_state_store
+            .get_keys(&path)
+            .into_iter()
+            .map(|path| {
+                if let Ok(IbcPath::ClientState(client_path)) = path.try_into() {
+                    Ok(client_path)
+                } else {
+                    Err(ContextError::from(ClientError::Other {
+                        description: "Invalid client state path".into(),
+                    }))
+                }
+                .and_then(|client_state_path| {
+                    let client_state = self
+                        .client_state_store
+                        .get(Height::Pending, &client_state_path)
+                        .ok_or_else(|| {
+                            ContextError::from(ClientError::ClientStateNotFound {
+                                client_id: client_state_path.0.clone(),
+                            })
+                        })?;
+                    Ok((client_state_path.0, client_state))
+                })
+            })
+            .collect()
+    }
+
+    fn consensus_states(
+        &self,
+        client_id: &ClientId,
+    ) -> Result<Vec<(IbcHeight, Self::AnyConsensusState)>, ContextError> {
+        let path = format!("clients/{}/consensusStates", client_id)
+            .try_into()
+            .map_err(|_| {
+                ContextError::from(ClientError::Other {
+                    description: "Invalid consensus state path".into(),
+                })
+            })?;
+
+        self.consensus_state_store
+            .get_keys(&path)
+            .into_iter()
+            .map(|path| {
+                if let Ok(IbcPath::ClientConsensusState(consensus_path)) = path.try_into() {
+                    Ok(consensus_path)
+                } else {
+                    Err(ContextError::from(ClientError::Other {
+                        description: "Invalid consensus state path".into(),
+                    }))
+                }
+                .and_then(|consensus_path| {
+                    let client_state = self
+                        .consensus_state_store
+                        .get(Height::Pending, &consensus_path)
+                        .ok_or_else(|| {
+                            ContextError::from(ClientError::ClientStateNotFound {
+                                client_id: consensus_path.client_id,
+                            })
+                        })?;
+                    let height = IbcHeight::new(consensus_path.epoch, consensus_path.height)?;
+                    Ok((height, client_state.into()))
+                })
+            })
+            .collect()
+    }
+
+    fn consensus_state_heights(
+        &self,
+        client_id: &ClientId,
+    ) -> Result<Vec<IbcHeight>, ContextError> {
+        let path = format!("clients/{}/consensusStates", client_id)
+            .try_into()
+            .map_err(|_| {
+                ContextError::from(ClientError::Other {
+                    description: "Invalid consensus state path".into(),
+                })
+            })?;
+
+        self.consensus_state_store
+            .get_keys(&path)
+            .into_iter()
+            .map(|path| {
+                if let Ok(IbcPath::ClientConsensusState(consensus_path)) = path.try_into() {
+                    Ok(consensus_path)
+                } else {
+                    Err(ContextError::from(ClientError::Other {
+                        description: "Invalid consensus state path".into(),
+                    }))
+                }
+                .and_then(|consensus_path| {
+                    let height = IbcHeight::new(consensus_path.epoch, consensus_path.height)?;
+                    Ok(height)
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()
+    }
+
+    fn client_status(&self, client_id: &ClientId) -> Result<Status, ContextError> {
+        let client_state = self.client_state(client_id)?;
+        Ok(client_state.status(self, client_id)?)
+    }
+
+    fn connection_ends(
+        &self,
+    ) -> Result<Vec<ibc::core::ics03_connection::connection::IdentifiedConnectionEnd>, ContextError>
+    {
+        let path = "connections".to_owned().try_into().map_err(|_| {
+            ContextError::from(ConnectionError::Other {
+                description: "Invalid connection path: connections".into(),
+            })
+        })?;
+
+        self.connection_end_store
+            .get_keys(&path)
+            .into_iter()
+            .map(|path| {
+                if let Ok(IbcPath::Connection(connection_path)) = path.try_into() {
+                    Ok(connection_path)
+                } else {
+                    Err(ContextError::from(ConnectionError::Other {
+                        description: "Invalid connection path".into(),
+                    }))
+                }
+                .and_then(|connection_path| {
+                    let connection_end = self
+                        .connection_end_store
+                        .get(Height::Pending, &connection_path)
+                        .ok_or_else(|| {
+                            ContextError::from(ConnectionError::ConnectionNotFound {
+                                connection_id: connection_path.0.clone(),
+                            })
+                        })?;
+                    Ok(
+                        ibc::core::ics03_connection::connection::IdentifiedConnectionEnd {
+                            connection_id: connection_path.0,
+                            connection_end,
+                        },
+                    )
+                })
+            })
+            .collect()
+    }
+
+    fn client_connection_ends(
+        &self,
+        client_id: &ClientId,
+    ) -> Result<Vec<ConnectionId>, ContextError> {
+        let client_connection_path = ClientConnectionPath::new(client_id);
+
+        Ok(self
+            .connection_ids_store
+            .get(Height::Pending, &client_connection_path)
+            .unwrap_or_default())
+    }
+
+    fn channel_ends(
+        &self,
+    ) -> Result<Vec<ibc::core::ics04_channel::channel::IdentifiedChannelEnd>, ContextError> {
+        let path = "channels".to_owned().try_into().map_err(|_| {
+            ContextError::from(ChannelError::Other {
+                description: "Invalid channel path: channels".into(),
+            })
+        })?;
+
+        self.channel_end_store
+            .get_keys(&path)
+            .into_iter()
+            .map(|path| {
+                if let Ok(IbcPath::ChannelEnd(channel_path)) = path.try_into() {
+                    Ok(channel_path)
+                } else {
+                    Err(ContextError::from(ChannelError::Other {
+                        description: "Invalid channel path".into(),
+                    }))
+                }
+                .and_then(|channel_path| {
+                    let channel_end = self
+                        .channel_end_store
+                        .get(Height::Pending, &channel_path)
+                        .ok_or_else(|| {
+                            ContextError::from(ChannelError::ChannelNotFound {
+                                port_id: channel_path.0.clone(),
+                                channel_id: channel_path.1.clone(),
+                            })
+                        })?;
+                    Ok(ibc::core::ics04_channel::channel::IdentifiedChannelEnd {
+                        port_id: channel_path.0,
+                        channel_id: channel_path.1,
+                        channel_end,
+                    })
+                })
+            })
+            .collect()
+    }
+
+    fn connection_channel_ends(
+        &self,
+        connection_id: &ConnectionId,
+    ) -> Result<Vec<ibc::core::ics04_channel::channel::IdentifiedChannelEnd>, ContextError> {
+        let path = format!("connections/{}/channels", connection_id)
+            .try_into()
+            .map_err(|_| {
+                ContextError::from(ChannelError::Other {
+                    description: "Invalid channel path".into(),
+                })
+            })?;
+
+        self.channel_end_store
+            .get_keys(&path)
+            .into_iter()
+            .map(|path| {
+                if let Ok(IbcPath::ChannelEnd(channel_path)) = path.try_into() {
+                    Ok(channel_path)
+                } else {
+                    Err(ContextError::from(ChannelError::Other {
+                        description: "Invalid channel path".into(),
+                    }))
+                }
+                .and_then(|channel_path| {
+                    let channel_end = self
+                        .channel_end_store
+                        .get(Height::Pending, &channel_path)
+                        .ok_or_else(|| {
+                            ContextError::from(ChannelError::ChannelNotFound {
+                                port_id: channel_path.0.clone(),
+                                channel_id: channel_path.1.clone(),
+                            })
+                        })?;
+                    Ok(ibc::core::ics04_channel::channel::IdentifiedChannelEnd {
+                        port_id: channel_path.0,
+                        channel_id: channel_path.1,
+                        channel_end,
+                    })
+                })
+            })
+            .collect()
+    }
+
+    fn packet_commitments(
+        &self,
+        channel_end_path: &ChannelEndPath,
+    ) -> Result<Vec<CommitmentPath>, ContextError> {
+        let path = format!(
+            "commitments/ports/{}/channels/{}/sequences",
+            channel_end_path.0, channel_end_path.1
+        )
+        .try_into()
+        .map_err(|_| ContextError::from(PacketError::InvalidAcknowledgement))?;
+
+        self.packet_commitment_store
+            .get_keys(&path)
+            .into_iter()
+            .map(|path| {
+                if let Ok(IbcPath::Commitment(commitment_path)) = path.try_into() {
+                    Ok(commitment_path)
+                } else {
+                    Err(ContextError::from(PacketError::InvalidAcknowledgement))
+                }
+            })
+            .collect()
+    }
+
+    fn packet_acknowledgements(
+        &self,
+        channel_end_path: &ChannelEndPath,
+        sequences: impl IntoIterator<Item = Sequence>,
+    ) -> Result<Vec<AckPath>, ContextError> {
+        Ok(sequences
+            .into_iter()
+            .flat_map(|seq| {
+                let ack_path = AckPath::new(&channel_end_path.0, &channel_end_path.1, seq);
+                self.packet_ack_store
+                    .get(Height::Pending, &ack_path)
+                    .map(|_| ack_path)
+            })
+            .collect())
+    }
+
+    fn unreceived_packets(
+        &self,
+        channel_end_path: &ChannelEndPath,
+        sequences: impl IntoIterator<Item = Sequence>,
+    ) -> Result<Vec<Sequence>, ContextError> {
+        Ok(sequences
+            .into_iter()
+            .filter(|seq| {
+                let commitment_path =
+                    CommitmentPath::new(&channel_end_path.0, &channel_end_path.1, *seq);
+                self.packet_commitment_store
+                    .get(Height::Pending, &commitment_path)
+                    .is_some()
+            })
+            .collect())
+    }
+
+    fn unreceived_acks(
+        &self,
+        channel_end_path: &ChannelEndPath,
+        sequences: impl IntoIterator<Item = Sequence>,
+    ) -> Result<Vec<Sequence>, ContextError> {
+        Ok(sequences
+            .into_iter()
+            .filter(|seq| {
+                let ack_path = AckPath::new(&channel_end_path.0, &channel_end_path.1, *seq);
+                self.packet_ack_store
+                    .get(Height::Pending, &ack_path)
+                    .is_some()
+            })
+            .collect())
+    }
+}
+
 impl<S> ExecutionContext for IbcContext<S>
 where
     S: 'static + Store + Send + Sync + Debug,
