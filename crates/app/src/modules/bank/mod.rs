@@ -1,5 +1,7 @@
-pub mod context;
-pub mod error;
-pub mod impls;
-pub mod service;
-pub mod util;
+pub(crate) mod context;
+pub(crate) mod error;
+pub(crate) mod impls;
+pub(crate) mod service;
+pub(crate) mod util;
+
+pub use impls::Bank;

@@ -10,11 +10,11 @@ pub enum Error {
     NotHandled,
     /// custom error: `{reason}`
     Custom { reason: String },
-    /// bank module error
+    /// bank module error: `{0}`
     Bank(BankError),
-    /// IBC module error
+    /// IBC module error: `{0}`
     Ibc(IbcError),
-    /// Governance module error
+    /// Governance module error: `{0}`
     Gov(GovError),
 }
 

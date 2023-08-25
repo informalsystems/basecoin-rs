@@ -1,4 +1,6 @@
 pub(crate) mod account;
-pub mod context;
-pub mod impls;
-pub mod service;
+pub(crate) mod context;
+pub(crate) mod impls;
+pub(crate) mod service;
+
+pub use impls::{Auth, AuthAccountKeeper, AuthAccountReader};

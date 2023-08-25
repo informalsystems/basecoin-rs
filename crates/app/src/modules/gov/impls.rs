@@ -1,8 +1,9 @@
 use super::path::ProposalPath;
 use super::proposal::Proposal;
 use super::service::GovernanceService;
+use crate::modules::context::Module;
 use crate::modules::gov::msg::MsgSubmitProposal;
-use crate::modules::{context::Module, Upgrade};
+use crate::modules::upgrade::Upgrade;
 use crate::types::error::Error as AppError;
 use crate::types::QueryResult;
 

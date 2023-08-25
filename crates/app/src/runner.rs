@@ -3,14 +3,14 @@ use ibc_proto::cosmos::base::tendermint::v1beta1::service_server::ServiceServer 
 use ibc_proto::cosmos::tx::v1beta1::service_server::ServiceServer as TxServer;
 
 use crate::builder::Builder;
+use crate::modules::auth::Auth;
+use crate::modules::bank::Bank;
 use crate::modules::context::prefix;
 use crate::modules::context::Identifiable;
-use crate::modules::Auth;
-use crate::modules::Bank;
-use crate::modules::Governance;
-use crate::modules::Ibc;
-use crate::modules::Staking;
-use crate::modules::Upgrade;
+use crate::modules::gov::Governance;
+use crate::modules::ibc::Ibc;
+use crate::modules::staking::Staking;
+use crate::modules::upgrade::Upgrade;
 use crate::types::config::ServerConfig;
 
 #[cfg(all(feature = "v0_38", not(feature = "v0_37")))]

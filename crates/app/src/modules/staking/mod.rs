@@ -1,2 +1,4 @@
-pub mod impls;
-pub mod service;
+pub(crate) mod impls;
+pub(crate) mod service;
+
+pub use impls::Staking;

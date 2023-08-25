@@ -1,10 +1,10 @@
 use crate::modules::context::prefix;
 use crate::modules::context::Identifiable;
 use crate::modules::context::Module;
+use crate::modules::ibc::impls::Ibc;
 use crate::modules::types::IdentifiedModule;
 use crate::modules::types::ModuleList;
 use crate::modules::types::ModuleStore;
-use crate::modules::Ibc;
 use crate::types::error::Error;
 
 use basecoin_store::context::ProvableStore;

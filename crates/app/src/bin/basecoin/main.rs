@@ -6,7 +6,7 @@
 use basecoin_app::{
     cli::command::{BasecoinCli, Commands, QueryCmd, UpgradeCmd},
     default_app_runner,
-    modules::query_upgrade_plan,
+    modules::upgrade::query_upgrade_plan,
     types::config::load_config,
 };
 

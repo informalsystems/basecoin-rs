@@ -1,8 +1,9 @@
+use crate::modules::bank::impls::BankBalanceKeeper;
 use crate::modules::context::Identifiable;
 use crate::modules::context::Module;
 use crate::modules::ibc::router::IbcRouter;
 use crate::modules::ibc::service::{IbcChannelService, IbcClientService, IbcConnectionService};
-use crate::modules::{bank::impls::BankBalanceKeeper, IbcTransferModule};
+use crate::modules::ibc::transfer::IbcTransferModule;
 use crate::types::error::Error as AppError;
 use crate::types::QueryResult;
 
@@ -124,7 +125,6 @@ where
     pub fn process_message(&mut self, message: Any) -> Result<Vec<IbcEvent>, AppError> {
         if let Ok(msg) = MsgEnvelope::try_from(message.clone()) {
             debug!("Dispatching IBC message: {:?}", msg);
-
             let mut router = self.router();
 
             dispatch(&mut self.ctx, &mut router, msg)?;
@@ -248,9 +248,11 @@ where
             header.time,
             header.next_validators_hash,
         );
+
         self.ctx
             .consensus_states
             .insert(header.height.value(), consensus_state);
+
         vec![]
     }
 
