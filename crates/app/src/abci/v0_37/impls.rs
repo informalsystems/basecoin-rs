@@ -153,10 +153,7 @@ pub fn query<S: Default + ProvableStore>(
                     log: "exists".to_string(),
                     key: request.data,
                     value: result.data.into(),
-                    proof_ops: match proof_ops {
-                        Some(proof_ops) => Some(proof_ops.into()),
-                        None => None,
-                    },
+                    proof_ops: proof_ops.map(|proof_ops| proof_ops.into()),
                     height: store.current_height() as i64,
                     ..Default::default()
                 };
