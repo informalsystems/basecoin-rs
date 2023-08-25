@@ -666,15 +666,16 @@ where
                 }
             })
             .map(|consensus_path| {
+                let height = IbcHeight::new(consensus_path.epoch, consensus_path.height)?;
                 let client_state = self
                     .consensus_state_store
                     .get(Height::Pending, &consensus_path)
                     .ok_or_else(|| {
-                        ContextError::from(ClientError::ClientStateNotFound {
+                        ContextError::from(ClientError::ConsensusStateNotFound {
                             client_id: consensus_path.client_id,
+                            height,
                         })
                     })?;
-                let height = IbcHeight::new(consensus_path.epoch, consensus_path.height)?;
                 Ok((height, client_state.into()))
             })
             .collect()
@@ -702,10 +703,7 @@ where
                     None
                 }
             })
-            .map(|consensus_path| {
-                let height = IbcHeight::new(consensus_path.epoch, consensus_path.height)?;
-                Ok(height)
-            })
+            .map(|consensus_path| Ok(IbcHeight::new(consensus_path.epoch, consensus_path.height)?))
             .collect::<Result<Vec<_>, _>>()
     }
 
@@ -853,6 +851,8 @@ where
             channel_end_path.0, channel_end_path.1
         )
         .try_into()
+        // TODO: RANO: This should be a different error
+        // Maybe a general ContextError::Other
         .map_err(|_| ContextError::from(PacketError::InvalidAcknowledgement))?;
 
         Ok(self
@@ -892,9 +892,9 @@ where
     ) -> Result<Vec<Sequence>, ContextError> {
         Ok(sequences
             .into_iter()
-            .filter(|seq| {
+            .filter(|&seq| {
                 let commitment_path =
-                    CommitmentPath::new(&channel_end_path.0, &channel_end_path.1, *seq);
+                    CommitmentPath::new(&channel_end_path.0, &channel_end_path.1, seq);
                 self.packet_commitment_store
                     .get(Height::Pending, &commitment_path)
                     .is_some()
@@ -909,8 +909,8 @@ where
     ) -> Result<Vec<Sequence>, ContextError> {
         Ok(sequences
             .into_iter()
-            .filter(|seq| {
-                let ack_path = AckPath::new(&channel_end_path.0, &channel_end_path.1, *seq);
+            .filter(|&seq| {
+                let ack_path = AckPath::new(&channel_end_path.0, &channel_end_path.1, seq);
                 self.packet_ack_store
                     .get(Height::Pending, &ack_path)
                     .is_some()
