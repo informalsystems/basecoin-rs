@@ -40,7 +40,7 @@ where
     /// A bank keeper to enable sending, minting and burning of tokens
     bank_keeper: BK,
 
-    pub events: Vec<IbcEvent>,
+    pub(crate) events: Vec<IbcEvent>,
 }
 
 impl<BK> IbcTransferModule<BK>
@@ -52,6 +52,10 @@ where
             bank_keeper,
             events: Vec::new(),
         }
+    }
+
+    pub fn events(&self) -> Vec<IbcEvent> {
+        self.events.clone()
     }
 }
 

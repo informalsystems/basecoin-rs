@@ -290,9 +290,10 @@ where
     /// Map of host consensus states
     consensus_states: HashMap<u64, TmConsensusState>,
     /// A typed-store for AnyClientState
-    pub client_state_store: ProtobufStore<SharedStore<S>, ClientStatePath, TmClientState, Any>,
+    pub(crate) client_state_store:
+        ProtobufStore<SharedStore<S>, ClientStatePath, TmClientState, Any>,
     /// A typed-store for AnyConsensusState
-    pub consensus_state_store:
+    pub(crate) consensus_state_store:
         ProtobufStore<SharedStore<S>, ClientConsensusStatePath, TmConsensusState, Any>,
     /// A typed-store for ConnectionEnd
     connection_end_store:
@@ -346,6 +347,16 @@ where
             events: Vec::new(),
             logs: Vec::new(),
         }
+    }
+
+    /// Provides a shortcut to access emitted IBC events without parsing from
+    /// transactions, ideal for testing and mock development
+    pub fn events(&self) -> Vec<IbcEvent> {
+        self.events.clone()
+    }
+
+    pub fn logs(&self) -> Vec<String> {
+        self.logs.clone()
     }
 }
 
