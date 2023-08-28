@@ -51,6 +51,8 @@ use crate::store::ProvableStore;
 use crate::store::Store;
 use tracing::{debug, info};
 
+use std::fmt::Write;
+
 pub fn echo<S: Default + ProvableStore + 'static>(
     _app: &BaseCoinApp<S>,
     request: RequestEcho,
@@ -264,7 +266,11 @@ pub fn commit<S: Default + ProvableStore + 'static>(app: &BaseCoinApp<S>) -> Res
     info!(
         "Committed height {} with hash({})",
         state.current_height() - 1,
-        data.iter().map(|b| format!("{b:02X}")).collect::<String>()
+        data.iter().fold(String::new(), |mut acc, b| {
+            // write!-ing into a String can never fail
+            let _ = write!(acc, "{b:02X}");
+            acc
+        })
     );
     ResponseCommit {
         data: data.into(),

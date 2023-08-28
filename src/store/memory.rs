@@ -82,12 +82,8 @@ impl Store for InMemoryStore {
         self.pending
             .get_keys()
             .into_iter()
-            .filter_map(|key| {
-                key.as_bytes()
-                    .as_ref()
-                    .starts_with(key_prefix.as_ref())
-                    .then(|| key.clone())
-            })
+            .filter(|&key| key.as_bytes().as_ref().starts_with(key_prefix.as_ref()))
+            .cloned()
             .collect()
     }
 }
