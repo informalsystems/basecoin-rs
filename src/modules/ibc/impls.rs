@@ -2,18 +2,13 @@ use super::router::IbcRouter;
 use crate::{
     error::Error as AppError,
     helper::{Height, Path, QueryResult},
-    modules::{bank::impls::BankBalanceKeeper, IbcTransferModule, Identifiable, Module},
+    modules::{bank::impls::BankBalanceKeeper, IbcTransferModule, Identifiable, Module, Upgrade},
     store::{
         SharedStore, {BinStore, JsonStore, ProtobufStore, TypedSet, TypedStore},
         {ProvableStore, Store},
     },
 };
 use cosmrs::AccountId;
-use ibc::services::{
-    channel::ChannelQueryServer as ChannelQueryService,
-    client::ClientQueryServer as ClientQueryService,
-    connection::ConnectionQueryServer as ConnectionQueryService,
-};
 use ibc::{
     applications::transfer::msgs::transfer::MsgTransfer,
     clients::ics07_tendermint::{
@@ -54,6 +49,14 @@ use ibc::{
     applications::transfer::send_transfer,
     core::{events::IbcEvent, timestamp::Timestamp},
     Signer,
+};
+use ibc::{
+    core::ics02_client::client_type::ClientType,
+    services::{
+        channel::ChannelQueryServer as ChannelQueryService,
+        client::ClientQueryServer as ClientQueryService,
+        connection::ConnectionQueryServer as ConnectionQueryService,
+    },
 };
 use ibc_proto::{
     google::protobuf::Any,
@@ -124,8 +127,14 @@ where
         }
     }
 
-    pub fn client_service(&self) -> ClientQueryServer<ClientQueryService<IbcContext<S>>> {
-        ClientQueryServer::new(ClientQueryService::new(self.ctx.clone()))
+    pub fn client_service(
+        &self,
+        update_context: &Upgrade<S>,
+    ) -> ClientQueryServer<ClientQueryService<IbcContext<S>, Upgrade<S>>> {
+        ClientQueryServer::new(ClientQueryService::new(
+            self.ctx.clone(),
+            update_context.clone(),
+        ))
     }
 
     pub fn connection_service(
@@ -710,6 +719,10 @@ where
     fn client_status(&self, client_id: &ClientId) -> Result<Status, ContextError> {
         let client_state = self.client_state(client_id)?;
         Ok(client_state.status(self, client_id)?)
+    }
+
+    fn allowed_clients(&self) -> Vec<ClientType> {
+        vec![ClientType::new("07-tendermint").expect("no error")]
     }
 
     fn connection_ends(
