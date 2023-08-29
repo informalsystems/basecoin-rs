@@ -40,7 +40,8 @@ use ibc::{
                 SeqAckPath, SeqRecvPath, SeqSendPath,
             },
         },
-        ContextError, ExecutionContext, MsgEnvelope, QueryContext, ValidationContext,
+        ContextError, ExecutionContext, MsgEnvelope, ProvableContext, QueryContext,
+        ValidationContext,
     },
     hosts::tendermint::IBC_QUERY_PATH,
     Height as IbcHeight,
@@ -614,6 +615,17 @@ where
 
     fn get_client_validation_context(&self) -> &Self::ClientValidationContext {
         self
+    }
+}
+
+impl<S> ProvableContext for IbcContext<S>
+where
+    S: 'static + ProvableStore + Send + Sync + Debug,
+{
+    fn get_proof(&self, height: IbcHeight, path: &IbcPath) -> Option<Vec<u8>> {
+        self.store
+            .get_proof(height.revision_height().into(), &path.clone().into())
+            .map(|p| p.encode_to_vec())
     }
 }
 
