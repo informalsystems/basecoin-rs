@@ -624,6 +624,7 @@ impl<S> ProvableContext for IbcContext<S>
 where
     S: 'static + ProvableStore + Send + Sync + Debug,
 {
+    /// Returns the proof for the given [`IbcHeight`] and [`Path`]
     fn get_proof(&self, height: IbcHeight, path: &IbcPath) -> Option<Vec<u8>> {
         self.store
             .get_proof(height.revision_height().into(), &path.clone().into())
@@ -635,6 +636,7 @@ impl<S> QueryContext for IbcContext<S>
 where
     S: 'static + Store + Send + Sync + Debug,
 {
+    /// Returns the list of all client states.
     fn client_states(&self) -> Result<Vec<(ClientId, Self::AnyClientState)>, ContextError> {
         let path = "clients".to_owned().try_into().map_err(|_| {
             ContextError::from(ClientError::Other {
@@ -666,6 +668,7 @@ where
             .collect()
     }
 
+    /// Returns the list of all consensus states of the given client.
     fn consensus_states(
         &self,
         client_id: &ClientId,
@@ -704,6 +707,7 @@ where
             .collect()
     }
 
+    /// Returns the list of heights at which the consensus state of the given client was updated.
     fn consensus_state_heights(
         &self,
         client_id: &ClientId,
@@ -730,15 +734,18 @@ where
             .collect::<Result<Vec<_>, _>>()
     }
 
+    /// Queries the client status of the given client.
     fn client_status(&self, client_id: &ClientId) -> Result<Status, ContextError> {
         let client_state = self.client_state(client_id)?;
         Ok(client_state.status(self, client_id)?)
     }
 
+    /// Returns the list of supported client types.
     fn allowed_clients(&self) -> Vec<ClientType> {
         vec![ClientType::new("07-tendermint").expect("no error")]
     }
 
+    /// Connections queries all the IBC connections of a chain.
     fn connection_ends(
         &self,
     ) -> Result<Vec<ibc::core::ics03_connection::connection::IdentifiedConnectionEnd>, ContextError>
@@ -778,6 +785,7 @@ where
             .collect()
     }
 
+    /// ClientConnections queries all the connection paths associated with a client.
     fn client_connection_ends(
         &self,
         client_id: &ClientId,
@@ -790,6 +798,7 @@ where
             .unwrap_or_default())
     }
 
+    /// Channels queries all the IBC channels of a chain.
     fn channel_ends(
         &self,
     ) -> Result<Vec<ibc::core::ics04_channel::channel::IdentifiedChannelEnd>, ContextError> {
@@ -828,6 +837,7 @@ where
             .collect()
     }
 
+    /// ConnectionChannels queries all the channels associated with a connection end.
     fn connection_channel_ends(
         &self,
         connection_id: &ConnectionId,
@@ -869,6 +879,7 @@ where
             .collect()
     }
 
+    /// PacketCommitments returns all the packet commitments hashes associated with a channel.
     fn packet_commitments(
         &self,
         channel_end_path: &ChannelEndPath,
@@ -896,6 +907,7 @@ where
             .collect())
     }
 
+    /// PacketAcknowledgements returns all the packet acknowledgements associated with a channel.
     fn packet_acknowledgements(
         &self,
         channel_end_path: &ChannelEndPath,
@@ -912,6 +924,12 @@ where
             .collect())
     }
 
+    /// UnreceivedPackets returns all the unreceived IBC packets associated with
+    /// a channel and sequences.
+    ///
+    /// QUESTION. Currently only works for unordered channels; ordered channels
+    /// don't use receipts. However, ibc-go does it this way. Investigate if
+    /// this query only ever makes sense on unordered channels.
     fn unreceived_packets(
         &self,
         channel_end_path: &ChannelEndPath,
@@ -920,15 +938,15 @@ where
         Ok(sequences
             .into_iter()
             .filter(|&seq| {
-                let commitment_path =
-                    CommitmentPath::new(&channel_end_path.0, &channel_end_path.1, seq);
-                self.packet_commitment_store
-                    .get(Height::Pending, &commitment_path)
+                let receipts_path = ReceiptPath::new(&channel_end_path.0, &channel_end_path.1, seq);
+                self.packet_receipt_store
+                    .get(Height::Pending, &receipts_path)
                     .is_some()
             })
             .collect())
     }
 
+    /// UnreceivedAcks returns all the unreceived IBC acknowledgements associated with a channel and sequences.
     fn unreceived_acks(
         &self,
         channel_end_path: &ChannelEndPath,
@@ -937,9 +955,12 @@ where
         Ok(sequences
             .into_iter()
             .filter(|&seq| {
-                let ack_path = AckPath::new(&channel_end_path.0, &channel_end_path.1, seq);
-                self.packet_ack_store
-                    .get(Height::Pending, &ack_path)
+                // To check if we received an acknowledgement, we check if we still have the sent packet
+                // commitment (upon receiving an ack, the sent packet commitment is deleted).
+                let commitments_path =
+                    CommitmentPath::new(&channel_end_path.0, &channel_end_path.1, seq);
+                self.packet_commitment_store
+                    .get(Height::Pending, &commitments_path)
                     .is_some()
             })
             .collect())
