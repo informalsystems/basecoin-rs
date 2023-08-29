@@ -937,7 +937,7 @@ where
                 let receipts_path = ReceiptPath::new(&channel_end_path.0, &channel_end_path.1, seq);
                 self.packet_receipt_store
                     .get(Height::Pending, &receipts_path)
-                    .is_some()
+                    .is_none()
             })
             .collect())
     }
