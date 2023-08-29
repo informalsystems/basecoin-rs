@@ -1,5 +1,6 @@
 use super::router::IbcRouter;
 use crate::{
+    app::CHAIN_REVISION_NUMBER,
     error::Error as AppError,
     helper::{Height, Path, QueryResult},
     modules::{bank::impls::BankBalanceKeeper, IbcTransferModule, Identifiable, Module, Upgrade},
@@ -409,7 +410,8 @@ where
     }
 
     fn host_height(&self) -> Result<IbcHeight, ContextError> {
-        IbcHeight::new(0, self.store.current_height()).map_err(ContextError::from)
+        IbcHeight::new(CHAIN_REVISION_NUMBER, self.store.current_height())
+            .map_err(ContextError::from)
     }
 
     fn host_timestamp(&self) -> Result<Timestamp, ContextError> {
