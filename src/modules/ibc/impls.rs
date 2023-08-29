@@ -54,11 +54,7 @@ use ibc::{
 };
 use ibc::{
     core::ics02_client::client_type::ClientType,
-    services::{
-        channel::ChannelQueryServer as ChannelQueryService,
-        client::ClientQueryServer as ClientQueryService,
-        connection::ConnectionQueryServer as ConnectionQueryService,
-    },
+    services::{ChannelQueryService, ClientQueryService, ConnectionQueryService},
 };
 use ibc_proto::{
     google::protobuf::Any,
@@ -634,7 +630,7 @@ where
 
 impl<S> QueryContext for IbcContext<S>
 where
-    S: 'static + Store + Send + Sync + Debug,
+    S: 'static + ProvableStore + Send + Sync + Debug,
 {
     /// Returns the list of all client states.
     fn client_states(&self) -> Result<Vec<(ClientId, Self::AnyClientState)>, ContextError> {
