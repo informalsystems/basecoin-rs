@@ -956,6 +956,13 @@ where
                     None
                 }
             })
+            .filter(|ack_path| {
+                if let Some(data) = self.packet_ack_store.get(Height::Pending, ack_path) {
+                    !data.into_vec().is_empty()
+                } else {
+                    false
+                }
+            })
             .collect())
     }
 
