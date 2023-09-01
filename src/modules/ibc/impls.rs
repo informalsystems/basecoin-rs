@@ -885,7 +885,7 @@ where
             channel_end_path.0, channel_end_path.1
         )
         .try_into()
-        // TODO: RANO: This should be a different error
+        // TODO(rano): This should be a different error
         // Maybe a general ContextError::Other
         .map_err(|_| ContextError::from(PacketError::InvalidAcknowledgement))?;
 
@@ -909,6 +909,9 @@ where
         channel_end_path: &ChannelEndPath,
         _sequences: impl IntoIterator<Item = Sequence>,
     ) -> Result<Vec<AckPath>, ContextError> {
+        // TODO(rano): use _sequences to filter the acks
+        // probably when _sequence is empty, return all the acks
+
         let path = format!(
             "acks/ports/{}/channels/{}/sequences",
             channel_end_path.0, channel_end_path.1
