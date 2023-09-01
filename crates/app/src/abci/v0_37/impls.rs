@@ -12,7 +12,7 @@ use cosmrs::Tx;
 use ibc::Any;
 use prost::Message;
 use serde_json::Value;
-use std::fmt::Debug;
+use std::fmt::{Debug, Write};
 use tracing::{debug, info};
 
 use tendermint_proto::v0_37::abci::response_process_proposal;
