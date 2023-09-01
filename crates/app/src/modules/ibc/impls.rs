@@ -916,6 +916,16 @@ where
                     None
                 }
             })
+            .filter(|commitment_path| {
+                if let Some(data) = self
+                    .packet_commitment_store
+                    .get(Height::Pending, commitment_path)
+                {
+                    !data.into_vec().is_empty()
+                } else {
+                    false
+                }
+            })
             .collect())
     }
 
