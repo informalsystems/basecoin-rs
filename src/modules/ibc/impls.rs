@@ -907,15 +907,25 @@ where
     fn packet_acknowledgements(
         &self,
         channel_end_path: &ChannelEndPath,
-        sequences: impl IntoIterator<Item = Sequence>,
+        _sequences: impl IntoIterator<Item = Sequence>,
     ) -> Result<Vec<AckPath>, ContextError> {
-        Ok(sequences
+        let path = format!(
+            "acks/ports/{}/channels/{}/sequences",
+            channel_end_path.0, channel_end_path.1
+        )
+        .try_into()
+        .map_err(|_| ContextError::from(PacketError::InvalidAcknowledgement))?;
+
+        Ok(self
+            .packet_ack_store
+            .get_keys(&path)
             .into_iter()
-            .flat_map(|seq| {
-                let ack_path = AckPath::new(&channel_end_path.0, &channel_end_path.1, seq);
-                self.packet_ack_store
-                    .get(Height::Pending, &ack_path)
-                    .map(|_| ack_path)
+            .flat_map(|path| {
+                if let Ok(IbcPath::Ack(ack_path)) = path.try_into() {
+                    Some(ack_path)
+                } else {
+                    None
+                }
             })
             .collect())
     }
