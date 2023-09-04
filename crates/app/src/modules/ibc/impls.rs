@@ -933,37 +933,47 @@ where
     fn packet_acknowledgements(
         &self,
         channel_end_path: &ChannelEndPath,
-        _sequences: impl IntoIterator<Item = Sequence>,
+        sequences: impl ExactSizeIterator<Item = Sequence>,
     ) -> Result<Vec<AckPath>, ContextError> {
         // TODO(rano): use _sequences to filter the acks
         // probably when _sequence is empty, return all the acks
 
-        let path = format!(
-            "acks/ports/{}/channels/{}/sequences",
-            channel_end_path.0, channel_end_path.1
-        )
-        .try_into()
-        .map_err(|_| ContextError::from(PacketError::InvalidAcknowledgement))?;
+        let non_empty = |ack_path: &AckPath| -> bool {
+            if let Some(data) = self.packet_ack_store.get(Height::Pending, ack_path) {
+                !data.into_vec().is_empty()
+            } else {
+                false
+            }
+        };
 
-        Ok(self
-            .packet_ack_store
-            .get_keys(&path)
-            .into_iter()
-            .flat_map(|path| {
-                if let Ok(IbcPath::Ack(ack_path)) = path.try_into() {
-                    Some(ack_path)
-                } else {
-                    None
-                }
-            })
-            .filter(|ack_path| {
-                if let Some(data) = self.packet_ack_store.get(Height::Pending, ack_path) {
-                    !data.into_vec().is_empty()
-                } else {
-                    false
-                }
-            })
-            .collect())
+        Ok(if sequences.len() > 0 {
+            // if sequences is empty, return all the acks
+            let ack_path_prefix = format!(
+                "acks/ports/{}/channels/{}/sequences",
+                channel_end_path.0, channel_end_path.1
+            )
+            .try_into()
+            .map_err(|_| ContextError::from(PacketError::InvalidAcknowledgement))?;
+
+            self.packet_ack_store
+                .get_keys(&ack_path_prefix)
+                .into_iter()
+                .flat_map(|path| {
+                    if let Ok(IbcPath::Ack(ack_path)) = path.try_into() {
+                        Some(ack_path)
+                    } else {
+                        None
+                    }
+                })
+                .filter(non_empty)
+                .collect()
+        } else {
+            sequences
+                .into_iter()
+                .map(|seq| AckPath::new(&channel_end_path.0, &channel_end_path.1, seq))
+                .filter(non_empty)
+                .collect()
+        })
     }
 
     /// UnreceivedPackets returns all the unreceived IBC packets associated with
@@ -975,16 +985,17 @@ where
     fn unreceived_packets(
         &self,
         channel_end_path: &ChannelEndPath,
-        sequences: impl IntoIterator<Item = Sequence>,
+        sequences: impl ExactSizeIterator<Item = Sequence>,
     ) -> Result<Vec<Sequence>, ContextError> {
         Ok(sequences
             .into_iter()
-            .filter(|&seq| {
-                let receipts_path = ReceiptPath::new(&channel_end_path.0, &channel_end_path.1, seq);
+            .map(|seq| ReceiptPath::new(&channel_end_path.0, &channel_end_path.1, seq))
+            .filter(|receipt_path| {
                 self.packet_receipt_store
-                    .get(Height::Pending, &receipts_path)
+                    .get(Height::Pending, receipt_path)
                     .is_none()
             })
+            .map(|receipts_path| receipts_path.sequence)
             .collect())
     }
 
@@ -992,20 +1003,51 @@ where
     fn unreceived_acks(
         &self,
         channel_end_path: &ChannelEndPath,
-        sequences: impl IntoIterator<Item = Sequence>,
+        sequences: impl ExactSizeIterator<Item = Sequence>,
     ) -> Result<Vec<Sequence>, ContextError> {
-        Ok(sequences
-            .into_iter()
-            .filter(|&seq| {
-                // To check if we received an acknowledgement, we check if we still have the sent packet
-                // commitment (upon receiving an ack, the sent packet commitment is deleted).
-                let commitments_path =
-                    CommitmentPath::new(&channel_end_path.0, &channel_end_path.1, seq);
-                self.packet_commitment_store
-                    .get(Height::Pending, &commitments_path)
-                    .is_some()
-            })
-            .collect())
+        let non_empty = |commitment_path: &CommitmentPath| -> bool {
+            // To check if we received an acknowledgement, we check if we still have the sent packet
+            // commitment (upon receiving an ack, the sent packet commitment is deleted).
+            if let Some(data) = self
+                .packet_commitment_store
+                .get(Height::Pending, commitment_path)
+            {
+                !data.into_vec().is_empty()
+            } else {
+                false
+            }
+        };
+
+        Ok(if sequences.len() > 0 {
+            // if sequences is empty, return all the acks
+            let commitment_path_prefix = format!(
+                "commitments/ports/{}/channels/{}/sequences",
+                channel_end_path.0, channel_end_path.1
+            )
+            .try_into()
+            .map_err(|_| ContextError::from(PacketError::InvalidAcknowledgement))?;
+
+            self.packet_commitment_store
+                .get_keys(&commitment_path_prefix)
+                .into_iter()
+                .flat_map(|path| {
+                    if let Ok(IbcPath::Commitment(commitment_path)) = path.try_into() {
+                        Some(commitment_path)
+                    } else {
+                        None
+                    }
+                })
+                .filter(non_empty)
+                .map(|commitment_path| commitment_path.sequence)
+                .collect()
+        } else {
+            sequences
+                .into_iter()
+                .map(|seq| CommitmentPath::new(&channel_end_path.0, &channel_end_path.1, seq))
+                .filter(non_empty)
+                .map(|commitment_path| commitment_path.sequence)
+                .collect()
+        })
     }
 }
 
