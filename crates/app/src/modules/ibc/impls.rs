@@ -652,11 +652,12 @@ where
 {
     /// Returns the list of all client states.
     fn client_states(&self) -> Result<Vec<(ClientId, Self::AnyClientState)>, ContextError> {
-        let path = "clients".to_owned().try_into().map_err(|_| {
-            ContextError::from(ClientError::Other {
+        let path = "clients"
+            .to_owned()
+            .try_into()
+            .map_err(|_| ClientError::Other {
                 description: "Invalid client state path: clients".into(),
-            })
-        })?;
+            })?;
 
         self.client_state_store
             .get_keys(&path)
@@ -672,10 +673,8 @@ where
                 let client_state = self
                     .client_state_store
                     .get(Height::Pending, &client_state_path)
-                    .ok_or_else(|| {
-                        ContextError::from(ClientError::ClientStateNotFound {
-                            client_id: client_state_path.0.clone(),
-                        })
+                    .ok_or_else(|| ClientError::ClientStateNotFound {
+                        client_id: client_state_path.0.clone(),
                     })?;
                 Ok((client_state_path.0, client_state))
             })
@@ -689,10 +688,8 @@ where
     ) -> Result<Vec<(IbcHeight, Self::AnyConsensusState)>, ContextError> {
         let path = format!("clients/{}/consensusStates", client_id)
             .try_into()
-            .map_err(|_| {
-                ContextError::from(ClientError::Other {
-                    description: "Invalid consensus state path".into(),
-                })
+            .map_err(|_| ClientError::Other {
+                description: "Invalid consensus state path".into(),
             })?;
 
         self.consensus_state_store
@@ -710,11 +707,11 @@ where
                 let client_state = self
                     .consensus_state_store
                     .get(Height::Pending, &consensus_path)
-                    .ok_or_else(|| {
-                        ContextError::from(ClientError::ConsensusStateNotFound {
+                    .ok_or({
+                        ClientError::ConsensusStateNotFound {
                             client_id: consensus_path.client_id,
                             height,
-                        })
+                        }
                     })?;
                 Ok((height, client_state.into()))
             })
@@ -728,10 +725,8 @@ where
     ) -> Result<Vec<IbcHeight>, ContextError> {
         let path = format!("clients/{}/consensusStates", client_id)
             .try_into()
-            .map_err(|_| {
-                ContextError::from(ClientError::Other {
-                    description: "Invalid consensus state path".into(),
-                })
+            .map_err(|_| ClientError::Other {
+                description: "Invalid consensus state path".into(),
             })?;
 
         self.consensus_state_store
@@ -764,11 +759,12 @@ where
         &self,
     ) -> Result<Vec<ibc::core::ics03_connection::connection::IdentifiedConnectionEnd>, ContextError>
     {
-        let path = "connections".to_owned().try_into().map_err(|_| {
-            ContextError::from(ConnectionError::Other {
+        let path = "connections"
+            .to_owned()
+            .try_into()
+            .map_err(|_| ConnectionError::Other {
                 description: "Invalid connection path: connections".into(),
-            })
-        })?;
+            })?;
 
         self.connection_end_store
             .get_keys(&path)
@@ -784,10 +780,8 @@ where
                 let connection_end = self
                     .connection_end_store
                     .get(Height::Pending, &connection_path)
-                    .ok_or_else(|| {
-                        ContextError::from(ConnectionError::ConnectionNotFound {
-                            connection_id: connection_path.0.clone(),
-                        })
+                    .ok_or_else(|| ConnectionError::ConnectionNotFound {
+                        connection_id: connection_path.0.clone(),
                     })?;
                 Ok(
                     ibc::core::ics03_connection::connection::IdentifiedConnectionEnd {
@@ -816,11 +810,12 @@ where
     fn channel_ends(
         &self,
     ) -> Result<Vec<ibc::core::ics04_channel::channel::IdentifiedChannelEnd>, ContextError> {
-        let path = "channels".to_owned().try_into().map_err(|_| {
-            ContextError::from(ChannelError::Other {
+        let path = "channels"
+            .to_owned()
+            .try_into()
+            .map_err(|_| ChannelError::Other {
                 description: "Invalid channel path: channels".into(),
-            })
-        })?;
+            })?;
 
         self.channel_end_store
             .get_keys(&path)
@@ -836,11 +831,9 @@ where
                 let channel_end = self
                     .channel_end_store
                     .get(Height::Pending, &channel_path)
-                    .ok_or_else(|| {
-                        ContextError::from(ChannelError::ChannelNotFound {
-                            port_id: channel_path.0.clone(),
-                            channel_id: channel_path.1.clone(),
-                        })
+                    .ok_or_else(|| ChannelError::ChannelNotFound {
+                        port_id: channel_path.0.clone(),
+                        channel_id: channel_path.1.clone(),
                     })?;
                 Ok(ibc::core::ics04_channel::channel::IdentifiedChannelEnd {
                     port_id: channel_path.0,
@@ -858,10 +851,8 @@ where
     ) -> Result<Vec<ibc::core::ics04_channel::channel::IdentifiedChannelEnd>, ContextError> {
         let path = format!("connections/{}/channels", connection_id)
             .try_into()
-            .map_err(|_| {
-                ContextError::from(ChannelError::Other {
-                    description: "Invalid channel path".into(),
-                })
+            .map_err(|_| ChannelError::Other {
+                description: "Invalid channel path".into(),
             })?;
 
         self.channel_end_store
@@ -878,11 +869,9 @@ where
                 let channel_end = self
                     .channel_end_store
                     .get(Height::Pending, &channel_path)
-                    .ok_or_else(|| {
-                        ContextError::from(ChannelError::ChannelNotFound {
-                            port_id: channel_path.0.clone(),
-                            channel_id: channel_path.1.clone(),
-                        })
+                    .ok_or_else(|| ChannelError::ChannelNotFound {
+                        port_id: channel_path.0.clone(),
+                        channel_id: channel_path.1.clone(),
                     })?;
                 Ok(ibc::core::ics04_channel::channel::IdentifiedChannelEnd {
                     port_id: channel_path.0,
@@ -903,10 +892,8 @@ where
             channel_end_path.0, channel_end_path.1
         )
         .try_into()
-        .map_err(|_| {
-            ContextError::from(PacketError::Other {
-                description: "Invalid commitment path".into(),
-            })
+        .map_err(|_| PacketError::Other {
+            description: "Invalid commitment path".into(),
         })?;
 
         Ok(self
@@ -957,10 +944,8 @@ where
                 channel_end_path.0, channel_end_path.1
             )
             .try_into()
-            .map_err(|_| {
-                ContextError::from(PacketError::Other {
-                    description: "Invalid ack path".into(),
-                })
+            .map_err(|_| PacketError::Other {
+                description: "Invalid ack path".into(),
             })?;
 
             self.packet_ack_store
