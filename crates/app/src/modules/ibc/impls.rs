@@ -874,7 +874,7 @@ where
             .collect()
     }
 
-    /// PacketCommitments returns all the packet commitments hashes associated with a channel.
+    /// PacketCommitments returns all the packet commitments associated with a channel.
     fn packet_commitments(
         &self,
         channel_end_path: &ChannelEndPath,
