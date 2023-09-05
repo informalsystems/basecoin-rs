@@ -632,6 +632,7 @@ where
     }
 }
 
+/// Trait to provide proofs in gRPC service blanket implementations.
 impl<S> ProvableContext for IbcContext<S>
 where
     S: ProvableStore + Debug,
@@ -644,6 +645,7 @@ where
     }
 }
 
+/// Trait to complete the gRPC service blanket implementations.
 impl<S> QueryContext for IbcContext<S>
 where
     S: ProvableStore + Debug,
@@ -901,9 +903,11 @@ where
             channel_end_path.0, channel_end_path.1
         )
         .try_into()
-        // TODO(rano): This should be a different error
-        // Maybe a general ContextError::Other
-        .map_err(|_| ContextError::from(PacketError::InvalidAcknowledgement))?;
+        .map_err(|_| {
+            ContextError::from(PacketError::Other {
+                description: "Invalid commitment path".into(),
+            })
+        })?;
 
         Ok(self
             .packet_commitment_store
@@ -930,16 +934,16 @@ where
     }
 
     /// PacketAcknowledgements returns all the packet acknowledgements associated with a channel.
+    /// Returns all the packet acknowledgements if sequences is empty.
     fn packet_acknowledgements(
         &self,
         channel_end_path: &ChannelEndPath,
         sequences: impl ExactSizeIterator<Item = Sequence>,
     ) -> Result<Vec<AckPath>, ContextError> {
-        // TODO(rano): use _sequences to filter the acks
-        // probably when _sequence is empty, return all the acks
-
         let non_empty = |ack_path: &AckPath| -> bool {
             if let Some(data) = self.packet_ack_store.get(Height::Pending, ack_path) {
+                // ack is removed by setting its value to an empty vec
+                // so ignoring removed acks
                 !data.into_vec().is_empty()
             } else {
                 false
@@ -953,7 +957,11 @@ where
                 channel_end_path.0, channel_end_path.1
             )
             .try_into()
-            .map_err(|_| ContextError::from(PacketError::InvalidAcknowledgement))?;
+            .map_err(|_| {
+                ContextError::from(PacketError::Other {
+                    description: "Invalid ack path".into(),
+                })
+            })?;
 
             self.packet_ack_store
                 .get_keys(&ack_path_prefix)
@@ -978,15 +986,15 @@ where
 
     /// UnreceivedPackets returns all the unreceived IBC packets associated with
     /// a channel and sequences.
-    ///
-    /// QUESTION. Currently only works for unordered channels; ordered channels
-    /// don't use receipts. However, ibc-go does it this way. Investigate if
-    /// this query only ever makes sense on unordered channels.
     fn unreceived_packets(
         &self,
         channel_end_path: &ChannelEndPath,
         sequences: impl ExactSizeIterator<Item = Sequence>,
     ) -> Result<Vec<Sequence>, ContextError> {
+        // QUESTION. Currently only works for unordered channels; ordered channels
+        // don't use receipts. However, ibc-go does it this way. Investigate if
+        // this query only ever makes sense on unordered channels.
+
         Ok(sequences
             .into_iter()
             .map(|seq| ReceiptPath::new(&channel_end_path.0, &channel_end_path.1, seq))
@@ -1000,6 +1008,7 @@ where
     }
 
     /// UnreceivedAcks returns all the unreceived IBC acknowledgements associated with a channel and sequences.
+    /// Returns all the unreceived acks if sequences is empty.
     fn unreceived_acks(
         &self,
         channel_end_path: &ChannelEndPath,
@@ -1012,6 +1021,8 @@ where
                 .packet_commitment_store
                 .get(Height::Pending, commitment_path)
             {
+                // commitment is removed by setting its value to an empty vec
+                // so ignoring removed commitments
                 !data.into_vec().is_empty()
             } else {
                 false
@@ -1025,7 +1036,9 @@ where
                 channel_end_path.0, channel_end_path.1
             )
             .try_into()
-            .map_err(|_| ContextError::from(PacketError::InvalidAcknowledgement))?;
+            .map_err(|_| PacketError::Other {
+                description: "Invalid commitment path".into(),
+            })?;
 
             self.packet_commitment_store
                 .get_keys(&commitment_path_prefix)
