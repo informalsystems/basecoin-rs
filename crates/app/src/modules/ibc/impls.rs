@@ -382,26 +382,16 @@ where
     type AnyClientState = TmClientState;
 
     fn client_state(&self, client_id: &ClientId) -> Result<Self::AnyClientState, ContextError> {
-        let client_state = self
+        Ok(self
             .client_state_store
             .get(Height::Pending, &ClientStatePath(client_id.clone()))
             .ok_or(ClientError::ClientStateNotFound {
                 client_id: client_id.clone(),
-            })
-            .map_err(ContextError::from)?;
-
-        Ok(client_state)
+            })?)
     }
 
     fn decode_client_state(&self, client_state: Any) -> Result<Self::AnyClientState, ContextError> {
-        if let Ok(client_state) = TmClientState::try_from(client_state.clone()) {
-            Ok(client_state)
-        } else {
-            Err(ClientError::UnknownClientStateType {
-                client_state_type: client_state.type_url,
-            })
-            .map_err(ContextError::from)
-        }
+        Ok(TmClientState::try_from(client_state.clone())?)
     }
 
     fn consensus_state(
@@ -422,8 +412,10 @@ where
     }
 
     fn host_height(&self) -> Result<IbcHeight, ContextError> {
-        IbcHeight::new(CHAIN_REVISION_NUMBER, self.store.current_height())
-            .map_err(ContextError::from)
+        Ok(IbcHeight::new(
+            CHAIN_REVISION_NUMBER,
+            self.store.current_height(),
+        )?)
     }
 
     fn host_timestamp(&self) -> Result<Timestamp, ContextError> {
@@ -449,12 +441,12 @@ where
     }
 
     fn connection_end(&self, conn_id: &ConnectionId) -> Result<ConnectionEnd, ContextError> {
-        self.connection_end_store
+        Ok(self
+            .connection_end_store
             .get(Height::Pending, &ConnectionPath::new(conn_id))
             .ok_or(ConnectionError::ConnectionNotFound {
                 connection_id: conn_id.clone(),
-            })
-            .map_err(ContextError::from)
+            })?)
     }
 
     fn validate_self_client(&self, _counterparty_client_state: Any) -> Result<(), ContextError> {
