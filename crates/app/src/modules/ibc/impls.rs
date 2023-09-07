@@ -50,11 +50,13 @@ use ibc::{
             },
         },
         timestamp::Timestamp,
-        ContextError, ExecutionContext, MsgEnvelope, ProvableContext, QueryContext,
-        ValidationContext,
+        ContextError, ExecutionContext, MsgEnvelope, ValidationContext,
     },
     hosts::tendermint::IBC_QUERY_PATH,
-    services::{ChannelQueryService, ClientQueryService, ConnectionQueryService},
+    services::core::{
+        context::{ProvableContext, QueryContext},
+        ChannelQueryService, ClientQueryService, ConnectionQueryService,
+    },
     Height as IbcHeight, Signer,
 };
 use ibc_proto::{
