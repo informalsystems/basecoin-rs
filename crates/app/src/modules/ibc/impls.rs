@@ -838,44 +838,6 @@ where
             .collect()
     }
 
-    /// ConnectionChannels queries all the channels associated with a connection end.
-    fn connection_channel_ends(
-        &self,
-        connection_id: &ConnectionId,
-    ) -> Result<Vec<ibc::core::ics04_channel::channel::IdentifiedChannelEnd>, ContextError> {
-        let path = format!("connections/{}/channels", connection_id)
-            .try_into()
-            .map_err(|_| ChannelError::Other {
-                description: "Invalid channel path".into(),
-            })?;
-
-        self.channel_end_store
-            .get_keys(&path)
-            .into_iter()
-            .flat_map(|path| {
-                if let Ok(IbcPath::ChannelEnd(channel_path)) = path.try_into() {
-                    Some(channel_path)
-                } else {
-                    None
-                }
-            })
-            .map(|channel_path| {
-                let channel_end = self
-                    .channel_end_store
-                    .get(Height::Pending, &channel_path)
-                    .ok_or_else(|| ChannelError::ChannelNotFound {
-                        port_id: channel_path.0.clone(),
-                        channel_id: channel_path.1.clone(),
-                    })?;
-                Ok(ibc::core::ics04_channel::channel::IdentifiedChannelEnd {
-                    port_id: channel_path.0,
-                    channel_id: channel_path.1,
-                    channel_end,
-                })
-            })
-            .collect()
-    }
-
     /// PacketCommitments returns all the packet commitments associated with a channel.
     fn packet_commitments(
         &self,
