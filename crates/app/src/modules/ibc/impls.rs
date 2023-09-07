@@ -31,11 +31,12 @@ use ibc::{
             error::ClientError,
         },
         ics03_connection::{
-            connection::ConnectionEnd, error::ConnectionError,
+            connection::{ConnectionEnd, IdentifiedConnectionEnd},
+            error::ConnectionError,
             version::Version as ConnectionVersion,
         },
         ics04_channel::{
-            channel::ChannelEnd,
+            channel::{ChannelEnd, IdentifiedChannelEnd},
             commitment::{AcknowledgementCommitment, PacketCommitment},
             error::{ChannelError, PacketError},
             packet::{Receipt, Sequence},
@@ -749,10 +750,7 @@ where
     }
 
     /// Connections queries all the IBC connections of a chain.
-    fn connection_ends(
-        &self,
-    ) -> Result<Vec<ibc::core::ics03_connection::connection::IdentifiedConnectionEnd>, ContextError>
-    {
+    fn connection_ends(&self) -> Result<Vec<IdentifiedConnectionEnd>, ContextError> {
         let path = "connections"
             .to_owned()
             .try_into()
@@ -777,12 +775,10 @@ where
                     .ok_or_else(|| ConnectionError::ConnectionNotFound {
                         connection_id: connection_path.0.clone(),
                     })?;
-                Ok(
-                    ibc::core::ics03_connection::connection::IdentifiedConnectionEnd {
-                        connection_id: connection_path.0,
-                        connection_end,
-                    },
-                )
+                Ok(IdentifiedConnectionEnd {
+                    connection_id: connection_path.0,
+                    connection_end,
+                })
             })
             .collect()
     }
@@ -801,9 +797,7 @@ where
     }
 
     /// Channels queries all the IBC channels of a chain.
-    fn channel_ends(
-        &self,
-    ) -> Result<Vec<ibc::core::ics04_channel::channel::IdentifiedChannelEnd>, ContextError> {
+    fn channel_ends(&self) -> Result<Vec<IdentifiedChannelEnd>, ContextError> {
         let path = "channelEnds"
             .to_owned()
             .try_into()
@@ -829,7 +823,7 @@ where
                         port_id: channel_path.0.clone(),
                         channel_id: channel_path.1.clone(),
                     })?;
-                Ok(ibc::core::ics04_channel::channel::IdentifiedChannelEnd {
+                Ok(IdentifiedChannelEnd {
                     port_id: channel_path.0,
                     channel_id: channel_path.1,
                     channel_end,
