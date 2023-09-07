@@ -804,7 +804,7 @@ where
     fn channel_ends(
         &self,
     ) -> Result<Vec<ibc::core::ics04_channel::channel::IdentifiedChannelEnd>, ContextError> {
-        let path = "channels"
+        let path = "channelEnds"
             .to_owned()
             .try_into()
             .map_err(|_| ChannelError::Other {
