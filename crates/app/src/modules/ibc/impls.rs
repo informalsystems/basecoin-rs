@@ -24,10 +24,7 @@ use ibc::{
     core::{
         dispatch,
         events::IbcEvent,
-        ics02_client::{
-            consensus_state::ConsensusState,
-            error::ClientError,
-        },
+        ics02_client::{consensus_state::ConsensusState, error::ClientError},
         ics03_connection::{
             connection::{ConnectionEnd, IdentifiedConnectionEnd},
             error::ConnectionError,
