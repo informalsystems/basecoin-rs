@@ -57,6 +57,20 @@ where
     pub fn events(&self) -> Vec<IbcEvent> {
         self.events.clone()
     }
+
+    fn get_escrow_account(
+        &self,
+        port_id: &PortId,
+        channel_id: &ChannelId,
+    ) -> Result<AccountId, TokenTransferError> {
+        let account_id = AccountId::new(
+            ACCOUNT_PREFIX,
+            &cosmos_adr028_escrow_address(port_id, channel_id),
+        )
+        .map_err(|_| TokenTransferError::ParseAccountFailure)?;
+
+        Ok(account_id)
+    }
 }
 
 impl<BK> IbcModule for IbcTransferModule<BK>
@@ -292,29 +306,56 @@ where
     }
 }
 
-impl<BK> TokenTransferExecutionContext for IbcTransferModule<BK>
+impl<BK> TokenTransferExecutionContext<()> for IbcTransferModule<BK>
 where
     BK: BankKeeper<Coin = Coin> + Send + Sync,
 {
-    fn send_coins_execute(
+    fn escrow_coins_execute(
         &mut self,
-        from: &Self::AccountId,
-        to: &Self::AccountId,
-        amt: &PrefixedCoin,
+        port_id: &PortId,
+        channel_id: &ChannelId,
+        from_account: &Self::AccountId,
+        coin: &PrefixedCoin,
+        _extra: &(),
     ) -> Result<(), TokenTransferError> {
-        let from = from
+        let from = from_account
             .to_string()
             .parse()
             .map_err(|_| TokenTransferError::ParseAccountFailure)?;
-        let to = to
+        let to = self
+            .get_escrow_account(port_id, channel_id)?
             .to_string()
             .parse()
             .map_err(|_| TokenTransferError::ParseAccountFailure)?;
         let coins = vec![Coin {
-            denom: Denom(amt.denom.to_string()),
-            amount: amt.amount.into(),
+            denom: Denom(coin.denom.to_string()),
+            amount: coin.amount.into(),
         }];
-        self.bank_keeper.send_coins(from, to, coins).unwrap(); // Fixme(hu55a1n1)
+        self.bank_keeper.send_coins(from, to, coins).unwrap();
+        Ok(())
+    }
+
+    fn unescrow_coins_execute(
+        &mut self,
+        port_id: &PortId,
+        channel_id: &ChannelId,
+        to_account: &Self::AccountId,
+        coin: &PrefixedCoin,
+    ) -> Result<(), TokenTransferError> {
+        let from = self
+            .get_escrow_account(port_id, channel_id)?
+            .to_string()
+            .parse()
+            .map_err(|_| TokenTransferError::ParseAccountFailure)?;
+        let to = to_account
+            .to_string()
+            .parse()
+            .map_err(|_| TokenTransferError::ParseAccountFailure)?;
+        let coins = vec![Coin {
+            denom: Denom(coin.denom.to_string()),
+            amount: coin.amount.into(),
+        }];
+        self.bank_keeper.send_coins(from, to, coins).unwrap();
         Ok(())
     }
 
@@ -353,7 +394,7 @@ where
     }
 }
 
-impl<BK> TokenTransferValidationContext for IbcTransferModule<BK>
+impl<BK> TokenTransferValidationContext<()> for IbcTransferModule<BK>
 where
     BK: BankKeeper<Coin = Coin> + Send + Sync,
 {
@@ -361,33 +402,6 @@ where
 
     fn get_port(&self) -> Result<PortId, TokenTransferError> {
         Ok(PortId::transfer())
-    }
-
-    fn get_escrow_account(
-        &self,
-        port_id: &PortId,
-        channel_id: &ChannelId,
-    ) -> Result<Self::AccountId, TokenTransferError> {
-        let account_id = AccountId::new(
-            ACCOUNT_PREFIX,
-            &cosmos_adr028_escrow_address(port_id, channel_id),
-        )
-        .map_err(|_| TokenTransferError::ParseAccountFailure)?;
-
-        Ok(account_id.to_string().into())
-    }
-
-    fn send_coins_validate(
-        &self,
-        _from_account: &Self::AccountId,
-        _to_account: &Self::AccountId,
-        _coin: &PrefixedCoin,
-    ) -> Result<(), TokenTransferError> {
-        // Architectures that don't use `dispatch()` and care about the
-        // distinction between `validate()` and `execute()` would want to check
-        // that we can also send the coins between the 2 accounts.
-        // However we use `dispatch()` and simply do all our checks in the `execute()` phase.
-        Ok(())
     }
 
     fn mint_coins_validate(
@@ -419,6 +433,27 @@ where
     }
 
     fn can_receive_coins(&self) -> Result<(), TokenTransferError> {
+        Ok(())
+    }
+
+    fn escrow_coins_validate(
+        &self,
+        _port_id: &PortId,
+        _channel_id: &ChannelId,
+        _from_account: &Self::AccountId,
+        _coin: &PrefixedCoin,
+        _extra: &(),
+    ) -> Result<(), TokenTransferError> {
+        Ok(())
+    }
+
+    fn unescrow_coins_validate(
+        &self,
+        _port_id: &PortId,
+        _channel_id: &ChannelId,
+        _to_account: &Self::AccountId,
+        _coin: &PrefixedCoin,
+    ) -> Result<(), TokenTransferError> {
         Ok(())
     }
 }

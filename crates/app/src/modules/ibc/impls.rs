@@ -135,7 +135,7 @@ where
 
             let mut transfer_module = self.router().transfer();
 
-            send_transfer(&mut self.ctx, &mut transfer_module, transfer_msg).map_err(|e| {
+            send_transfer(&mut self.ctx, &mut transfer_module, transfer_msg, &()).map_err(|e| {
                 AppError::Custom {
                     reason: e.to_string(),
                 }
@@ -626,8 +626,10 @@ where
     /// Called upon client creation.
     /// Increases the counter which keeps track of how many clients have been created.
     /// Should never fail.
-    fn increase_client_counter(&mut self) {
+    fn increase_client_counter(&mut self) -> Result<(), ContextError> {
         self.client_counter += 1;
+
+        Ok(())
     }
 
     /// Called upon successful client update.
@@ -694,8 +696,10 @@ where
     /// Called upon connection identifier creation (Init or Try process).
     /// Increases the counter which keeps track of how many connections have been created.
     /// Should never fail.
-    fn increase_connection_counter(&mut self) {
+    fn increase_connection_counter(&mut self) -> Result<(), ContextError> {
         self.conn_counter += 1;
+
+        Ok(())
     }
 
     fn store_packet_commitment(
@@ -792,16 +796,22 @@ where
         Ok(())
     }
 
-    fn increase_channel_counter(&mut self) {
+    fn increase_channel_counter(&mut self) -> Result<(), ContextError> {
         self.channel_counter += 1;
+
+        Ok(())
     }
 
-    fn emit_ibc_event(&mut self, event: IbcEvent) {
+    fn emit_ibc_event(&mut self, event: IbcEvent) -> Result<(), ContextError> {
         self.events.push(event);
+
+        Ok(())
     }
 
-    fn log_message(&mut self, message: String) {
+    fn log_message(&mut self, message: String) -> Result<(), ContextError> {
         self.logs.push(message);
+
+        Ok(())
     }
 
     fn get_client_execution_context(&mut self) -> &mut Self::E {
