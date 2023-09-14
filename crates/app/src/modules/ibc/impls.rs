@@ -25,8 +25,6 @@ use ibc::{
         dispatch,
         events::IbcEvent,
         ics02_client::{
-            client_state::{ClientStateValidation, Status},
-            client_type::ClientType,
             consensus_state::ConsensusState,
             error::ClientError,
         },
@@ -736,17 +734,6 @@ where
             })
             .map(|consensus_path| Ok(IbcHeight::new(consensus_path.epoch, consensus_path.height)?))
             .collect::<Result<Vec<_>, _>>()
-    }
-
-    /// Queries the client status of the given client.
-    fn client_status(&self, client_id: &ClientId) -> Result<Status, ContextError> {
-        let client_state = self.client_state(client_id)?;
-        Ok(client_state.status(self, client_id)?)
-    }
-
-    /// Returns the list of supported client types.
-    fn allowed_clients(&self) -> Vec<ClientType> {
-        vec![ClientType::new("07-tendermint").expect("no error")]
     }
 
     /// Connections queries all the IBC connections of a chain.
