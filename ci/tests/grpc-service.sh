@@ -46,8 +46,9 @@ EOM
 #   "client_id": "07-tendermint-0"
 # }
 # EOM
-echo "ibc.core.client.v1.Query/ClientParams"
-grpcurl -plaintext localhost:9093 ibc.core.client.v1.Query/ClientParams
+# echo "ibc.core.client.v1.Query/ClientParams"
+# TODO(rano): it is unimplemented
+# grpcurl -plaintext localhost:9093 ibc.core.client.v1.Query/ClientParams
 echo "ibc.core.client.v1.Query/UpgradedClientState"
 grpcurl -plaintext localhost:9093 ibc.core.client.v1.Query/UpgradedClientState
 echo "ibc.core.client.v1.Query/UpgradedConsensusState"
