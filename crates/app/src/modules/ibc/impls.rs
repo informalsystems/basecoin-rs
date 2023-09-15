@@ -73,7 +73,7 @@ use std::{
     convert::{TryFrom, TryInto},
     fmt::Debug,
     ops::Deref,
-    sync::Arc,
+    sync::{Arc, RwLock},
     time::Duration,
 };
 use tendermint::merkle::proof::ProofOp;
@@ -263,6 +263,8 @@ where
 
         self.ctx
             .consensus_states
+            .write()
+            .expect("lock is poisoined")
             .insert(header.height.value(), consensus_state);
 
         vec![]
@@ -300,7 +302,7 @@ where
     /// Tracks the processed height for client updates
     client_processed_heights: HashMap<(ClientId, IbcHeight), IbcHeight>,
     /// Map of host consensus states
-    consensus_states: HashMap<u64, TmConsensusState>,
+    consensus_states: Arc<RwLock<HashMap<u64, TmConsensusState>>>,
     /// A typed-store for AnyClientState
     pub(crate) client_state_store:
         ProtobufStore<SharedStore<S>, ClientStatePath, TmClientState, Any>,
@@ -428,8 +430,8 @@ where
         &self,
         height: &IbcHeight,
     ) -> Result<Self::AnyConsensusState, ContextError> {
-        let consensus_state = self
-            .consensus_states
+        let consensus_states_binding = self.consensus_states.read().expect("lock is poisoned");
+        let consensus_state = consensus_states_binding
             .get(&height.revision_height())
             .ok_or(ClientError::MissingLocalConsensusState { height: *height })?;
 
