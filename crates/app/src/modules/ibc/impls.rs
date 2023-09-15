@@ -50,8 +50,10 @@ use ibc::{
     },
     hosts::tendermint::IBC_QUERY_PATH,
     services::core::{
+        channel::ChannelQueryService,
+        client::ClientQueryService,
+        connection::ConnectionQueryService,
         context::{ProvableContext, QueryContext},
-        ChannelQueryService, ClientQueryService, ConnectionQueryService,
     },
     Height as IbcHeight, Signer,
 };
