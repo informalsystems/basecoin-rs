@@ -39,13 +39,12 @@ grpcurl -plaintext -d @ localhost:9093 ibc.core.client.v1.Query/ConsensusStateHe
   "client_id": "07-tendermint-0"
 }
 EOM
-# echo "ibc.core.client.v1.Query/ClientStatus"
-# FIXME: fails with "ICS02 Client error: the local consensus state could not be retrieved for height `0-??`"
-# grpcurl -plaintext -d @ localhost:9093 ibc.core.client.v1.Query/ClientStatus <<EOM
-# {
-#   "client_id": "07-tendermint-0"
-# }
-# EOM
+echo "ibc.core.client.v1.Query/ClientStatus"
+grpcurl -plaintext -d @ localhost:9093 ibc.core.client.v1.Query/ClientStatus <<EOM
+{
+  "client_id": "07-tendermint-0"
+}
+EOM
 # echo "ibc.core.client.v1.Query/ClientParams"
 # TODO(rano): it is unimplemented
 # grpcurl -plaintext localhost:9093 ibc.core.client.v1.Query/ClientParams
