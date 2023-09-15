@@ -151,11 +151,11 @@ where
 
     pub fn client_service(
         &self,
-        update_context: &Upgrade<S>,
+        upgrade_context: &Upgrade<S>,
     ) -> ClientQueryServer<ClientQueryService<IbcContext<S>, Upgrade<S>>> {
         ClientQueryServer::new(ClientQueryService::new(
             self.ctx.clone(),
-            update_context.clone(),
+            upgrade_context.clone(),
         ))
     }
 
