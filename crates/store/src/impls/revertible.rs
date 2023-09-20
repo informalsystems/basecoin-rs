@@ -95,6 +95,8 @@ where
             match op {
                 RevertOp::Delete(path) => self.delete(&path),
                 RevertOp::Set(path, value) => {
+                    // FIXME: potential non-termination
+                    // self.set() may insert a new op into the op_log
                     self.set(path, value).unwrap(); // safety - reset failures are unrecoverable
                 }
             }

@@ -44,7 +44,7 @@ pub async fn default_app_runner(server_cfg: ServerConfig) {
     // instantiate gRPC services for each module
     let auth_service = auth.service();
     let bank_service = bank.service();
-    let ibc_client_service = ibc.client_service();
+    let ibc_client_service = ibc.client_service(&upgrade);
     let ibc_conn_service = ibc.connection_service();
     let ibc_channel_service = ibc.channel_service();
     let governance_service = governance.service();

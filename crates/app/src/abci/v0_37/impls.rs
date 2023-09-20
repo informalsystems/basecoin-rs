@@ -12,7 +12,7 @@ use cosmrs::Tx;
 use ibc::Any;
 use prost::Message;
 use serde_json::Value;
-use std::fmt::Debug;
+use std::fmt::{Debug, Write};
 use tracing::{debug, info};
 
 use tendermint_proto::v0_37::abci::response_process_proposal;
@@ -269,7 +269,11 @@ pub fn commit<S: Default + ProvableStore>(app: &BaseCoinApp<S>) -> ResponseCommi
     info!(
         "Committed height {} with hash({})",
         state.current_height() - 1,
-        data.iter().map(|b| format!("{b:02X}")).collect::<String>()
+        data.iter().fold(String::new(), |mut acc, b| {
+            // write!-ing into a String can never fail
+            let _ = write!(acc, "{b:02X}");
+            acc
+        })
     );
     ResponseCommit {
         data: data.into(),
