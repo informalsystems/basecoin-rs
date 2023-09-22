@@ -18,7 +18,7 @@ upgrade-client: create-channel
 	bash ~/tests/upgrade-client.sh
 	@echo "Client upgraded"
 
-grpc-service: create-channel
+grpc-service: upgrade-client
 	@echo "Testing gRPC services..."
 	bash ~/tests/grpc-service.sh
 	@echo "gRPC services working"
