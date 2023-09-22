@@ -97,7 +97,7 @@ pub async fn default_app_runner(server_cfg: ServerConfig) {
         // run the blocking ABCI server on a separate thread
         let server_listen_addr = format!("{}:{}", server_cfg.host, server_cfg.port);
         tokio::task::spawn(async move {
-            server.listen(server_listen_addr).await.unwrap();
+            server.listen_tcp(server_listen_addr).await.unwrap();
         });
     }
 
