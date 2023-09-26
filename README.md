@@ -1,7 +1,11 @@
 # basecoin-rs
-A rudimentary Tendermint ABCI application that implements the following functionality in the form of modules - 
+At a high level, basecoin implements the application logic that sits between the Tendermint consensus layer and ibc-rs.
+It is a rudimentary Tendermint ABCI application that implements the following functionality in the form of modules -
 * `bank` - keeps track of different accounts' balances and facilitates transactions between those accounts.
 * `ibc` - enables support for IBC (clients, connections & channels)
+
+Its main use-cases are serving as a testing ground and mock implementation for verifying the correctness and behaviour
+of the ibc-rs modules. 
 
 ## Requirements
 So far this app has been tested with:

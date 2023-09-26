@@ -126,6 +126,13 @@ where
         self.router.deref().clone()
     }
 
+    // Given a message of type `Any`, this function attempts to parse the message as
+    // either a `MsgEnvelope` or a `MsgTransfer`.
+    //
+    // Note: `MsgEnvelope`s contain messages that need to be dispatched to one of the
+    // core IBC modules, i.e., client, connection, channel, or packet. `MsgTransfer`
+    // messages are handled separately then because the ICS20 token transfer application
+    // is not a core IBC module. 
     pub fn process_message(&mut self, message: Any) -> Result<Vec<IbcEvent>, AppError> {
         if let Ok(msg) = MsgEnvelope::try_from(message.clone()) {
             debug!("Dispatching IBC message: {:?}", msg);
