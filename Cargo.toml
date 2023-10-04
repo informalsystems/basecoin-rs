@@ -12,7 +12,8 @@ base64 = { version = "0.21", default-features = false, features = ["alloc"] }
 displaydoc = { version = "0.2", default-features = false }
 derive_more = { version = "0.99.17", default-features = false, features = ["from", "into", "display"] }
 ed25519 = { version = "2.1.0", default-features = false }
-ibc = { version = "0.45.0", features = ["grpc"] }
+ibc = { git ="https://github.com/cosmos/ibc-rs", rev = "518737a" }
+ibc-query = { git ="https://github.com/cosmos/ibc-rs", rev = "518737a" }
 ibc-proto = { version = "0.35.0", default-features = false }
 ics23 = { version = "0.10.1", default-features = false } 
 prost = { version = "0.11.6", default-features = false }
