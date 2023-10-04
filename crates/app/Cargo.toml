@@ -34,6 +34,7 @@ displaydoc = { workspace = true }
 derive_more = { workspace = true }
 ibc = { workspace = true }
 ibc-proto = { workspace = true, features = ["server", "proto-descriptor", "serde"] }
+ibc-query = { workspace = true }
 ics23 = { workspace = true, features = ["host-functions"] }
 primitive-types = { version = "0.12.0", default-features = false, features = ["serde_no_std"] }
 prost = { workspace = true }

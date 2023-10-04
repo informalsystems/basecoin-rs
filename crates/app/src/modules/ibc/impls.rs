@@ -49,12 +49,6 @@ use ibc::{
         ContextError, ExecutionContext, MsgEnvelope, ValidationContext,
     },
     hosts::tendermint::IBC_QUERY_PATH,
-    services::core::{
-        channel::ChannelQueryService,
-        client::ClientQueryService,
-        connection::ConnectionQueryService,
-        context::{ProvableContext, QueryContext},
-    },
     Height as IbcHeight, Signer,
 };
 use ibc_proto::{
@@ -67,6 +61,11 @@ use ibc_proto::{
         },
     },
 };
+
+use ibc_query::core::channel::ChannelQueryService;
+use ibc_query::core::client::ClientQueryService;
+use ibc_query::core::connection::ConnectionQueryService;
+use ibc_query::core::context::{ProvableContext, QueryContext};
 use prost::Message;
 use std::{
     collections::HashMap,
