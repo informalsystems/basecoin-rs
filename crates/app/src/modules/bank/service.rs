@@ -2,8 +2,7 @@ use basecoin_store::context::ProvableStore;
 use ibc_proto::cosmos::{
     bank::v1beta1::{
         query_server::Query, QueryAllBalancesRequest, QueryAllBalancesResponse,
-        QueryBalanceRequest, QueryBalanceResponse, QueryDenomMetadataByQueryStringRequest,
-        QueryDenomMetadataByQueryStringResponse, QueryDenomMetadataRequest,
+        QueryBalanceRequest, QueryBalanceResponse, QueryDenomMetadataRequest,
         QueryDenomMetadataResponse, QueryDenomOwnersRequest, QueryDenomOwnersResponse,
         QueryDenomsMetadataRequest, QueryDenomsMetadataResponse, QueryParamsRequest,
         QueryParamsResponse, QuerySendEnabledRequest, QuerySendEnabledResponse,
@@ -119,13 +118,6 @@ impl<S: ProvableStore> Query for BankService<S> {
         &self,
         _request: Request<QuerySpendableBalanceByDenomRequest>,
     ) -> Result<Response<QuerySpendableBalanceByDenomResponse>, Status> {
-        unimplemented!()
-    }
-
-    async fn denom_metadata_by_query_string(
-        &self,
-        _request: Request<QueryDenomMetadataByQueryStringRequest>,
-    ) -> Result<Response<QueryDenomMetadataByQueryStringResponse>, Status> {
         unimplemented!()
     }
 }
