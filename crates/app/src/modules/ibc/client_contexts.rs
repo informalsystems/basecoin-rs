@@ -7,19 +7,59 @@ use ibc::clients::ics07_tendermint::client_state::ClientState as TmClientState;
 use ibc::clients::ics07_tendermint::consensus_state::ConsensusState as TmConsensusState;
 use ibc::clients::ics07_tendermint::{CommonContext, ValidationContext as TmValidationContext};
 use ibc::core::ics02_client::error::ClientError;
-use ibc::core::ics02_client::ClientExecutionContext;
+use ibc::core::ics02_client::{ClientExecutionContext, ClientValidationContext};
 use ibc::core::ics24_host::identifier::ClientId;
 use ibc::core::ics24_host::path::{ClientConsensusStatePath, ClientStatePath, Path};
 use ibc::core::timestamp::Timestamp;
 use ibc::core::{ContextError, ValidationContext};
+use ibc::Height as IbcHeight;
 
 use std::fmt::Debug;
+
+impl<S> ClientValidationContext for IbcContext<S>
+where
+    S: Store + Debug,
+{
+    /// Returns the time when the client state for the given [`ClientId`] was updated with a header for the given [`IbcHeight`]
+    fn client_update_time(
+        &self,
+        client_id: &ClientId,
+        height: &IbcHeight,
+    ) -> Result<Timestamp, ContextError> {
+        let processed_timestamp = self
+            .client_processed_times
+            .get(&(client_id.clone(), *height))
+            .cloned()
+            .ok_or(ClientError::ProcessedTimeNotFound {
+                client_id: client_id.clone(),
+                height: *height,
+            })?;
+        Ok(processed_timestamp)
+    }
+
+    /// Returns the height when the client state for the given [`ClientId`] was updated with a header for the given [`IbcHeight`]
+    fn client_update_height(
+        &self,
+        client_id: &ClientId,
+        height: &IbcHeight,
+    ) -> Result<IbcHeight, ContextError> {
+        let processed_height = self
+            .client_processed_heights
+            .get(&(client_id.clone(), *height))
+            .cloned()
+            .ok_or(ClientError::ProcessedHeightNotFound {
+                client_id: client_id.clone(),
+                height: *height,
+            })?;
+        Ok(processed_height)
+    }
+}
 
 impl<S> ClientExecutionContext for IbcContext<S>
 where
     S: Store + Debug,
 {
-    type ClientValidationContext = Self;
+    type V = Self;
 
     type AnyClientState = TmClientState;
 
@@ -57,6 +97,34 @@ where
             })?;
         Ok(())
     }
+
+    /// Called upon successful client update.
+    /// Implementations are expected to use this to record the specified time as the time at which
+    /// this update (or header) was processed.
+    fn store_update_time(
+        &mut self,
+        client_id: ClientId,
+        height: IbcHeight,
+        timestamp: Timestamp,
+    ) -> Result<(), ContextError> {
+        self.client_processed_times
+            .insert((client_id, height), timestamp);
+        Ok(())
+    }
+
+    /// Called upon successful client update.
+    /// Implementations are expected to use this to record the specified height as the height at
+    /// at which this update (or header) was processed.
+    fn store_update_height(
+        &mut self,
+        client_id: ClientId,
+        height: IbcHeight,
+        host_height: IbcHeight,
+    ) -> Result<(), ContextError> {
+        self.client_processed_heights
+            .insert((client_id, height), host_height);
+        Ok(())
+    }
 }
 
 impl<S> CommonContext for IbcContext<S>
@@ -65,6 +133,14 @@ where
 {
     type ConversionError = &'static str;
     type AnyConsensusState = AnyConsensusState;
+
+    fn host_timestamp(&self) -> Result<Timestamp, ContextError> {
+        ValidationContext::host_timestamp(self)
+    }
+
+    fn host_height(&self) -> Result<IbcHeight, ContextError> {
+        ValidationContext::host_height(self)
+    }
 
     fn consensus_state(
         &self,
@@ -78,10 +154,6 @@ impl<S> TmValidationContext for IbcContext<S>
 where
     S: Store + Debug,
 {
-    fn host_timestamp(&self) -> Result<Timestamp, ContextError> {
-        ValidationContext::host_timestamp(self)
-    }
-
     fn next_consensus_state(
         &self,
         client_id: &ClientId,
