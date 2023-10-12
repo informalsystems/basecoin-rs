@@ -1102,8 +1102,8 @@ dependencies = [
 
 [[package]]
 name = "ibc"
-version = "0.45.0"
-source = "git+https://github.com/cosmos/ibc-rs?rev=518737a#518737a7a3538df5e4c09b68a0787e332c4c0951"
+version = "0.46.0"
+source = "git+https://github.com/cosmos/ibc-rs?rev=b5d08c5#b5d08c5e82dba18d0e121be0232e4153b6b906cf"
 dependencies = [
  "bytes",
  "derive_more",
@@ -1130,7 +1130,7 @@ dependencies = [
 [[package]]
 name = "ibc-derive"
 version = "0.3.0"
-source = "git+https://github.com/cosmos/ibc-rs?rev=518737a#518737a7a3538df5e4c09b68a0787e332c4c0951"
+source = "git+https://github.com/cosmos/ibc-rs?rev=b5d08c5#b5d08c5e82dba18d0e121be0232e4153b6b906cf"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -1157,8 +1157,8 @@ dependencies = [
 
 [[package]]
 name = "ibc-query"
-version = "0.45.0"
-source = "git+https://github.com/cosmos/ibc-rs?rev=518737a#518737a7a3538df5e4c09b68a0787e332c4c0951"
+version = "0.46.0"
+source = "git+https://github.com/cosmos/ibc-rs?rev=b5d08c5#b5d08c5e82dba18d0e121be0232e4153b6b906cf"
 dependencies = [
  "displaydoc",
  "ibc",
