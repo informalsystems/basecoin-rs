@@ -308,7 +308,7 @@ where
     /// Tracks the processed height for client updates
     pub(crate) client_processed_heights: HashMap<(ClientId, IbcHeight), IbcHeight>,
     /// Map of host consensus states
-    consensus_states: Arc<RwLock<HashMap<u64, TmConsensusState>>>,
+    pub(crate) consensus_states: Arc<RwLock<HashMap<u64, TmConsensusState>>>,
     /// A typed-store for AnyClientState
     pub(crate) client_state_store:
         ProtobufStore<SharedStore<S>, ClientStatePath, TmClientState, Any>,
