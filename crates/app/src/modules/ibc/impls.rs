@@ -204,7 +204,6 @@ where
         let ibc_events = self.process_message(message)?;
 
         Ok(ibc_events
-            .clone()
             .into_iter()
             .map(|ev| Event::try_from(ev).unwrap())
             .collect())
@@ -399,7 +398,7 @@ where
     }
 
     fn decode_client_state(&self, client_state: Any) -> Result<Self::AnyClientState, ContextError> {
-        Ok(TmClientState::try_from(client_state.clone())?)
+        Ok(TmClientState::try_from(client_state)?)
     }
 
     fn consensus_state(
