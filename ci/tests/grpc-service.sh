@@ -183,10 +183,3 @@ grpcurl -plaintext -d @ localhost:9093 ibc.core.channel.v1.Query/NextSequenceRec
   "channel_id": "channel-0"
 }
 EOM
-echo "ibc.core.channel.v1.Query/NextSequenceSend"
-grpcurl -plaintext -d @ localhost:9093 ibc.core.channel.v1.Query/NextSequenceSend <<EOM
-{
-  "port_id": "transfer",
-  "channel_id": "channel-0"
-}
-EOM
