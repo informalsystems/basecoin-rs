@@ -132,8 +132,7 @@ where
         client_id: ClientId,
         height: IbcHeight,
     ) -> Result<(), ContextError> {
-        self.client_processed_times
-            .remove(&(client_id, height));
+        self.client_processed_times.remove(&(client_id, height));
         Ok(())
     }
 
@@ -143,8 +142,7 @@ where
         client_id: ClientId,
         height: IbcHeight,
     ) -> Result<(), ContextError> {
-        self.client_processed_heights
-            .remove(&(client_id, height));
+        self.client_processed_heights.remove(&(client_id, height));
         Ok(())
     }
 
@@ -152,8 +150,7 @@ where
         &mut self,
         consensus_state_path: ClientConsensusStatePath,
     ) -> Result<(), ContextError> {
-        self.consensus_state_store
-            .delete(consensus_state_path);
+        self.consensus_state_store.delete(consensus_state_path);
         Ok(())
     }
 }
@@ -182,7 +179,7 @@ where
 
     fn consensus_state_heights(
         &self,
-        client_id: &ClientId
+        client_id: &ClientId,
     ) -> Result<Vec<IbcHeight>, ContextError> {
         let path = format!("clients/{}/consensusStates", client_id)
             .try_into()
