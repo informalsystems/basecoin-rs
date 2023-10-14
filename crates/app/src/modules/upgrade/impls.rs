@@ -216,7 +216,7 @@ impl<S> UpgradeValidationContext for Upgrade<S>
 where
     S: Store + Debug,
 {
-    type ClientValidationContext = IbcContext<S>;
+    type V = IbcContext<S>;
     type E = IbcContext<S>;
     type AnyConsensusState = AnyConsensusState;
     type AnyClientState = TmClientState;

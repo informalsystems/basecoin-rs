@@ -304,9 +304,9 @@ where
     /// Counter for channels
     channel_counter: u64,
     /// Tracks the processed time for client updates
-    client_processed_times: HashMap<(ClientId, IbcHeight), Timestamp>,
+    pub(crate) client_processed_times: HashMap<(ClientId, IbcHeight), Timestamp>,
     /// Tracks the processed height for client updates
-    client_processed_heights: HashMap<(ClientId, IbcHeight), IbcHeight>,
+    pub(crate) client_processed_heights: HashMap<(ClientId, IbcHeight), IbcHeight>,
     /// Map of host consensus states
     consensus_states: Arc<RwLock<HashMap<u64, TmConsensusState>>>,
     /// A typed-store for AnyClientState
@@ -384,7 +384,7 @@ impl<S> ValidationContext for IbcContext<S>
 where
     S: Store + Debug,
 {
-    type ClientValidationContext = Self;
+    type V = Self;
     type E = Self;
     type AnyConsensusState = AnyConsensusState;
     type AnyClientState = TmClientState;
@@ -577,40 +577,6 @@ where
         Ok(ack)
     }
 
-    /// Returns the time when the client state for the given [`ClientId`] was updated with a header for the given [`IbcHeight`]
-    fn client_update_time(
-        &self,
-        client_id: &ClientId,
-        height: &IbcHeight,
-    ) -> Result<Timestamp, ContextError> {
-        let processed_timestamp = self
-            .client_processed_times
-            .get(&(client_id.clone(), *height))
-            .cloned()
-            .ok_or(ChannelError::ProcessedTimeNotFound {
-                client_id: client_id.clone(),
-                height: *height,
-            })?;
-        Ok(processed_timestamp)
-    }
-
-    /// Returns the height when the client state for the given [`ClientId`] was updated with a header for the given [`IbcHeight`]
-    fn client_update_height(
-        &self,
-        client_id: &ClientId,
-        height: &IbcHeight,
-    ) -> Result<IbcHeight, ContextError> {
-        let processed_height = self
-            .client_processed_heights
-            .get(&(client_id.clone(), *height))
-            .cloned()
-            .ok_or(ChannelError::ProcessedHeightNotFound {
-                client_id: client_id.clone(),
-                height: *height,
-            })?;
-        Ok(processed_height)
-    }
-
     /// Returns a counter on the number of channel ids have been created thus far.
     /// The value of this counter should increase only via method
     /// `ChannelKeeper::increase_channel_counter`.
@@ -627,7 +593,7 @@ where
         Ok(())
     }
 
-    fn get_client_validation_context(&self) -> &Self::ClientValidationContext {
+    fn get_client_validation_context(&self) -> &Self::V {
         self
     }
 }
@@ -1002,34 +968,6 @@ where
     /// Should never fail.
     fn increase_client_counter(&mut self) -> Result<(), ContextError> {
         self.client_counter += 1;
-        Ok(())
-    }
-
-    /// Called upon successful client update.
-    /// Implementations are expected to use this to record the specified time as the time at which
-    /// this update (or header) was processed.
-    fn store_update_time(
-        &mut self,
-        client_id: ClientId,
-        height: IbcHeight,
-        timestamp: Timestamp,
-    ) -> Result<(), ContextError> {
-        self.client_processed_times
-            .insert((client_id, height), timestamp);
-        Ok(())
-    }
-
-    /// Called upon successful client update.
-    /// Implementations are expected to use this to record the specified height as the height at
-    /// at which this update (or header) was processed.
-    fn store_update_height(
-        &mut self,
-        client_id: ClientId,
-        height: IbcHeight,
-        host_height: IbcHeight,
-    ) -> Result<(), ContextError> {
-        self.client_processed_heights
-            .insert((client_id, height), host_height);
         Ok(())
     }
 
