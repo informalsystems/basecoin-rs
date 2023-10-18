@@ -112,3 +112,28 @@ where
             .and_then(|_| self.store.get_proof(height, key))
     }
 }
+
+impl<S> GrowingStore<S>
+where
+    S: Store,
+{
+    #[inline]
+    pub fn is_deleted(&self, path: &Path) -> bool {
+        self.get(Height::Pending, path)
+            .filter(|v| v.is_empty())
+            .is_some()
+    }
+
+    #[inline]
+    pub fn deleted_keys(&self, key_prefix: &Path) -> Vec<Path> {
+        self.store
+            .get_keys(key_prefix)
+            .into_iter()
+            .filter(|k| {
+                self.get(Height::Pending, k)
+                    .filter(|v| v.is_empty())
+                    .is_some()
+            })
+            .collect()
+    }
+}
