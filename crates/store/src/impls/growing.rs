@@ -50,7 +50,6 @@ where
     }
 
     #[inline]
-    // TODO(rano): return Result to denote success or failure
     fn delete(&mut self, path: &Path) {
         // set value to empty vec to denote the path is deleted.
         self.store.set(path.clone(), vec![]).expect("delete failed");
