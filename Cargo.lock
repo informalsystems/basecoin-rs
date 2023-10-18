@@ -1065,7 +1065,7 @@ dependencies = [
 [[package]]
 name = "ibc"
 version = "0.46.0"
-source = "git+https://github.com/cosmos/ibc-rs?rev=c68f9c1#c68f9c12fca319dbf1b1ec6a38f342fc6ddab083"
+source = "git+https://github.com/cosmos/ibc-rs?rev=5fdda8d#5fdda8dc441692f9e6fd1cd39fd342ba5fa9d9ca"
 dependencies = [
  "bytes",
  "derive_more",
@@ -1077,8 +1077,8 @@ dependencies = [
  "primitive-types",
  "prost",
  "serde",
+ "serde-json-wasm",
  "serde_derive",
- "serde_json",
  "sha2 0.10.8",
  "subtle-encoding",
  "tendermint",
@@ -1092,7 +1092,7 @@ dependencies = [
 [[package]]
 name = "ibc-derive"
 version = "0.3.0"
-source = "git+https://github.com/cosmos/ibc-rs?rev=c68f9c1#c68f9c12fca319dbf1b1ec6a38f342fc6ddab083"
+source = "git+https://github.com/cosmos/ibc-rs?rev=5fdda8d#5fdda8dc441692f9e6fd1cd39fd342ba5fa9d9ca"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -1120,7 +1120,7 @@ dependencies = [
 [[package]]
 name = "ibc-query"
 version = "0.46.0"
-source = "git+https://github.com/cosmos/ibc-rs?rev=c68f9c1#c68f9c12fca319dbf1b1ec6a38f342fc6ddab083"
+source = "git+https://github.com/cosmos/ibc-rs?rev=5fdda8d#5fdda8dc441692f9e6fd1cd39fd342ba5fa9d9ca"
 dependencies = [
  "displaydoc",
  "ibc",
@@ -1973,6 +1973,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf9e0fcba69a370eed61bcf2b728575f726b50b55cba78064753d708ddc7549e"
 dependencies = [
  "serde_derive",
+]
+
+[[package]]
+name = "serde-json-wasm"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "83c37d03f3b0f6b5f77c11af1e7c772de1c9af83e50bef7bb6069601900ba67b"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
