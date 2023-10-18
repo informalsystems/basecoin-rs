@@ -46,6 +46,7 @@ where
 
     #[inline]
     fn get(&self, height: Height, path: &Path) -> Option<Vec<u8>> {
+        // ignore if path is deleted
         self.store.get(height, path).filter(|v| !v.is_empty())
     }
 
@@ -84,6 +85,7 @@ where
         self.store
             .get_keys(key_prefix)
             .into_iter()
+            // ignore the deleted paths
             .filter(|k| {
                 self.get(Height::Pending, k)
                     .filter(|v| !v.is_empty())
@@ -105,6 +107,7 @@ where
     #[inline]
     fn get_proof(&self, height: Height, key: &Path) -> Option<CommitmentProof> {
         self.get(height, key)
+            // ignore if path is deleted
             .filter(|v| !v.is_empty())
             .and_then(|_| self.store.get_proof(height, key))
     }
