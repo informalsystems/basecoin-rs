@@ -16,6 +16,7 @@ pub trait Store: Async + Clone {
     fn get(&self, height: Height, path: &Path) -> Option<Vec<u8>>;
 
     /// Delete specified `path`
+    // TODO(rano): return Result to denote success or failure
     fn delete(&mut self, path: &Path);
 
     /// Commit `Pending` block to canonical chain and create new `Pending`

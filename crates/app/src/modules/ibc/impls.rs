@@ -1024,9 +1024,7 @@ where
     }
 
     fn delete_packet_commitment(&mut self, key: &CommitmentPath) -> Result<(), ContextError> {
-        self.packet_commitment_store
-            .set(key.clone(), vec![].into())
-            .map_err(|_| PacketError::ImplementationSpecific)?;
+        self.packet_commitment_store.delete(key.clone());
         Ok(())
     }
 
@@ -1053,9 +1051,7 @@ where
     }
 
     fn delete_packet_acknowledgement(&mut self, ack_path: &AckPath) -> Result<(), ContextError> {
-        self.packet_ack_store
-            .set(ack_path.clone(), vec![].into())
-            .map_err(|_| PacketError::ImplementationSpecific)?;
+        self.packet_ack_store.delete(ack_path.clone());
         Ok(())
     }
 
