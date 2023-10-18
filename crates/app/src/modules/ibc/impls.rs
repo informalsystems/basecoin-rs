@@ -840,7 +840,7 @@ where
         channel_end_path: &ChannelEndPath,
         sequences: impl ExactSizeIterator<Item = Sequence>,
     ) -> Result<Vec<PacketState>, ContextError> {
-        let collected_paths: Vec<_> = if sequences.len() > 0 {
+        let collected_paths: Vec<_> = if sequences.len() == 0 {
             // if sequences is empty, return all the acks
             let ack_path_prefix = format!(
                 "acks/ports/{}/channels/{}/sequences",
@@ -918,7 +918,7 @@ where
         channel_end_path: &ChannelEndPath,
         sequences: impl ExactSizeIterator<Item = Sequence>,
     ) -> Result<Vec<Sequence>, ContextError> {
-        let collected_paths: Vec<_> = if sequences.len() > 0 {
+        let collected_paths: Vec<_> = if sequences.len() == 0 {
             // if sequences is empty, return all the acks
             let commitment_path_prefix = format!(
                 "commitments/ports/{}/channels/{}/sequences",
