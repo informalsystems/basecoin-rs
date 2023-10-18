@@ -42,12 +42,16 @@ impl Codec for NullCodec {
     type Encoded = Vec<u8>;
 
     fn encode(_d: &Self::Type) -> Option<Self::Encoded> {
-        Some(vec![])
+        // using [0x00] to represent null
+        Some(vec![0x00])
     }
 
     fn decode(bytes: &[u8]) -> Option<Self::Type> {
-        assert!(bytes.is_empty());
-        Some(())
+        match bytes {
+            // the encoded bytes must be [0x00]
+            [0x00] => Some(()),
+            _ => None,
+        }
     }
 }
 
