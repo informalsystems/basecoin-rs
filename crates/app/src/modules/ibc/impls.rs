@@ -918,22 +918,7 @@ where
         channel_end_path: &ChannelEndPath,
         sequences: impl ExactSizeIterator<Item = Sequence>,
     ) -> Result<Vec<Sequence>, ContextError> {
-        let non_empty = |commitment_path: &CommitmentPath| -> bool {
-            // To check if we received an acknowledgement, we check if we still have the sent packet
-            // commitment (upon receiving an ack, the sent packet commitment is deleted).
-            if let Some(data) = self
-                .packet_commitment_store
-                .get(Height::Pending, commitment_path)
-            {
-                // commitment is removed by setting its value to an empty vec
-                // so ignoring removed commitments
-                !data.into_vec().is_empty()
-            } else {
-                false
-            }
-        };
-
-        Ok(if sequences.len() > 0 {
+        let collected_paths: Vec<_> = if sequences.len() > 0 {
             // if sequences is empty, return all the acks
             let commitment_path_prefix = format!(
                 "commitments/ports/{}/channels/{}/sequences",
@@ -954,17 +939,23 @@ where
                         None
                     }
                 })
-                .filter(non_empty)
-                .map(|commitment_path| commitment_path.sequence)
                 .collect()
         } else {
             sequences
                 .into_iter()
                 .map(|seq| CommitmentPath::new(&channel_end_path.0, &channel_end_path.1, seq))
-                .filter(non_empty)
-                .map(|commitment_path| commitment_path.sequence)
                 .collect()
-        })
+        };
+
+        Ok(collected_paths
+            .into_iter()
+            .filter(|commitment_path: &CommitmentPath| -> bool {
+                self.packet_commitment_store
+                    .get(Height::Pending, commitment_path)
+                    .is_some()
+            })
+            .map(|commitment_path| commitment_path.sequence)
+            .collect())
     }
 }
 
