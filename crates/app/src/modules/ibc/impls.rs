@@ -34,7 +34,7 @@ use ibc::{
             channel::{ChannelEnd, IdentifiedChannelEnd},
             commitment::{AcknowledgementCommitment, PacketCommitment},
             error::{ChannelError, PacketError},
-            packet::{Receipt, Sequence},
+            packet::{PacketState, Receipt, Sequence},
         },
         ics23_commitment::commitment::{CommitmentPrefix, CommitmentRoot},
         ics24_host::{
@@ -796,7 +796,7 @@ where
     fn packet_commitments(
         &self,
         channel_end_path: &ChannelEndPath,
-    ) -> Result<Vec<CommitmentPath>, ContextError> {
+    ) -> Result<Vec<PacketState>, ContextError> {
         let path = format!(
             "commitments/ports/{}/channels/{}/sequences",
             channel_end_path.0, channel_end_path.1
@@ -806,8 +806,7 @@ where
             description: "Invalid commitment path".into(),
         })?;
 
-        Ok(self
-            .packet_commitment_store
+        self.packet_commitment_store
             .get_keys(&path)
             .into_iter()
             .flat_map(|path| {
@@ -818,16 +817,20 @@ where
                 }
             })
             .filter(|commitment_path| {
-                if let Some(data) = self
-                    .packet_commitment_store
+                self.packet_commitment_store
                     .get(Height::Pending, commitment_path)
-                {
-                    !data.into_vec().is_empty()
-                } else {
-                    false
-                }
+                    .is_some()
             })
-            .collect())
+            .map(|commitment_path| {
+                self.get_packet_commitment(&commitment_path)
+                    .map(|packet| PacketState {
+                        seq: commitment_path.sequence,
+                        port_id: commitment_path.port_id,
+                        chan_id: commitment_path.channel_id,
+                        data: packet.as_ref().into(),
+                    })
+            })
+            .collect::<Result<Vec<_>, _>>()
     }
 
     /// PacketAcknowledgements returns all the packet acknowledgements associated with a channel.
@@ -836,18 +839,8 @@ where
         &self,
         channel_end_path: &ChannelEndPath,
         sequences: impl ExactSizeIterator<Item = Sequence>,
-    ) -> Result<Vec<AckPath>, ContextError> {
-        let non_empty = |ack_path: &AckPath| -> bool {
-            if let Some(data) = self.packet_ack_store.get(Height::Pending, ack_path) {
-                // ack is removed by setting its value to an empty vec
-                // so ignoring removed acks
-                !data.into_vec().is_empty()
-            } else {
-                false
-            }
-        };
-
-        Ok(if sequences.len() > 0 {
+    ) -> Result<Vec<PacketState>, ContextError> {
+        let collected_paths: Vec<_> = if sequences.len() == 0 {
             // if sequences is empty, return all the acks
             let ack_path_prefix = format!(
                 "acks/ports/{}/channels/{}/sequences",
@@ -868,15 +861,31 @@ where
                         None
                     }
                 })
-                .filter(non_empty)
                 .collect()
         } else {
             sequences
                 .into_iter()
                 .map(|seq| AckPath::new(&channel_end_path.0, &channel_end_path.1, seq))
-                .filter(non_empty)
                 .collect()
-        })
+        };
+
+        collected_paths
+            .into_iter()
+            .filter(|ack_path| {
+                self.packet_ack_store
+                    .get(Height::Pending, ack_path)
+                    .is_some()
+            })
+            .map(|ack_path| {
+                self.get_packet_acknowledgement(&ack_path)
+                    .map(|packet| PacketState {
+                        seq: ack_path.sequence,
+                        port_id: ack_path.port_id,
+                        chan_id: ack_path.channel_id,
+                        data: packet.as_ref().into(),
+                    })
+            })
+            .collect::<Result<Vec<_>, _>>()
     }
 
     /// UnreceivedPackets returns all the unreceived IBC packets associated with
@@ -909,22 +918,7 @@ where
         channel_end_path: &ChannelEndPath,
         sequences: impl ExactSizeIterator<Item = Sequence>,
     ) -> Result<Vec<Sequence>, ContextError> {
-        let non_empty = |commitment_path: &CommitmentPath| -> bool {
-            // To check if we received an acknowledgement, we check if we still have the sent packet
-            // commitment (upon receiving an ack, the sent packet commitment is deleted).
-            if let Some(data) = self
-                .packet_commitment_store
-                .get(Height::Pending, commitment_path)
-            {
-                // commitment is removed by setting its value to an empty vec
-                // so ignoring removed commitments
-                !data.into_vec().is_empty()
-            } else {
-                false
-            }
-        };
-
-        Ok(if sequences.len() > 0 {
+        let collected_paths: Vec<_> = if sequences.len() == 0 {
             // if sequences is empty, return all the acks
             let commitment_path_prefix = format!(
                 "commitments/ports/{}/channels/{}/sequences",
@@ -945,17 +939,23 @@ where
                         None
                     }
                 })
-                .filter(non_empty)
-                .map(|commitment_path| commitment_path.sequence)
                 .collect()
         } else {
             sequences
                 .into_iter()
                 .map(|seq| CommitmentPath::new(&channel_end_path.0, &channel_end_path.1, seq))
-                .filter(non_empty)
-                .map(|commitment_path| commitment_path.sequence)
                 .collect()
-        })
+        };
+
+        Ok(collected_paths
+            .into_iter()
+            .filter(|commitment_path: &CommitmentPath| -> bool {
+                self.packet_commitment_store
+                    .get(Height::Pending, commitment_path)
+                    .is_some()
+            })
+            .map(|commitment_path| commitment_path.sequence)
+            .collect())
     }
 }
 
