@@ -57,61 +57,58 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
     /// Insert a value into the AVL tree, this operation runs in amortized O(log(n)).
     pub fn insert(&mut self, key: K, value: V) -> Option<V> {
         let node_ref = &mut self.root;
-        let mut old_value = None;
-        AvlTree::insert_rec(node_ref, key, value, &mut old_value);
-        old_value
+        AvlTree::insert_rec(node_ref, key, value)
     }
 
     /// Insert a value in the tree.
-    fn insert_rec(node_ref: &mut NodeRef<K, V>, key: K, value: V, old_value: &mut Option<V>) {
+    fn insert_rec(node_ref: &mut NodeRef<K, V>, key: K, value: V) -> Option<V> {
         if let Some(node) = node_ref {
-            match node.key.cmp(&key) {
-                Ordering::Greater => AvlTree::insert_rec(&mut node.left, key, value, old_value),
-                Ordering::Less => AvlTree::insert_rec(&mut node.right, key, value, old_value),
-                Ordering::Equal => *old_value = Some(node.set_value(value)),
-            }
+            let old_value = match node.key.cmp(&key) {
+                Ordering::Greater => AvlTree::insert_rec(&mut node.left, key, value),
+                Ordering::Less => AvlTree::insert_rec(&mut node.right, key, value),
+                Ordering::Equal => Some(node.set_value(value)),
+            };
             node.update();
             AvlTree::balance_node(node_ref);
+            old_value
         } else {
             *node_ref = as_node_ref(key, value);
+            None
         }
     }
 
     /// Remove a value from the AVL tree, this operation runs in amortized O(log(n)).
     pub fn remove(&mut self, key: K) -> Option<V> {
         let node_ref = &mut self.root;
-        let mut old_value = None;
-        AvlTree::remove_rec(node_ref, key, &mut old_value);
-        old_value
+        AvlTree::remove_rec(node_ref, key)
     }
 
     /// Remove a value from the tree.
-    fn remove_rec(node_ref: &mut NodeRef<K, V>, key: K, old_value: &mut Option<V>) {
-        if let Some(node) = node_ref {
+    fn remove_rec(node_ref: &mut NodeRef<K, V>, key: K) -> Option<V> {
+        let removed_value = if let Some(node) = node_ref {
             match node.key.cmp(&key) {
-                Ordering::Greater => AvlTree::remove_rec(&mut node.left, key, old_value),
-                Ordering::Less => AvlTree::remove_rec(&mut node.right, key, old_value),
-                Ordering::Equal => {
-                    let mut removed_node = None;
-                    AvlTree::remove_top(node_ref, &mut removed_node);
-                    *old_value = removed_node.map(|node| node.value);
-                }
+                Ordering::Greater => AvlTree::remove_rec(&mut node.left, key),
+                Ordering::Less => AvlTree::remove_rec(&mut node.right, key),
+                Ordering::Equal => AvlTree::remove_top(node_ref).map(|node| node.value),
             }
-        }
+        } else {
+            None
+        };
 
         if let Some(node) = node_ref {
             node.update();
             AvlTree::balance_node(node_ref);
         }
+
+        removed_value
     }
 
     /// Removes the top node in the tree, if it exists.
-    fn remove_top(node_ref: &mut NodeRef<K, V>, removed_node: &mut NodeRef<K, V>) {
-        if let Some(node) = node_ref {
+    fn remove_top(node_ref: &mut NodeRef<K, V>) -> NodeRef<K, V> {
+        let removed_node = if let Some(node) = node_ref {
             if node.right.is_some() {
                 // Remove the leftmost node in the right subtree and replace the current.
-                let mut leftmost_node_ref = None;
-                AvlTree::remove_leftmost(&mut node.right, &mut leftmost_node_ref);
+                let mut leftmost_node_ref = AvlTree::remove_leftmost(&mut node.right);
                 // leftmost_node_ref.right <- node_ref.right
                 // leftmost_node_ref.left <- node_ref.left
                 // removed_node <- node_ref <- leftmost_node_ref
@@ -121,15 +118,10 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
                     );
                     assert!(std::mem::replace(&mut leftmost_node.left, node.left.take()).is_none());
                 }
-                assert!(std::mem::replace(
-                    removed_node,
-                    std::mem::replace(node_ref, leftmost_node_ref)
-                )
-                .is_none());
+                std::mem::replace(node_ref, leftmost_node_ref)
             } else if node.left.is_some() {
                 // Remove the rightmost node in the left subtree and replace the current.
-                let mut rightmost_node_ref = None;
-                AvlTree::remove_rightmost(&mut node.left, &mut rightmost_node_ref);
+                let mut rightmost_node_ref = AvlTree::remove_rightmost(&mut node.left);
                 // rightmost_node_ref.right <- node_ref.right
                 // rightmost_node_ref.left <- node_ref.left
                 // removed_node <- node_ref <- rightmost_node
@@ -141,63 +133,65 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
                         std::mem::replace(&mut rightmost_node.left, node.left.take()).is_none()
                     );
                 }
-                assert!(std::mem::replace(
-                    removed_node,
-                    std::mem::replace(node_ref, rightmost_node_ref)
-                )
-                .is_none());
+                std::mem::replace(node_ref, rightmost_node_ref)
             } else {
                 // The node is a leaf, remove it.
-                assert!(std::mem::replace(removed_node, node_ref.take()).is_none());
+                node_ref.take()
             }
-        }
+        } else {
+            None
+        };
 
         if let Some(node) = node_ref {
             node.update();
             AvlTree::balance_node(node_ref);
         }
+
+        removed_node
     }
 
     /// Removes the leftmost key in the tree, if it exists.
-    fn remove_leftmost(node_ref: &mut NodeRef<K, V>, removed_node: &mut NodeRef<K, V>) {
-        if let Some(node) = node_ref {
+    fn remove_leftmost(node_ref: &mut NodeRef<K, V>) -> NodeRef<K, V> {
+        let removed_node = if let Some(node) = node_ref {
             if node.left.is_none() {
                 let right_node = node.right.take();
                 // removed_node <- node_ref <- right_node
-                assert!(
-                    std::mem::replace(removed_node, std::mem::replace(node_ref, right_node))
-                        .is_none()
-                );
+                std::mem::replace(node_ref, right_node)
             } else {
-                AvlTree::remove_leftmost(&mut node.left, removed_node);
+                AvlTree::remove_leftmost(&mut node.left)
             }
-        }
+        } else {
+            None
+        };
 
         if let Some(node) = node_ref {
             node.update();
             AvlTree::balance_node(node_ref);
         }
+
+        removed_node
     }
 
     /// Removes the rightmost key in the tree, if it exists.
-    fn remove_rightmost(node_ref: &mut NodeRef<K, V>, removed_node: &mut NodeRef<K, V>) {
-        if let Some(node) = node_ref {
+    fn remove_rightmost(node_ref: &mut NodeRef<K, V>) -> NodeRef<K, V> {
+        let removed_node = if let Some(node) = node_ref {
             if node.right.is_none() {
                 let left_node = node.left.take();
                 // removed_node <- node_ref <- left_node
-                assert!(
-                    std::mem::replace(removed_node, std::mem::replace(node_ref, left_node))
-                        .is_none()
-                );
+                std::mem::replace(node_ref, left_node)
             } else {
-                AvlTree::remove_rightmost(&mut node.right, removed_node);
+                AvlTree::remove_rightmost(&mut node.right)
             }
-        }
+        } else {
+            None
+        };
 
         if let Some(node) = node_ref {
             node.update();
             AvlTree::balance_node(node_ref);
         }
+
+        removed_node
     }
 
     #[allow(dead_code)]
