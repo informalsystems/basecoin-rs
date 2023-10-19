@@ -143,6 +143,7 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
         };
 
         if let Some(node) = node_ref {
+            // need to update, as top node is replaced
             node.update();
             AvlTree::balance_node(node_ref);
         }
@@ -152,46 +153,48 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
 
     /// Removes the leftmost key in the tree, if it exists.
     fn remove_leftmost(node_ref: &mut NodeRef<K, V>) -> NodeRef<K, V> {
-        let removed_node = if let Some(node) = node_ref {
+        if let Some(node) = node_ref {
             if node.left.is_none() {
                 let right_node = node.right.take();
                 // removed_node <- node_ref <- right_node
                 std::mem::replace(node_ref, right_node)
+
+                // no need to update, as current node (right_node) is already updated
             } else {
-                AvlTree::remove_leftmost(&mut node.left)
+                let removed_node = AvlTree::remove_leftmost(&mut node.left);
+
+                // need to update, as left node is updated
+                node.update();
+                AvlTree::balance_node(node_ref);
+
+                removed_node
             }
         } else {
             None
-        };
-
-        if let Some(node) = node_ref {
-            node.update();
-            AvlTree::balance_node(node_ref);
         }
-
-        removed_node
     }
 
     /// Removes the rightmost key in the tree, if it exists.
     fn remove_rightmost(node_ref: &mut NodeRef<K, V>) -> NodeRef<K, V> {
-        let removed_node = if let Some(node) = node_ref {
+        if let Some(node) = node_ref {
             if node.right.is_none() {
                 let left_node = node.left.take();
                 // removed_node <- node_ref <- left_node
                 std::mem::replace(node_ref, left_node)
+
+                // no need to update, as current node (left_node) is already updated
             } else {
-                AvlTree::remove_rightmost(&mut node.right)
+                let removed_node = AvlTree::remove_rightmost(&mut node.right);
+
+                // need to update, as right node is updated
+                node.update();
+                AvlTree::balance_node(node_ref);
+
+                removed_node
             }
         } else {
             None
-        };
-
-        if let Some(node) = node_ref {
-            node.update();
-            AvlTree::balance_node(node_ref);
         }
-
-        removed_node
     }
 
     #[allow(dead_code)]
