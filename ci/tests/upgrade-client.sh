@@ -13,7 +13,7 @@ hermes upgrade client --host-chain ibc-0 --client 07-tendermint-0 --upgrade-heig
 
 echo "Test client upgradability of ibc-0 on basecoin-0"
 
-hermes tx upgrade-chain --reference-chain ibc-0 --host-chain basecoin-0 --host-client 07-tendermint-0 --amount 10000000 --height-offset 35
+hermes tx upgrade-chain --reference-chain ibc-0 --host-chain basecoin-0 --host-client 07-tendermint-0 --amount 10000000 --height-offset 30
 sleep 3s
 gaiad --node tcp://localhost:26657 tx gov vote 1 yes --home $HOME/data/ibc-0/data --keyring-backend test --keyring-dir $HOME/data/ibc-0 --chain-id ibc-0 --from validator --yes
 sleep 3s
