@@ -41,6 +41,23 @@ fn get() {
 }
 
 #[test]
+fn shuffle_get() {
+    let mut tree = AvlTree::new();
+
+    let mut keys: Vec<u8> = (0..100).collect();
+
+    keys.shuffle(&mut thread_rng());
+    for &i in keys.iter() {
+        tree.insert([i], vec![i]);
+    }
+
+    keys.shuffle(&mut thread_rng());
+    for &i in keys.iter() {
+        assert_eq!(tree.get(&[i]), Some(&vec![i]));
+    }
+}
+
+#[test]
 fn shuffle_remove() {
     let mut tree = AvlTree::new();
 
