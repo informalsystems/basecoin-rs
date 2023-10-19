@@ -125,6 +125,34 @@ where
             .insert((client_id, height), host_height);
         Ok(())
     }
+
+    /// Delete the update time associated with the client at the specified height.
+    fn delete_update_time(
+        &mut self,
+        client_id: ClientId,
+        height: IbcHeight,
+    ) -> Result<(), ContextError> {
+        self.client_processed_times.remove(&(client_id, height));
+        Ok(())
+    }
+
+    /// Delete the update height associated with the client at the specified height.
+    fn delete_update_height(
+        &mut self,
+        client_id: ClientId,
+        height: IbcHeight,
+    ) -> Result<(), ContextError> {
+        self.client_processed_heights.remove(&(client_id, height));
+        Ok(())
+    }
+
+    fn delete_consensus_state(
+        &mut self,
+        consensus_state_path: ClientConsensusStatePath,
+    ) -> Result<(), ContextError> {
+        self.consensus_state_store.delete(consensus_state_path);
+        Ok(())
+    }
 }
 
 impl<S> CommonContext for IbcContext<S>
@@ -147,6 +175,33 @@ where
         client_cons_state_path: &ClientConsensusStatePath,
     ) -> Result<Self::AnyConsensusState, ContextError> {
         ValidationContext::consensus_state(self, client_cons_state_path)
+    }
+
+    fn consensus_state_heights(
+        &self,
+        client_id: &ClientId,
+    ) -> Result<Vec<IbcHeight>, ContextError> {
+        let path = format!("clients/{}/consensusStates", client_id)
+            .try_into()
+            .map_err(|_| ClientError::Other {
+                description: "Invalid consensus state path".into(),
+            })?;
+
+        self.consensus_state_store
+            .get_keys(&path)
+            .into_iter()
+            .flat_map(|path| {
+                if let Ok(Path::ClientConsensusState(consensus_path)) = path.try_into() {
+                    Some(consensus_path)
+                } else {
+                    None
+                }
+            })
+            .map(|consensus_path| {
+                let height = IbcHeight::new(consensus_path.epoch, consensus_path.height)?;
+                Ok(height)
+            })
+            .collect()
     }
 }
 
