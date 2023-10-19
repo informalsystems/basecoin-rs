@@ -1,4 +1,4 @@
-use basecoin_store::impls::{GrowingStore, InMemoryStore};
+use basecoin_store::impls::InMemoryStore;
 use ibc_proto::cosmos::base::tendermint::v1beta1::service_server::ServiceServer as HealthServer;
 use ibc_proto::cosmos::tx::v1beta1::service_server::ServiceServer as TxServer;
 
@@ -21,7 +21,7 @@ use tower_abci::v037::split;
 
 pub async fn default_app_runner(server_cfg: ServerConfig) {
     // instantiate the application with a KV store implementation of choice
-    let app_builder = Builder::new(GrowingStore::<InMemoryStore>::default());
+    let app_builder = Builder::new(InMemoryStore::default());
 
     // instantiate modules and setup inter-module communication (if required)
     let auth = Auth::new(app_builder.module_store(&prefix::Auth {}.identifier()));
