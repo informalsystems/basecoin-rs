@@ -327,7 +327,7 @@ enable = false
 rpc_servers = ""
 trust_height = 0
 trust_hash = ""
-trust_period = "2m"
+trust_period = "3m"
 
 # Time to spend discovering snapshots before initiating a restore.
 discovery_time = "15s"
