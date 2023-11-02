@@ -1065,8 +1065,7 @@ dependencies = [
 [[package]]
 name = "ibc"
 version = "0.47.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "184eb22140cb4143bbcf7ddc8fdfeb9cc058ef73a6066f8ea78162e69d3565d1"
+source = "git+https://github.com/cosmos/ibc-rs?rev=ccca3ff#ccca3ffeda2406af6c43558ebde84c2bc1d62ef9"
 dependencies = [
  "bytes",
  "derive_more",
@@ -1093,8 +1092,7 @@ dependencies = [
 [[package]]
 name = "ibc-derive"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "92f1528535e9ca495badb76c143bdd4763c1c9d987f59d1f8b47963ba0c11674"
+source = "git+https://github.com/cosmos/ibc-rs?rev=ccca3ff#ccca3ffeda2406af6c43558ebde84c2bc1d62ef9"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -1122,8 +1120,7 @@ dependencies = [
 [[package]]
 name = "ibc-query"
 version = "0.47.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa60a47e38063a89bd9a5789b6e18e695dcf90e037c17c51d3c6142f840ae9ad"
+source = "git+https://github.com/cosmos/ibc-rs?rev=ccca3ff#ccca3ffeda2406af6c43558ebde84c2bc1d62ef9"
 dependencies = [
  "displaydoc",
  "ibc",

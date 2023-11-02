@@ -25,3 +25,7 @@ tendermint-abci = "0.34"
 tendermint-proto = "0.34"
 tendermint-rpc = "0.34"
 tracing = "0.1.26"
+
+[patch.crates-io]
+ibc = { git = "https://github.com/cosmos/ibc-rs" , rev = "ccca3ff" }
+ibc-query = { git = "https://github.com/cosmos/ibc-rs" , rev = "ccca3ff" }
