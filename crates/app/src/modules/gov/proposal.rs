@@ -4,7 +4,7 @@ use ibc_proto::cosmos::gov::v1beta1::Proposal as RawProposal;
 use ibc_proto::cosmos::gov::v1beta1::ProposalStatus;
 use ibc_proto::cosmos::gov::v1beta1::TallyResult;
 use ibc_proto::google::protobuf::{Any, Timestamp};
-use ibc_proto::protobuf::Protobuf;
+use ibc_proto::Protobuf;
 
 use super::error::Error;
 use crate::modules::bank::util::Coin;
@@ -107,7 +107,7 @@ impl From<Proposal> for Any {
     fn from(value: Proposal) -> Self {
         Self {
             type_url: TYPE_URL.to_string(),
-            value: Protobuf::<RawProposal>::encode_vec(&value),
+            value: Protobuf::<RawProposal>::encode_vec(value),
         }
     }
 }

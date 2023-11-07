@@ -16,7 +16,7 @@ use ibc::hosts::tendermint::upgrade_proposal::upgrade_client_proposal_handler;
 use ibc::hosts::tendermint::upgrade_proposal::UpgradeProposal;
 use ibc_proto::cosmos::gov::v1beta1::query_server::QueryServer;
 use ibc_proto::google::protobuf::Any;
-use ibc_proto::protobuf::Protobuf;
+use ibc_proto::Protobuf;
 
 use cosmrs::AccountId;
 use std::fmt::Debug;
