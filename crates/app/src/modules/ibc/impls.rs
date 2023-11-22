@@ -15,41 +15,45 @@ use basecoin_store::{
 };
 use cosmrs::AccountId;
 use derive_more::{From, TryInto};
+use ibc::apps::transfer::handler::send_transfer;
+use ibc::clients::tendermint::client_state::ClientState as TmClientState;
+use ibc::clients::tendermint::consensus_state::ConsensusState as TmConsensusState;
+use ibc::clients::tendermint::types::ConsensusState as ConsensusStateType;
+use ibc::core::client::context::consensus_state::ConsensusState;
+use ibc::core::client::types::Height as IbcHeight;
+use ibc::core::commitment_types::commitment::{CommitmentPrefix, CommitmentRoot};
+use ibc::core::entrypoint::dispatch;
+use ibc::core::handler::types::error::ContextError;
+use ibc::core::handler::types::events::IbcEvent;
+use ibc::core::handler::types::msgs::MsgEnvelope;
+use ibc::core::host::types::identifiers::Sequence;
+use ibc::core::host::{ExecutionContext, ValidationContext};
+use ibc::cosmos_host::IBC_QUERY_PATH;
+use ibc::primitives::{Signer, Timestamp};
 use ibc::{
-    applications::transfer::{msgs::transfer::MsgTransfer, send_transfer},
-    clients::ics07_tendermint::{
-        client_state::ClientState as TmClientState,
-        consensus_state::ConsensusState as TmConsensusState,
-    },
+    apps::transfer::types::msgs::transfer::MsgTransfer,
     core::{
-        dispatch,
-        events::IbcEvent,
-        ics02_client::{consensus_state::ConsensusState, error::ClientError},
-        ics03_connection::{
-            connection::{ConnectionEnd, IdentifiedConnectionEnd},
-            error::ConnectionError,
-            version::Version as ConnectionVersion,
-        },
-        ics04_channel::{
+        channel::types::{
             channel::{ChannelEnd, IdentifiedChannelEnd},
             commitment::{AcknowledgementCommitment, PacketCommitment},
             error::{ChannelError, PacketError},
-            packet::{PacketState, Receipt, Sequence},
+            packet::{PacketState, Receipt},
         },
-        ics23_commitment::commitment::{CommitmentPrefix, CommitmentRoot},
-        ics24_host::{
-            identifier::{ClientId, ConnectionId},
+        client::types::error::ClientError,
+        connection::types::{
+            error::ConnectionError,
+            version::Version as ConnectionVersion,
+            {ConnectionEnd, IdentifiedConnectionEnd},
+        },
+        host::types::{
+            identifiers::{ClientId, ConnectionId},
             path::{
                 AckPath, ChannelEndPath, ClientConnectionPath, ClientConsensusStatePath,
                 ClientStatePath, CommitmentPath, ConnectionPath, Path as IbcPath, ReceiptPath,
                 SeqAckPath, SeqRecvPath, SeqSendPath,
             },
         },
-        timestamp::Timestamp,
-        ContextError, ExecutionContext, MsgEnvelope, ValidationContext,
     },
-    hosts::tendermint::IBC_QUERY_PATH,
-    Height as IbcHeight, Signer,
 };
 use ibc_proto::{
     google::protobuf::Any,
@@ -260,7 +264,7 @@ where
     }
 
     fn begin_block(&mut self, header: &Header) -> Vec<Event> {
-        let consensus_state = TmConsensusState::new(
+        let consensus_state = ConsensusStateType::new(
             CommitmentRoot::from_bytes(header.app_hash.as_ref()),
             header.time,
             header.next_validators_hash,
@@ -270,7 +274,7 @@ where
             .consensus_states
             .write()
             .expect("lock is poisoined")
-            .insert(header.height.value(), consensus_state);
+            .insert(header.height.value(), consensus_state.into());
 
         vec![]
     }
@@ -405,8 +409,11 @@ where
         &self,
         client_cons_state_path: &ClientConsensusStatePath,
     ) -> Result<Self::AnyConsensusState, ContextError> {
-        let height = IbcHeight::new(client_cons_state_path.epoch, client_cons_state_path.height)
-            .map_err(|_| ClientError::InvalidHeight)?;
+        let height = IbcHeight::new(
+            client_cons_state_path.revision_number,
+            client_cons_state_path.revision_height,
+        )
+        .map_err(|_| ClientError::InvalidHeight)?;
         let consensus_state = self
             .consensus_state_store
             .get(Height::Pending, client_cons_state_path)
@@ -668,7 +675,10 @@ where
                 }
             })
             .map(|consensus_path| {
-                let height = IbcHeight::new(consensus_path.epoch, consensus_path.height)?;
+                let height = IbcHeight::new(
+                    consensus_path.revision_number,
+                    consensus_path.revision_height,
+                )?;
                 let client_state = self
                     .consensus_state_store
                     .get(Height::Pending, &consensus_path)
@@ -704,7 +714,12 @@ where
                     None
                 }
             })
-            .map(|consensus_path| Ok(IbcHeight::new(consensus_path.epoch, consensus_path.height)?))
+            .map(|consensus_path| {
+                Ok(IbcHeight::new(
+                    consensus_path.revision_number,
+                    consensus_path.revision_height,
+                )?)
+            })
             .collect::<Result<Vec<_>, _>>()
     }
 

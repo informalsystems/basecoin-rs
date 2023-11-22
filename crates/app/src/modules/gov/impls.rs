@@ -12,8 +12,8 @@ use basecoin_store::impls::SharedStore;
 use basecoin_store::types::{Height, Path, ProtobufStore, TypedStore};
 use basecoin_store::utils::{SharedRw, SharedRwExt};
 
-use ibc::hosts::tendermint::upgrade_proposal::upgrade_client_proposal_handler;
-use ibc::hosts::tendermint::upgrade_proposal::UpgradeProposal;
+use ibc::cosmos_host::upgrade_proposal::upgrade_client_proposal_handler;
+use ibc::cosmos_host::upgrade_proposal::UpgradeProposal;
 use ibc_proto::cosmos::gov::v1beta1::query_server::QueryServer;
 use ibc_proto::google::protobuf::Any;
 use ibc_proto::Protobuf;
