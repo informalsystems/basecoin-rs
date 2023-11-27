@@ -4,8 +4,8 @@ use basecoin_store::types::Height;
 use basecoin_store::types::ProtobufStore;
 use basecoin_store::types::TypedStore;
 
-use ibc::clients::ics07_tendermint::consensus_state::ConsensusState as TmConsensusState;
-use ibc::core::ics24_host::path::UpgradeClientPath;
+use ibc::clients::tendermint::types::ConsensusState as TmConsensusState;
+use ibc::core::host::types::path::UpgradeClientPath;
 
 use ibc_proto::cosmos::upgrade::v1beta1::query_server::Query as UpgradeQuery;
 use ibc_proto::cosmos::upgrade::v1beta1::QueryAppliedPlanRequest;

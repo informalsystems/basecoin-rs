@@ -1,6 +1,6 @@
-use ibc::hosts::tendermint::upgrade_proposal::Plan;
+use ibc::cosmos_host::upgrade_proposal::Plan;
 use ibc_proto::cosmos::upgrade::v1beta1::Plan as RawPlan;
-use ibc_proto::protobuf::Protobuf;
+use ibc_proto::Protobuf;
 use tendermint_rpc::{Client, HttpClient};
 
 use super::path::UpgradePlanPath;

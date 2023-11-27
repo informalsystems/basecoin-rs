@@ -1,3 +1,7 @@
+use ibc::core::client::types::error::UpgradeClientError;
+use ibc::core::commitment_types::commitment::CommitmentRoot;
+use ibc::core::host::types::path::UpgradeClientPath;
+use ibc::cosmos_host::SDK_UPGRADE_QUERY_PATH;
 use prost::Message;
 use std::fmt::Debug;
 use tracing::debug;
@@ -12,16 +16,12 @@ use cosmrs::AccountId;
 use ibc_proto::cosmos::upgrade::v1beta1::query_server::QueryServer;
 use ibc_proto::google::protobuf::Any;
 
-use ibc::clients::ics07_tendermint::{
-    client_state::ClientState as TmClientState, consensus_state::ConsensusState as TmConsensusState,
-};
-use ibc::core::ics02_client::error::UpgradeClientError;
-use ibc::core::ics23_commitment::commitment::CommitmentRoot;
-use ibc::core::ics24_host::path::UpgradeClientPath;
-use ibc::hosts::tendermint::upgrade_proposal::UpgradeExecutionContext;
-use ibc::hosts::tendermint::upgrade_proposal::UpgradeValidationContext;
-use ibc::hosts::tendermint::upgrade_proposal::{Plan, UpgradeChain};
-use ibc::hosts::tendermint::SDK_UPGRADE_QUERY_PATH;
+use ibc::clients::tendermint::client_state::ClientState as TmClientState;
+use ibc::clients::tendermint::consensus_state::ConsensusState as TmConsensusState;
+use ibc::clients::tendermint::types::ConsensusState as ConsensusStateType;
+use ibc::cosmos_host::upgrade_proposal::UpgradeExecutionContext;
+use ibc::cosmos_host::upgrade_proposal::UpgradeValidationContext;
+use ibc::cosmos_host::upgrade_proposal::{Plan, UpgradeChain};
 use tendermint::abci::Event;
 
 use tendermint::merkle::proof::ProofOp;
@@ -159,7 +159,7 @@ where
             // so that IBC clients can use the last NextValidatorsHash as a trusted kernel for verifying
             // headers on the next version of the chain.
             if host_height == plan.height.checked_sub(1).unwrap() {
-                let upgraded_consensus_state = TmConsensusState {
+                let upgraded_consensus_state = ConsensusStateType {
                     timestamp: header.time,
                     root: CommitmentRoot::from(vec![]),
                     next_validators_hash: header.next_validators_hash,
@@ -170,7 +170,7 @@ where
 
                 self.store_upgraded_consensus_state(
                     upgraded_cons_state_path,
-                    upgraded_consensus_state.into(),
+                    TmConsensusState::from(upgraded_consensus_state).into(),
                 )
                 .unwrap();
 
@@ -326,7 +326,7 @@ where
     fn store_upgraded_consensus_state(
         &mut self,
         upgrade_path: UpgradeClientPath,
-        consensus_state: Self::AnyConsensusState,
+        consensus_state: AnyConsensusState,
     ) -> Result<(), UpgradeClientError> {
         let tm_consensus_state: TmConsensusState =
             consensus_state

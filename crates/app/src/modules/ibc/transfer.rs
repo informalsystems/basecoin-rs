@@ -2,32 +2,30 @@ use crate::modules::auth::account::ACCOUNT_PREFIX;
 use crate::modules::bank::context::BankKeeper;
 use crate::modules::bank::util::{Coin, Denom};
 
-use ibc::applications::transfer::context::cosmos_adr028_escrow_address;
-use ibc::applications::transfer::context::TokenTransferExecutionContext;
-use ibc::applications::transfer::context::TokenTransferValidationContext;
-use ibc::applications::transfer::context::{
+use ibc::apps::transfer::context::TokenTransferExecutionContext;
+use ibc::apps::transfer::context::TokenTransferValidationContext;
+use ibc::apps::transfer::module::{
     on_acknowledgement_packet_validate, on_chan_open_ack_validate, on_chan_open_confirm_validate,
     on_chan_open_init_execute, on_chan_open_init_validate, on_chan_open_try_execute,
     on_chan_open_try_validate, on_recv_packet_execute, on_timeout_packet_execute,
     on_timeout_packet_validate,
 };
-use ibc::applications::transfer::error::TokenTransferError;
-use ibc::applications::transfer::PrefixedCoin;
-use ibc::applications::transfer::VERSION;
-use ibc::core::events::IbcEvent;
-use ibc::core::ics04_channel::acknowledgement::Acknowledgement;
-use ibc::core::ics04_channel::channel::Counterparty;
-use ibc::core::ics04_channel::channel::Order;
-use ibc::core::ics04_channel::error::ChannelError;
-use ibc::core::ics04_channel::error::PacketError;
-use ibc::core::ics04_channel::packet::Packet;
-use ibc::core::ics04_channel::Version as ChannelVersion;
-use ibc::core::ics24_host::identifier::ChannelId;
-use ibc::core::ics24_host::identifier::ConnectionId;
-use ibc::core::ics24_host::identifier::PortId;
-use ibc::core::router::Module as IbcModule;
-use ibc::core::router::ModuleExtras;
-use ibc::Signer;
+use ibc::apps::transfer::types::error::TokenTransferError;
+use ibc::apps::transfer::types::{PrefixedCoin, VERSION};
+use ibc::core::channel::types::acknowledgement::Acknowledgement;
+use ibc::core::channel::types::channel::{Counterparty, Order};
+use ibc::core::channel::types::error::ChannelError;
+use ibc::core::channel::types::error::PacketError;
+use ibc::core::channel::types::packet::Packet;
+use ibc::core::channel::types::Version as ChannelVersion;
+use ibc::core::handler::types::events::IbcEvent;
+use ibc::core::host::types::identifiers::ChannelId;
+use ibc::core::host::types::identifiers::ConnectionId;
+use ibc::core::host::types::identifiers::PortId;
+use ibc::core::router::module::Module as IbcModule;
+use ibc::core::router::types::module::ModuleExtras;
+use ibc::cosmos_host::utils::cosmos_adr028_escrow_address;
+use ibc::primitives::Signer;
 
 use core::fmt::Debug;
 use cosmrs::AccountId;

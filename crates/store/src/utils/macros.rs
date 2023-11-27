@@ -1,6 +1,6 @@
 use crate::types::Path;
 
-use ibc::core::ics24_host::path::{
+use ibc::core::host::types::path::{
     AckPath, ChannelEndPath, ClientConnectionPath, ClientConsensusStatePath, ClientStatePath,
     CommitmentPath, ConnectionPath, ReceiptPath, SeqAckPath, SeqRecvPath, SeqSendPath,
     UpgradeClientPath,

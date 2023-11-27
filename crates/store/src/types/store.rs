@@ -83,7 +83,9 @@ where
 {
     #[inline]
     pub fn set_path(&mut self, path: K) -> Result<(), S::Error> {
-        self.store.set(path.into(), vec![]).map(|_| ())
+        self.store
+            .set(path.into(), NullCodec::encode(&()).unwrap())
+            .map(|_| ())
     }
 
     #[inline]

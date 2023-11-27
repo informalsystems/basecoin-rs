@@ -3,7 +3,7 @@ use displaydoc::Display;
 use ibc_proto::cosmos::gov::v1beta1::MsgSubmitProposal as RawMsgSubmitProposal;
 use ibc_proto::cosmos::gov::v1beta1::ProposalStatus;
 use ibc_proto::google::protobuf::Any;
-use ibc_proto::protobuf::Protobuf;
+use ibc_proto::Protobuf;
 
 use crate::modules::bank::util::Coin;
 use crate::types::error::Error;

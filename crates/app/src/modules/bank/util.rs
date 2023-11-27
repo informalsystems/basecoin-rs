@@ -1,7 +1,7 @@
 use crate::types::error::Error;
 
 use basecoin_store::types::Path;
-use ibc_proto::{cosmos::base::v1beta1::Coin as ProtoCoin, protobuf::Protobuf};
+use ibc_proto::{cosmos::base::v1beta1::Coin as ProtoCoin, Protobuf};
 
 use cosmrs::{AccountId, Coin as MsgCoin};
 use primitive_types::U256;

@@ -1,7 +1,7 @@
 use super::Identifier;
 use crate::avl::{AsBytes, ByteSlice};
 use displaydoc::Display as DisplayDoc;
-use ibc::core::ics24_host::path::{Path as IbcPath, PathError};
+use ibc::core::host::types::path::{Path as IbcPath, PathError};
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 use std::str::{from_utf8, Utf8Error};

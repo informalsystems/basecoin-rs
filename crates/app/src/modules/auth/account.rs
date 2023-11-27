@@ -55,7 +55,7 @@ impl Account for AuthAccount {
     }
 }
 
-impl ibc_proto::protobuf::Protobuf<BaseAccount> for AuthAccount {}
+impl ibc_proto::Protobuf<BaseAccount> for AuthAccount {}
 
 impl TryFrom<BaseAccount> for AuthAccount {
     type Error = String;

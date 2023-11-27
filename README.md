@@ -12,7 +12,16 @@ So far this app has been tested with:
 * Rust >v1.52.1
 * CometBFT v0.37
 
-## Usage
+## How to integrate ibc-rs changes into basecoin
+Since basecoin serves as a suite of integration tests against ibc-rs's functionality, each ibc-rs
+PR also requires an accompanying basecoin PR. The steps to do this are:
+1. In a new branch in basecoin, update ibc [revisions][revs] with the latest commit of the ibc-rs PR.
+2. Implement the necessary changes in basecoin in order to get it working with the latest commit revision of ibc-rs.
+3. Run `cargo clippy --all-features` and `cargo clippy --no-default-features` and fix any issues that clippy raises.
+4. Open a PR in the basecoin-rs repository, making sure to the link to the associated ibc-rs PR.
+5. Check to see if the [integration tests][integration-tests] pass.
+
+## Starting up an instance of basecoin
 ### Step 1: Reset your local CometBFT node
 ```shell
 $ cometbft init
@@ -69,3 +78,6 @@ $ cometbft node
 ![class diagram](docs/images/class-diagram.png)
 ---
 ![activity diagram - DeliverTx](docs/images/activity-diagram-deliverTx.png)
+
+[revs]: https://github.com/informalsystems/basecoin-rs/blob/9610b29067ba122808d1d14354a32e2005b54517/Cargo.toml#L15-L16
+[integration-tests]: https://github.com/informalsystems/basecoin-rs/blob/8f744c8356569d5f87a546f46d1ade247ebe5256/.github/workflows/integration.yml#L1

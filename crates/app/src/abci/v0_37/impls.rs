@@ -9,7 +9,7 @@ use basecoin_store::utils::SharedRwExt;
 use cosmrs::tx::SignerInfo;
 use cosmrs::tx::SignerPublicKey;
 use cosmrs::Tx;
-use ibc::proto::Any;
+use ibc::primitives::proto::Any;
 use prost::Message;
 use serde_json::Value;
 use std::fmt::{Debug, Write};

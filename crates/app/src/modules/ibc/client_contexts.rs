@@ -3,16 +3,17 @@ use super::impls::{AnyConsensusState, IbcContext};
 use basecoin_store::context::Store;
 use basecoin_store::types::Height;
 
-use ibc::clients::ics07_tendermint::client_state::ClientState as TmClientState;
-use ibc::clients::ics07_tendermint::consensus_state::ConsensusState as TmConsensusState;
-use ibc::clients::ics07_tendermint::{CommonContext, ValidationContext as TmValidationContext};
-use ibc::core::ics02_client::error::ClientError;
-use ibc::core::ics02_client::{ClientExecutionContext, ClientValidationContext};
-use ibc::core::ics24_host::identifier::ClientId;
-use ibc::core::ics24_host::path::{ClientConsensusStatePath, ClientStatePath, Path};
-use ibc::core::timestamp::Timestamp;
-use ibc::core::{ContextError, ValidationContext};
-use ibc::Height as IbcHeight;
+use ibc::clients::tendermint::client_state::ClientState as TmClientState;
+use ibc::clients::tendermint::consensus_state::ConsensusState as TmConsensusState;
+use ibc::clients::tendermint::context::{CommonContext, ValidationContext as TmValidationContext};
+use ibc::core::client::context::{ClientExecutionContext, ClientValidationContext};
+use ibc::core::client::types::error::ClientError;
+use ibc::core::client::types::Height as IbcHeight;
+use ibc::core::handler::types::error::ContextError;
+use ibc::core::host::types::identifiers::ClientId;
+use ibc::core::host::types::path::{ClientConsensusStatePath, ClientStatePath, Path};
+use ibc::core::host::ValidationContext;
+use ibc::primitives::Timestamp;
 
 use std::fmt::Debug;
 
@@ -125,6 +126,34 @@ where
             .insert((client_id, height), host_height);
         Ok(())
     }
+
+    /// Delete the update time associated with the client at the specified height.
+    fn delete_update_time(
+        &mut self,
+        client_id: ClientId,
+        height: IbcHeight,
+    ) -> Result<(), ContextError> {
+        self.client_processed_times.remove(&(client_id, height));
+        Ok(())
+    }
+
+    /// Delete the update height associated with the client at the specified height.
+    fn delete_update_height(
+        &mut self,
+        client_id: ClientId,
+        height: IbcHeight,
+    ) -> Result<(), ContextError> {
+        self.client_processed_heights.remove(&(client_id, height));
+        Ok(())
+    }
+
+    fn delete_consensus_state(
+        &mut self,
+        consensus_state_path: ClientConsensusStatePath,
+    ) -> Result<(), ContextError> {
+        self.consensus_state_store.delete(consensus_state_path);
+        Ok(())
+    }
 }
 
 impl<S> CommonContext for IbcContext<S>
@@ -148,6 +177,36 @@ where
     ) -> Result<Self::AnyConsensusState, ContextError> {
         ValidationContext::consensus_state(self, client_cons_state_path)
     }
+
+    fn consensus_state_heights(
+        &self,
+        client_id: &ClientId,
+    ) -> Result<Vec<IbcHeight>, ContextError> {
+        let path = format!("clients/{}/consensusStates", client_id)
+            .try_into()
+            .map_err(|_| ClientError::Other {
+                description: "Invalid consensus state path".into(),
+            })?;
+
+        self.consensus_state_store
+            .get_keys(&path)
+            .into_iter()
+            .flat_map(|path| {
+                if let Ok(Path::ClientConsensusState(consensus_path)) = path.try_into() {
+                    Some(consensus_path)
+                } else {
+                    None
+                }
+            })
+            .map(|consensus_path| {
+                let height = IbcHeight::new(
+                    consensus_path.revision_number,
+                    consensus_path.revision_height,
+                )?;
+                Ok(height)
+            })
+            .collect()
+    }
 }
 
 impl<S> TmValidationContext for IbcContext<S>
@@ -157,7 +216,7 @@ where
     fn next_consensus_state(
         &self,
         client_id: &ClientId,
-        height: &ibc::Height,
+        height: &IbcHeight,
     ) -> Result<Option<Self::AnyConsensusState>, ContextError> {
         let path = format!("clients/{client_id}/consensusStates")
             .try_into()
@@ -166,7 +225,7 @@ where
         let keys = self.store.get_keys(&path);
         let found_path = keys.into_iter().find_map(|path| {
             if let Ok(Path::ClientConsensusState(path)) = Path::try_from(path) {
-                if height > &ibc::Height::new(path.epoch, path.height).unwrap() {
+                if height > &IbcHeight::new(path.revision_number, path.revision_height).unwrap() {
                     return Some(path);
                 }
             }
@@ -191,7 +250,7 @@ where
     fn prev_consensus_state(
         &self,
         client_id: &ClientId,
-        height: &ibc::Height,
+        height: &IbcHeight,
     ) -> Result<Option<Self::AnyConsensusState>, ContextError> {
         let path = format!("clients/{client_id}/consensusStates")
             .try_into()
@@ -200,7 +259,7 @@ where
         let keys = self.store.get_keys(&path);
         let pos = keys.iter().position(|path| {
             if let Ok(Path::ClientConsensusState(path)) = Path::try_from(path.clone()) {
-                height >= &ibc::Height::new(path.epoch, path.height).unwrap()
+                height >= &IbcHeight::new(path.revision_number, path.revision_height).unwrap()
             } else {
                 false
             }
