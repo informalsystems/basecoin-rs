@@ -1,7 +1,8 @@
-pub use crate::types::error::Error as AppError;
-use ibc::core::RouterError;
+use ibc::core::handler::types::error::ContextError;
 
-pub type Error = RouterError;
+pub use crate::types::error::Error as AppError;
+
+pub type Error = ContextError;
 
 impl From<Error> for AppError {
     fn from(e: Error) -> Self {
