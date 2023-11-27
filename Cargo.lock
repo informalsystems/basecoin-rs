@@ -72,12 +72,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a4668cab20f66d8d020e1fbc0ebe47217433c1b6c8f2040faf858554e394ace6"
 
 [[package]]
-name = "arrayvec"
-version = "0.7.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "96d30a06541fbafbc7f82ed10c06164cfbd2c401138f6addd8404629c4b16711"
-
-[[package]]
 name = "async-stream"
 version = "0.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -300,18 +294,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "327762f6e5a765692301e5bb513e0d9fef63be86bbc14528052b1cd3e6f03e07"
 
 [[package]]
-name = "bitvec"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1bc2832c24239b0141d5674bb9174f9d68a8b5b3f2753311927c172ca46f7e9c"
-dependencies = [
- "funty",
- "radium",
- "tap",
- "wyz",
-]
-
-[[package]]
 name = "block-buffer"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -343,12 +325,6 @@ name = "bumpalo"
 version = "3.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f30e7476521f6f8af1a1c4c0b8cc94f0bee37d91763d0ca2665f299b6cd8aec"
-
-[[package]]
-name = "byte-slice-cast"
-version = "1.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3ac9f8b63eca6fd385229b3675f6cc0dc5c8a5c8a54a59d4f52ffd670d87b0c"
 
 [[package]]
 name = "byteorder"
@@ -746,9 +722,6 @@ version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "835c052cb0c08c1acf6ffd71c022172e18723949c8282f2b9f27efbc51e64534"
 dependencies = [
- "byteorder",
- "rand",
- "rustc-hex",
  "static_assertions",
 ]
 
@@ -776,12 +749,6 @@ checksum = "e13624c2627564efccf4934284bdd98cbaa14e79b0b5a141218e507b3a823456"
 dependencies = [
  "percent-encoding",
 ]
-
-[[package]]
-name = "funty"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e6d5a32815ae3f33302d95fdcb2ce17862f8c65363dcfd29360480ba1001fc9c"
 
 [[package]]
 name = "futures"
@@ -1067,9 +1034,8 @@ dependencies = [
 
 [[package]]
 name = "ibc"
-version = "0.48.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "41ab298c549e7753d0717e3a3126b03cc24fa4fe49e65613e776dddfcdf2c051"
+version = "0.48.1"
+source = "git+https://github.com/cosmos/ibc-rs?rev=1215cc1#1215cc1d947d69de5dc6b2dba63de28ad1470f11"
 dependencies = [
  "ibc-apps",
  "ibc-clients",
@@ -1081,9 +1047,8 @@ dependencies = [
 
 [[package]]
 name = "ibc-app-transfer"
-version = "0.48.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "162b0d3034ab807ac9002e66d3d159aaf333e22b24d3d23132a9889d50ee85a8"
+version = "0.48.1"
+source = "git+https://github.com/cosmos/ibc-rs?rev=1215cc1#1215cc1d947d69de5dc6b2dba63de28ad1470f11"
 dependencies = [
  "ibc-app-transfer-types",
  "ibc-core",
@@ -1092,9 +1057,8 @@ dependencies = [
 
 [[package]]
 name = "ibc-app-transfer-types"
-version = "0.48.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "59c553e3071b449845c9939d62dacb8fff617af9f518d4a0e1b2c7e1d63b4799"
+version = "0.48.1"
+source = "git+https://github.com/cosmos/ibc-rs?rev=1215cc1#1215cc1d947d69de5dc6b2dba63de28ad1470f11"
 dependencies = [
  "derive_more",
  "displaydoc",
@@ -1107,18 +1071,16 @@ dependencies = [
 
 [[package]]
 name = "ibc-apps"
-version = "0.48.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "56bd1e34c4b78465352a3b2fb31b39fee52a655cf72ddb2d3064e186c5c1c784"
+version = "0.48.1"
+source = "git+https://github.com/cosmos/ibc-rs?rev=1215cc1#1215cc1d947d69de5dc6b2dba63de28ad1470f11"
 dependencies = [
  "ibc-app-transfer",
 ]
 
 [[package]]
 name = "ibc-client-tendermint"
-version = "0.48.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1e5db84d883307b4b0f3eb8691c5dc22023ca1f38bbcec044e0b8d1d8771575"
+version = "0.48.1"
+source = "git+https://github.com/cosmos/ibc-rs?rev=1215cc1#1215cc1d947d69de5dc6b2dba63de28ad1470f11"
 dependencies = [
  "ibc-client-tendermint-types",
  "ibc-core-client",
@@ -1134,9 +1096,8 @@ dependencies = [
 
 [[package]]
 name = "ibc-client-tendermint-types"
-version = "0.48.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b7439de85d536f7c4fda5fad2fa647dc5365df36731a56cbabddd4fcbafd99a3"
+version = "0.48.1"
+source = "git+https://github.com/cosmos/ibc-rs?rev=1215cc1#1215cc1d947d69de5dc6b2dba63de28ad1470f11"
 dependencies = [
  "bytes",
  "displaydoc",
@@ -1154,18 +1115,16 @@ dependencies = [
 
 [[package]]
 name = "ibc-clients"
-version = "0.48.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4d7732fccd3997e8d74cc840424f4ca6c671714bbc6575597927f9f97238e5b8"
+version = "0.48.1"
+source = "git+https://github.com/cosmos/ibc-rs?rev=1215cc1#1215cc1d947d69de5dc6b2dba63de28ad1470f11"
 dependencies = [
  "ibc-client-tendermint",
 ]
 
 [[package]]
 name = "ibc-core"
-version = "0.48.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8693850a90f813c346915883b4fbb7377bcbdf8143a0a29c98444802eaf04823"
+version = "0.48.1"
+source = "git+https://github.com/cosmos/ibc-rs?rev=1215cc1#1215cc1d947d69de5dc6b2dba63de28ad1470f11"
 dependencies = [
  "ibc-core-channel",
  "ibc-core-client",
@@ -1179,9 +1138,8 @@ dependencies = [
 
 [[package]]
 name = "ibc-core-channel"
-version = "0.48.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "03a965e72216804e41fd5566da0a65227ef7db2386596d780bf79d3de3066c10"
+version = "0.48.1"
+source = "git+https://github.com/cosmos/ibc-rs?rev=1215cc1#1215cc1d947d69de5dc6b2dba63de28ad1470f11"
 dependencies = [
  "ibc-core-channel-types",
  "ibc-core-client",
@@ -1196,9 +1154,8 @@ dependencies = [
 
 [[package]]
 name = "ibc-core-channel-types"
-version = "0.48.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9eca05ff7bd71553277cdec514eb4fe53f2661a233fe257b375f5696717987e2"
+version = "0.48.1"
+source = "git+https://github.com/cosmos/ibc-rs?rev=1215cc1#1215cc1d947d69de5dc6b2dba63de28ad1470f11"
 dependencies = [
  "derive_more",
  "displaydoc",
@@ -1217,9 +1174,8 @@ dependencies = [
 
 [[package]]
 name = "ibc-core-client"
-version = "0.48.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4c5d4f8273cfbee64ed263a6decf22b847622f5e347071e8d702815efe8ce9c7"
+version = "0.48.1"
+source = "git+https://github.com/cosmos/ibc-rs?rev=1215cc1#1215cc1d947d69de5dc6b2dba63de28ad1470f11"
 dependencies = [
  "ibc-core-client-context",
  "ibc-core-client-types",
@@ -1232,9 +1188,8 @@ dependencies = [
 
 [[package]]
 name = "ibc-core-client-context"
-version = "0.48.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6bc00ad737c324667ee6db5cac8e50f905990301af1ceb09e91a8036d46604c"
+version = "0.48.1"
+source = "git+https://github.com/cosmos/ibc-rs?rev=1215cc1#1215cc1d947d69de5dc6b2dba63de28ad1470f11"
 dependencies = [
  "derive_more",
  "displaydoc",
@@ -1251,9 +1206,8 @@ dependencies = [
 
 [[package]]
 name = "ibc-core-client-types"
-version = "0.48.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "df4200665a61e661462bdc6df2f51b516a72fa9926b77c72ae30e219fe62c0a9"
+version = "0.48.1"
+source = "git+https://github.com/cosmos/ibc-rs?rev=1215cc1#1215cc1d947d69de5dc6b2dba63de28ad1470f11"
 dependencies = [
  "derive_more",
  "displaydoc",
@@ -1269,9 +1223,8 @@ dependencies = [
 
 [[package]]
 name = "ibc-core-commitment-types"
-version = "0.48.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "38b9d0a4061c78513d119be17229f282d18927af709f452bf45b009ae17f31fb"
+version = "0.48.1"
+source = "git+https://github.com/cosmos/ibc-rs?rev=1215cc1#1215cc1d947d69de5dc6b2dba63de28ad1470f11"
 dependencies = [
  "derive_more",
  "displaydoc",
@@ -1285,9 +1238,8 @@ dependencies = [
 
 [[package]]
 name = "ibc-core-connection"
-version = "0.48.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c794161826db2919571cc09fd01d7dd6c13525a2961a9782b30f9c400edfeddf"
+version = "0.48.1"
+source = "git+https://github.com/cosmos/ibc-rs?rev=1215cc1#1215cc1d947d69de5dc6b2dba63de28ad1470f11"
 dependencies = [
  "ibc-core-client",
  "ibc-core-connection-types",
@@ -1299,9 +1251,8 @@ dependencies = [
 
 [[package]]
 name = "ibc-core-connection-types"
-version = "0.48.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9144d454548d69a27fbc367a566deefa834776f4da373151fd05ffab73c5dcdf"
+version = "0.48.1"
+source = "git+https://github.com/cosmos/ibc-rs?rev=1215cc1#1215cc1d947d69de5dc6b2dba63de28ad1470f11"
 dependencies = [
  "derive_more",
  "displaydoc",
@@ -1318,9 +1269,8 @@ dependencies = [
 
 [[package]]
 name = "ibc-core-handler"
-version = "0.48.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "475613783e56f479b9f538eb819658026e2bff4a5e9b2e9153d3a74653158135"
+version = "0.48.1"
+source = "git+https://github.com/cosmos/ibc-rs?rev=1215cc1#1215cc1d947d69de5dc6b2dba63de28ad1470f11"
 dependencies = [
  "ibc-core-channel",
  "ibc-core-client",
@@ -1334,9 +1284,8 @@ dependencies = [
 
 [[package]]
 name = "ibc-core-handler-types"
-version = "0.48.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e1d6f7765092e964b86d42d62577ab4c787f780b90ca0fd4155ff625b690e758"
+version = "0.48.1"
+source = "git+https://github.com/cosmos/ibc-rs?rev=1215cc1#1215cc1d947d69de5dc6b2dba63de28ad1470f11"
 dependencies = [
  "derive_more",
  "displaydoc",
@@ -1356,9 +1305,8 @@ dependencies = [
 
 [[package]]
 name = "ibc-core-host"
-version = "0.48.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6f252181fce4168aea203306834f9b980a0a851f35d38924a602ee4bc41b537b"
+version = "0.48.1"
+source = "git+https://github.com/cosmos/ibc-rs?rev=1215cc1#1215cc1d947d69de5dc6b2dba63de28ad1470f11"
 dependencies = [
  "derive_more",
  "displaydoc",
@@ -1376,9 +1324,8 @@ dependencies = [
 
 [[package]]
 name = "ibc-core-host-cosmos"
-version = "0.48.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "331bbd587252ee66e3e2b2374ce0de49c770368aadd17ec294dbe48693201035"
+version = "0.48.1"
+source = "git+https://github.com/cosmos/ibc-rs?rev=1215cc1#1215cc1d947d69de5dc6b2dba63de28ad1470f11"
 dependencies = [
  "derive_more",
  "displaydoc",
@@ -1401,9 +1348,8 @@ dependencies = [
 
 [[package]]
 name = "ibc-core-host-types"
-version = "0.48.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6fd5c93e73d803782703d8df8a396dce47417cdfa48343cc6a7478ac44a4bf14"
+version = "0.48.1"
+source = "git+https://github.com/cosmos/ibc-rs?rev=1215cc1#1215cc1d947d69de5dc6b2dba63de28ad1470f11"
 dependencies = [
  "derive_more",
  "displaydoc",
@@ -1413,9 +1359,8 @@ dependencies = [
 
 [[package]]
 name = "ibc-core-router"
-version = "0.48.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ad1a17624b6b1b9d32414134238824ae51b18b48c897aa28d803774f2660a836"
+version = "0.48.1"
+source = "git+https://github.com/cosmos/ibc-rs?rev=1215cc1#1215cc1d947d69de5dc6b2dba63de28ad1470f11"
 dependencies = [
  "derive_more",
  "displaydoc",
@@ -1429,9 +1374,8 @@ dependencies = [
 
 [[package]]
 name = "ibc-core-router-types"
-version = "0.48.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7c53a524536c613aca984279fc5509feb869755ef4a26d162d766644d4fbd476"
+version = "0.48.1"
+source = "git+https://github.com/cosmos/ibc-rs?rev=1215cc1#1215cc1d947d69de5dc6b2dba63de28ad1470f11"
 dependencies = [
  "derive_more",
  "displaydoc",
@@ -1448,8 +1392,7 @@ dependencies = [
 [[package]]
 name = "ibc-derive"
 version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "df07bf5bc1e65e291506b7497633e07967e49b36a8db10cda77a8fd686eb4548"
+source = "git+https://github.com/cosmos/ibc-rs?rev=1215cc1#1215cc1d947d69de5dc6b2dba63de28ad1470f11"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -1459,9 +1402,8 @@ dependencies = [
 
 [[package]]
 name = "ibc-primitives"
-version = "0.48.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb71fbcf4de3e5a3948834ee38c824830b97a08e8c3953d1213bbb3b4ea91a42"
+version = "0.48.1"
+source = "git+https://github.com/cosmos/ibc-rs?rev=1215cc1#1215cc1d947d69de5dc6b2dba63de28ad1470f11"
 dependencies = [
  "derive_more",
  "displaydoc",
@@ -1491,9 +1433,8 @@ dependencies = [
 
 [[package]]
 name = "ibc-query"
-version = "0.48.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "35cad3d9007c450f808d001b4d1e04bfb72d96fe1b16151d4dc60e8eef4b6550"
+version = "0.48.1"
+source = "git+https://github.com/cosmos/ibc-rs?rev=1215cc1#1215cc1d947d69de5dc6b2dba63de28ad1470f11"
 dependencies = [
  "displaydoc",
  "ibc",
@@ -1535,32 +1476,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "impl-codec"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba6a270039626615617f3f36d15fc827041df3b78c439da2cadfa47455a77f2f"
-dependencies = [
- "parity-scale-codec",
-]
-
-[[package]]
 name = "impl-serde"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ebc88fc67028ae3db0c853baa36269d398d5f45b6982f95549ff5def78c935cd"
 dependencies = [
  "serde",
-]
-
-[[package]]
-name = "impl-trait-for-tuples"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "11d7a9f6330b71fea57921c9b61c47ee6e84f72d394754eff6163ae67e7395eb"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
 ]
 
 [[package]]
@@ -1803,32 +1724,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
 
 [[package]]
-name = "parity-scale-codec"
-version = "3.6.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0dec8a8073036902368c2cdc0387e85ff9a37054d7e7c98e592145e0c92cd4fb"
-dependencies = [
- "arrayvec",
- "bitvec",
- "byte-slice-cast",
- "impl-trait-for-tuples",
- "parity-scale-codec-derive",
- "serde",
-]
-
-[[package]]
-name = "parity-scale-codec-derive"
-version = "3.6.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "312270ee71e1cd70289dacf597cab7b207aa107d2f28191c2ae45b2ece18a260"
-dependencies = [
- "proc-macro-crate",
- "proc-macro2",
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
 name = "parking_lot"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1951,19 +1846,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b34d9fd68ae0b74a41b21c03c2f62847aa0ffea044eee893b4c140b37e244e2"
 dependencies = [
  "fixed-hash",
- "impl-codec",
  "impl-serde",
  "uint",
-]
-
-[[package]]
-name = "proc-macro-crate"
-version = "1.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f4c021e1093a56626774e81216a4ce732a735e5bad4868a03f3ed65ca0c3919"
-dependencies = [
- "once_cell",
- "toml_edit 0.19.15",
 ]
 
 [[package]]
@@ -2041,12 +1925,6 @@ checksum = "5267fca4496028628a95160fc423a33e8b2e6af8a5302579e322e4b520293cae"
 dependencies = [
  "proc-macro2",
 ]
-
-[[package]]
-name = "radium"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc33ff2d4973d518d823d61aa239014831e521c75da58e3df4840d3f47749d09"
 
 [[package]]
 name = "rand"
@@ -2180,12 +2058,6 @@ name = "rustc-demangle"
 version = "0.1.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d626bb9dae77e28219937af045c257c28bfd3f69333c512553507f5f9798cb76"
-
-[[package]]
-name = "rustc-hex"
-version = "2.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3e75f6a532d0fd9f7f13144f392b6ad56a32696bfcd9c78f797f16bbb6f072d6"
 
 [[package]]
 name = "rustix"
@@ -2621,12 +2493,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tap"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
-
-[[package]]
 name = "tempfile"
 version = "3.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2950,7 +2816,7 @@ dependencies = [
  "serde",
  "serde_spanned",
  "toml_datetime",
- "toml_edit 0.21.0",
+ "toml_edit",
 ]
 
 [[package]]
@@ -2960,17 +2826,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3550f4e9685620ac18a50ed434eb3aec30db8ba93b0287467bca5826ea25baf1"
 dependencies = [
  "serde",
-]
-
-[[package]]
-name = "toml_edit"
-version = "0.19.15"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1b5bb770da30e5cbfde35a2d7b9b8a2c4b8ef89548a7a6aeab5c9a576e3e7421"
-dependencies = [
- "indexmap 2.1.0",
- "toml_datetime",
- "winnow",
 ]
 
 [[package]]
@@ -3452,15 +3307,6 @@ checksum = "524e57b2c537c0f9b1e69f1965311ec12182b4122e45035b1508cd24d2adadb1"
 dependencies = [
  "cfg-if",
  "windows-sys",
-]
-
-[[package]]
-name = "wyz"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "05f360fc0b24296329c78fda852a1e9ae82de9cf7b27dae4b7f62f118f77b9ed"
-dependencies = [
- "tap",
 ]
 
 [[package]]
