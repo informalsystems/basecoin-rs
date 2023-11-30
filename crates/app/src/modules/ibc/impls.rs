@@ -8,7 +8,6 @@ use crate::{
     },
     types::{error::Error as AppError, QueryResult},
 };
-use basecoin_store::types::Identifier;
 use basecoin_store::{
     context::{ProvableStore, Store},
     impls::SharedStore,
@@ -195,14 +194,6 @@ where
             }
         }
         None
-    }
-}
-
-impl<S: ProvableStore + Debug> Identifiable for Ibc<S> {
-    type Identifier = Identifier;
-
-    fn identifier(&self) -> Self::Identifier {
-        "ibc".to_owned().try_into().unwrap()
     }
 }
 
