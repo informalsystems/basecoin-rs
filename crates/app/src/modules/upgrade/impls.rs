@@ -30,7 +30,7 @@ use super::path::UpgradePlanPath;
 use super::query::UPGRADE_PLAN_QUERY_PATH;
 use super::service::UpgradeService;
 use crate::modules::context::Module;
-use crate::modules::ibc::impls::{AnyConsensusState, IbcContext};
+use crate::modules::ibc::{AnyConsensusState, IbcContext};
 use crate::types::error::Error as AppError;
 use crate::types::query::QueryResult;
 
@@ -70,6 +70,14 @@ where
         QueryServer::new(UpgradeService::new(self.store.clone()))
     }
 }
+
+// impl<S: ProvableStore + Debug> Identifiable for Upgrade<S> {
+//     type Identifier = Identifier;
+
+//     fn identifier(&self) -> Self::Identifier {
+//         "upgrade".to_owned().try_into().unwrap()
+//     }
+// }
 
 impl<S> Module for Upgrade<S>
 where

@@ -2,7 +2,7 @@ use crate::modules::auth::account::AccountsPath;
 use crate::modules::auth::account::AuthAccount;
 use crate::modules::auth::context::{Account, AccountKeeper, AccountReader};
 use crate::modules::auth::service::AuthService;
-use crate::modules::bank::util::Denom;
+use crate::modules::bank::Denom;
 use crate::{modules::context::Module, types::error::Error as AppError};
 
 use basecoin_store::context::{ProvableStore, Store};

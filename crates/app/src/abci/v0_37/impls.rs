@@ -49,7 +49,7 @@ use tendermint_proto::v0_37::abci::ResponseQuery;
 use tendermint::merkle::proof::ProofOp;
 use tendermint::merkle::proof::ProofOps;
 
-use crate::modules::auth::account::ACCOUNT_PREFIX;
+use crate::modules::auth::ACCOUNT_PREFIX;
 use crate::modules::types::IdentifiedModule;
 use crate::utils::macros::ResponseFromErrorExt;
 

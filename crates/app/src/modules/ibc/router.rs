@@ -1,4 +1,4 @@
-use crate::modules::bank::impls::BankBalanceKeeper;
+use crate::modules::bank::BankBalanceKeeper;
 use crate::modules::ibc::transfer::IbcTransferModule;
 
 use basecoin_store::context::Store;

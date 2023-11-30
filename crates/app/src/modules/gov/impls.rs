@@ -1,15 +1,15 @@
 use super::path::ProposalPath;
 use super::proposal::Proposal;
 use super::service::GovernanceService;
-use crate::modules::context::Module;
+use crate::modules::context::{Identifiable, Module};
 use crate::modules::gov::msg::MsgSubmitProposal;
 use crate::modules::upgrade::Upgrade;
 use crate::types::error::Error as AppError;
 use crate::types::QueryResult;
 
-use basecoin_store::context::Store;
+use basecoin_store::context::{ProvableStore, Store};
 use basecoin_store::impls::SharedStore;
-use basecoin_store::types::{Height, Path, ProtobufStore, TypedStore};
+use basecoin_store::types::{Height, Identifier, Path, ProtobufStore, TypedStore};
 use basecoin_store::utils::{SharedRw, SharedRwExt};
 
 use ibc::cosmos_host::upgrade_proposal::upgrade_client_proposal_handler;
@@ -55,6 +55,14 @@ where
 
     pub fn service(&self) -> QueryServer<GovernanceService<S>> {
         QueryServer::new(GovernanceService(PhantomData))
+    }
+}
+
+impl<S: ProvableStore + Debug> Identifiable for Upgrade<S> {
+    type Identifier = Identifier;
+
+    fn identifier(&self) -> Self::Identifier {
+        "upgrade".to_owned().try_into().unwrap()
     }
 }
 

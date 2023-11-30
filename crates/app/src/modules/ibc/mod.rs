@@ -1,10 +1,11 @@
-pub mod client_contexts;
-pub mod error;
-pub mod impls;
+mod client_contexts;
+mod error;
+mod impls;
 mod router;
-pub mod transfer;
+mod transfer;
 
-pub use impls::AnyConsensusState;
-pub use impls::Ibc;
-pub use impls::IbcContext;
-pub use transfer::IbcTransferModule;
+pub use client_contexts::*;
+pub use error::*;
+pub use impls::*;
+pub use router::*;
+pub use transfer::*;

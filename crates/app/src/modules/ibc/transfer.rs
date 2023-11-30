@@ -1,6 +1,6 @@
-use crate::modules::auth::account::ACCOUNT_PREFIX;
-use crate::modules::bank::context::BankKeeper;
-use crate::modules::bank::util::{Coin, Denom};
+use crate::modules::auth::ACCOUNT_PREFIX;
+use crate::modules::bank::BankKeeper;
+use crate::modules::bank::{Coin, Denom};
 
 use ibc::apps::transfer::context::TokenTransferExecutionContext;
 use ibc::apps::transfer::context::TokenTransferValidationContext;
