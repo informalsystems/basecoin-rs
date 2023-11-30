@@ -1,7 +1,10 @@
+use crate::modules::auth::AuthAccountKeeper;
+use crate::modules::auth::AuthAccountReader;
+use crate::modules::bank::Bank;
 use crate::modules::context::prefix;
 use crate::modules::context::Identifiable;
 use crate::modules::context::Module;
-use crate::modules::ibc::impls::Ibc;
+use crate::modules::ibc::Ibc;
 use crate::modules::types::IdentifiedModule;
 use crate::modules::types::ModuleList;
 use crate::modules::types::ModuleStore;
@@ -119,19 +122,41 @@ impl<S: Default + Debug + ProvableStore> BaseCoinApp<S> {
     pub fn ibc(&self) -> Ibc<RevertibleStore<S>> {
         let modules = self.modules.read_access();
 
-        let ibc_module = modules
+        modules
             .iter()
             .find(|m| m.id == prefix::Ibc {}.identifier())
             .and_then(|m| {
-                let a = m
-                    .module
+                m.module
                     .as_any()
                     .downcast_ref::<Ibc<RevertibleStore<S>>>()
-                    .cloned();
-                a
+                    .cloned()
             })
-            .expect("IBC module not found");
+            .expect("IBC module not found")
+    }
 
-        ibc_module
+    /// Gives access to the Bank module.
+    pub fn bank(
+        &self,
+    ) -> Bank<
+        RevertibleStore<S>,
+        AuthAccountReader<RevertibleStore<S>>,
+        AuthAccountKeeper<RevertibleStore<S>>,
+    > {
+        let modules = self.modules.read_access();
+
+        modules
+            .iter()
+            .find(|m| m.id == prefix::Bank {}.identifier())
+            .and_then(|m| {
+                m.module
+                    .as_any()
+                    .downcast_ref::<Bank<
+                        RevertibleStore<S>,
+                        AuthAccountReader<RevertibleStore<S>>,
+                        AuthAccountKeeper<RevertibleStore<S>>,
+                    >>()
+                    .cloned()
+            })
+            .expect("Bank module not found")
     }
 }

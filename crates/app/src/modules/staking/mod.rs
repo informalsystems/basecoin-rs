@@ -1,4 +1,10 @@
-pub(crate) mod impls;
-pub(crate) mod service;
+mod impls;
+mod service;
 
-pub use impls::Staking;
+pub use impls::*;
+pub use service::*;
+
+/// Re-exports `staking` module proto types for convenience.
+pub mod proto {
+    pub use ibc_proto::cosmos::staking::*;
+}

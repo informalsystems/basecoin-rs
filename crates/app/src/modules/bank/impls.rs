@@ -2,8 +2,9 @@ use super::context::{BankKeeper, BankReader};
 use super::error::Error;
 use super::service::BankService;
 use super::util::{Balances, BalancesPath, Coin, Denom};
-use crate::modules::auth::account::{AuthAccount, ACCOUNT_PREFIX};
-use crate::modules::auth::context::{AccountKeeper, AccountReader};
+use crate::modules::auth::AccountKeeper;
+use crate::modules::auth::AccountReader;
+use crate::modules::auth::{AuthAccount, ACCOUNT_PREFIX};
 use crate::modules::context::Module;
 use crate::types::error::Error as AppError;
 use crate::types::QueryResult;
@@ -11,7 +12,7 @@ use crate::types::QueryResult;
 use basecoin_store::context::{ProvableStore, Store};
 use basecoin_store::impls::SharedStore;
 use basecoin_store::types::{Height, JsonStore, Path, TypedStore};
-use basecoin_store::utils::{Codec, JsonCodec};
+use basecoin_store::utils::{Async, Codec, JsonCodec};
 
 use cosmrs::{bank::MsgSend, proto, AccountId};
 use ibc_proto::{cosmos::bank::v1beta1::query_server::QueryServer, google::protobuf::Any};
@@ -199,7 +200,12 @@ pub struct Bank<S, AR, AK> {
     account_keeper: AK,
 }
 
-impl<S: ProvableStore + Default, AR: AccountReader, AK: AccountKeeper> Bank<S, AR, AK> {
+impl<S, AR, AK> Bank<S, AR, AK>
+where
+    S: ProvableStore + Default,
+    AR: AccountReader,
+    AK: AccountKeeper,
+{
     pub fn new(store: SharedStore<S>, account_reader: AR, account_keeper: AK) -> Self {
         Self {
             store: store.clone(),
@@ -220,12 +226,21 @@ impl<S: ProvableStore + Default, AR: AccountReader, AK: AccountKeeper> Bank<S, A
         })
     }
 
+    pub fn balance_reader(&self) -> &BankBalanceReader<S> {
+        &self.balance_reader
+    }
+
     pub fn bank_keeper(&self) -> &BankBalanceKeeper<S> {
         &self.balance_keeper
     }
 }
 
-impl<S: Store, AR: AccountReader, AK: AccountKeeper> Bank<S, AR, AK> {
+impl<S, AR, AK> Bank<S, AR, AK>
+where
+    S: ProvableStore,
+    AR: AccountReader,
+    AK: AccountKeeper,
+{
     fn decode<T: Message + Default>(message: Any) -> Result<T, AppError> {
         if message.type_url != "/cosmos.bank.v1beta1.MsgSend" {
             return Err(AppError::NotHandled);
@@ -234,12 +249,11 @@ impl<S: Store, AR: AccountReader, AK: AccountKeeper> Bank<S, AR, AK> {
     }
 }
 
-impl<
-        S: ProvableStore,
-        AR: AccountReader + Send + Sync + 'static,
-        AK: AccountKeeper + Send + Sync + 'static,
-    > Module for Bank<S, AR, AK>
+impl<S, AR, AK> Module for Bank<S, AR, AK>
 where
+    S: ProvableStore,
+    AR: AccountReader + Async,
+    AK: AccountKeeper + Async,
     <AR as AccountReader>::Address: From<AccountId>,
     <AK as AccountKeeper>::Account: From<AuthAccount>,
 {

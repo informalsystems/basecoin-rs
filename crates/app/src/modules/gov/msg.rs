@@ -5,7 +5,7 @@ use ibc_proto::cosmos::gov::v1beta1::ProposalStatus;
 use ibc_proto::google::protobuf::Any;
 use ibc_proto::Protobuf;
 
-use crate::modules::bank::util::Coin;
+use crate::modules::bank::Coin;
 use crate::types::error::Error;
 
 use super::proposal::Proposal;
