@@ -31,7 +31,6 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
         AvlTree { root: None }
     }
 
-    #[allow(dead_code)]
     /// Return the hash of the merkle tree root, if it has at least one node.
     pub fn root_hash(&self) -> Option<&Hash> {
         Some(&self.root.as_ref()?.merkle_hash)
@@ -77,7 +76,6 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
         }
     }
 
-    #[allow(dead_code)]
     /// Return an existence proof for the given element, if it exists.
     pub fn get_proof<Q: ?Sized>(&self, key: &Q) -> Option<CommitmentProof>
     where
@@ -197,7 +195,6 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
         std::mem::swap(root, &mut Some(right))
     }
 
-    #[allow(dead_code)]
     /// Return a list of the keys present in the tree.
     pub fn get_keys(&self) -> Vec<&K> {
         let mut keys = Vec::new();
@@ -205,7 +202,6 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
         keys
     }
 
-    #[allow(dead_code)]
     fn get_keys_rec<'a>(node_ref: &'a NodeRef<K, V>, keys: &mut Vec<&'a K>) {
         if let Some(node) = node_ref {
             Self::get_keys_rec(&node.left, keys);
