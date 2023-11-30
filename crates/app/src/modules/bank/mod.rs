@@ -1,7 +1,17 @@
-pub(crate) mod context;
-pub(crate) mod error;
-pub(crate) mod impls;
-pub(crate) mod service;
-pub(crate) mod util;
+mod context;
+mod error;
+mod impls;
+mod service;
+mod util;
 
-pub use impls::Bank;
+pub use context::*;
+pub use error::*;
+pub use impls::*;
+pub use service::*;
+pub use util::*;
+
+/// Re-exports `bank` module proto types for convenience.
+pub mod proto {
+    pub use cosmrs::Coin;
+    pub use ibc_proto::cosmos::bank::*;
+}

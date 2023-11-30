@@ -1,6 +1,6 @@
-use crate::modules::bank::error::Error as BankError;
-use crate::modules::gov::error::Error as GovError;
-use crate::modules::ibc::error::Error as IbcError;
+use crate::modules::bank::Error as BankError;
+use crate::modules::gov::Error as GovError;
+use crate::modules::ibc::Error as IbcError;
 use displaydoc::Display;
 
 #[derive(Debug, Display)]

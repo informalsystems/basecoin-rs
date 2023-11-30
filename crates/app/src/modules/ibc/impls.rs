@@ -1,7 +1,7 @@
 use crate::CHAIN_REVISION_NUMBER;
 use crate::{
     modules::{
-        bank::impls::BankBalanceKeeper,
+        bank::BankBalanceKeeper,
         context::{Identifiable, Module},
         ibc::{router::IbcRouter, transfer::IbcTransferModule},
         upgrade::Upgrade,

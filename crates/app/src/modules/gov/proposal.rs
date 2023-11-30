@@ -7,7 +7,7 @@ use ibc_proto::google::protobuf::{Any, Timestamp};
 use ibc_proto::Protobuf;
 
 use super::error::Error;
-use crate::modules::bank::util::Coin;
+use crate::modules::bank::Coin;
 
 pub(crate) const TYPE_URL: &str = "/cosmos.gov.v1beta1.Proposal";
 

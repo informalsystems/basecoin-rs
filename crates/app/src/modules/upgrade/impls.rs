@@ -30,7 +30,7 @@ use super::path::UpgradePlanPath;
 use super::query::UPGRADE_PLAN_QUERY_PATH;
 use super::service::UpgradeService;
 use crate::modules::context::Module;
-use crate::modules::ibc::impls::{AnyConsensusState, IbcContext};
+use crate::modules::ibc::{AnyConsensusState, IbcContext};
 use crate::types::error::Error as AppError;
 use crate::types::query::QueryResult;
 
