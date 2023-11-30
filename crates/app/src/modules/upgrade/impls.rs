@@ -71,14 +71,6 @@ where
     }
 }
 
-// impl<S: ProvableStore + Debug> Identifiable for Upgrade<S> {
-//     type Identifier = Identifier;
-
-//     fn identifier(&self) -> Self::Identifier {
-//         "upgrade".to_owned().try_into().unwrap()
-//     }
-// }
-
 impl<S> Module for Upgrade<S>
 where
     S: ProvableStore + Debug,
