@@ -205,7 +205,7 @@ dependencies = [
  "derive_more",
  "displaydoc",
  "ibc",
- "ibc-proto 0.38.0",
+ "ibc-proto",
  "ibc-query",
  "ics23",
  "primitive-types",
@@ -1063,7 +1063,7 @@ dependencies = [
  "derive_more",
  "displaydoc",
  "ibc-core",
- "ibc-proto 0.39.1",
+ "ibc-proto",
  "primitive-types",
  "serde",
  "uint",
@@ -1104,7 +1104,7 @@ dependencies = [
  "ibc-core-commitment-types",
  "ibc-core-host-types",
  "ibc-primitives",
- "ibc-proto 0.39.1",
+ "ibc-proto",
  "prost",
  "serde",
  "tendermint",
@@ -1162,7 +1162,7 @@ dependencies = [
  "ibc-core-connection-types",
  "ibc-core-host-types",
  "ibc-primitives",
- "ibc-proto 0.39.1",
+ "ibc-proto",
  "prost",
  "serde",
  "sha2 0.10.8",
@@ -1210,7 +1210,7 @@ dependencies = [
  "ibc-core-commitment-types",
  "ibc-core-host-types",
  "ibc-primitives",
- "ibc-proto 0.39.1",
+ "ibc-proto",
  "prost",
  "serde",
  "subtle-encoding",
@@ -1225,7 +1225,7 @@ dependencies = [
  "derive_more",
  "displaydoc",
  "ibc-primitives",
- "ibc-proto 0.39.1",
+ "ibc-proto",
  "ics23",
  "prost",
  "serde",
@@ -1255,7 +1255,7 @@ dependencies = [
  "ibc-core-commitment-types",
  "ibc-core-host-types",
  "ibc-primitives",
- "ibc-proto 0.39.1",
+ "ibc-proto",
  "prost",
  "serde",
  "subtle-encoding",
@@ -1291,7 +1291,7 @@ dependencies = [
  "ibc-core-host-types",
  "ibc-core-router-types",
  "ibc-primitives",
- "ibc-proto 0.39.1",
+ "ibc-proto",
  "prost",
  "serde",
  "subtle-encoding",
@@ -1332,7 +1332,7 @@ dependencies = [
  "ibc-core-handler-types",
  "ibc-core-host-types",
  "ibc-primitives",
- "ibc-proto 0.39.1",
+ "ibc-proto",
  "serde",
  "sha2 0.10.8",
  "subtle-encoding",
@@ -1373,7 +1373,7 @@ dependencies = [
  "displaydoc",
  "ibc-core-host-types",
  "ibc-primitives",
- "ibc-proto 0.39.1",
+ "ibc-proto",
  "ics23",
  "prost",
  "serde",
@@ -1399,28 +1399,11 @@ source = "git+https://github.com/cosmos/ibc-rs?rev=f172a56#f172a56ff4cb42344220d
 dependencies = [
  "derive_more",
  "displaydoc",
- "ibc-proto 0.39.1",
+ "ibc-proto",
  "prost",
  "serde",
  "tendermint",
  "time",
-]
-
-[[package]]
-name = "ibc-proto"
-version = "0.38.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "93cbf4cbe9e5113cc7c70f3208a7029b2205c629502cbb2ae7ea0a09a97d3005"
-dependencies = [
- "base64 0.21.5",
- "bytes",
- "flex-error",
- "ics23",
- "prost",
- "serde",
- "subtle-encoding",
- "tendermint-proto",
- "tonic",
 ]
 
 [[package]]
@@ -1447,7 +1430,7 @@ source = "git+https://github.com/cosmos/ibc-rs?rev=f172a56#f172a56ff4cb42344220d
 dependencies = [
  "displaydoc",
  "ibc",
- "ibc-proto 0.39.1",
+ "ibc-proto",
  "tonic",
 ]
 
