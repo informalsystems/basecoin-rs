@@ -205,7 +205,7 @@ dependencies = [
  "derive_more",
  "displaydoc",
  "ibc",
- "ibc-proto",
+ "ibc-proto 0.38.0",
  "ibc-query",
  "ics23",
  "primitive-types",
@@ -1035,8 +1035,7 @@ dependencies = [
 [[package]]
 name = "ibc"
 version = "0.48.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "429b6aca6624a9364878e28c90311438c2621a8270942d80732b2651ac38ac74"
+source = "git+https://github.com/cosmos/ibc-rs?rev=f172a56#f172a56ff4cb42344220dafe5f4c1b88bb955a65"
 dependencies = [
  "ibc-apps",
  "ibc-clients",
@@ -1049,8 +1048,7 @@ dependencies = [
 [[package]]
 name = "ibc-app-transfer"
 version = "0.48.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b177b343385d9654d99be4709b5ed1574d41f91dfa4044b2d26d688be4179d7c"
+source = "git+https://github.com/cosmos/ibc-rs?rev=f172a56#f172a56ff4cb42344220dafe5f4c1b88bb955a65"
 dependencies = [
  "ibc-app-transfer-types",
  "ibc-core",
@@ -1060,13 +1058,12 @@ dependencies = [
 [[package]]
 name = "ibc-app-transfer-types"
 version = "0.48.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "95f92a3eda225e5c86e7bb6501c95986583ac541c4369d3c528349d81390f947"
+source = "git+https://github.com/cosmos/ibc-rs?rev=f172a56#f172a56ff4cb42344220dafe5f4c1b88bb955a65"
 dependencies = [
  "derive_more",
  "displaydoc",
  "ibc-core",
- "ibc-proto",
+ "ibc-proto 0.39.1",
  "primitive-types",
  "serde",
  "uint",
@@ -1075,8 +1072,7 @@ dependencies = [
 [[package]]
 name = "ibc-apps"
 version = "0.48.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f4be40d55ed2dea9f2d05b902a3586f20850c723e4bdbfc4fb0ebe7a66ca5e40"
+source = "git+https://github.com/cosmos/ibc-rs?rev=f172a56#f172a56ff4cb42344220dafe5f4c1b88bb955a65"
 dependencies = [
  "ibc-app-transfer",
 ]
@@ -1084,8 +1080,7 @@ dependencies = [
 [[package]]
 name = "ibc-client-tendermint"
 version = "0.48.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "119aa5873214228bf69bded3f20022b9ae1bc35b6841d295afcd73e53db05ccf"
+source = "git+https://github.com/cosmos/ibc-rs?rev=f172a56#f172a56ff4cb42344220dafe5f4c1b88bb955a65"
 dependencies = [
  "ibc-client-tendermint-types",
  "ibc-core-client",
@@ -1093,7 +1088,6 @@ dependencies = [
  "ibc-core-handler-types",
  "ibc-core-host",
  "ibc-primitives",
- "prost",
  "serde",
  "tendermint",
  "tendermint-light-client-verifier",
@@ -1102,8 +1096,7 @@ dependencies = [
 [[package]]
 name = "ibc-client-tendermint-types"
 version = "0.48.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6f21679016931b332b295a761e65cc122dc6fbfb98444148b681ad3aaa474665"
+source = "git+https://github.com/cosmos/ibc-rs?rev=f172a56#f172a56ff4cb42344220dafe5f4c1b88bb955a65"
 dependencies = [
  "bytes",
  "displaydoc",
@@ -1111,7 +1104,7 @@ dependencies = [
  "ibc-core-commitment-types",
  "ibc-core-host-types",
  "ibc-primitives",
- "ibc-proto",
+ "ibc-proto 0.39.1",
  "prost",
  "serde",
  "tendermint",
@@ -1122,8 +1115,7 @@ dependencies = [
 [[package]]
 name = "ibc-clients"
 version = "0.48.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "685c660323e93107a136aa3dbc412b7fa2eafd315c2fe71184096a43800f8ca5"
+source = "git+https://github.com/cosmos/ibc-rs?rev=f172a56#f172a56ff4cb42344220dafe5f4c1b88bb955a65"
 dependencies = [
  "ibc-client-tendermint",
 ]
@@ -1131,8 +1123,7 @@ dependencies = [
 [[package]]
 name = "ibc-core"
 version = "0.48.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "100d9d0aa67432c5078a8a1c818e3fc990a193be6d35ed0abeda5b340d16c1da"
+source = "git+https://github.com/cosmos/ibc-rs?rev=f172a56#f172a56ff4cb42344220dafe5f4c1b88bb955a65"
 dependencies = [
  "ibc-core-channel",
  "ibc-core-client",
@@ -1147,8 +1138,7 @@ dependencies = [
 [[package]]
 name = "ibc-core-channel"
 version = "0.48.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ebaa37629ac029f914dfe552ab5dad01ddb240ec885ed0ae68221cbea4e9bfc"
+source = "git+https://github.com/cosmos/ibc-rs?rev=f172a56#f172a56ff4cb42344220dafe5f4c1b88bb955a65"
 dependencies = [
  "ibc-core-channel-types",
  "ibc-core-client",
@@ -1158,14 +1148,12 @@ dependencies = [
  "ibc-core-host",
  "ibc-core-router",
  "ibc-primitives",
- "prost",
 ]
 
 [[package]]
 name = "ibc-core-channel-types"
 version = "0.48.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aa2ba72c56c411b1e0ce6dc3f5e1fa1de9e6c84891f425b7be8a9e1705964378"
+source = "git+https://github.com/cosmos/ibc-rs?rev=f172a56#f172a56ff4cb42344220dafe5f4c1b88bb955a65"
 dependencies = [
  "derive_more",
  "displaydoc",
@@ -1174,7 +1162,7 @@ dependencies = [
  "ibc-core-connection-types",
  "ibc-core-host-types",
  "ibc-primitives",
- "ibc-proto",
+ "ibc-proto 0.39.1",
  "prost",
  "serde",
  "sha2 0.10.8",
@@ -1185,8 +1173,7 @@ dependencies = [
 [[package]]
 name = "ibc-core-client"
 version = "0.48.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "06c4fac8e05201795073dee8c93d5afe9dfeac9aec2412b4a2b0c5f0d1e1d725"
+source = "git+https://github.com/cosmos/ibc-rs?rev=f172a56#f172a56ff4cb42344220dafe5f4c1b88bb955a65"
 dependencies = [
  "ibc-core-client-context",
  "ibc-core-client-types",
@@ -1194,14 +1181,12 @@ dependencies = [
  "ibc-core-handler-types",
  "ibc-core-host",
  "ibc-primitives",
- "prost",
 ]
 
 [[package]]
 name = "ibc-core-client-context"
 version = "0.48.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6b82abd9489021730d59ab2d00e9438d3711e8e78ecba4d083b64f833301682b"
+source = "git+https://github.com/cosmos/ibc-rs?rev=f172a56#f172a56ff4cb42344220dafe5f4c1b88bb955a65"
 dependencies = [
  "derive_more",
  "displaydoc",
@@ -1211,7 +1196,6 @@ dependencies = [
  "ibc-core-host-types",
  "ibc-derive",
  "ibc-primitives",
- "prost",
  "subtle-encoding",
  "tendermint",
 ]
@@ -1219,15 +1203,14 @@ dependencies = [
 [[package]]
 name = "ibc-core-client-types"
 version = "0.48.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bafdbf6db5dab4c8ad610b6940e23b4f8abd0a6ac5e8e2801415a95defd4a583"
+source = "git+https://github.com/cosmos/ibc-rs?rev=f172a56#f172a56ff4cb42344220dafe5f4c1b88bb955a65"
 dependencies = [
  "derive_more",
  "displaydoc",
  "ibc-core-commitment-types",
  "ibc-core-host-types",
  "ibc-primitives",
- "ibc-proto",
+ "ibc-proto 0.39.1",
  "prost",
  "serde",
  "subtle-encoding",
@@ -1237,13 +1220,12 @@ dependencies = [
 [[package]]
 name = "ibc-core-commitment-types"
 version = "0.48.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ed4256b0216fc49024bac7e01c61b9bb055e31914ffe9ce6f468d7ce496a9357"
+source = "git+https://github.com/cosmos/ibc-rs?rev=f172a56#f172a56ff4cb42344220dafe5f4c1b88bb955a65"
 dependencies = [
  "derive_more",
  "displaydoc",
  "ibc-primitives",
- "ibc-proto",
+ "ibc-proto 0.39.1",
  "ics23",
  "prost",
  "serde",
@@ -1253,22 +1235,19 @@ dependencies = [
 [[package]]
 name = "ibc-core-connection"
 version = "0.48.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "48e237b70b9ba0177a4e59ac9048fffac2ac44c334703cc0ae403ad221450850"
+source = "git+https://github.com/cosmos/ibc-rs?rev=f172a56#f172a56ff4cb42344220dafe5f4c1b88bb955a65"
 dependencies = [
  "ibc-core-client",
  "ibc-core-connection-types",
  "ibc-core-handler-types",
  "ibc-core-host",
  "ibc-primitives",
- "prost",
 ]
 
 [[package]]
 name = "ibc-core-connection-types"
 version = "0.48.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ca841416fa29626423917099092f3698ae2735074cb3fe42936ddf6b2ccbf2f7"
+source = "git+https://github.com/cosmos/ibc-rs?rev=f172a56#f172a56ff4cb42344220dafe5f4c1b88bb955a65"
 dependencies = [
  "derive_more",
  "displaydoc",
@@ -1276,7 +1255,7 @@ dependencies = [
  "ibc-core-commitment-types",
  "ibc-core-host-types",
  "ibc-primitives",
- "ibc-proto",
+ "ibc-proto 0.39.1",
  "prost",
  "serde",
  "subtle-encoding",
@@ -1286,8 +1265,7 @@ dependencies = [
 [[package]]
 name = "ibc-core-handler"
 version = "0.48.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a47e5e5a006aa0fc87ec3f5fb1e0ef6dd5aeea5079fa927d799d526c44329987"
+source = "git+https://github.com/cosmos/ibc-rs?rev=f172a56#f172a56ff4cb42344220dafe5f4c1b88bb955a65"
 dependencies = [
  "ibc-core-channel",
  "ibc-core-client",
@@ -1302,8 +1280,7 @@ dependencies = [
 [[package]]
 name = "ibc-core-handler-types"
 version = "0.48.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9e3d59a8a5eb2069530c42783b4fef63472a89e0e9242334351df1bb58aaf542"
+source = "git+https://github.com/cosmos/ibc-rs?rev=f172a56#f172a56ff4cb42344220dafe5f4c1b88bb955a65"
 dependencies = [
  "derive_more",
  "displaydoc",
@@ -1314,7 +1291,7 @@ dependencies = [
  "ibc-core-host-types",
  "ibc-core-router-types",
  "ibc-primitives",
- "ibc-proto",
+ "ibc-proto 0.39.1",
  "prost",
  "serde",
  "subtle-encoding",
@@ -1324,8 +1301,7 @@ dependencies = [
 [[package]]
 name = "ibc-core-host"
 version = "0.48.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7aa63c895c0e5a75e42fe859b8fd4250c12bfa8b9c6b114f94c927ecfad38a03"
+source = "git+https://github.com/cosmos/ibc-rs?rev=f172a56#f172a56ff4cb42344220dafe5f4c1b88bb955a65"
 dependencies = [
  "derive_more",
  "displaydoc",
@@ -1337,15 +1313,13 @@ dependencies = [
  "ibc-core-handler-types",
  "ibc-core-host-types",
  "ibc-primitives",
- "prost",
  "subtle-encoding",
 ]
 
 [[package]]
 name = "ibc-core-host-cosmos"
 version = "0.48.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1a325862af6c20b0df3d27c072a2d802a7232dc1666214d738cdfbd9a9c99720"
+source = "git+https://github.com/cosmos/ibc-rs?rev=f172a56#f172a56ff4cb42344220dafe5f4c1b88bb955a65"
 dependencies = [
  "derive_more",
  "displaydoc",
@@ -1358,8 +1332,7 @@ dependencies = [
  "ibc-core-handler-types",
  "ibc-core-host-types",
  "ibc-primitives",
- "ibc-proto",
- "prost",
+ "ibc-proto 0.39.1",
  "serde",
  "sha2 0.10.8",
  "subtle-encoding",
@@ -1369,8 +1342,7 @@ dependencies = [
 [[package]]
 name = "ibc-core-host-types"
 version = "0.48.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "616955da310febbe93c0569a2feebd9f57cafed3eee5a56b0c3bb953a75f6089"
+source = "git+https://github.com/cosmos/ibc-rs?rev=f172a56#f172a56ff4cb42344220dafe5f4c1b88bb955a65"
 dependencies = [
  "derive_more",
  "displaydoc",
@@ -1381,8 +1353,7 @@ dependencies = [
 [[package]]
 name = "ibc-core-router"
 version = "0.48.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "31fe115da73e0616bdb44400fa6b11ca251648d070c4ff419d58e27804d30243"
+source = "git+https://github.com/cosmos/ibc-rs?rev=f172a56#f172a56ff4cb42344220dafe5f4c1b88bb955a65"
 dependencies = [
  "derive_more",
  "displaydoc",
@@ -1390,21 +1361,19 @@ dependencies = [
  "ibc-core-host-types",
  "ibc-core-router-types",
  "ibc-primitives",
- "prost",
  "subtle-encoding",
 ]
 
 [[package]]
 name = "ibc-core-router-types"
 version = "0.48.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4d1fbb0bbbdeafa7ac989ba1693ed46d22e0e3eb0bdae478544e31157a4fdba6"
+source = "git+https://github.com/cosmos/ibc-rs?rev=f172a56#f172a56ff4cb42344220dafe5f4c1b88bb955a65"
 dependencies = [
  "derive_more",
  "displaydoc",
  "ibc-core-host-types",
  "ibc-primitives",
- "ibc-proto",
+ "ibc-proto 0.39.1",
  "ics23",
  "prost",
  "serde",
@@ -1415,8 +1384,7 @@ dependencies = [
 [[package]]
 name = "ibc-derive"
 version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "df07bf5bc1e65e291506b7497633e07967e49b36a8db10cda77a8fd686eb4548"
+source = "git+https://github.com/cosmos/ibc-rs?rev=f172a56#f172a56ff4cb42344220dafe5f4c1b88bb955a65"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -1427,12 +1395,11 @@ dependencies = [
 [[package]]
 name = "ibc-primitives"
 version = "0.48.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d5edea4685267fd68514c87e7aa3a62712340c4cff6903f088a9ab571428a08a"
+source = "git+https://github.com/cosmos/ibc-rs?rev=f172a56#f172a56ff4cb42344220dafe5f4c1b88bb955a65"
 dependencies = [
  "derive_more",
  "displaydoc",
- "ibc-proto",
+ "ibc-proto 0.39.1",
  "prost",
  "serde",
  "tendermint",
@@ -1457,14 +1424,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "ibc-proto"
+version = "0.39.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c8a8b1356652b9f160f5a010dd6b084675b8a28e163bf2b41ca5abecf27d9701"
+dependencies = [
+ "base64 0.21.5",
+ "bytes",
+ "flex-error",
+ "ics23",
+ "prost",
+ "serde",
+ "subtle-encoding",
+ "tendermint-proto",
+ "tonic",
+]
+
+[[package]]
 name = "ibc-query"
 version = "0.48.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6403e93a687e25967ce28ee49d8769b8839361a9c25dae234d220206625324e1"
+source = "git+https://github.com/cosmos/ibc-rs?rev=f172a56#f172a56ff4cb42344220dafe5f4c1b88bb955a65"
 dependencies = [
  "displaydoc",
  "ibc",
- "ibc-proto",
+ "ibc-proto 0.39.1",
  "tonic",
 ]
 
