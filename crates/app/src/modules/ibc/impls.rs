@@ -149,7 +149,7 @@ where
 
             let mut transfer_module = self.router().transfer();
 
-            send_transfer(&mut self.ctx, &mut transfer_module, transfer_msg, &()).map_err(|e| {
+            send_transfer(&mut self.ctx, &mut transfer_module, transfer_msg).map_err(|e| {
                 AppError::Custom {
                     reason: e.to_string(),
                 }
