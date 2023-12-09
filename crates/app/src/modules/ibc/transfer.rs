@@ -330,6 +330,7 @@ where
         &self,
         _account: &Self::AccountId,
         _coin: &PrefixedCoin,
+        _memo: &Memo,
     ) -> Result<(), TokenTransferError> {
         // Architectures that don't use `dispatch()` and care about the
         // distinction between `validate()` and `execute()` would want to check
@@ -442,6 +443,7 @@ where
         &mut self,
         account: &Self::AccountId,
         amt: &PrefixedCoin,
+        _memo: &Memo,
     ) -> Result<(), TokenTransferError> {
         let account = account
             .to_string()
