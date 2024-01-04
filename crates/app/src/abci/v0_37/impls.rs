@@ -222,10 +222,8 @@ pub fn deliver_tx<S: Default + Debug + ProvableStore>(
         match app.deliver_msg(message, &signer) {
             // success - append events and continue with next message
             Ok(msg_events) => {
-                let mut proto_events: Vec<ProtoEvent> = msg_events
-                    .into_iter()
-                    .map(|event| event.try_into().unwrap())
-                    .collect();
+                let mut proto_events: Vec<ProtoEvent> =
+                    msg_events.into_iter().map(|event| event.into()).collect();
 
                 events.append(&mut proto_events);
             }
@@ -293,10 +291,8 @@ pub fn begin_block<S: Default + ProvableStore>(
     for IdentifiedModule { module, .. } in modules.iter_mut() {
         let tm_event = module.begin_block(&header);
 
-        let proto_events: Vec<ProtoEvent> = tm_event
-            .into_iter()
-            .map(|event| event.try_into().unwrap())
-            .collect();
+        let proto_events: Vec<ProtoEvent> =
+            tm_event.into_iter().map(|event| event.into()).collect();
 
         events.extend(proto_events);
     }

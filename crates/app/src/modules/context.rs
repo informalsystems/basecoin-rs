@@ -89,8 +89,6 @@ pub trait Identifiable {
 }
 
 pub mod prefix {
-    use core::convert::TryInto;
-
     use super::Identifiable;
     use basecoin_store::types::Identifier as StoreIdentifier;
 
@@ -102,7 +100,7 @@ pub mod prefix {
         type Identifier = StoreIdentifier;
 
         fn identifier(&self) -> Self::Identifier {
-            "bank".to_owned().try_into().unwrap()
+            "bank".to_owned().into()
         }
     }
 
@@ -114,7 +112,7 @@ pub mod prefix {
         type Identifier = StoreIdentifier;
 
         fn identifier(&self) -> Self::Identifier {
-            "ibc".to_owned().try_into().unwrap()
+            "ibc".to_owned().into()
         }
     }
 
@@ -126,7 +124,7 @@ pub mod prefix {
         type Identifier = StoreIdentifier;
 
         fn identifier(&self) -> Self::Identifier {
-            "auth".to_owned().try_into().unwrap()
+            "auth".to_owned().into()
         }
     }
 
@@ -138,7 +136,7 @@ pub mod prefix {
         type Identifier = StoreIdentifier;
 
         fn identifier(&self) -> Self::Identifier {
-            "gov".to_owned().try_into().unwrap()
+            "gov".to_owned().into()
         }
     }
 
@@ -150,7 +148,7 @@ pub mod prefix {
         type Identifier = StoreIdentifier;
 
         fn identifier(&self) -> Self::Identifier {
-            "staking".to_owned().try_into().unwrap()
+            "staking".to_owned().into()
         }
     }
 
@@ -162,7 +160,7 @@ pub mod prefix {
         type Identifier = StoreIdentifier;
 
         fn identifier(&self) -> Self::Identifier {
-            "upgrade".to_owned().try_into().unwrap()
+            "upgrade".to_owned().into()
         }
     }
 }

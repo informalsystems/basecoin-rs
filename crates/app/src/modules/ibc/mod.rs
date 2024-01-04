@@ -4,7 +4,6 @@ mod impls;
 mod router;
 mod transfer;
 
-pub use client_contexts::*;
 pub use error::*;
 pub use impls::*;
 pub use router::*;
