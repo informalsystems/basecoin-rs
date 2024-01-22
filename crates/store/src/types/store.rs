@@ -25,13 +25,13 @@ pub type TypedSet<S, K> = TypedStore<S, K, NullCodec>;
 pub type BinStore<S, K, V> = TypedStore<S, K, BinCodec<V>>;
 
 #[derive(Clone, Debug)]
-pub struct TypedStore<S, P, C> {
+pub struct TypedStore<S, K, C> {
     store: S,
-    _key: PhantomData<P>,
+    _key: PhantomData<K>,
     _codec: PhantomData<C>,
 }
 
-impl<S, K, V, C> TypedStore<S, K, C>
+impl<S, K, C, V> TypedStore<S, K, C>
 where
     S: Store,
     C: Codec<Value = V>,
