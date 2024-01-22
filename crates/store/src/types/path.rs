@@ -75,3 +75,20 @@ impl AsBytes for Path {
         ByteSlice::Vector(self.to_string().into_bytes())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn happy_test() {
+        let bytes: &[u8] = b"hello/world";
+        assert!(Path::try_from(bytes).is_ok());
+    }
+
+    #[test]
+    fn sad_test() {
+        let bytes: &[u8] = b"hello/\xf0\x28\x8c\xbc";
+        assert!(Path::try_from(bytes).is_err());
+    }
+}
