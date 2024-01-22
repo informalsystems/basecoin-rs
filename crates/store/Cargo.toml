@@ -16,7 +16,7 @@ base64 = { workspace = true }
 displaydoc = { workspace = true }
 derive_more = { workspace = true }
 ed25519 = { workspace = true }
-ics23 = { workspace = true }
+ics23 = { workspace = true, features = ["host-functions"] }
 prost = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
