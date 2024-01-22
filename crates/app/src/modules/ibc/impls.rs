@@ -229,12 +229,9 @@ where
             .map_err(|_| AppError::Custom {
                 reason: "Invalid domain path".to_string(),
             })?
-            .try_into()
-            .map_err(|_| AppError::Custom {
-                reason: "Invalid IBC path".to_string(),
-            })?;
+            .into();
 
-        let _ = IbcPath::try_from(path.clone()).map_err(|_| AppError::Custom {
+        let _: IbcPath = path.clone().try_into().map_err(|_| AppError::Custom {
             reason: "Invalid IBC path".to_string(),
         })?;
 
@@ -612,7 +609,7 @@ where
     /// Returns the proof for the given [`IbcHeight`] and [`Path`]
     fn get_proof(&self, height: IbcHeight, path: &IbcPath) -> Option<Vec<u8>> {
         self.store
-            .get_proof(height.revision_height().into(), &path.clone().into())
+            .get_proof(height.revision_height().into(), &path.to_string().into())
             .map(|p| p.encode_to_vec())
     }
 }
@@ -624,12 +621,7 @@ where
 {
     /// Returns the list of all client states.
     fn client_states(&self) -> Result<Vec<(ClientId, Self::AnyClientState)>, ContextError> {
-        let path = "clients"
-            .to_owned()
-            .try_into()
-            .map_err(|_| ClientError::Other {
-                description: "Invalid client state path: clients".into(),
-            })?;
+        let path = "clients".to_owned().into();
 
         self.client_state_store
             .get_keys(&path)
@@ -725,12 +717,7 @@ where
 
     /// Connections queries all the IBC connections of a chain.
     fn connection_ends(&self) -> Result<Vec<IdentifiedConnectionEnd>, ContextError> {
-        let path = "connections"
-            .to_owned()
-            .try_into()
-            .map_err(|_| ConnectionError::Other {
-                description: "Invalid connection path: connections".into(),
-            })?;
+        let path = "connections".to_owned().into();
 
         self.connection_end_store
             .get_keys(&path)
@@ -772,12 +759,7 @@ where
 
     /// Channels queries all the IBC channels of a chain.
     fn channel_ends(&self) -> Result<Vec<IdentifiedChannelEnd>, ContextError> {
-        let path = "channelEnds"
-            .to_owned()
-            .try_into()
-            .map_err(|_| ChannelError::Other {
-                description: "Invalid channel path: channels".into(),
-            })?;
+        let path = "channelEnds".to_owned().into();
 
         self.channel_end_store
             .get_keys(&path)

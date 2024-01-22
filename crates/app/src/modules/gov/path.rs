@@ -23,6 +23,6 @@ impl ProposalPath {
 
 impl From<ProposalPath> for Path {
     fn from(value: ProposalPath) -> Self {
-        Self::try_from(value.to_string()).unwrap()
+        Self::from(value.to_string())
     }
 }

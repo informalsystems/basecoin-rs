@@ -67,7 +67,7 @@ where
             .ok_or(RouterError::UnknownPort {
                 port_id: port_id.clone(),
             })
-            .map(Clone::clone)
+            .cloned()
             .ok()
     }
 }
