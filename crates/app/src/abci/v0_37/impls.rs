@@ -121,7 +121,7 @@ pub fn query<S: Default + ProvableStore>(
 ) -> ResponseQuery {
     debug!("Got query request: {:?}", request);
 
-    let path: Option<Path> = request.path.try_into().ok();
+    let path: Option<Path> = Some(request.path.into());
     let modules = app.modules.read_access();
     let height = Height::from(request.height as u64);
     for IdentifiedModule { id, module } in modules.iter() {

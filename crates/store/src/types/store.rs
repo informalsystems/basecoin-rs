@@ -25,17 +25,17 @@ pub type TypedSet<S, K> = TypedStore<S, K, NullCodec>;
 pub type BinStore<S, K, V> = TypedStore<S, K, BinCodec<V>>;
 
 #[derive(Clone, Debug)]
-pub struct TypedStore<S, K, C> {
+pub struct TypedStore<S, P, C> {
     store: S,
-    _key: PhantomData<K>,
+    _key: PhantomData<P>,
     _codec: PhantomData<C>,
 }
 
-impl<S, K, C, V> TypedStore<S, K, C>
+impl<S, K, V, C> TypedStore<S, K, C>
 where
     S: Store,
-    C: Codec<Type = V>,
-    K: Into<Path> + Clone,
+    C: Codec<Value = V>,
+    K: ToString,
 {
     #[inline]
     pub fn new(store: S) -> Self {
@@ -49,19 +49,22 @@ where
     #[inline]
     pub fn set(&mut self, path: K, value: V) -> Result<Option<V>, S::Error> {
         self.store
-            .set(path.into(), C::encode(&value).unwrap().as_ref().to_vec())
+            .set(
+                path.to_string().into(),
+                C::encode(&value).unwrap().as_ref().to_vec(),
+            )
             .map(|prev_val| prev_val.and_then(|v| C::decode(&v)))
     }
 
     #[inline]
     pub fn delete(&mut self, path: K) {
-        self.store.delete(&path.into())
+        self.store.delete(&path.to_string().into())
     }
 
     #[inline]
     pub fn get(&self, height: Height, path: &K) -> Option<V> {
         self.store
-            .get(height, &path.clone().into())
+            .get(height, &path.to_string().into())
             .and_then(|v| C::decode(&v))
     }
 
@@ -79,17 +82,17 @@ where
 impl<S, K> TypedStore<S, K, NullCodec>
 where
     S: Store,
-    K: Into<Path> + Clone,
+    K: ToString,
 {
     #[inline]
     pub fn set_path(&mut self, path: K) -> Result<(), S::Error> {
         self.store
-            .set(path.into(), NullCodec::encode(&()).unwrap())
+            .set(path.to_string().into(), NullCodec::encode(&()).unwrap())
             .map(|_| ())
     }
 
     #[inline]
     pub fn is_path_set(&self, height: Height, path: &K) -> bool {
-        self.store.get(height, &path.clone().into()).is_some()
+        self.store.get(height, &path.to_string().into()).is_some()
     }
 }

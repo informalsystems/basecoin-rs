@@ -237,7 +237,6 @@ dependencies = [
  "derive_more",
  "displaydoc",
  "ed25519",
- "ibc",
  "ics23",
  "lazy_static",
  "proptest",

@@ -94,10 +94,7 @@ where
                 .map_err(|_| AppError::Custom {
                     reason: "Invalid path".to_string(),
                 })?
-                .try_into()
-                .map_err(|_| AppError::Custom {
-                    reason: "Failed to parse path".to_string(),
-                })?;
+                .into();
 
             debug!(
                 "Querying for path ({}) at height {:?}",

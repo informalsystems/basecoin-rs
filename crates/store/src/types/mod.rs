@@ -5,5 +5,5 @@ pub mod store;
 
 pub use height::{Height, RawHeight};
 pub use identifier::Identifier;
-pub use path::Path;
+pub use path::*;
 pub use store::{BinStore, JsonStore, MainStore, ProtobufStore, State, TypedSet, TypedStore};

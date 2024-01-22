@@ -1,10 +1,8 @@
 use super::Identifier;
 use crate::avl::{AsBytes, ByteSlice};
 use displaydoc::Display as DisplayDoc;
-use ibc::core::host::types::path::{Path as IbcPath, PathError};
 use std::fmt::{Display, Formatter};
-use std::str::FromStr;
-use std::str::{from_utf8, Utf8Error};
+use std::str::{from_utf8, FromStr, Utf8Error};
 
 #[derive(Debug, DisplayDoc)]
 pub enum Error {
@@ -23,18 +21,23 @@ impl Path {
     pub fn get(&self, index: usize) -> Option<&Identifier> {
         self.0.get(index)
     }
+
+    pub fn try_into<K, E>(self) -> Result<K, E>
+    where
+        K: FromStr<Err = E>,
+    {
+        K::from_str(self.to_string().as_str())
+    }
 }
 
-impl TryFrom<String> for Path {
-    type Error = Error;
-
-    fn try_from(s: String) -> Result<Self, Self::Error> {
+impl From<String> for Path {
+    fn from(s: String) -> Self {
         let mut identifiers = vec![];
         let parts = s.split('/'); // split will never return an empty iterator
         for part in parts {
             identifiers.push(Identifier::from(part.to_owned()));
         }
-        Ok(Self(identifiers))
+        Self(identifiers)
     }
 }
 
@@ -43,7 +46,7 @@ impl TryFrom<&[u8]> for Path {
 
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
         let s = from_utf8(value).map_err(|e| Error::MalformedPathString { error: e })?;
-        s.to_owned().try_into()
+        Ok(s.to_owned().into())
     }
 }
 
@@ -70,20 +73,6 @@ impl Display for Path {
 impl AsBytes for Path {
     fn as_bytes(&self) -> ByteSlice<'_> {
         ByteSlice::Vector(self.to_string().into_bytes())
-    }
-}
-
-impl TryFrom<Path> for IbcPath {
-    type Error = PathError;
-
-    fn try_from(path: Path) -> Result<Self, Self::Error> {
-        Self::from_str(path.to_string().as_str())
-    }
-}
-
-impl From<IbcPath> for Path {
-    fn from(ibc_path: IbcPath) -> Self {
-        Self::try_from(ibc_path.to_string()).unwrap() // safety - `IbcPath`s are correct-by-construction
     }
 }
 

@@ -12,7 +12,7 @@ use std::convert::{TryFrom, TryInto};
 pub const RELAYER_ACCOUNT: &str = "cosmos12xpmzmfpf7tn57xg93rne2hc2q26lcfql5efws";
 pub const ACCOUNT_PREFIX: &str = "cosmos";
 
-#[derive(Clone)]
+#[derive(Clone, derive_more::Display)]
 pub struct AccountsPath(pub AccountId);
 
 impl From<AccountsPath> for Path {

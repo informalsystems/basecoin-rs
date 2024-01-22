@@ -30,6 +30,6 @@ impl UpgradePlanPath {
 
 impl From<UpgradePlanPath> for Path {
     fn from(value: UpgradePlanPath) -> Self {
-        Self::try_from(value.to_string()).unwrap()
+        Self::from(value.to_string())
     }
 }

@@ -1,8 +1,6 @@
 use super::impls::{AnyConsensusState, IbcContext};
-
 use basecoin_store::context::Store;
 use basecoin_store::types::Height;
-
 use ibc::clients::tendermint::client_state::ClientState as TmClientState;
 use ibc::clients::tendermint::consensus_state::ConsensusState as TmConsensusState;
 use ibc::clients::tendermint::context::{CommonContext, ValidationContext as TmValidationContext};
@@ -224,7 +222,7 @@ where
 
         let keys = self.store.get_keys(&path);
         let found_path = keys.into_iter().find_map(|path| {
-            if let Ok(Path::ClientConsensusState(path)) = Path::try_from(path) {
+            if let Ok(Path::ClientConsensusState(path)) = path.try_into() {
                 if height > &IbcHeight::new(path.revision_number, path.revision_height).unwrap() {
                     return Some(path);
                 }
@@ -258,7 +256,7 @@ where
 
         let keys = self.store.get_keys(&path);
         let pos = keys.iter().position(|path| {
-            if let Ok(Path::ClientConsensusState(path)) = Path::try_from(path.clone()) {
+            if let Ok(Path::ClientConsensusState(path)) = path.clone().try_into() {
                 height >= &IbcHeight::new(path.revision_number, path.revision_height).unwrap()
             } else {
                 false
@@ -267,7 +265,7 @@ where
 
         if let Some(pos) = pos {
             if pos > 0 {
-                let prev_path = match Path::try_from(keys[pos - 1].clone()) {
+                let prev_path = match keys[pos - 1].clone().try_into() {
                     Ok(Path::ClientConsensusState(p)) => p,
                     _ => unreachable!(), // safety - path retrieved from store
                 };

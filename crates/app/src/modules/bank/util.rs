@@ -72,7 +72,7 @@ impl From<&MsgCoin> for Coin {
 #[serde(transparent)]
 pub struct Balances(pub Vec<Coin>);
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, derive_more::Display)]
 pub(super) struct BalancesPath(pub AccountId);
 
 impl From<BalancesPath> for Path {

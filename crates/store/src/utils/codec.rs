@@ -3,12 +3,13 @@ use std::marker::PhantomData;
 
 /// A trait that defines how types are decoded/encoded.
 pub trait Codec {
-    type Type;
+    type Value;
+
     type Encoded: AsRef<[u8]>;
 
-    fn encode(d: &Self::Type) -> Option<Self::Encoded>;
+    fn encode(d: &Self::Value) -> Option<Self::Encoded>;
 
-    fn decode(bytes: &[u8]) -> Option<Self::Type>;
+    fn decode(bytes: &[u8]) -> Option<Self::Value>;
 }
 
 /// A JSON codec that uses `serde_json` to encode/decode as a JSON string
@@ -19,14 +20,14 @@ impl<T> Codec for JsonCodec<T>
 where
     T: Serialize + DeserializeOwned,
 {
-    type Type = T;
+    type Value = T;
     type Encoded = String;
 
-    fn encode(d: &Self::Type) -> Option<Self::Encoded> {
+    fn encode(d: &Self::Value) -> Option<Self::Encoded> {
         serde_json::to_string(d).ok()
     }
 
-    fn decode(bytes: &[u8]) -> Option<Self::Type> {
+    fn decode(bytes: &[u8]) -> Option<Self::Value> {
         let json_string = String::from_utf8(bytes.to_vec()).ok()?;
         serde_json::from_str(&json_string).ok()
     }
@@ -38,15 +39,15 @@ where
 pub struct NullCodec;
 
 impl Codec for NullCodec {
-    type Type = ();
+    type Value = ();
     type Encoded = Vec<u8>;
 
-    fn encode(_d: &Self::Type) -> Option<Self::Encoded> {
+    fn encode(_d: &Self::Value) -> Option<Self::Encoded> {
         // using [0x00] to represent null
         Some(vec![0x00])
     }
 
-    fn decode(bytes: &[u8]) -> Option<Self::Type> {
+    fn decode(bytes: &[u8]) -> Option<Self::Value> {
         match bytes {
             // the encoded bytes must be [0x00]
             [0x00] => Some(()),
@@ -67,15 +68,15 @@ where
     T: Into<R> + Clone,
     R: TryInto<T> + Default + prost::Message,
 {
-    type Type = T;
+    type Value = T;
     type Encoded = Vec<u8>;
 
-    fn encode(d: &Self::Type) -> Option<Self::Encoded> {
+    fn encode(d: &Self::Value) -> Option<Self::Encoded> {
         let r = d.clone().into();
         Some(r.encode_to_vec())
     }
 
-    fn decode(bytes: &[u8]) -> Option<Self::Type> {
+    fn decode(bytes: &[u8]) -> Option<Self::Value> {
         let r = R::decode(bytes).ok()?;
         r.try_into().ok()
     }
@@ -89,14 +90,14 @@ impl<T> Codec for BinCodec<T>
 where
     T: AsRef<[u8]> + From<Vec<u8>>,
 {
-    type Type = T;
+    type Value = T;
     type Encoded = Vec<u8>;
 
-    fn encode(d: &Self::Type) -> Option<Self::Encoded> {
+    fn encode(d: &Self::Value) -> Option<Self::Encoded> {
         Some(d.as_ref().to_vec())
     }
 
-    fn decode(bytes: &[u8]) -> Option<Self::Type> {
+    fn decode(bytes: &[u8]) -> Option<Self::Value> {
         Some(bytes.to_vec().into())
     }
 }
