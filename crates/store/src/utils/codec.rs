@@ -35,7 +35,7 @@ where
 
 /// A Null codec that can be used for paths that are only meant to be set/reset and do not hold any
 /// typed value.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct NullCodec;
 
 impl Codec for NullCodec {
