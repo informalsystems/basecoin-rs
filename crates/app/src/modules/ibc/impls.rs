@@ -19,7 +19,7 @@ use ibc::apps::transfer::handler::send_transfer;
 use ibc::clients::tendermint::client_state::ClientState as TmClientState;
 use ibc::clients::tendermint::consensus_state::ConsensusState as TmConsensusState;
 use ibc::clients::tendermint::types::ConsensusState as ConsensusStateType;
-use ibc::core::client::context::consensus_state::ConsensusState;
+use ibc::core::client::context::consensus_state::ConsensusState as _;
 use ibc::core::client::types::Height as IbcHeight;
 use ibc::core::commitment_types::commitment::{CommitmentPrefix, CommitmentRoot};
 use ibc::core::entrypoint::dispatch;
@@ -29,6 +29,7 @@ use ibc::core::handler::types::msgs::MsgEnvelope;
 use ibc::core::host::types::identifiers::Sequence;
 use ibc::core::host::{ExecutionContext, ValidationContext};
 use ibc::cosmos_host::IBC_QUERY_PATH;
+use ibc::derive::ConsensusState;
 use ibc::primitives::{Signer, Timestamp};
 use ibc::{
     apps::transfer::types::msgs::transfer::MsgTransfer,

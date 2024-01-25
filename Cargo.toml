@@ -14,7 +14,7 @@ derive_more = { version = "0.99.17", default-features = false, features = ["from
 ed25519 = { version = "2.1.0", default-features = false }
 ibc = { git = "https://github.com/cosmos/ibc-rs.git", rev = "6c23da7", default-features = false, features = ["serde"] }
 ibc-query = {  git = "https://github.com/cosmos/ibc-rs.git", rev = "6c23da7", default-features = false }
-ibc-proto = { version = "0.39.1", default-features = false }
+ibc-proto = { version = "0.41.0", default-features = false }
 ics23 = { version = "0.11", default-features = false }
 prost = { version = "0.12", default-features = false }
 serde = "1.0"
