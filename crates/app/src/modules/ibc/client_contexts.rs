@@ -19,38 +19,30 @@ impl<S> ClientValidationContext for IbcContext<S>
 where
     S: Store + Debug,
 {
-    /// Returns the time when the client state for the given [`ClientId`] was updated with a header for the given [`IbcHeight`]
-    fn client_update_time(
+    /// Returns the time and height when the client state for the given
+    /// [`ClientId`] was updated with a header for the given [`IbcHeight`]
+    fn update_meta(
         &self,
         client_id: &ClientId,
         height: &IbcHeight,
-    ) -> Result<Timestamp, ContextError> {
+    ) -> Result<(Timestamp, IbcHeight), ContextError> {
         let processed_timestamp = self
             .client_processed_times
             .get(&(client_id.clone(), *height))
             .cloned()
-            .ok_or(ClientError::ProcessedTimeNotFound {
+            .ok_or(ClientError::UpdateMetaDataNotFound {
                 client_id: client_id.clone(),
                 height: *height,
             })?;
-        Ok(processed_timestamp)
-    }
-
-    /// Returns the height when the client state for the given [`ClientId`] was updated with a header for the given [`IbcHeight`]
-    fn client_update_height(
-        &self,
-        client_id: &ClientId,
-        height: &IbcHeight,
-    ) -> Result<IbcHeight, ContextError> {
         let processed_height = self
             .client_processed_heights
             .get(&(client_id.clone(), *height))
             .cloned()
-            .ok_or(ClientError::ProcessedHeightNotFound {
+            .ok_or(ClientError::UpdateMetaDataNotFound {
                 client_id: client_id.clone(),
                 height: *height,
             })?;
-        Ok(processed_height)
+        Ok((processed_timestamp, processed_height))
     }
 }
 
@@ -97,59 +89,41 @@ where
         Ok(())
     }
 
-    /// Called upon successful client update.
-    /// Implementations are expected to use this to record the specified time as the time at which
-    /// this update (or header) was processed.
-    fn store_update_time(
-        &mut self,
-        client_id: ClientId,
-        height: IbcHeight,
-        timestamp: Timestamp,
-    ) -> Result<(), ContextError> {
-        self.client_processed_times
-            .insert((client_id, height), timestamp);
-        Ok(())
-    }
-
-    /// Called upon successful client update.
-    /// Implementations are expected to use this to record the specified height as the height at
-    /// at which this update (or header) was processed.
-    fn store_update_height(
-        &mut self,
-        client_id: ClientId,
-        height: IbcHeight,
-        host_height: IbcHeight,
-    ) -> Result<(), ContextError> {
-        self.client_processed_heights
-            .insert((client_id, height), host_height);
-        Ok(())
-    }
-
-    /// Delete the update time associated with the client at the specified height.
-    fn delete_update_time(
-        &mut self,
-        client_id: ClientId,
-        height: IbcHeight,
-    ) -> Result<(), ContextError> {
-        self.client_processed_times.remove(&(client_id, height));
-        Ok(())
-    }
-
-    /// Delete the update height associated with the client at the specified height.
-    fn delete_update_height(
-        &mut self,
-        client_id: ClientId,
-        height: IbcHeight,
-    ) -> Result<(), ContextError> {
-        self.client_processed_heights.remove(&(client_id, height));
-        Ok(())
-    }
-
     fn delete_consensus_state(
         &mut self,
         consensus_state_path: ClientConsensusStatePath,
     ) -> Result<(), ContextError> {
         self.consensus_state_store.delete(consensus_state_path);
+        Ok(())
+    }
+
+    /// Called upon successful client update. Implementations are expected to
+    /// use this to record the specified time and height at which this update
+    /// (or header) was processed.
+    fn store_update_meta(
+        &mut self,
+        client_id: ClientId,
+        height: IbcHeight,
+        host_timestamp: Timestamp,
+        host_height: IbcHeight,
+    ) -> Result<(), ContextError> {
+        self.client_processed_times
+            .insert((client_id.clone(), height), host_timestamp);
+        self.client_processed_heights
+            .insert((client_id, height), host_height);
+        Ok(())
+    }
+
+    /// Delete the update time and height associated with the client at the
+    /// specified height.
+    fn delete_update_meta(
+        &mut self,
+        client_id: ClientId,
+        height: IbcHeight,
+    ) -> Result<(), ContextError> {
+        self.client_processed_times
+            .remove(&(client_id.clone(), height));
+        self.client_processed_heights.remove(&(client_id, height));
         Ok(())
     }
 }
