@@ -29,6 +29,7 @@ use ibc::core::handler::types::msgs::MsgEnvelope;
 use ibc::core::host::types::identifiers::Sequence;
 use ibc::core::host::{ExecutionContext, ValidationContext};
 use ibc::cosmos_host::IBC_QUERY_PATH;
+use ibc::derive::ConsensusState;
 use ibc::primitives::{Signer, Timestamp};
 use ibc::{
     apps::transfer::types::msgs::transfer::MsgTransfer,
