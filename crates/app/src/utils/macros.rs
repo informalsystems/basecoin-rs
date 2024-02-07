@@ -1,8 +1,7 @@
-#[cfg(all(feature = "v0_37", not(feature = "v0_38")))]
-use tendermint_proto::v0_37::abci::{ResponseCheckTx, ResponseDeliverTx, ResponseQuery};
-
 #[cfg(any(feature = "v0_38", not(feature = "v0_37")))]
 use tendermint_proto::abci::{ResponseCheckTx, ResponseQuery};
+#[cfg(all(feature = "v0_37", not(feature = "v0_38")))]
+use tendermint_proto::v0_37::abci::{ResponseCheckTx, ResponseDeliverTx, ResponseQuery};
 
 pub(crate) trait ResponseFromErrorExt {
     fn from_error(code: u32, log: impl ToString) -> Self;

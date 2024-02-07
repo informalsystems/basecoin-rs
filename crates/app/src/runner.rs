@@ -1,23 +1,20 @@
+use basecoin_modules::auth::Auth;
+use basecoin_modules::bank::Bank;
+use basecoin_modules::context::{prefix, Identifiable};
+use basecoin_modules::gov::Governance;
+use basecoin_modules::ibc::Ibc;
+use basecoin_modules::staking::Staking;
+use basecoin_modules::types::ServerConfig;
+use basecoin_modules::upgrade::Upgrade;
 use basecoin_store::impls::{GrowingStore, InMemoryStore};
 use ibc_proto::cosmos::base::tendermint::v1beta1::service_server::ServiceServer as HealthServer;
 use ibc_proto::cosmos::tx::v1beta1::service_server::ServiceServer as TxServer;
-
-use crate::builder::Builder;
-use crate::modules::auth::Auth;
-use crate::modules::bank::Bank;
-use crate::modules::context::prefix;
-use crate::modules::context::Identifiable;
-use crate::modules::gov::Governance;
-use crate::modules::ibc::Ibc;
-use crate::modules::staking::Staking;
-use crate::modules::upgrade::Upgrade;
-use crate::types::config::ServerConfig;
-
 #[cfg(all(feature = "v0_38", not(feature = "v0_37")))]
 use tendermint_abci::ServerBuilder;
-
 #[cfg(all(feature = "v0_37", not(feature = "v0_38")))]
 use tower_abci::v037::split;
+
+use crate::builder::Builder;
 
 pub async fn default_app_runner(server_cfg: ServerConfig) {
     // instantiate the application with a KV store implementation of choice

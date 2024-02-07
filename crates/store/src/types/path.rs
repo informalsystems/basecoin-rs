@@ -1,8 +1,10 @@
-use super::Identifier;
-use crate::avl::{AsBytes, ByteSlice};
-use displaydoc::Display as DisplayDoc;
 use std::fmt::{Display, Formatter};
 use std::str::{from_utf8, FromStr, Utf8Error};
+
+use displaydoc::Display as DisplayDoc;
+
+use super::Identifier;
+use crate::avl::{AsBytes, ByteSlice};
 
 #[derive(Debug, DisplayDoc)]
 pub enum Error {

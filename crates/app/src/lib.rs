@@ -9,9 +9,7 @@
 #![forbid(unsafe_code)]
 pub mod abci;
 pub mod cli;
-pub mod modules;
 pub mod service;
-pub mod types;
 mod utils;
 
 mod builder;
@@ -20,4 +18,12 @@ pub use builder::{BaseCoinApp, Builder};
 mod runner;
 pub use runner::default_app_runner;
 
-pub(crate) const CHAIN_REVISION_NUMBER: u64 = 0;
+/// Re-exports the basecoin store types and implementations.
+pub mod store {
+    pub use basecoin_store::*;
+}
+
+/// Re-exports the basecoin modules.
+pub mod modules {
+    pub use basecoin_modules::*;
+}

@@ -1,30 +1,23 @@
-use prost::Message;
-use serde_json::Value;
 use std::convert::TryInto;
 use std::fmt::Debug;
-use tendermint_proto::abci::RequestFinalizeBlock;
-use tendermint_proto::abci::ResponseFinalizeBlock;
-use tracing::{debug, info};
 
+use basecoin_store::context::{ProvableStore, Store};
+use basecoin_store::types::{Height, Path};
+use basecoin_store::utils::SharedRwExt;
+use prost::Message;
+use serde_json::Value;
+use tendermint::merkle::proof::{ProofOp, ProofOps};
 use tendermint_abci::Application;
-use tendermint_proto::abci::RequestInfo;
-use tendermint_proto::abci::RequestInitChain;
-use tendermint_proto::abci::RequestQuery;
-use tendermint_proto::abci::ResponseCommit;
-use tendermint_proto::abci::ResponseInfo;
-use tendermint_proto::abci::ResponseInitChain;
-use tendermint_proto::abci::ResponseQuery;
-
-use tendermint::merkle::proof::ProofOp;
-use tendermint::merkle::proof::ProofOps;
+use tendermint_proto::abci::{
+    RequestFinalizeBlock, RequestInfo, RequestInitChain, RequestQuery, ResponseCommit,
+    ResponseFinalizeBlock, ResponseInfo, ResponseInitChain, ResponseQuery,
+};
+use tracing::{debug, info};
 
 use crate::builder::BaseCoinApp;
 use crate::macros::ResponseFromErrorExt;
 use crate::modules::types::IdentifiedModule;
 use crate::types::error::Error;
-use basecoin_store::context::{ProvableStore, Store};
-use basecoin_store::types::{Height, Path};
-use basecoin_store::utils::SharedRwExt;
 
 impl<S: Debug + ProvableStore> Application for BaseCoinApp<S> {
     fn info(&self, request: RequestInfo) -> ResponseInfo {

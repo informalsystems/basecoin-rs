@@ -1,59 +1,31 @@
 //! Contains methods specifically implemented for use with the Tower ABCI
 //! interface, compatible with CometBFT version 0.37
 
-use basecoin_store::context::ProvableStore;
-use basecoin_store::context::Store;
-use basecoin_store::types::Height;
-use basecoin_store::types::Path;
+use std::fmt::{Debug, Write};
+
+use basecoin_modules::auth::ACCOUNT_PREFIX;
+use basecoin_modules::types::{Error, IdentifiedModule};
+use basecoin_store::context::{ProvableStore, Store};
+use basecoin_store::types::{Height, Path};
 use basecoin_store::utils::SharedRwExt;
-use cosmrs::tx::SignerInfo;
-use cosmrs::tx::SignerPublicKey;
+use cosmrs::tx::{SignerInfo, SignerPublicKey};
 use cosmrs::Tx;
-use ibc::primitives::proto::Any;
+use ibc_proto::google::protobuf::Any;
 use prost::Message;
 use serde_json::Value;
-use std::fmt::{Debug, Write};
+use tendermint::merkle::proof::{ProofOp, ProofOps};
+use tendermint_proto::v0_37::abci::{
+    response_process_proposal, Event as ProtoEvent, RequestApplySnapshotChunk, RequestBeginBlock,
+    RequestCheckTx, RequestDeliverTx, RequestEcho, RequestEndBlock, RequestInfo, RequestInitChain,
+    RequestLoadSnapshotChunk, RequestOfferSnapshot, RequestPrepareProposal, RequestProcessProposal,
+    RequestQuery, ResponseApplySnapshotChunk, ResponseBeginBlock, ResponseCheckTx, ResponseCommit,
+    ResponseDeliverTx, ResponseEcho, ResponseEndBlock, ResponseInfo, ResponseInitChain,
+    ResponseListSnapshots, ResponseLoadSnapshotChunk, ResponseOfferSnapshot,
+    ResponsePrepareProposal, ResponseProcessProposal, ResponseQuery,
+};
 use tracing::{debug, info};
 
-use tendermint_proto::v0_37::abci::response_process_proposal;
-use tendermint_proto::v0_37::abci::Event as ProtoEvent;
-use tendermint_proto::v0_37::abci::RequestApplySnapshotChunk;
-use tendermint_proto::v0_37::abci::RequestBeginBlock;
-use tendermint_proto::v0_37::abci::RequestCheckTx;
-use tendermint_proto::v0_37::abci::RequestDeliverTx;
-use tendermint_proto::v0_37::abci::RequestEcho;
-use tendermint_proto::v0_37::abci::RequestEndBlock;
-use tendermint_proto::v0_37::abci::RequestInfo;
-use tendermint_proto::v0_37::abci::RequestInitChain;
-use tendermint_proto::v0_37::abci::RequestLoadSnapshotChunk;
-use tendermint_proto::v0_37::abci::RequestOfferSnapshot;
-use tendermint_proto::v0_37::abci::RequestPrepareProposal;
-use tendermint_proto::v0_37::abci::RequestProcessProposal;
-use tendermint_proto::v0_37::abci::RequestQuery;
-use tendermint_proto::v0_37::abci::ResponseApplySnapshotChunk;
-use tendermint_proto::v0_37::abci::ResponseBeginBlock;
-use tendermint_proto::v0_37::abci::ResponseCheckTx;
-use tendermint_proto::v0_37::abci::ResponseCommit;
-use tendermint_proto::v0_37::abci::ResponseDeliverTx;
-use tendermint_proto::v0_37::abci::ResponseEcho;
-use tendermint_proto::v0_37::abci::ResponseEndBlock;
-use tendermint_proto::v0_37::abci::ResponseInfo;
-use tendermint_proto::v0_37::abci::ResponseInitChain;
-use tendermint_proto::v0_37::abci::ResponseListSnapshots;
-use tendermint_proto::v0_37::abci::ResponseLoadSnapshotChunk;
-use tendermint_proto::v0_37::abci::ResponseOfferSnapshot;
-use tendermint_proto::v0_37::abci::ResponsePrepareProposal;
-use tendermint_proto::v0_37::abci::ResponseProcessProposal;
-use tendermint_proto::v0_37::abci::ResponseQuery;
-
-use tendermint::merkle::proof::ProofOp;
-use tendermint::merkle::proof::ProofOps;
-
-use crate::modules::auth::ACCOUNT_PREFIX;
-use crate::modules::types::IdentifiedModule;
 use crate::utils::macros::ResponseFromErrorExt;
-
-use crate::types::error::Error;
 use crate::BaseCoinApp;
 
 pub fn echo<S: Default + ProvableStore>(

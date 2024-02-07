@@ -201,12 +201,35 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8c3c1a368f70d6cf7302d78f8f7093da241fb8e8807c05cc9e51a125895a6d5b"
 
 [[package]]
-name = "basecoin-app"
+name = "basecoin"
+version = "0.1.0"
+dependencies = [
+ "basecoin-modules",
+ "basecoin-store",
+ "clap",
+ "cosmrs",
+ "ibc-proto",
+ "prost",
+ "serde_json",
+ "tendermint",
+ "tendermint-abci",
+ "tendermint-proto",
+ "tendermint-rpc",
+ "tokio",
+ "tonic",
+ "tonic-reflection",
+ "tower",
+ "tower-abci",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "basecoin-modules"
 version = "0.1.0"
 dependencies = [
  "base64",
  "basecoin-store",
- "clap",
  "cosmrs",
  "derive_more",
  "displaydoc",
@@ -227,9 +250,6 @@ dependencies = [
  "tokio",
  "toml 0.8.9",
  "tonic",
- "tonic-reflection",
- "tower",
- "tower-abci",
  "tracing",
  "tracing-subscriber",
 ]

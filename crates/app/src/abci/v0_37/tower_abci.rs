@@ -8,29 +8,20 @@ use std::task::{Context, Poll};
 use basecoin_store::context::ProvableStore;
 use tendermint::v0_37::abci::response::Response as AbciResponse;
 use tendermint::v0_37::abci::Request as AbciRequest;
-
-use tendermint_proto::v0_37::abci::RequestApplySnapshotChunk;
-use tendermint_proto::v0_37::abci::RequestBeginBlock;
-use tendermint_proto::v0_37::abci::RequestCheckTx;
-use tendermint_proto::v0_37::abci::RequestDeliverTx;
-use tendermint_proto::v0_37::abci::RequestEcho;
-use tendermint_proto::v0_37::abci::RequestEndBlock;
-use tendermint_proto::v0_37::abci::RequestInfo;
-use tendermint_proto::v0_37::abci::RequestInitChain;
-use tendermint_proto::v0_37::abci::RequestLoadSnapshotChunk;
-use tendermint_proto::v0_37::abci::RequestOfferSnapshot;
-use tendermint_proto::v0_37::abci::RequestQuery;
-
+use tendermint_proto::v0_37::abci::{
+    RequestApplySnapshotChunk, RequestBeginBlock, RequestCheckTx, RequestDeliverTx, RequestEcho,
+    RequestEndBlock, RequestInfo, RequestInitChain, RequestLoadSnapshotChunk, RequestOfferSnapshot,
+    RequestQuery,
+};
 use tower::Service;
 use tower_abci::BoxError;
-
-use crate::BaseCoinApp;
 
 use super::impls::{
     apply_snapshot_chunk, begin_block, check_tx, commit, deliver_tx, echo, end_block, info,
     init_chain, list_snapshots, load_snapshot_chunk, offer_snapshot, prepare_proposal,
     process_proposal, query,
 };
+use crate::BaseCoinApp;
 
 /// We have to create this type since the compiler doesn't think that
 /// `dyn Future<Output = Result<AbciResponse, BoxError>> + Send`

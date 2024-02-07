@@ -1,12 +1,11 @@
 [package]
 name        = "basecoin-store"
-version     = "0.1.0"
-edition     = "2021"
-license     = "Apache-2.0"
-readme      = "README.md"
-categories  = ["cryptography::cryptocurrencies", "iavl"]
-repository  = "https://github.com/informalsystems/basecoin-rs"
-authors     = ["Informal Systems <hello@informal.systems>"]
+version     = { workspace = true }
+edition     = { workspace = true }
+license     = { workspace = true }
+readme      = { workspace = true }
+repository  = { workspace = true }
+authors     = { workspace = true }
 description = """
     A simple implementation of an AVL store tailored for the basecoin application.
 """

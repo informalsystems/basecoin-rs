@@ -3,13 +3,10 @@
 #![deny(warnings, missing_docs, trivial_casts, unused_qualifications)]
 #![forbid(unsafe_code)]
 
-use basecoin_app::{
-    cli::command::{BasecoinCli, Commands, QueryCmd, UpgradeCmd},
-    default_app_runner,
-    modules::upgrade::query_upgrade_plan,
-    types::config::load_config,
-};
-
+use basecoin::cli::command::{BasecoinCli, Commands, QueryCmd, UpgradeCmd};
+use basecoin::default_app_runner;
+use basecoin_modules::types::load_config;
+use basecoin_modules::upgrade::query_upgrade_plan;
 use clap::Parser;
 use tracing::metadata::LevelFilter;
 

@@ -1,26 +1,17 @@
-use crate::modules::auth::AuthAccountKeeper;
-use crate::modules::auth::AuthAccountReader;
-use crate::modules::bank::Bank;
-use crate::modules::context::prefix;
-use crate::modules::context::Identifiable;
-use crate::modules::context::Module;
-use crate::modules::ibc::Ibc;
-use crate::modules::types::IdentifiedModule;
-use crate::modules::types::ModuleList;
-use crate::modules::types::ModuleStore;
-use crate::types::error::Error;
-
-use basecoin_store::context::ProvableStore;
-use basecoin_store::impls::RevertibleStore;
-use basecoin_store::impls::SharedStore;
-use basecoin_store::types::Identifier;
-use basecoin_store::types::MainStore;
-use basecoin_store::utils::{SharedRw, SharedRwExt};
-
-use cosmrs::AccountId;
-use ibc_proto::google::protobuf::Any;
 use std::fmt::Debug;
 use std::sync::{Arc, RwLock};
+
+use basecoin_modules::auth::{AuthAccountKeeper, AuthAccountReader};
+use basecoin_modules::bank::Bank;
+use basecoin_modules::context::{prefix, Identifiable, Module};
+use basecoin_modules::ibc::Ibc;
+use basecoin_modules::types::{Error, IdentifiedModule, ModuleList, ModuleStore};
+use basecoin_store::context::ProvableStore;
+use basecoin_store::impls::{RevertibleStore, SharedStore};
+use basecoin_store::types::{Identifier, MainStore};
+use basecoin_store::utils::{SharedRw, SharedRwExt};
+use cosmrs::AccountId;
+use ibc_proto::google::protobuf::Any;
 use tendermint::abci::Event;
 use tracing::error;
 
