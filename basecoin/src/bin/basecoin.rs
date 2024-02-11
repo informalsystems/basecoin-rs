@@ -33,7 +33,7 @@ async fn main() {
         Commands::Query(q) => {
             let query_res = match q {
                 QueryCmd::Upgrade(u) => match u {
-                    UpgradeCmd::Plan => query_upgrade_plan(cfg.cometbft.grpc_addr).await.unwrap(),
+                    UpgradeCmd::Plan => query_upgrade_plan(cfg.cometbft.rpc_addr).await.unwrap(),
                 },
             };
             println!("{:?}", query_res);
