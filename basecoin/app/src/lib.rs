@@ -1,6 +1,5 @@
 //! The basecoin ABCI application.
 #![forbid(unsafe_code)]
-#![cfg_attr(not(test), deny(clippy::unwrap_used))]
 #![deny(
     warnings,
     trivial_numeric_casts,
