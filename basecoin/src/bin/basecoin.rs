@@ -31,12 +31,11 @@ async fn main() {
             default_app_runner(cfg.server).await
         }
         Commands::Query(q) => {
-            let query_res = match q {
+            match q {
                 QueryCmd::Upgrade(u) => match u {
                     UpgradeCmd::Plan => query_upgrade_plan(cfg.cometbft.rpc_addr).await.unwrap(),
                 },
             };
-            println!("{:?}", query_res);
         }
     };
 }
