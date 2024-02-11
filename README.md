@@ -5,11 +5,11 @@ It is a rudimentary Tendermint ABCI application that implements the following fu
 * `ibc` - enables support for IBC (clients, connections & channels)
 
 Its main use-cases are serving as a testing ground and mock implementation for verifying the correctness and behaviour
-of the ibc-rs modules. 
+of the ibc-rs modules.
 
 ## Requirements
 So far this app has been tested with:
-* Rust >v1.52.1
+* Rust > v1.64
 * CometBFT v0.37
 
 ## How to integrate ibc-rs changes into basecoin
@@ -49,20 +49,19 @@ $ cargo run -- --help
 basecoin 0.1.0
 
 USAGE:
-    basecoin [FLAGS] [OPTIONS]
+    main [FLAGS] [OPTIONS]
 
-FLAGS:
-        --help       Prints help information
-    -q, --quiet      Suppress all output logging (overrides --verbose)
-    -V, --version    Prints version information
-    -v, --verbose    Increase output logging verbosity to DEBUG level
+Commands:
+    start
+    query   Query a state of Basecoin application from the store
+    help    Prints this message or the help of the given subcommand(s)
 
 OPTIONS:
-    -g, --grpc-port <grpc-port>            Bind the gRPC server to this port [default: 9093]
-    -h, --host <host>                      Bind the TCP server to this host [default: 127.0.0.1]
-    -p, --port <port>                      Bind the TCP server to this port [default: 26658]
-    -r, --read-buf-size <read-buf-size>    The default server read buffer size, in bytes, for each incoming client
-                                           connection [default: 1048576]
+        --config <FILE>  The path to the configuration file [default: config.toml]
+    -v, --verbose        Increase output logging verbosity to DEBUG level
+    -q, --quiet          Suppress all output logging (overrides --verbose)
+    -h  --help           Prints help information
+    -V, --version        Prints version information
 
 # Run the ABCI application (from this repo)
 # The -v is to enable trace-level logging
