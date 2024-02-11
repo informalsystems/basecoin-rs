@@ -46,12 +46,19 @@ impl<S: ProvableStore> HealthService for BaseCoinApp<S> {
                 name: "basecoin-rs".to_string(),
                 app_name: "basecoind".to_string(),
                 version: "0.1.0".to_string(),
-                git_commit: "209afef7e99ebcb814b25b6738d033aa5e1a932c".to_string(),
-                build_deps: vec![VersionInfoModule {
-                    path: "github.com/cosmos/cosmos-sdk".to_string(),
-                    version: "v0.47.0".to_string(),
-                    sum: "h1:ps1QWfvaX6VLNcykA7wzfii/5IwBfYgTIik6NOVDq/c=".to_string(),
-                }],
+                git_commit: "44bae428392201d541cc2811de4369ea664c5762".to_string(),
+                build_deps: vec![
+                    VersionInfoModule {
+                        path: "github.com/cometbft/cometbft".to_string(),
+                        version: "v0.37.1".to_string(),
+                        sum: "".to_string(),
+                    },
+                    VersionInfoModule {
+                        path: "github.com/cosmos/cosmos-sdk".to_string(),
+                        version: "v0.47.0".to_string(),
+                        sum: "h1:ps1QWfvaX6VLNcykA7wzfii/5IwBfYgTIik6NOVDq/c=".to_string(),
+                    },
+                ],
                 ..VersionInfo::default()
             }),
         }))
