@@ -2,7 +2,6 @@
 
 use ics23::{
     commitment_proof::Proof, verify_membership, verify_non_membership, HostFunctionsManager,
-    NonExistenceProof,
 };
 use sha2::{Digest, Sha256};
 
