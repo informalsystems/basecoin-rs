@@ -51,12 +51,12 @@ impl<S: ProvableStore> HealthService for BaseCoinApp<S> {
                     VersionInfoModule {
                         path: "github.com/cometbft/cometbft".to_string(),
                         version: "v0.37.1".to_string(),
-                        sum: "".to_string(),
+                        sum: "h1:KLxkQTK2hICXYq21U2hn1W5hOVYUdQgDQ1uB+90xPIg=".to_string(),
                     },
                     VersionInfoModule {
                         path: "github.com/cosmos/cosmos-sdk".to_string(),
                         version: "v0.47.0".to_string(),
-                        sum: "h1:ps1QWfvaX6VLNcykA7wzfii/5IwBfYgTIik6NOVDq/c=".to_string(),
+                        sum: "h1:GKYtBpvjwuDEVix1vdnQpq7PuEOnItuEK0vdAL2cZ5g=".to_string(),
                     },
                 ],
                 ..VersionInfo::default()
