@@ -21,7 +21,7 @@ pub fn get_proof_spec() -> ProofSpec {
             child_size: 32,
             min_prefix_length: 0,
             max_prefix_length: 64,
-            empty_child: vec![0, 32],
+            empty_child: vec![0; 32],
             hash: HashOp::Sha256.into(),
         }),
         max_depth: 0,
