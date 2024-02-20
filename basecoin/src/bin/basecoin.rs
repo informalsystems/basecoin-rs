@@ -3,6 +3,8 @@
 #![deny(warnings, missing_docs, trivial_casts, unused_qualifications)]
 #![forbid(unsafe_code)]
 
+use std::io::Write;
+
 use basecoin::cli::command::{BasecoinCli, Commands, QueryCmd, UpgradeCmd};
 use basecoin::config::load_config;
 use basecoin::default_app_runner;
@@ -31,11 +33,12 @@ async fn main() {
             default_app_runner(cfg.server).await
         }
         Commands::Query(q) => {
-            match q {
+            let query_res = match q {
                 QueryCmd::Upgrade(u) => match u {
                     UpgradeCmd::Plan => query_upgrade_plan(cfg.cometbft.rpc_addr).await.unwrap(),
                 },
             };
+            let _ = std::io::stdout().write(format!("{:#?}", query_res).as_bytes());
         }
     };
 }
