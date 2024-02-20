@@ -38,7 +38,14 @@ where
         sha.update(key.as_bytes().as_ref());
         sha.update(value.borrow());
         let hash = sha.finalize();
-        let merkle_hash = Hash::from_bytes(HASH_ALGO, &Sha256::digest(hash)).unwrap();
+
+        let mut sha = Sha256::new();
+        sha.update([0; 32]);
+        sha.update(hash);
+        sha.update([0; 32]);
+        let merkle_hash = sha.finalize();
+
+        let merkle_hash = Hash::from_bytes(HASH_ALGO, &merkle_hash).unwrap();
         let hash = Hash::from_bytes(HASH_ALGO, &hash).unwrap();
 
         AvlNode {
@@ -110,10 +117,14 @@ where
         let mut sha = Sha256::new();
         if let Some(left) = &self.left {
             sha.update(left.merkle_hash.as_bytes());
+        } else {
+            sha.update([0; 32]);
         }
         sha.update(self.hash.as_bytes());
         if let Some(right) = &self.right {
             sha.update(right.merkle_hash.as_bytes())
+        } else {
+            sha.update([0; 32]);
         }
         self.merkle_hash = Hash::from_bytes(HASH_ALGO, sha.finalize().as_slice()).unwrap();
     }
