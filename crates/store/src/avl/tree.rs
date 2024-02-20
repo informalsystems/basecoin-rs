@@ -10,6 +10,7 @@ use core::{
 
 use ics23::{
     commitment_proof::Proof, CommitmentProof, ExistenceProof, HashOp, InnerOp, LeafOp, LengthOp,
+    NonExistenceProof,
 };
 use tendermint::hash::Hash;
 
@@ -73,74 +74,151 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
             AvlTree::balance_node(node_ref);
         } else {
             *node_ref = as_node_ref(key, value);
+            dbg!(
+                node_ref.as_ref().unwrap().hash,
+                node_ref.as_ref().unwrap().merkle_hash
+            );
         }
     }
 
     /// Return an existence proof for the given element, if it exists.
-    pub fn get_proof<Q: ?Sized>(&self, key: &Q) -> Option<CommitmentProof>
+    pub fn get_proof<Q: ?Sized>(&self, key: &Q) -> CommitmentProof
     where
         K: Borrow<Q>,
-        Q: Ord,
+        Q: Ord + AsBytes,
     {
-        let proof = Self::get_proof_rec(key, &self.root)?;
-        Some(CommitmentProof {
-            proof: Some(Proof::Exist(proof)),
-        })
+        let proof = Self::get_proof_rec(key, &self.root);
+        CommitmentProof { proof: Some(proof) }
     }
 
     /// Recursively build a proof of existence for the desired value.
-    fn get_proof_rec<Q: ?Sized>(key: &Q, node: &NodeRef<K, V>) -> Option<ExistenceProof>
+    fn get_proof_rec<Q: ?Sized>(key: &Q, node: &NodeRef<K, V>) -> Proof
     where
         K: Borrow<Q>,
-        Q: Ord,
+        Q: Ord + AsBytes,
     {
         if let Some(node) = node {
-            let empty_hash = [];
-            let (mut proof, prefix, suffix) = match node.key.borrow().cmp(key) {
+            let empty_hash = [0; 32];
+            match node.key.borrow().cmp(key) {
                 Ordering::Greater => {
-                    let proof = Self::get_proof_rec(key, &node.left)?;
                     let prefix = vec![];
                     let mut suffix = Vec::with_capacity(64);
                     suffix.extend(node.hash.as_bytes());
                     suffix.extend(node.right_hash().unwrap_or(&empty_hash));
-                    (proof, prefix, suffix)
+                    let inner = InnerOp {
+                        hash: HashOp::Sha256.into(),
+                        prefix,
+                        suffix,
+                    };
+                    match Self::get_proof_rec(key, &node.left) {
+                        Proof::Exist(mut proof) => {
+                            proof.path.push(inner);
+                            Proof::Exist(proof)
+                        }
+                        Proof::Nonexist(mut proof) => {
+                            if let Some(right) = proof.right.as_mut() {
+                                // right-neighbor already found
+                                right.path.push(inner.clone());
+                            }
+                            if let Some(left) = proof.left.as_mut() {
+                                // left-neighbor already found
+                                left.path.push(inner);
+                            }
+                            if proof.right.is_none() {
+                                // found the right-neighbor
+                                proof.right = Some(ExistenceProof {
+                                    key: node.key.as_bytes().as_ref().to_owned(),
+                                    value: node.value.borrow().to_owned(),
+                                    leaf: Some(LeafOp {
+                                        hash: HashOp::Sha256.into(),
+                                        prehash_key: HashOp::NoHash.into(),
+                                        prehash_value: HashOp::NoHash.into(),
+                                        length: LengthOp::NoPrefix.into(),
+                                        prefix: proof::LEAF_PREFIX.to_vec(),
+                                    }),
+                                    path: vec![InnerOp {
+                                        hash: HashOp::Sha256.into(),
+                                        prefix: node.left_hash().unwrap_or(&empty_hash).to_vec(),
+                                        suffix: node.right_hash().unwrap_or(&empty_hash).to_vec(),
+                                    }],
+                                });
+                            }
+                            Proof::Nonexist(proof)
+                        }
+                        _ => unreachable!(),
+                    }
                 }
                 Ordering::Less => {
-                    let proof = Self::get_proof_rec(key, &node.right)?;
                     let suffix = vec![];
                     let mut prefix = Vec::with_capacity(64);
                     prefix.extend(node.left_hash().unwrap_or(&empty_hash));
                     prefix.extend(node.hash.as_bytes());
-                    (proof, prefix, suffix)
+                    let inner = InnerOp {
+                        hash: HashOp::Sha256.into(),
+                        prefix,
+                        suffix,
+                    };
+                    match Self::get_proof_rec(key, &node.right) {
+                        Proof::Exist(mut proof) => {
+                            proof.path.push(inner);
+                            Proof::Exist(proof)
+                        }
+                        Proof::Nonexist(mut proof) => {
+                            if let Some(right) = proof.right.as_mut() {
+                                // right-neighbor already found
+                                right.path.push(inner.clone());
+                            }
+                            if let Some(left) = proof.left.as_mut() {
+                                // left-neighbor already found
+                                left.path.push(inner);
+                            }
+                            if proof.left.is_none() {
+                                // found the left-neighbor
+                                proof.left = Some(ExistenceProof {
+                                    key: node.key.as_bytes().as_ref().to_owned(),
+                                    value: node.value.borrow().to_owned(),
+                                    leaf: Some(LeafOp {
+                                        hash: HashOp::Sha256.into(),
+                                        prehash_key: HashOp::NoHash.into(),
+                                        prehash_value: HashOp::NoHash.into(),
+                                        length: LengthOp::NoPrefix.into(),
+                                        prefix: proof::LEAF_PREFIX.to_vec(),
+                                    }),
+                                    path: vec![InnerOp {
+                                        hash: HashOp::Sha256.into(),
+                                        prefix: node.left_hash().unwrap_or(&empty_hash).to_vec(),
+                                        suffix: node.right_hash().unwrap_or(&empty_hash).to_vec(),
+                                    }],
+                                })
+                            }
+                            Proof::Nonexist(proof)
+                        }
+                        _ => unreachable!(),
+                    }
                 }
-                Ordering::Equal => {
-                    let leaf = Some(LeafOp {
+                Ordering::Equal => Proof::Exist(ExistenceProof {
+                    key: node.key.as_bytes().as_ref().to_owned(),
+                    value: node.value.borrow().to_owned(),
+                    leaf: Some(LeafOp {
                         hash: HashOp::Sha256.into(),
                         prehash_key: HashOp::NoHash.into(),
                         prehash_value: HashOp::NoHash.into(),
                         length: LengthOp::NoPrefix.into(),
                         prefix: proof::LEAF_PREFIX.to_vec(),
-                    });
-                    let proof = ExistenceProof {
-                        key: node.key.as_bytes().as_ref().to_owned(),
-                        value: node.value.borrow().to_owned(),
-                        leaf,
-                        path: vec![],
-                    };
-                    let prefix = node.left_hash().unwrap_or(&empty_hash).to_vec();
-                    let suffix = node.right_hash().unwrap_or(&empty_hash).to_vec();
-                    (proof, prefix, suffix)
-                }
-            };
-            let inner = InnerOp {
-                hash: HashOp::Sha256.into(),
-                prefix,
-                suffix,
-            };
-            proof.path.push(inner);
-            Some(proof)
+                    }),
+                    path: vec![InnerOp {
+                        hash: HashOp::Sha256.into(),
+                        prefix: node.left_hash().unwrap_or(&empty_hash).to_vec(),
+                        suffix: node.right_hash().unwrap_or(&empty_hash).to_vec(),
+                    }],
+                }),
+            }
         } else {
-            None
+            Proof::Nonexist(NonExistenceProof {
+                key: key.as_bytes().as_ref().to_owned(),
+                left: None,
+                right: None,
+            })
         }
     }
 
