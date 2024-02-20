@@ -74,10 +74,6 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
             AvlTree::balance_node(node_ref);
         } else {
             *node_ref = as_node_ref(key, value);
-            dbg!(
-                node_ref.as_ref().unwrap().hash,
-                node_ref.as_ref().unwrap().merkle_hash
-            );
         }
     }
 
