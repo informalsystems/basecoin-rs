@@ -43,13 +43,13 @@ See the module documentation for more details -
 * [Ibc module](docs/modules/ibc.md)
 
 ### Step 4: Run the basecoin app and CometBFT
-```shell
+```console
 # See all supported CLI options
 $ cargo run -- --help
 basecoin 0.1.0
 
 USAGE:
-    main [FLAGS] [OPTIONS]
+    basecoin [FLAGS] [OPTIONS]
 
 Commands:
     start
@@ -58,8 +58,8 @@ Commands:
 
 OPTIONS:
         --config <FILE>  The path to the configuration file [default: config.toml]
-    -v, --verbose        Increase output logging verbosity to DEBUG level
-    -q, --quiet          Suppress all output logging (overrides --verbose)
+        --verbose        Increase output logging verbosity to DEBUG level
+        --quiet          Suppress all output logging (overrides --verbose)
     -h  --help           Prints help information
     -V, --version        Prints version information
 

@@ -13,7 +13,7 @@ description = """
 [dependencies]
 # external dependencies
 base64             = { workspace = true }
-cosmrs             = "0.15.0"
+cosmrs             = { workspace = true }
 displaydoc         = { workspace = true }
 derive_more        = { workspace = true }
 primitive-types    = { version = "0.12.0", default-features = false, features = ["serde_no_std"] }

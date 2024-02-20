@@ -49,7 +49,7 @@ impl<S: Debug + ProvableStore> Application for BaseCoinApp<S> {
 
         let mut modules = self.modules.write_access();
 
-        for IdentifiedModule { module, id: _ } in modules.iter_mut() {
+        for IdentifiedModule { module, .. } in modules.iter_mut() {
             module.init(app_state.clone());
         }
 
