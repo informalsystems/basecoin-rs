@@ -89,9 +89,7 @@ fn proof() {
     let node_a = tree.root.as_ref().unwrap();
     let node_b = node_a.right.as_ref().unwrap();
     let root = tree.root_hash().expect("Unable to retrieve root hash");
-    let ics_proof = tree
-        .get_proof("B")
-        .expect("Unable to retrieve proof for 'B'");
+    let ics_proof = tree.get_proof("B");
     let proof = match &ics_proof.proof.as_ref().unwrap() {
         Proof::Exist(proof) => proof,
         _ => panic!("Should return an existence proof"),

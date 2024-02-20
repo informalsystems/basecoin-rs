@@ -100,7 +100,7 @@ impl ProvableStore for InMemoryStore {
             key.to_string(),
             height
         );
-        self.get_state(height).and_then(|v| v.get_proof(key))
+        self.get_state(height).map(|v| v.get_proof(key))
     }
 }
 
