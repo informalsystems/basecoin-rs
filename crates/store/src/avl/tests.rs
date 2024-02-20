@@ -1,6 +1,9 @@
 //! # Test suite of tendermock AVL Tree.
 
-use ics23::{commitment_proof::Proof, verify_membership, HostFunctionsManager};
+use ics23::{
+    commitment_proof::Proof, verify_membership, verify_non_membership, HostFunctionsManager,
+    NonExistenceProof,
+};
 use sha2::{Digest, Sha256};
 
 use crate::avl::{
@@ -134,17 +137,16 @@ fn proof() {
 
 #[test]
 fn integration() {
+    let existing_keys = ["C", "E", "G", "I", "K", "M", "O", "Q", "S", "U"];
+    // less than all, in the middle, greater than all
+    let non_existing_keys = ["A", "B", "D", "F", "H", "J", "L", "N", "P", "R", "T", "V"];
+
     let mut tree = AvlTree::new();
-    tree.insert("M", [0]);
-    tree.insert("N", [0]);
-    tree.insert("O", [0]);
-    tree.insert("L", [0]);
-    tree.insert("K", [0]);
-    tree.insert("Q", [0]);
-    tree.insert("P", [0]);
-    tree.insert("H", [0]);
-    tree.insert("I", [0]);
-    tree.insert("A", [0]);
+
+    for &key in existing_keys.iter() {
+        tree.insert(key, [0]);
+    }
+
     assert!(check_integrity(&tree.root));
 
     let root = tree
@@ -152,17 +154,25 @@ fn integration() {
         .expect("Unable to retrieve root hash")
         .as_bytes()
         .to_vec();
-    let proof = tree
-        .get_proof("K")
-        .expect("Unable to retrieve a proof for 'K'");
     let spec = get_proof_spec();
-    assert!(verify_membership::<HostFunctionsManager>(
-        &proof,
-        &spec,
-        &root,
-        "K".as_bytes(),
-        &[0]
-    ));
+
+    for &key in existing_keys.iter() {
+        let proof = tree.get_proof(key);
+        assert!(
+            verify_membership::<HostFunctionsManager>(&proof, &spec, &root, key.as_bytes(), &[0]),
+            "Failed to verify membership for key {}",
+            key
+        );
+    }
+
+    for &key in non_existing_keys.iter() {
+        let proof = tree.get_proof(key);
+        assert!(
+            verify_non_membership::<HostFunctionsManager>(&proof, &spec, &root, key.as_bytes()),
+            "Failed to verify non-membership for key {}",
+            key
+        );
+    }
 }
 
 /// Check that nodes are ordered, heights are correct and that balance factors are in {-1, 0, 1}.
