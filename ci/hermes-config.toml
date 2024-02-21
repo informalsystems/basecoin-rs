@@ -1,35 +1,48 @@
 [global]
-log_level = 'trace'
+log_level = 'debug'
 
 [[chains]]
 id = 'ibc-0'
 rpc_addr = 'http://127.0.0.1:26657'
 grpc_addr = 'http://127.0.0.1:9090'
-websocket_addr = 'ws://localhost:26657/websocket'
+event_source = { mode = 'push', url = 'ws://127.0.0.1:26557/websocket', batch_delay = '500ms' }
 rpc_timeout = '10s'
+trusted_node = false
 account_prefix = 'cosmos'
 key_name = 'testkey'
 store_prefix = 'ibc'
+default_gas = 100000
+max_gas = 4000000
 gas_price = { price = 0.001, denom = 'stake' }
+gas_multiplier = 1.1
+max_msg_num = 30
+max_tx_size = 2097152
 clock_drift = '5s'
-trusting_period = '14days'
-
-[chains.trust_threshold]
-numerator = '1'
-denominator = '3'
+# `trusting_period` default value is '14days', but for the purpose of testing
+# the consensus state pruning mechanism of Tendermint client, it is set to '3m'
+trusting_period = '3m'
+trust_threshold = '2/3'
+address_type = { derivation = 'cosmos' }
 
 [[chains]]
 id = 'basecoin-0'
 rpc_addr = 'http://127.0.0.1:26357'
 grpc_addr = 'http://127.0.0.1:9093'
-websocket_addr = 'ws://localhost:26357/websocket'
+event_source = { mode = 'push', url = 'ws://127.0.0.1:26357/websocket', batch_delay = '500ms' }
 rpc_timeout = '10s'
+trusted_node = false
 account_prefix = 'cosmos'
 key_name = 'testkey'
 store_prefix = 'ibc'
+default_gas = 100000
+max_gas = 4000000
 gas_price = { price = 0.001, denom = 'basecoin' }
+gas_multiplier = 1.1
+max_msg_num = 30
+max_tx_size = 2097152
 clock_drift = '5s'
-trusting_period = '14days'
+trusting_period = '3m'
+address_type = { derivation = 'cosmos' }
 proof_specs = '''
 [
   {
@@ -72,8 +85,6 @@ proof_specs = '''
   }
 ]
 '''
+trust_threshold = '2/3'
 
-[chains.trust_threshold]
-numerator = '1'
-denominator = '3'
 
