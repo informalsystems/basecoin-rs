@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       COMETBFT_VERSION: 0.37.1
-      GAIA_VERSION: 6.0.0
+      GAIA_VERSION: 7.1.1
       HERMES_VERSION: 1.8.0
       GRPCURL_VERSION: 1.8.7
       RUST_VERSION: 1.65
