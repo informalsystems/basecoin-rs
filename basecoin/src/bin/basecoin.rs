@@ -38,7 +38,7 @@ async fn main() {
                     UpgradeCmd::Plan => query_upgrade_plan(cfg.cometbft.rpc_addr).await.unwrap(),
                 },
             };
-            let _ = std::io::stdout().write(format!("{:#?}", query_res).as_bytes());
+            let _ = write!(std::io::stdout(), "{:#?}", query_res);
         }
     };
 }
