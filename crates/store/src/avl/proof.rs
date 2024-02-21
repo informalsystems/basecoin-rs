@@ -7,16 +7,21 @@ use ics23::{HashOp, InnerSpec, LeafOp, LengthOp, ProofSpec};
 pub const LEAF_PREFIX: [u8; 64] = [0; 64]; // 64 bytes of zeroes.
 pub const EMPTY_CHILD: [u8; 32] = [0; 32]; // 32 bytes of zeroes.
 
+/// Return the `LeafOp` of tendermock AVL Tree.
+pub fn get_leaf_op() -> LeafOp {
+    LeafOp {
+        hash: HashOp::Sha256.into(),
+        prehash_key: HashOp::NoHash.into(),
+        prehash_value: HashOp::NoHash.into(),
+        length: LengthOp::NoPrefix.into(),
+        prefix: LEAF_PREFIX.to_vec(),
+    }
+}
+
 /// Return the `ProofSpec` of tendermock AVL Tree.
 pub fn get_proof_spec() -> ProofSpec {
     ProofSpec {
-        leaf_spec: Some(LeafOp {
-            hash: HashOp::Sha256.into(),
-            prehash_key: HashOp::NoHash.into(),
-            prehash_value: HashOp::NoHash.into(),
-            length: LengthOp::NoPrefix.into(),
-            prefix: LEAF_PREFIX.to_vec(),
-        }),
+        leaf_spec: Some(get_leaf_op()),
         inner_spec: Some(InnerSpec {
             child_order: vec![0, 1, 2],
             child_size: 32,

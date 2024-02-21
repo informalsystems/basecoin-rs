@@ -7,7 +7,6 @@ use sha2::{Digest, Sha256};
 
 use crate::avl::{
     node::{as_node_ref, NodeRef},
-    tree::AvlTree,
     *,
 };
 

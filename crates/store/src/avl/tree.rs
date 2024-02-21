@@ -19,7 +19,10 @@ use crate::avl::{
     proof, AsBytes,
 };
 
-use super::{proof::EMPTY_CHILD, AvlNode};
+use super::{
+    proof::{get_leaf_op, EMPTY_CHILD},
+    AvlNode,
+};
 
 /// An AVL Tree that supports `get` and `insert` operation and can be used to prove existence of a
 /// given key-value couple.
@@ -93,13 +96,7 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
         ExistenceProof {
             key: node.key.as_bytes().as_ref().to_owned(),
             value: node.value.borrow().to_owned(),
-            leaf: Some(LeafOp {
-                hash: HashOp::Sha256.into(),
-                prehash_key: HashOp::NoHash.into(),
-                prehash_value: HashOp::NoHash.into(),
-                length: LengthOp::NoPrefix.into(),
-                prefix: proof::LEAF_PREFIX.to_vec(),
-            }),
+            leaf: Some(get_leaf_op()),
             path: vec![InnerOp {
                 hash: HashOp::Sha256.into(),
                 prefix: node.left_hash().unwrap_or(&EMPTY_CHILD).to_vec(),
