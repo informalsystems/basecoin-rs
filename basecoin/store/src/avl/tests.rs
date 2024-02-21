@@ -2,14 +2,13 @@
 
 use ics23::commitment_proof::Proof;
 use ics23::{verify_membership, HostFunctionsManager};
+use rand::seq::SliceRandom;
+use rand::thread_rng;
 use sha2::{Digest, Sha256};
 
 use crate::avl::node::{as_node_ref, NodeRef};
 use crate::avl::tree::AvlTree;
 use crate::avl::*;
-
-use rand::seq::SliceRandom;
-use rand::thread_rng;
 
 #[test]
 fn insert() {
