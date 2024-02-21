@@ -2,6 +2,8 @@
 
 use ics23::commitment_proof::Proof;
 use ics23::{verify_membership, verify_non_membership, HostFunctionsManager};
+use rand::seq::SliceRandom;
+use rand::thread_rng;
 use sha2::{Digest, Sha256};
 
 use crate::avl::node::{as_node_ref, NodeRef};
@@ -132,9 +134,12 @@ fn proof() {
 
 #[test]
 fn integration() {
-    let existing_keys = ["C", "E", "G", "I", "K", "M", "O", "Q", "S", "U"];
+    let mut existing_keys = ["C", "E", "G", "I", "K", "M", "O", "Q", "S", "U"];
     // less than all, in the middle, greater than all
     let non_existing_keys = ["A", "B", "D", "F", "H", "J", "L", "N", "P", "R", "T", "V"];
+
+    // shuffle the keys to test the insertion order
+    existing_keys.shuffle(&mut thread_rng());
 
     let mut tree = AvlTree::new();
 
