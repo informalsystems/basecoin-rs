@@ -19,7 +19,7 @@ use crate::avl::{
     proof, AsBytes,
 };
 
-use super::proof::EMPTY_CHILD;
+use super::{proof::EMPTY_CHILD, AvlNode};
 
 /// An AVL Tree that supports `get` and `insert` operation and can be used to prove existence of a
 /// given key-value couple.
@@ -89,6 +89,25 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
         CommitmentProof { proof: Some(proof) }
     }
 
+    fn get_local_existence_proof(node: &AvlNode<K, V>) -> ExistenceProof {
+        ExistenceProof {
+            key: node.key.as_bytes().as_ref().to_owned(),
+            value: node.value.borrow().to_owned(),
+            leaf: Some(LeafOp {
+                hash: HashOp::Sha256.into(),
+                prehash_key: HashOp::NoHash.into(),
+                prehash_value: HashOp::NoHash.into(),
+                length: LengthOp::NoPrefix.into(),
+                prefix: proof::LEAF_PREFIX.to_vec(),
+            }),
+            path: vec![InnerOp {
+                hash: HashOp::Sha256.into(),
+                prefix: node.left_hash().unwrap_or(&EMPTY_CHILD).to_vec(),
+                suffix: node.right_hash().unwrap_or(&EMPTY_CHILD).to_vec(),
+            }],
+        }
+    }
+
     /// Recursively build a proof of existence for the desired value.
     fn get_proof_rec<Q: ?Sized>(key: &Q, node: &NodeRef<K, V>) -> Proof
     where
@@ -123,22 +142,7 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
                             }
                             if proof.right.is_none() {
                                 // found the right-neighbor
-                                proof.right = Some(ExistenceProof {
-                                    key: node.key.as_bytes().as_ref().to_owned(),
-                                    value: node.value.borrow().to_owned(),
-                                    leaf: Some(LeafOp {
-                                        hash: HashOp::Sha256.into(),
-                                        prehash_key: HashOp::NoHash.into(),
-                                        prehash_value: HashOp::NoHash.into(),
-                                        length: LengthOp::NoPrefix.into(),
-                                        prefix: proof::LEAF_PREFIX.to_vec(),
-                                    }),
-                                    path: vec![InnerOp {
-                                        hash: HashOp::Sha256.into(),
-                                        prefix: node.left_hash().unwrap_or(&EMPTY_CHILD).to_vec(),
-                                        suffix: node.right_hash().unwrap_or(&EMPTY_CHILD).to_vec(),
-                                    }],
-                                });
+                                proof.right = Some(Self::get_local_existence_proof(node));
                             }
                             Proof::Nonexist(proof)
                         }
@@ -171,44 +175,14 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
                             }
                             if proof.left.is_none() {
                                 // found the left-neighbor
-                                proof.left = Some(ExistenceProof {
-                                    key: node.key.as_bytes().as_ref().to_owned(),
-                                    value: node.value.borrow().to_owned(),
-                                    leaf: Some(LeafOp {
-                                        hash: HashOp::Sha256.into(),
-                                        prehash_key: HashOp::NoHash.into(),
-                                        prehash_value: HashOp::NoHash.into(),
-                                        length: LengthOp::NoPrefix.into(),
-                                        prefix: proof::LEAF_PREFIX.to_vec(),
-                                    }),
-                                    path: vec![InnerOp {
-                                        hash: HashOp::Sha256.into(),
-                                        prefix: node.left_hash().unwrap_or(&EMPTY_CHILD).to_vec(),
-                                        suffix: node.right_hash().unwrap_or(&EMPTY_CHILD).to_vec(),
-                                    }],
-                                })
+                                proof.left = Some(Self::get_local_existence_proof(node));
                             }
                             Proof::Nonexist(proof)
                         }
                         _ => unreachable!(),
                     }
                 }
-                Ordering::Equal => Proof::Exist(ExistenceProof {
-                    key: node.key.as_bytes().as_ref().to_owned(),
-                    value: node.value.borrow().to_owned(),
-                    leaf: Some(LeafOp {
-                        hash: HashOp::Sha256.into(),
-                        prehash_key: HashOp::NoHash.into(),
-                        prehash_value: HashOp::NoHash.into(),
-                        length: LengthOp::NoPrefix.into(),
-                        prefix: proof::LEAF_PREFIX.to_vec(),
-                    }),
-                    path: vec![InnerOp {
-                        hash: HashOp::Sha256.into(),
-                        prefix: node.left_hash().unwrap_or(&EMPTY_CHILD).to_vec(),
-                        suffix: node.right_hash().unwrap_or(&EMPTY_CHILD).to_vec(),
-                    }],
-                }),
+                Ordering::Equal => Proof::Exist(Self::get_local_existence_proof(node)),
             }
         } else {
             Proof::Nonexist(NonExistenceProof {
