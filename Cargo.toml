@@ -3,27 +3,47 @@
 resolver = "2"
 
 members = [
-    "crates/app",
-    "crates/store",
+    "basecoin",
+    "basecoin/app",
+    "basecoin/modules",
+    "basecoin/store",
 ]
 
+[workspace.package]
+version      = "0.1.0"
+license      = "Apache-2.0"
+edition      = "2021"
+rust-version = "1.64"
+readme       = "README.md"
+repository   = "https://github.com/informalsystems/basecoin-rs"
+authors      = ["Informal Systems <hello@informal.systems>"]
+
 [workspace.dependencies]
-base64 = { version = "0.21.6", default-features = false, features = ["alloc"] }
-displaydoc = { version = "0.2", default-features = false }
-derive_more = { version = "0.99.17", default-features = false, features = ["from", "into", "display"] }
-ed25519 = { version = "2.1.0", default-features = false }
-ibc = { git = "https://github.com/cosmos/ibc-rs", rev = "4769bd7", default-features = false, features = ["serde"] }
-ibc-query = { git = "https://github.com/cosmos/ibc-rs", rev = "4769bd7", default-features = false }
-ibc-proto = { version = "0.41.0", default-features = false }
-ics23 = { version = "0.11", default-features = false }
-prost = { version = "0.12", default-features = false }
-serde = "1.0"
-serde_json = "1.0"
-sha2 = "0.10.2"
-tendermint = "0.34"
-tendermint-abci = "0.34"
-tendermint-proto = "0.34"
-tendermint-rpc = "0.34"
-tracing = "0.1.26"
+# external dependencies
+base64             = { version = "0.21.6", default-features = false, features = ["alloc"] }
+cosmrs             = { version = "0.15.0" }
+displaydoc         = { version = "0.2", default-features = false }
+derive_more        = { version = "0.99.17", default-features = false, features = ["from", "into", "display"] }
+ed25519            = { version = "2.1.0", default-features = false }
+prost              = { version = "0.12", default-features = false }
+serde              = "1.0"
+serde_json         = "1.0"
+sha2               = "0.10.2"
+tonic              = "0.10"
+tonic-reflection   = "0.10"
+tracing            = "0.1.26"
+tracing-subscriber = "0.3.16"
+
+# ibc dependencies
+ibc              = { git = "https://github.com/cosmos/ibc-rs", rev = "4769bd7", default-features = false, features = ["serde"] }
+ibc-query        = { git = "https://github.com/cosmos/ibc-rs", rev = "4769bd7", default-features = false }
+ibc-proto        = { version = "0.41.0", default-features = false }
+ics23            = { version = "0.11", default-features = false }
+
+# tendermint dependencies
+tendermint       = { version = "0.34", default-features = false }
+tendermint-abci  = { version = "0.34", default-features = false }
+tendermint-proto = { version = "0.34", default-features = false }
+tendermint-rpc   = { version = "0.34", default-features = false }
 
 
