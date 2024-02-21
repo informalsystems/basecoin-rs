@@ -1,22 +1,13 @@
-use core::{
-    borrow::Borrow,
-    cmp::{Ord, Ordering},
-    marker::Sized,
-    option::{
-        Option,
-        Option::{None, Some},
-    },
-};
+use core::{borrow::Borrow, cmp::Ordering};
 
 use ics23::{
-    commitment_proof::Proof, CommitmentProof, ExistenceProof, HashOp, InnerOp, LeafOp, LengthOp,
-    NonExistenceProof,
+    commitment_proof::Proof, CommitmentProof, ExistenceProof, HashOp, InnerOp, NonExistenceProof,
 };
 use tendermint::hash::Hash;
 
 use crate::avl::{
     node::{as_node_ref, NodeRef},
-    proof, AsBytes,
+    AsBytes,
 };
 
 use super::{
