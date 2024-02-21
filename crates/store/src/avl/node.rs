@@ -117,17 +117,9 @@ where
     /// Update the node's merkle hash by looking at the hashes of its two children.
     fn update_hashes(&mut self) {
         let mut sha = Sha256::new();
-        if let Some(left) = &self.left {
-            sha.update(left.merkle_hash.as_bytes());
-        } else {
-            sha.update(EMPTY_CHILD);
-        }
+        sha.update(self.left_hash().unwrap_or(&EMPTY_CHILD));
         sha.update(self.hash.as_bytes());
-        if let Some(right) = &self.right {
-            sha.update(right.merkle_hash.as_bytes())
-        } else {
-            sha.update(EMPTY_CHILD);
-        }
+        sha.update(self.right_hash().unwrap_or(&EMPTY_CHILD));
         self.merkle_hash = Hash::from_bytes(HASH_ALGO, sha.finalize().as_slice()).unwrap();
     }
 
