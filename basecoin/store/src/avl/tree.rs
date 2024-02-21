@@ -5,11 +5,10 @@ use ics23::commitment_proof::Proof;
 use ics23::{CommitmentProof, ExistenceProof, HashOp, InnerOp, NonExistenceProof};
 use tendermint::hash::Hash;
 
-use crate::avl::node::{as_node_ref, NodeRef};
-use crate::avl::AsBytes;
-
 use super::proof::{get_leaf_op, EMPTY_CHILD};
 use super::AvlNode;
+use crate::avl::node::{as_node_ref, NodeRef};
+use crate::avl::AsBytes;
 
 /// An AVL Tree that supports `get` and `insert` operation and can be used to prove existence of a
 /// given key-value couple.

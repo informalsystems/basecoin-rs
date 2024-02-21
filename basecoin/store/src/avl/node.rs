@@ -4,10 +4,9 @@ use std::mem;
 use sha2::{Digest, Sha256};
 use tendermint::hash::Hash;
 
+use super::proof::EMPTY_CHILD;
 use crate::avl::as_bytes::AsBytes;
 use crate::avl::{proof, HASH_ALGO};
-
-use super::proof::EMPTY_CHILD;
 
 pub type NodeRef<T, V> = Option<Box<AvlNode<T, V>>>;
 
