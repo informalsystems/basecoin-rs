@@ -19,6 +19,8 @@ use crate::avl::{
     proof, AsBytes,
 };
 
+use super::proof::EMPTY_CHILD;
+
 /// An AVL Tree that supports `get` and `insert` operation and can be used to prove existence of a
 /// given key-value couple.
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -94,13 +96,12 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
         Q: Ord + AsBytes,
     {
         if let Some(node) = node {
-            let empty_hash = [0; 32];
             match node.key.borrow().cmp(key) {
                 Ordering::Greater => {
                     let prefix = vec![];
                     let mut suffix = Vec::with_capacity(64);
                     suffix.extend(node.hash.as_bytes());
-                    suffix.extend(node.right_hash().unwrap_or(&empty_hash));
+                    suffix.extend(node.right_hash().unwrap_or(&EMPTY_CHILD));
                     let inner = InnerOp {
                         hash: HashOp::Sha256.into(),
                         prefix,
@@ -134,8 +135,8 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
                                     }),
                                     path: vec![InnerOp {
                                         hash: HashOp::Sha256.into(),
-                                        prefix: node.left_hash().unwrap_or(&empty_hash).to_vec(),
-                                        suffix: node.right_hash().unwrap_or(&empty_hash).to_vec(),
+                                        prefix: node.left_hash().unwrap_or(&EMPTY_CHILD).to_vec(),
+                                        suffix: node.right_hash().unwrap_or(&EMPTY_CHILD).to_vec(),
                                     }],
                                 });
                             }
@@ -147,7 +148,7 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
                 Ordering::Less => {
                     let suffix = vec![];
                     let mut prefix = Vec::with_capacity(64);
-                    prefix.extend(node.left_hash().unwrap_or(&empty_hash));
+                    prefix.extend(node.left_hash().unwrap_or(&EMPTY_CHILD));
                     prefix.extend(node.hash.as_bytes());
                     let inner = InnerOp {
                         hash: HashOp::Sha256.into(),
@@ -182,8 +183,8 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
                                     }),
                                     path: vec![InnerOp {
                                         hash: HashOp::Sha256.into(),
-                                        prefix: node.left_hash().unwrap_or(&empty_hash).to_vec(),
-                                        suffix: node.right_hash().unwrap_or(&empty_hash).to_vec(),
+                                        prefix: node.left_hash().unwrap_or(&EMPTY_CHILD).to_vec(),
+                                        suffix: node.right_hash().unwrap_or(&EMPTY_CHILD).to_vec(),
                                     }],
                                 })
                             }
@@ -204,8 +205,8 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
                     }),
                     path: vec![InnerOp {
                         hash: HashOp::Sha256.into(),
-                        prefix: node.left_hash().unwrap_or(&empty_hash).to_vec(),
-                        suffix: node.right_hash().unwrap_or(&empty_hash).to_vec(),
+                        prefix: node.left_hash().unwrap_or(&EMPTY_CHILD).to_vec(),
+                        suffix: node.right_hash().unwrap_or(&EMPTY_CHILD).to_vec(),
                     }],
                 }),
             }

@@ -5,6 +5,8 @@ use tendermint::hash::Hash;
 
 use crate::avl::{as_bytes::AsBytes, proof, HASH_ALGO};
 
+use super::proof::EMPTY_CHILD;
+
 pub type NodeRef<T, V> = Option<Box<AvlNode<T, V>>>;
 
 /// A node in the AVL Tree.
@@ -40,9 +42,9 @@ where
         let hash = sha.finalize();
 
         let mut sha = Sha256::new();
-        sha.update([0; 32]);
+        sha.update(EMPTY_CHILD);
         sha.update(hash);
-        sha.update([0; 32]);
+        sha.update(EMPTY_CHILD);
         let merkle_hash = sha.finalize();
 
         let merkle_hash = Hash::from_bytes(HASH_ALGO, &merkle_hash).unwrap();
@@ -118,13 +120,13 @@ where
         if let Some(left) = &self.left {
             sha.update(left.merkle_hash.as_bytes());
         } else {
-            sha.update([0; 32]);
+            sha.update(EMPTY_CHILD);
         }
         sha.update(self.hash.as_bytes());
         if let Some(right) = &self.right {
             sha.update(right.merkle_hash.as_bytes())
         } else {
-            sha.update([0; 32]);
+            sha.update(EMPTY_CHILD);
         }
         self.merkle_hash = Hash::from_bytes(HASH_ALGO, sha.finalize().as_slice()).unwrap();
     }
