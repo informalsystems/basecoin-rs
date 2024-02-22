@@ -170,3 +170,70 @@ impl ProvableStore for InMemoryStore {
 }
 
 // TODO(hu55a1n1): import tests
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_pruned_vec() {
+        let mut pv = PrunedVec::default();
+        pv.push(1);
+        pv.push(2);
+        pv.push(3);
+        pv.push(4);
+        pv.push(5);
+        assert_eq!(pv.len(), 5);
+        pv.prune(2);
+        assert_eq!(pv.len(), 5);
+        assert_eq!(pv.get(0), None);
+        assert_eq!(pv.get(1), None);
+        assert_eq!(pv.get(2), Some(&3));
+        assert_eq!(pv.get(3), Some(&4));
+        assert_eq!(pv.get(4), Some(&5));
+        assert_eq!(pv.get(5), None);
+        assert_eq!(pv.last(), Some(&5));
+    }
+
+    #[test]
+    fn test_in_memory_store() {
+        let mut store = InMemoryStore::default();
+        assert!(!store.root_hash().is_empty());
+        assert_eq!(store.current_height(), 0);
+
+        let path = Path::from("a".to_owned());
+        let value1 = vec![1, 2, 3];
+        let value2 = vec![4, 5, 6];
+
+        store.set(path.clone(), value1.clone()).unwrap();
+        assert_eq!(store.get(Height::Pending, &path), Some(value1.clone()));
+        assert_eq!(store.get(Height::Latest, &path), None);
+        assert_eq!(store.get(Height::Stable(1), &path), None);
+
+        store.apply().unwrap();
+        store.commit().unwrap();
+
+        assert_eq!(store.get(Height::Pending, &path), Some(value1.clone()));
+        assert_eq!(store.get(Height::Latest, &path), Some(value1.clone()));
+        assert_eq!(store.get(Height::Stable(1), &path), Some(value1.clone()));
+        assert_eq!(store.get(Height::Stable(2), &path), None);
+        assert_eq!(store.current_height(), 1);
+        assert!(!store.root_hash().is_empty());
+
+        store.set(path.clone(), value2.clone()).unwrap();
+        assert_eq!(store.get(Height::Pending, &path), Some(value2.clone()));
+        assert_eq!(store.get(Height::Latest, &path), Some(value1.clone()));
+        assert_eq!(store.get(Height::Stable(1), &path), Some(value1.clone()));
+
+        store.apply().unwrap();
+        store.commit().unwrap();
+
+        assert_eq!(store.get(Height::Pending, &path), Some(value2.clone()));
+        assert_eq!(store.get(Height::Latest, &path), Some(value2.clone()));
+        assert_eq!(store.get(Height::Stable(1), &path), Some(value1.clone()));
+        assert_eq!(store.get(Height::Stable(2), &path), Some(value2.clone()));
+        assert_eq!(store.get(Height::Stable(3), &path), None);
+        assert_eq!(store.current_height(), 2);
+        assert!(!store.root_hash().is_empty());
+    }
+}
