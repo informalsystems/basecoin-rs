@@ -215,6 +215,19 @@ pub fn deliver_tx<S: Default + Debug + ProvableStore>(
         }
     }
 
+    // persists changes from all the messages in this tx
+    let mut modules = app.modules.write_access();
+    for IdentifiedModule { module, .. } in modules.iter_mut() {
+        module
+            .store_mut()
+            .apply()
+            .expect("failed to apply to module state");
+    }
+    app.store
+        .write_access()
+        .apply()
+        .expect("failed to commit to state");
+
     ResponseDeliverTx {
         log: "success".to_owned(),
         events,
@@ -228,7 +241,7 @@ pub fn commit<S: Default + ProvableStore>(app: &BaseCoinApp<S>) -> ResponseCommi
         module
             .store_mut()
             .commit()
-            .expect("failed to commit to state");
+            .expect("failed to commit to module state");
         let mut state = app.store.write_access();
         state
             .set(id.clone().into(), module.store().root_hash())
