@@ -5,14 +5,53 @@ use tracing::trace;
 
 use crate::avl::{AsBytes, AvlTree};
 use crate::context::{ProvableStore, Store};
-use crate::types::{Height, Path, State};
+use crate::types::{Height, Path, RawHeight, State};
+
+#[derive(Debug, Clone, Default)]
+pub struct PrunedVec<T> {
+    vec: Vec<T>,
+    pruned: usize,
+}
+
+impl<T> PrunedVec<T> {
+    pub fn push(&mut self, value: T) {
+        self.vec.push(value);
+    }
+
+    pub fn get(&self, index: usize) -> Option<&T> {
+        self.vec.get(index.checked_sub(self.pruned)?)
+    }
+
+    pub fn last(&self) -> Option<&T> {
+        self.vec.last()
+    }
+
+    pub fn len(&self) -> usize {
+        self.vec
+            .len()
+            .checked_add(self.pruned)
+            .expect("no overflow")
+    }
+
+    pub fn prune(&mut self, index: usize) {
+        trace!("pruning at index = {}", index);
+        if index > self.pruned {
+            self.vec.drain(0..index - self.pruned);
+            self.pruned = index;
+        }
+    }
+}
 
 /// An in-memory store backed by an AvlTree.
 #[derive(Clone, Debug)]
 pub struct InMemoryStore {
     /// collection of states corresponding to every committed block height
-    store: Vec<State>,
-    /// pending block state
+    store: PrunedVec<State>,
+    /// staged changes waiting to be committed
+    /// these changes are from successful transactions
+    staged: State,
+    /// dirty changes that are not complete
+    /// middle of a transaction which may fail
     pending: State,
 }
 
@@ -23,11 +62,11 @@ impl InMemoryStore {
             Height::Pending => Some(&self.pending),
             Height::Latest => self.store.last(),
             Height::Stable(height) => {
-                let h = height as usize;
-                if h <= self.store.len() {
-                    self.store.get(h - 1)
-                } else {
+                if height == 0 {
                     None
+                } else {
+                    let h = height as usize;
+                    self.store.get(h - 1)
                 }
             }
         }
@@ -37,9 +76,16 @@ impl InMemoryStore {
 impl Default for InMemoryStore {
     /// The store starts out with an empty state. We also initialize the pending location as empty.
     fn default() -> Self {
+        let genesis_state = AvlTree::new();
+
+        let store = PrunedVec::default();
+        let staged = genesis_state.clone();
+        let pending = genesis_state.clone();
+
         Self {
-            store: vec![],
-            pending: AvlTree::new(),
+            store,
+            staged,
+            pending,
         }
     }
 }
@@ -66,9 +112,27 @@ impl Store for InMemoryStore {
     }
 
     fn commit(&mut self) -> Result<Vec<u8>, Self::Error> {
-        trace!("committing height: {}", self.store.len());
-        self.store.push(self.pending.clone());
+        self.apply()?;
+        trace!("committing height: {}", self.current_height());
+        self.store.push(self.staged.clone());
         Ok(self.root_hash())
+    }
+
+    fn apply(&mut self) -> Result<(), Self::Error> {
+        trace!("applying height: {}", self.current_height());
+        self.staged = self.pending.clone();
+        Ok(())
+    }
+
+    fn reset(&mut self) {
+        trace!("resetting height: {}", self.current_height());
+        self.pending = self.staged.clone();
+    }
+
+    fn prune(&mut self, height: RawHeight) -> Result<RawHeight, Self::Error> {
+        let h = height as usize;
+        self.store.prune(h);
+        Ok(height)
     }
 
     fn current_height(&self) -> u64 {
@@ -88,8 +152,8 @@ impl Store for InMemoryStore {
 
 impl ProvableStore for InMemoryStore {
     fn root_hash(&self) -> Vec<u8> {
-        self.pending
-            .root_hash()
+        self.get_state(Height::Latest)
+            .and_then(|s| s.root_hash())
             .unwrap_or(&Hash::from_bytes(Algorithm::Sha256, &[0u8; 32]).unwrap())
             .as_bytes()
             .to_vec()
