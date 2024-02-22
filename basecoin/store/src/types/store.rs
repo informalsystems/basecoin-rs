@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 
 use crate::avl::AvlTree;
 use crate::context::Store;
-use crate::impls::{RevertibleStore, SharedStore};
+use crate::impls::SharedStore;
 use crate::types::{Height, Path, RawHeight};
 use crate::utils::codec::{BinCodec, JsonCodec, NullCodec, ProtobufCodec};
 use crate::utils::Codec;
@@ -12,7 +12,7 @@ use crate::utils::Codec;
 // The value is a `Vec<u8>` to allow stored types to choose their own serde.
 pub type State = AvlTree<Path, Vec<u8>>;
 
-pub type MainStore<S> = SharedStore<RevertibleStore<S>>;
+pub type MainStore<S> = SharedStore<S>;
 
 /// A `TypedStore` that uses the `JsonCodec`
 pub type JsonStore<S, K, V> = TypedStore<S, K, JsonCodec<V>>;

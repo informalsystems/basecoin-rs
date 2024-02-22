@@ -5,7 +5,7 @@ use basecoin_modules::context::Module;
 use basecoin_modules::error::Error;
 use basecoin_modules::types::{IdentifiedModule, ModuleList, ModuleStore};
 use basecoin_store::context::ProvableStore;
-use basecoin_store::impls::{RevertibleStore, SharedStore};
+use basecoin_store::impls::SharedStore;
 use basecoin_store::types::{Identifier, MainStore};
 use basecoin_store::utils::{SharedRw, SharedRwExt};
 use cosmrs::AccountId;
@@ -22,7 +22,7 @@ impl<S: Default + ProvableStore> Builder<S> {
     /// Constructor.
     pub fn new(store: S) -> Self {
         Self {
-            store: SharedStore::new(RevertibleStore::new(store)),
+            store: SharedStore::new(store),
             modules: Arc::new(RwLock::new(vec![])),
         }
     }
@@ -35,7 +35,7 @@ impl<S: Default + ProvableStore> Builder<S> {
             .iter()
             .find(|m| &m.id == prefix)
             .map(|IdentifiedModule { module, .. }| module.store().share())
-            .unwrap_or_else(|| SharedStore::new(ModuleStore::new(S::default())))
+            .unwrap_or_else(|| SharedStore::new(S::default()))
     }
 
     #[inline]

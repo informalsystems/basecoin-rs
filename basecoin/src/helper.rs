@@ -6,11 +6,10 @@ use basecoin_modules::bank::Bank;
 use basecoin_modules::context::{prefix, Identifiable};
 use basecoin_modules::ibc::Ibc;
 use basecoin_store::context::ProvableStore;
-use basecoin_store::impls::RevertibleStore;
 use basecoin_store::utils::SharedRwExt;
 
 /// Gives access to the IBC module.
-pub fn ibc<S>(app: BaseCoinApp<S>) -> Ibc<RevertibleStore<S>>
+pub fn ibc<S>(app: BaseCoinApp<S>) -> Ibc<S>
 where
     S: ProvableStore + Default + Debug,
 {
@@ -19,23 +18,12 @@ where
     modules
         .iter()
         .find(|m| m.id == prefix::Ibc {}.identifier())
-        .and_then(|m| {
-            m.module
-                .as_any()
-                .downcast_ref::<Ibc<RevertibleStore<S>>>()
-                .cloned()
-        })
+        .and_then(|m| m.module.as_any().downcast_ref::<Ibc<S>>().cloned())
         .expect("IBC module not found")
 }
 
 /// Gives access to the Bank module.
-pub fn bank<S>(
-    app: BaseCoinApp<S>,
-) -> Bank<
-    RevertibleStore<S>,
-    AuthAccountReader<RevertibleStore<S>>,
-    AuthAccountKeeper<RevertibleStore<S>>,
->
+pub fn bank<S>(app: BaseCoinApp<S>) -> Bank<S, AuthAccountReader<S>, AuthAccountKeeper<S>>
 where
     S: ProvableStore + Default + Debug,
 {
@@ -47,11 +35,7 @@ where
         .and_then(|m| {
             m.module
                 .as_any()
-                .downcast_ref::<Bank<
-                    RevertibleStore<S>,
-                    AuthAccountReader<RevertibleStore<S>>,
-                    AuthAccountKeeper<RevertibleStore<S>>,
-                >>()
+                .downcast_ref::<Bank<S, AuthAccountReader<S>, AuthAccountKeeper<S>>>()
                 .cloned()
         })
         .expect("Bank module not found")

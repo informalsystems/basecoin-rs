@@ -1,11 +1,10 @@
-use basecoin_store::impls::RevertibleStore;
 use basecoin_store::types::Identifier;
 use tendermint::merkle::proof::ProofOp;
 
 use crate::context::Module;
 
 pub type ModuleList<S> = Vec<IdentifiedModule<S>>;
-pub type ModuleStore<S> = RevertibleStore<S>;
+pub type ModuleStore<S> = S;
 
 pub struct IdentifiedModule<S> {
     pub id: Identifier,
