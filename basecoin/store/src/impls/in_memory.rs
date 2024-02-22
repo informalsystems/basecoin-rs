@@ -1,3 +1,5 @@
+use core::convert::Infallible;
+
 use ics23::CommitmentProof;
 use tendermint::hash::Algorithm;
 use tendermint::Hash;
@@ -91,7 +93,7 @@ impl Default for InMemoryStore {
 }
 
 impl Store for InMemoryStore {
-    type Error = (); // underlying store ops are infallible
+    type Error = Infallible;
 
     fn set(&mut self, path: Path, value: Vec<u8>) -> Result<Option<Vec<u8>>, Self::Error> {
         trace!("set at path = {}", path.to_string());
