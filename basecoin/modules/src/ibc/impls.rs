@@ -75,6 +75,12 @@ pub enum AnyConsensusState {
     Tendermint(TmConsensusState),
 }
 
+impl From<ConsensusStateType> for AnyConsensusState {
+    fn from(value: ConsensusStateType) -> Self {
+        AnyConsensusState::Tendermint(value.into())
+    }
+}
+
 impl From<AnyConsensusState> for Any {
     fn from(value: AnyConsensusState) -> Self {
         match value {
@@ -733,7 +739,7 @@ where
         &self,
         client_id: &ClientId,
     ) -> Result<Vec<ConnectionId>, ContextError> {
-        let client_connection_path = ClientConnectionPath::new(client_id);
+        let client_connection_path = ClientConnectionPath::new(client_id.clone());
 
         Ok(self
             .connection_ids_store
