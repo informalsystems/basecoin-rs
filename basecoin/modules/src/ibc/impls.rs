@@ -22,6 +22,7 @@ use ibc::core::channel::types::commitment::{AcknowledgementCommitment, PacketCom
 use ibc::core::channel::types::error::{ChannelError, PacketError};
 use ibc::core::channel::types::packet::{PacketState, Receipt};
 use ibc::core::client::context::consensus_state::ConsensusState as _;
+use ibc::core::client::context::ClientValidationContext;
 use ibc::core::client::types::error::ClientError;
 use ibc::core::client::types::Height as IbcHeight;
 use ibc::core::commitment_types::commitment::{CommitmentPrefix, CommitmentRoot};
@@ -38,7 +39,7 @@ use ibc::core::host::types::path::{
     CommitmentPath, ConnectionPath, Path as IbcPath, ReceiptPath, SeqAckPath, SeqRecvPath,
     SeqSendPath,
 };
-use ibc::core::host::{ExecutionContext, ValidationContext};
+use ibc::core::host::{ClientStateRef, ConsensusStateRef, ExecutionContext, ValidationContext};
 use ibc::cosmos_host::IBC_QUERY_PATH;
 use ibc::derive::ConsensusState;
 use ibc::primitives::{Signer, Timestamp};
@@ -375,42 +376,6 @@ where
     S: Store + Debug,
 {
     type V = Self;
-    type E = Self;
-    type AnyConsensusState = AnyConsensusState;
-    type AnyClientState = TmClientState;
-
-    fn client_state(&self, client_id: &ClientId) -> Result<Self::AnyClientState, ContextError> {
-        Ok(self
-            .client_state_store
-            .get(Height::Pending, &ClientStatePath(client_id.clone()))
-            .ok_or(ClientError::ClientStateNotFound {
-                client_id: client_id.clone(),
-            })?)
-    }
-
-    fn decode_client_state(&self, client_state: Any) -> Result<Self::AnyClientState, ContextError> {
-        Ok(TmClientState::try_from(client_state)?)
-    }
-
-    fn consensus_state(
-        &self,
-        client_cons_state_path: &ClientConsensusStatePath,
-    ) -> Result<Self::AnyConsensusState, ContextError> {
-        let height = IbcHeight::new(
-            client_cons_state_path.revision_number,
-            client_cons_state_path.revision_height,
-        )
-        .map_err(|_| ClientError::InvalidHeight)?;
-        let consensus_state = self
-            .consensus_state_store
-            .get(Height::Pending, client_cons_state_path)
-            .ok_or(ClientError::ConsensusStateNotFound {
-                client_id: client_cons_state_path.client_id.clone(),
-                height,
-            })?;
-
-        Ok(consensus_state.into())
-    }
 
     fn host_height(&self) -> Result<IbcHeight, ContextError> {
         Ok(IbcHeight::new(
@@ -421,20 +386,8 @@ where
 
     fn host_timestamp(&self) -> Result<Timestamp, ContextError> {
         let host_height = self.host_height()?;
-        let host_cons_state = self.host_consensus_state(&host_height)?;
+        let host_cons_state = self.self_consensus_state(&host_height)?;
         Ok(host_cons_state.timestamp())
-    }
-
-    fn host_consensus_state(
-        &self,
-        height: &IbcHeight,
-    ) -> Result<Self::AnyConsensusState, ContextError> {
-        let consensus_states_binding = self.consensus_states.read().expect("lock is poisoned");
-        let consensus_state = consensus_states_binding
-            .get(&height.revision_height())
-            .ok_or(ClientError::MissingLocalConsensusState { height: *height })?;
-
-        Ok(consensus_state.clone().into())
     }
 
     fn client_counter(&self) -> Result<u64, ContextError> {
@@ -448,10 +401,6 @@ where
             .ok_or(ConnectionError::ConnectionNotFound {
                 connection_id: conn_id.clone(),
             })?)
-    }
-
-    fn validate_self_client(&self, _counterparty_client_state: Any) -> Result<(), ContextError> {
-        Ok(())
     }
 
     fn commitment_prefix(&self) -> CommitmentPrefix {
@@ -610,7 +559,7 @@ where
     S: ProvableStore + Debug,
 {
     /// Returns the list of all client states.
-    fn client_states(&self) -> Result<Vec<(ClientId, Self::AnyClientState)>, ContextError> {
+    fn client_states(&self) -> Result<Vec<(ClientId, ClientStateRef<Self>)>, ContextError> {
         let path = "clients".to_owned().into();
 
         self.client_state_store
@@ -639,7 +588,7 @@ where
     fn consensus_states(
         &self,
         client_id: &ClientId,
-    ) -> Result<Vec<(IbcHeight, Self::AnyConsensusState)>, ContextError> {
+    ) -> Result<Vec<(IbcHeight, ConsensusStateRef<Self>)>, ContextError> {
         let path = format!("clients/{}/consensusStates", client_id)
             .try_into()
             .map_err(|_| ClientError::Other {
@@ -949,6 +898,8 @@ impl<S> ExecutionContext for IbcContext<S>
 where
     S: Store + Debug,
 {
+    type E = Self;
+
     /// Called upon client creation.
     /// Increases the counter which keeps track of how many clients have been created.
     /// Should never fail.
