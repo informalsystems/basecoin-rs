@@ -4,7 +4,6 @@ use basecoin_store::context::{ProvableStore, Store};
 use basecoin_store::impls::SharedStore;
 use basecoin_store::types::{Height, Path, ProtobufStore, TypedStore};
 use cosmrs::AccountId;
-use ibc::clients::tendermint::client_state::ClientState as TmClientState;
 use ibc::clients::tendermint::consensus_state::ConsensusState as TmConsensusState;
 use ibc::clients::tendermint::types::ConsensusState as ConsensusStateType;
 use ibc::core::client::types::error::UpgradeClientError;
@@ -27,7 +26,7 @@ use super::query::UPGRADE_PLAN_QUERY_PATH;
 use super::service::UpgradeService;
 use crate::context::Module;
 use crate::error::Error as AppError;
-use crate::ibc::{AnyConsensusState, IbcContext};
+use crate::ibc::{AnyClientState, AnyConsensusState, IbcContext};
 use crate::types::QueryResult;
 
 #[derive(Clone)]
@@ -40,10 +39,10 @@ where
     upgrade_plan: ProtobufStore<SharedStore<S>, UpgradePlanPath, Plan, Any>,
     /// A typed-store for upgraded ClientState
     upgraded_client_state_store:
-        ProtobufStore<SharedStore<S>, UpgradeClientPath, TmClientState, Any>,
+        ProtobufStore<SharedStore<S>, UpgradeClientPath, AnyClientState, Any>,
     /// A typed-store for upgraded ConsensusState
     upgraded_consensus_state_store:
-        ProtobufStore<SharedStore<S>, UpgradeClientPath, TmConsensusState, Any>,
+        ProtobufStore<SharedStore<S>, UpgradeClientPath, ConsensusStateType, Any>,
 }
 
 impl<S> Upgrade<S>
@@ -224,7 +223,7 @@ where
     fn upgraded_client_state(
         &self,
         upgrade_path: &UpgradeClientPath,
-    ) -> Result<TmClientState, UpgradeClientError> {
+    ) -> Result<AnyClientState, UpgradeClientError> {
         let upgraded_tm_client_state = self
             .upgraded_client_state_store
             .get(Height::Pending, upgrade_path)
@@ -302,7 +301,7 @@ where
     fn store_upgraded_client_state(
         &mut self,
         upgrade_path: UpgradeClientPath,
-        client_state: TmClientState,
+        client_state: AnyClientState,
     ) -> Result<(), UpgradeClientError> {
         self.upgraded_client_state_store
             .set(upgrade_path, client_state)
@@ -318,11 +317,11 @@ where
         upgrade_path: UpgradeClientPath,
         consensus_state: AnyConsensusState,
     ) -> Result<(), UpgradeClientError> {
-        let tm_consensus_state: TmConsensusState =
+        let tm_consensus_state: ConsensusStateType =
             consensus_state
                 .try_into()
-                .map_err(|err: &str| UpgradeClientError::Other {
-                    reason: err.to_string(),
+                .map_err(|e| UpgradeClientError::Other {
+                    reason: format!("Error converting consensus state: {e:?}"),
                 })?;
 
         self.upgraded_consensus_state_store

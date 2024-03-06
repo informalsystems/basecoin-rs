@@ -30,6 +30,7 @@ ibc                = { workspace = true }
 ibc-proto          = { workspace = true, features = ["server", "proto-descriptor", "serde"] }
 ibc-query          = { workspace = true }
 ics23              = { workspace = true, features = ["host-functions"] }
+sov-celestia-client = { git = "https://github.com/informalsystems/sovereign-ibc.git", rev = "81d5c5b" }
 
 # tendermint dependencies
 tendermint         = { workspace = true }
@@ -37,5 +38,3 @@ tendermint-rpc     = { workspace = true , features = ["http-client"] }
 
 # internal dependencies
 basecoin-store     = { path = "../store" }
-
-

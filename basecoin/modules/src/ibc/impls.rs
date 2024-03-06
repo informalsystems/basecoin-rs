@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::convert::{TryFrom, TryInto};
 use std::fmt::Debug;
 use std::ops::Deref;
 use std::sync::{Arc, RwLock};
@@ -10,12 +11,14 @@ use basecoin_store::types::{
     BinStore, Height, JsonStore, Path, ProtobufStore, TypedSet, TypedStore,
 };
 use cosmrs::AccountId;
-use derive_more::{From, TryInto};
+use derive_more::From;
 use ibc::apps::transfer::handler::send_transfer;
 use ibc::apps::transfer::types::msgs::transfer::MsgTransfer;
 use ibc::clients::tendermint::client_state::ClientState as TmClientState;
 use ibc::clients::tendermint::consensus_state::ConsensusState as TmConsensusState;
-use ibc::clients::tendermint::types::ConsensusState as ConsensusStateType;
+use ibc::clients::tendermint::types::{
+    ConsensusState as ConsensusStateType, TENDERMINT_CONSENSUS_STATE_TYPE_URL,
+};
 use ibc::core::channel::types::channel::{ChannelEnd, IdentifiedChannelEnd};
 use ibc::core::channel::types::commitment::{AcknowledgementCommitment, PacketCommitment};
 use ibc::core::channel::types::error::{ChannelError, PacketError};
@@ -53,11 +56,16 @@ use ibc_query::core::client::ClientQueryService;
 use ibc_query::core::connection::ConnectionQueryService;
 use ibc_query::core::context::{ProvableContext, QueryContext};
 use prost::Message;
+use sov_celestia_client::consensus_state::ConsensusState as SovConsensusState;
+use sov_celestia_client::types::consensus_state::{
+    SovTmConsensusState, SOV_TENDERMINT_CONSENSUS_STATE_TYPE_URL,
+};
 use tendermint::abci::Event;
 use tendermint::block::Header;
 use tendermint::merkle::proof::ProofOp;
 use tracing::debug;
 
+use super::AnyClientState;
 use crate::bank::BankBalanceKeeper;
 use crate::context::{Identifiable, Module};
 use crate::error::Error as AppError;
@@ -70,14 +78,21 @@ use crate::CHAIN_REVISION_NUMBER;
 // Note: We define `AnyConsensusState` just to showcase the use of the
 // derive macro. Technically, we could just use `TmConsensusState`
 // as the `AnyConsensusState`, since we only support this one variant.
-#[derive(ConsensusState, From, TryInto)]
+#[derive(Clone, Debug, From, ConsensusState)]
 pub enum AnyConsensusState {
     Tendermint(TmConsensusState),
+    Sovereign(SovConsensusState),
 }
 
 impl From<ConsensusStateType> for AnyConsensusState {
     fn from(value: ConsensusStateType) -> Self {
         AnyConsensusState::Tendermint(value.into())
+    }
+}
+
+impl From<SovTmConsensusState> for AnyConsensusState {
+    fn from(value: SovTmConsensusState) -> Self {
+        AnyConsensusState::Sovereign(value.into())
     }
 }
 
@@ -89,6 +104,26 @@ impl TryFrom<AnyConsensusState> for ConsensusStateType {
             AnyConsensusState::Tendermint(tm_consensus_state) => {
                 Ok(tm_consensus_state.inner().clone())
             }
+            AnyConsensusState::Sovereign(_) => Err(ClientError::Other {
+                description: "failed to convert AnyConsensusState to ConsensusStateType"
+                    .to_string(),
+            }),
+        }
+    }
+}
+
+impl TryFrom<AnyConsensusState> for SovTmConsensusState {
+    type Error = ClientError;
+
+    fn try_from(value: AnyConsensusState) -> Result<Self, Self::Error> {
+        match value {
+            AnyConsensusState::Tendermint(_) => Err(ClientError::Other {
+                description: "failed to convert AnyConsensusState to SovTmConsensusState"
+                    .to_string(),
+            }),
+            AnyConsensusState::Sovereign(sov_consensus_state) => {
+                Ok(sov_consensus_state.inner().clone())
+            }
         }
     }
 }
@@ -97,6 +132,27 @@ impl From<AnyConsensusState> for Any {
     fn from(value: AnyConsensusState) -> Self {
         match value {
             AnyConsensusState::Tendermint(tm_consensus_state) => tm_consensus_state.into(),
+            AnyConsensusState::Sovereign(sov_consensus_state) => sov_consensus_state.into(),
+        }
+    }
+}
+
+impl TryFrom<Any> for AnyConsensusState {
+    type Error = ClientError;
+
+    fn try_from(value: Any) -> Result<Self, Self::Error> {
+        match value.type_url.as_str() {
+            TENDERMINT_CONSENSUS_STATE_TYPE_URL => {
+                let tm_cs: TmConsensusState = value.try_into()?;
+                Ok(Self::Tendermint(tm_cs))
+            }
+            SOV_TENDERMINT_CONSENSUS_STATE_TYPE_URL => {
+                let sov_cs: SovConsensusState = value.try_into()?;
+                Ok(Self::Sovereign(sov_cs))
+            }
+            _ => Err(ClientError::UnknownConsensusStateType {
+                consensus_state_type: value.type_url,
+            }),
         }
     }
 }
@@ -314,10 +370,10 @@ where
     pub(crate) consensus_states: Arc<RwLock<HashMap<u64, TmConsensusState>>>,
     /// A typed-store for AnyClientState
     pub(crate) client_state_store:
-        ProtobufStore<SharedStore<S>, ClientStatePath, TmClientState, Any>,
+        ProtobufStore<SharedStore<S>, ClientStatePath, AnyClientState, Any>,
     /// A typed-store for AnyConsensusState
     pub(crate) consensus_state_store:
-        ProtobufStore<SharedStore<S>, ClientConsensusStatePath, TmConsensusState, Any>,
+        ProtobufStore<SharedStore<S>, ClientConsensusStatePath, AnyConsensusState, Any>,
     /// A typed-store for ConnectionEnd
     connection_end_store:
         ProtobufStore<SharedStore<S>, ConnectionPath, ConnectionEnd, RawConnectionEnd>,
@@ -683,7 +739,7 @@ where
                             height,
                         }
                     })?;
-                Ok((height, client_state.into()))
+                Ok((height, client_state))
             })
             .collect()
     }
