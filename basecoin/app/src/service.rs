@@ -1,5 +1,3 @@
-use std::convert::TryInto;
-
 use basecoin_store::context::ProvableStore;
 use cosmrs::Tx;
 use ibc_proto::cosmos::base::tendermint::v1beta1::service_server::Service as HealthService;

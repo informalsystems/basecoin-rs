@@ -1,8 +1,5 @@
 use core::borrow::Borrow;
-use core::cmp::{Ord, Ordering};
-use core::marker::Sized;
-use core::option::Option;
-use core::option::Option::{None, Some};
+use core::cmp::Ordering;
 
 use ics23::commitment_proof::Proof;
 use ics23::{CommitmentProof, ExistenceProof, HashOp, InnerOp, LeafOp, LengthOp};
