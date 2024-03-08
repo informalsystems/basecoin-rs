@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 use serde::de::DeserializeOwned;
 use serde::Serialize;
