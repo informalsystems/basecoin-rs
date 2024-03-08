@@ -27,10 +27,10 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
     }
 
     /// Return the value corresponding to the key, if it exists.
-    pub fn get<Q: ?Sized>(&self, key: &Q) -> Option<&V>
+    pub fn get<Q>(&self, key: &Q) -> Option<&V>
     where
         K: Borrow<Q>,
-        Q: Ord,
+        Q: Ord + ?Sized,
     {
         let mut node_ref = &self.root;
         while let Some(ref node) = node_ref {
@@ -67,10 +67,10 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
     }
 
     /// Return an existence proof for the given element, if it exists.
-    pub fn get_proof<Q: ?Sized>(&self, key: &Q) -> Option<CommitmentProof>
+    pub fn get_proof<Q>(&self, key: &Q) -> Option<CommitmentProof>
     where
         K: Borrow<Q>,
-        Q: Ord,
+        Q: Ord + ?Sized,
     {
         let proof = Self::get_proof_rec(key, &self.root)?;
         Some(CommitmentProof {
@@ -79,10 +79,10 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
     }
 
     /// Recursively build a proof of existence for the desired value.
-    fn get_proof_rec<Q: ?Sized>(key: &Q, node: &NodeRef<K, V>) -> Option<ExistenceProof>
+    fn get_proof_rec<Q>(key: &Q, node: &NodeRef<K, V>) -> Option<ExistenceProof>
     where
         K: Borrow<Q>,
-        Q: Ord,
+        Q: Ord + ?Sized,
     {
         if let Some(node) = node {
             let empty_hash = [];
