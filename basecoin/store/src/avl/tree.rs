@@ -166,11 +166,11 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
         let mut node = root.take().expect("[AVL]: Empty root in right rotation");
         let mut left = node.left.take().expect("[AVL]: Unexpected right rotation");
         let mut left_right = left.right.take();
-        std::mem::swap(&mut node.left, &mut left_right);
+        core::mem::swap(&mut node.left, &mut left_right);
         node.update();
-        std::mem::swap(&mut left.right, &mut Some(node));
+        core::mem::swap(&mut left.right, &mut Some(node));
         left.update();
-        std::mem::swap(root, &mut Some(left));
+        core::mem::swap(root, &mut Some(left));
     }
 
     /// Perform a left rotation.
@@ -178,11 +178,11 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
         let mut node = root.take().expect("[AVL]: Empty root in left rotation");
         let mut right = node.right.take().expect("[AVL]: Unexpected left rotation");
         let mut right_left = right.left.take();
-        std::mem::swap(&mut node.right, &mut right_left);
+        core::mem::swap(&mut node.right, &mut right_left);
         node.update();
-        std::mem::swap(&mut right.left, &mut Some(node));
+        core::mem::swap(&mut right.left, &mut Some(node));
         right.update();
-        std::mem::swap(root, &mut Some(right))
+        core::mem::swap(root, &mut Some(right))
     }
 
     /// Return a list of the keys present in the tree.

@@ -1,5 +1,5 @@
-use std::fmt::{Debug, Display, Formatter};
-use std::ops::Deref;
+use core::fmt::{Debug, Display, Formatter};
+use core::ops::Deref;
 
 /// A new type representing a valid ICS024 identifier.
 /// Implements `Deref<Target=String>`.
@@ -21,7 +21,7 @@ impl From<String> for Identifier {
 }
 
 impl Display for Identifier {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", self.0)
     }
 }

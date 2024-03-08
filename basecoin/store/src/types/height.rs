@@ -1,4 +1,4 @@
-use std::fmt::{Display, Formatter};
+use core::fmt::{Display, Formatter};
 
 /// Block height
 pub type RawHeight = u64;
@@ -12,7 +12,7 @@ pub enum Height {
 }
 
 impl Display for Height {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         match self {
             Height::Pending => write!(f, "pending"),
             Height::Latest => write!(f, "latest"),
