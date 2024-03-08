@@ -84,7 +84,6 @@ where
 impl<S> ClientExecutionContext for IbcContext<S>
 where
     S: Store + Debug,
-    Self::ConsensusStateRef: ConsensusStateConverter,
 {
     type ClientStateMut = TmClientState;
 

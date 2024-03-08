@@ -389,6 +389,10 @@ where
     type HostClientState = TmClientState;
     type HostConsensusState = TmConsensusState;
 
+    fn get_client_validation_context(&self) -> &Self::V {
+        self
+    }
+
     fn host_height(&self) -> Result<IbcHeight, ContextError> {
         Ok(IbcHeight::new(
             CHAIN_REVISION_NUMBER,
@@ -400,10 +404,6 @@ where
         let host_height = self.host_height()?;
         let host_cons_state = self.host_consensus_state(&host_height)?;
         Ok(host_cons_state.timestamp().into())
-    }
-
-    fn client_counter(&self) -> Result<u64, ContextError> {
-        Ok(self.client_counter)
     }
 
     fn host_consensus_state(
@@ -418,11 +418,8 @@ where
         Ok(consensus_state.clone())
     }
 
-    fn validate_self_client(
-        &self,
-        _counterparty_client_state: Self::HostClientState,
-    ) -> Result<(), ContextError> {
-        Ok(())
+    fn client_counter(&self) -> Result<u64, ContextError> {
+        Ok(self.client_counter)
     }
 
     fn connection_end(&self, conn_id: &ConnectionId) -> Result<ConnectionEnd, ContextError> {
@@ -432,6 +429,13 @@ where
             .ok_or(ConnectionError::ConnectionNotFound {
                 connection_id: conn_id.clone(),
             })?)
+    }
+
+    fn validate_self_client(
+        &self,
+        _counterparty_client_state: Self::HostClientState,
+    ) -> Result<(), ContextError> {
+        Ok(())
     }
 
     fn commitment_prefix(&self) -> CommitmentPrefix {
@@ -564,10 +568,6 @@ where
 
     fn validate_message_signer(&self, _signer: &Signer) -> Result<(), ContextError> {
         Ok(())
-    }
-
-    fn get_client_validation_context(&self) -> &Self::V {
-        self
     }
 }
 
@@ -931,6 +931,10 @@ where
 {
     type E = Self;
 
+    fn get_client_execution_context(&mut self) -> &mut Self::E {
+        self
+    }
+
     /// Called upon client creation.
     /// Increases the counter which keeps track of how many clients have been created.
     /// Should never fail.
@@ -1083,9 +1087,5 @@ where
     fn log_message(&mut self, message: String) -> Result<(), ContextError> {
         self.logs.push(message);
         Ok(())
-    }
-
-    fn get_client_execution_context(&mut self) -> &mut Self::E {
-        self
     }
 }
