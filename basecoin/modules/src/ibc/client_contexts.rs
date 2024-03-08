@@ -4,7 +4,9 @@ use basecoin_store::context::Store;
 use basecoin_store::types::Height;
 use ibc::clients::tendermint::client_state::ClientState as TmClientState;
 use ibc::clients::tendermint::consensus_state::ConsensusState as TmConsensusState;
-use ibc::clients::tendermint::context::ValidationContext as TmValidationContext;
+use ibc::clients::tendermint::context::{
+    ConsensusStateConverter, ValidationContext as TmValidationContext,
+};
 use ibc::core::client::context::{ClientExecutionContext, ClientValidationContext};
 use ibc::core::client::types::error::ClientError;
 use ibc::core::client::types::Height as IbcHeight;
@@ -13,7 +15,6 @@ use ibc::core::host::types::identifiers::ClientId;
 use ibc::core::host::types::path::{ClientConsensusStatePath, ClientStatePath, Path};
 use ibc::core::host::ValidationContext;
 use ibc::primitives::Timestamp;
-use ibc_proto::google::protobuf::Any;
 
 use super::impls::{AnyConsensusState, IbcContext};
 
@@ -22,7 +23,6 @@ where
     S: Store + Debug,
 {
     type ClientStateRef = TmClientState;
-
     type ConsensusStateRef = AnyConsensusState;
 
     fn client_state(&self, client_id: &ClientId) -> Result<Self::ClientStateRef, ContextError> {
@@ -52,22 +52,6 @@ where
             })?;
 
         Ok(consensus_state.into())
-    }
-
-    fn self_consensus_state(
-        &self,
-        height: &IbcHeight,
-    ) -> Result<Self::ConsensusStateRef, ContextError> {
-        let consensus_states_binding = self.consensus_states.read().expect("lock is poisoned");
-        let consensus_state = consensus_states_binding
-            .get(&height.revision_height())
-            .ok_or(ClientError::MissingLocalConsensusState { height: *height })?;
-
-        Ok(consensus_state.clone().into())
-    }
-
-    fn validate_self_client(&self, _counterparty_client_state: Any) -> Result<(), ContextError> {
-        Ok(())
     }
 
     /// Returns the time and height when the client state for the given
@@ -100,6 +84,7 @@ where
 impl<S> ClientExecutionContext for IbcContext<S>
 where
     S: Store + Debug,
+    Self::ConsensusStateRef: ConsensusStateConverter,
 {
     type ClientStateMut = TmClientState;
 
@@ -178,10 +163,8 @@ where
 impl<S> TmValidationContext for IbcContext<S>
 where
     S: Store + Debug,
+    Self::ConsensusStateRef: ConsensusStateConverter,
 {
-    type ConversionError = &'static str;
-    type AnyConsensusState = AnyConsensusState;
-
     fn host_timestamp(&self) -> Result<Timestamp, ContextError> {
         ValidationContext::host_timestamp(self)
     }
@@ -224,7 +207,7 @@ where
         &self,
         client_id: &ClientId,
         height: &IbcHeight,
-    ) -> Result<Option<Self::AnyConsensusState>, ContextError> {
+    ) -> Result<Option<Self::ConsensusStateRef>, ContextError> {
         let path = format!("clients/{client_id}/consensusStates")
             .try_into()
             .unwrap(); // safety - path must be valid since ClientId and height are valid Identifiers
@@ -258,7 +241,7 @@ where
         &self,
         client_id: &ClientId,
         height: &IbcHeight,
-    ) -> Result<Option<Self::AnyConsensusState>, ContextError> {
+    ) -> Result<Option<Self::ConsensusStateRef>, ContextError> {
         let path = format!("clients/{client_id}/consensusStates")
             .try_into()
             .unwrap(); // safety - path must be valid since ClientId and height are valid Identifiers

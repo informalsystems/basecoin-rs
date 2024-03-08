@@ -21,8 +21,6 @@ use ibc::core::channel::types::channel::{ChannelEnd, IdentifiedChannelEnd};
 use ibc::core::channel::types::commitment::{AcknowledgementCommitment, PacketCommitment};
 use ibc::core::channel::types::error::{ChannelError, PacketError};
 use ibc::core::channel::types::packet::{PacketState, Receipt};
-use ibc::core::client::context::consensus_state::ConsensusState as _;
-use ibc::core::client::context::ClientValidationContext;
 use ibc::core::client::types::error::ClientError;
 use ibc::core::client::types::Height as IbcHeight;
 use ibc::core::commitment_types::commitment::{CommitmentPrefix, CommitmentRoot};
@@ -79,6 +77,18 @@ pub enum AnyConsensusState {
 impl From<ConsensusStateType> for AnyConsensusState {
     fn from(value: ConsensusStateType) -> Self {
         AnyConsensusState::Tendermint(value.into())
+    }
+}
+
+impl TryFrom<AnyConsensusState> for ConsensusStateType {
+    type Error = ClientError;
+
+    fn try_from(value: AnyConsensusState) -> Result<Self, Self::Error> {
+        match value {
+            AnyConsensusState::Tendermint(tm_consensus_state) => {
+                Ok(tm_consensus_state.inner().clone())
+            }
+        }
     }
 }
 
@@ -376,6 +386,8 @@ where
     S: Store + Debug,
 {
     type V = Self;
+    type HostClientState = TmClientState;
+    type HostConsensusState = TmConsensusState;
 
     fn host_height(&self) -> Result<IbcHeight, ContextError> {
         Ok(IbcHeight::new(
@@ -386,12 +398,31 @@ where
 
     fn host_timestamp(&self) -> Result<Timestamp, ContextError> {
         let host_height = self.host_height()?;
-        let host_cons_state = self.self_consensus_state(&host_height)?;
-        Ok(host_cons_state.timestamp())
+        let host_cons_state = self.host_consensus_state(&host_height)?;
+        Ok(host_cons_state.timestamp().into())
     }
 
     fn client_counter(&self) -> Result<u64, ContextError> {
         Ok(self.client_counter)
+    }
+
+    fn host_consensus_state(
+        &self,
+        height: &IbcHeight,
+    ) -> Result<Self::HostConsensusState, ContextError> {
+        let consensus_states_binding = self.consensus_states.read().expect("lock is poisoned");
+        let consensus_state = consensus_states_binding
+            .get(&height.revision_height())
+            .ok_or(ClientError::MissingLocalConsensusState { height: *height })?;
+
+        Ok(consensus_state.clone())
+    }
+
+    fn validate_self_client(
+        &self,
+        _counterparty_client_state: Self::HostClientState,
+    ) -> Result<(), ContextError> {
+        Ok(())
     }
 
     fn connection_end(&self, conn_id: &ConnectionId) -> Result<ConnectionEnd, ContextError> {

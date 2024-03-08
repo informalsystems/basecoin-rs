@@ -11,8 +11,8 @@ use ibc::core::client::types::error::UpgradeClientError;
 use ibc::core::commitment_types::commitment::CommitmentRoot;
 use ibc::core::host::types::path::UpgradeClientPath;
 use ibc::cosmos_host::upgrade_proposal::{
-    AnyUpgradedConsensusState, Plan, UpgradeChain, UpgradeExecutionContext,
-    UpgradeValidationContext,
+    Plan, UpgradeChain, UpgradeExecutionContext, UpgradeValidationContext,
+    UpgradedConsensusStateRef,
 };
 use ibc::cosmos_host::SDK_UPGRADE_QUERY_PATH;
 use ibc_proto::cosmos::upgrade::v1beta1::query_server::QueryServer;
@@ -237,7 +237,7 @@ where
     fn upgraded_consensus_state(
         &self,
         upgrade_path: &UpgradeClientPath,
-    ) -> Result<AnyUpgradedConsensusState<Self>, UpgradeClientError> {
+    ) -> Result<UpgradedConsensusStateRef<Self>, UpgradeClientError> {
         let upgraded_tm_consensus_state = self
             .upgraded_consensus_state_store
             .get(Height::Pending, upgrade_path)
