@@ -12,7 +12,9 @@ use ibc::core::client::types::error::ClientError;
 use ibc::core::client::types::Height as IbcHeight;
 use ibc::core::handler::types::error::ContextError;
 use ibc::core::host::types::identifiers::ClientId;
-use ibc::core::host::types::path::{ClientConsensusStatePath, ClientStatePath, Path};
+use ibc::core::host::types::path::{
+    ClientConsensusStatePath, ClientStatePath, ClientUpdateHeightPath, ClientUpdateTimePath, Path,
+};
 use ibc::core::host::ValidationContext;
 use ibc::primitives::Timestamp;
 
@@ -61,22 +63,31 @@ where
         client_id: &ClientId,
         height: &IbcHeight,
     ) -> Result<(Timestamp, IbcHeight), ContextError> {
+        let client_update_time_path = ClientUpdateTimePath::new(
+            client_id.clone(),
+            height.revision_number(),
+            height.revision_height(),
+        );
         let processed_timestamp = self
             .client_processed_times
-            .get(&(client_id.clone(), *height))
-            .cloned()
+            .get(Height::Pending, &client_update_time_path)
             .ok_or(ClientError::UpdateMetaDataNotFound {
                 client_id: client_id.clone(),
                 height: *height,
             })?;
+        let client_update_height_path = ClientUpdateHeightPath::new(
+            client_id.clone(),
+            height.revision_number(),
+            height.revision_height(),
+        );
         let processed_height = self
             .client_processed_heights
-            .get(&(client_id.clone(), *height))
-            .cloned()
+            .get(Height::Pending, &client_update_height_path)
             .ok_or(ClientError::UpdateMetaDataNotFound {
                 client_id: client_id.clone(),
                 height: *height,
             })?;
+
         Ok((processed_timestamp, processed_height))
     }
 }
@@ -138,10 +149,26 @@ where
         host_timestamp: Timestamp,
         host_height: IbcHeight,
     ) -> Result<(), ContextError> {
+        let client_update_time_path = ClientUpdateTimePath::new(
+            client_id.clone(),
+            height.revision_number(),
+            height.revision_height(),
+        );
         self.client_processed_times
-            .insert((client_id.clone(), height), host_timestamp);
+            .set(client_update_time_path, host_timestamp)
+            .map_err(|_| ClientError::Other {
+                description: "store update error".into(),
+            })?;
+        let client_update_height_path = ClientUpdateHeightPath::new(
+            client_id.clone(),
+            height.revision_number(),
+            height.revision_height(),
+        );
         self.client_processed_heights
-            .insert((client_id, height), host_height);
+            .set(client_update_height_path, host_height)
+            .map_err(|_| ClientError::Other {
+                description: "store update error".into(),
+            })?;
         Ok(())
     }
 
@@ -152,9 +179,19 @@ where
         client_id: ClientId,
         height: IbcHeight,
     ) -> Result<(), ContextError> {
-        self.client_processed_times
-            .remove(&(client_id.clone(), height));
-        self.client_processed_heights.remove(&(client_id, height));
+        let client_update_time_path = ClientUpdateTimePath::new(
+            client_id.clone(),
+            height.revision_number(),
+            height.revision_height(),
+        );
+        self.client_processed_times.delete(client_update_time_path);
+        let client_update_height_path = ClientUpdateHeightPath::new(
+            client_id.clone(),
+            height.revision_number(),
+            height.revision_height(),
+        );
+        self.client_processed_heights
+            .delete(client_update_height_path);
         Ok(())
     }
 }
