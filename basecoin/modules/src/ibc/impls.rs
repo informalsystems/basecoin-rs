@@ -33,8 +33,9 @@ use ibc::core::handler::types::msgs::MsgEnvelope;
 use ibc::core::host::types::identifiers::{ClientId, ConnectionId, Sequence};
 use ibc::core::host::types::path::{
     AckPath, ChannelEndPath, ClientConnectionPath, ClientConsensusStatePath, ClientStatePath,
-    CommitmentPath, ConnectionPath, Path as IbcPath, ReceiptPath, SeqAckPath, SeqRecvPath,
-    SeqSendPath,
+    ClientUpdateHeightPath, ClientUpdateTimePath, CommitmentPath, ConnectionPath,
+    NextChannelSequencePath, NextClientSequencePath, NextConnectionSequencePath, Path as IbcPath,
+    ReceiptPath, SeqAckPath, SeqRecvPath, SeqSendPath,
 };
 use ibc::core::host::{ClientStateRef, ConsensusStateRef, ExecutionContext, ValidationContext};
 use ibc::cosmos_host::IBC_QUERY_PATH;
@@ -44,6 +45,7 @@ use ibc_proto::google::protobuf::Any;
 use ibc_proto::ibc::core::channel::v1::query_server::QueryServer as ChannelQueryServer;
 use ibc_proto::ibc::core::channel::v1::Channel as RawChannelEnd;
 use ibc_proto::ibc::core::client::v1::query_server::QueryServer as ClientQueryServer;
+use ibc_proto::ibc::core::client::v1::Height as RawHeight;
 use ibc_proto::ibc::core::connection::v1::query_server::QueryServer as ConnectionQueryServer;
 use ibc_proto::ibc::core::connection::v1::ConnectionEnd as RawConnectionEnd;
 use ibc_query::core::channel::ChannelQueryService;
@@ -297,16 +299,17 @@ where
     /// Handle to store instance.
     /// The module is guaranteed exclusive access to all paths in the store key-space.
     pub store: SharedStore<S>,
-    /// Counter for clients
-    client_counter: u64,
-    /// Counter for connections
-    conn_counter: u64,
-    /// Counter for channels
-    channel_counter: u64,
+    /// A typed-store for next client counter sequence
+    client_counter: JsonStore<SharedStore<S>, NextClientSequencePath, u64>,
+    /// A typed-store for next connection counter sequence
+    conn_counter: JsonStore<SharedStore<S>, NextConnectionSequencePath, u64>,
+    /// A typed-store for next channel counter sequence
+    channel_counter: JsonStore<SharedStore<S>, NextChannelSequencePath, u64>,
     /// Tracks the processed time for client updates
-    pub(crate) client_processed_times: HashMap<(ClientId, IbcHeight), Timestamp>,
-    /// Tracks the processed height for client updates
-    pub(crate) client_processed_heights: HashMap<(ClientId, IbcHeight), IbcHeight>,
+    pub(crate) client_processed_times: JsonStore<SharedStore<S>, ClientUpdateTimePath, Timestamp>,
+    /// A typed-store to track the processed height for client updates
+    pub(crate) client_processed_heights:
+        ProtobufStore<SharedStore<S>, ClientUpdateHeightPath, IbcHeight, RawHeight>,
     /// Map of host consensus states
     pub(crate) consensus_states: Arc<RwLock<HashMap<u64, TmConsensusState>>>,
     /// A typed-store for AnyClientState
@@ -345,12 +348,28 @@ where
     S: ProvableStore + Debug,
 {
     pub fn new(store: SharedStore<S>) -> Self {
+        let mut client_counter = TypedStore::new(store.clone());
+        let mut conn_counter = TypedStore::new(store.clone());
+        let mut channel_counter = TypedStore::new(store.clone());
+
+        client_counter
+            .set(NextClientSequencePath, 0)
+            .expect("no error");
+
+        conn_counter
+            .set(NextConnectionSequencePath, 0)
+            .expect("no error");
+
+        channel_counter
+            .set(NextChannelSequencePath, 0)
+            .expect("no error");
+
         Self {
-            client_counter: 0,
-            conn_counter: 0,
-            channel_counter: 0,
-            client_processed_times: Default::default(),
-            client_processed_heights: Default::default(),
+            client_counter,
+            conn_counter,
+            channel_counter,
+            client_processed_times: TypedStore::new(store.clone()),
+            client_processed_heights: TypedStore::new(store.clone()),
             consensus_states: Default::default(),
             client_state_store: TypedStore::new(store.clone()),
             consensus_state_store: TypedStore::new(store.clone()),
@@ -418,7 +437,12 @@ where
     }
 
     fn client_counter(&self) -> Result<u64, ContextError> {
-        Ok(self.client_counter)
+        Ok(self
+            .client_counter
+            .get(Height::Pending, &NextClientSequencePath)
+            .ok_or(ClientError::Other {
+                description: "client counter not found".into(),
+            })?)
     }
 
     fn connection_end(&self, conn_id: &ConnectionId) -> Result<ConnectionEnd, ContextError> {
@@ -444,7 +468,12 @@ where
     }
 
     fn connection_counter(&self) -> Result<u64, ContextError> {
-        Ok(self.conn_counter)
+        Ok(self
+            .conn_counter
+            .get(Height::Pending, &NextConnectionSequencePath)
+            .ok_or(ConnectionError::Other {
+                description: "connection counter not found".into(),
+            })?)
     }
 
     fn get_compatible_versions(&self) -> Vec<ConnectionVersion> {
@@ -557,7 +586,12 @@ where
     /// The value of this counter should increase only via method
     /// `ChannelKeeper::increase_channel_counter`.
     fn channel_counter(&self) -> Result<u64, ContextError> {
-        Ok(self.channel_counter)
+        Ok(self
+            .channel_counter
+            .get(Height::Pending, &NextChannelSequencePath)
+            .ok_or(ChannelError::Other {
+                description: "channel counter not found".into(),
+            })?)
     }
 
     /// Returns the maximum expected time per block
@@ -938,7 +972,19 @@ where
     /// Increases the counter which keeps track of how many clients have been created.
     /// Should never fail.
     fn increase_client_counter(&mut self) -> Result<(), ContextError> {
-        self.client_counter += 1;
+        let current_sequence = self
+            .client_counter
+            .get(Height::Pending, &NextClientSequencePath)
+            .ok_or(ClientError::Other {
+                description: "client counter not found".into(),
+            })?;
+
+        self.client_counter
+            .set(NextClientSequencePath, current_sequence + 1)
+            .map_err(|e| ClientError::Other {
+                description: format!("client counter update failed: {e:?}"),
+            })?;
+
         Ok(())
     }
 
@@ -979,7 +1025,19 @@ where
     /// Increases the counter which keeps track of how many connections have been created.
     /// Should never fail.
     fn increase_connection_counter(&mut self) -> Result<(), ContextError> {
-        self.conn_counter += 1;
+        let current_sequence = self
+            .conn_counter
+            .get(Height::Pending, &NextConnectionSequencePath)
+            .ok_or(ConnectionError::Other {
+                description: "connection counter not found".into(),
+            })?;
+
+        self.conn_counter
+            .set(NextConnectionSequencePath, current_sequence + 1)
+            .map_err(|e| ConnectionError::Other {
+                description: format!("connection counter update failed: {e:?}"),
+            })?;
+
         Ok(())
     }
 
@@ -1074,7 +1132,19 @@ where
     }
 
     fn increase_channel_counter(&mut self) -> Result<(), ContextError> {
-        self.channel_counter += 1;
+        let current_sequence = self
+            .channel_counter
+            .get(Height::Pending, &NextChannelSequencePath)
+            .ok_or(ChannelError::Other {
+                description: "channel counter not found".into(),
+            })?;
+
+        self.channel_counter
+            .set(NextChannelSequencePath, current_sequence + 1)
+            .map_err(|e| ChannelError::Other {
+                description: format!("channel counter update failed: {e:?}"),
+            })?;
+
         Ok(())
     }
 
