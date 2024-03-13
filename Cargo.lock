@@ -2813,7 +2813,7 @@ dependencies = [
 [[package]]
 name = "sov-celestia-client"
 version = "0.1.0"
-source = "git+https://github.com/informalsystems/sovereign-ibc.git?rev=87f7f62#87f7f628229b940b611892900d948a82f0307d66"
+source = "git+https://github.com/informalsystems/sovereign-ibc.git?rev=43980b3#43980b3d02e262bdbe6e0532827d077421a538cc"
 dependencies = [
  "derive_more",
  "ibc-client-tendermint 0.50.0",
@@ -2830,7 +2830,7 @@ dependencies = [
 [[package]]
 name = "sov-celestia-client-types"
 version = "0.1.0"
-source = "git+https://github.com/informalsystems/sovereign-ibc.git?rev=87f7f62#87f7f628229b940b611892900d948a82f0307d66"
+source = "git+https://github.com/informalsystems/sovereign-ibc.git?rev=43980b3#43980b3d02e262bdbe6e0532827d077421a538cc"
 dependencies = [
  "base64",
  "bytes",
