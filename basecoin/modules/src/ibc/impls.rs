@@ -477,7 +477,7 @@ where
     }
 
     fn get_compatible_versions(&self) -> Vec<ConnectionVersion> {
-        vec![ConnectionVersion::default()]
+        ConnectionVersion::compatibles()
     }
 
     fn channel_end(&self, channel_end_path: &ChannelEndPath) -> Result<ChannelEnd, ContextError> {
