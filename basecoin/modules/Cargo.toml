@@ -30,7 +30,7 @@ ibc                = { workspace = true }
 ibc-proto          = { workspace = true, features = ["server", "proto-descriptor", "serde"] }
 ibc-query          = { workspace = true }
 ics23              = { workspace = true, features = ["host-functions"] }
-sov-celestia-client = { git = "https://github.com/informalsystems/sovereign-ibc.git", rev = "a273bd2" }
+sov-celestia-client = { git = "https://github.com/informalsystems/sovereign-ibc.git", rev = "98487cf8" }
 
 # tendermint dependencies
 tendermint         = { workspace = true }
