@@ -106,7 +106,7 @@ pub struct Ibc<S>
 where
     S: Store + Debug,
 {
-    ctx: IbcContext<S>,
+    pub(crate) ctx: IbcContext<S>,
     router: Arc<IbcRouter<S>>,
 }
 
