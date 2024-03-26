@@ -2,6 +2,8 @@
 
 use ics23::commitment_proof::Proof;
 use ics23::{verify_membership, HostFunctionsManager};
+use rand::seq::SliceRandom;
+use rand::thread_rng;
 use sha2::{Digest, Sha256};
 
 use crate::avl::node::{as_node_ref, NodeRef};
@@ -34,6 +36,42 @@ fn get() {
     assert_eq!(tree.get(&[2]), Some(&[2]));
     assert_eq!(tree.get(&[5]), Some(&[5]));
     assert_eq!(tree.get(&[4]), None);
+}
+
+#[test]
+fn shuffle_get() {
+    let mut tree = AvlTree::new();
+
+    let mut keys: Vec<u8> = (0..100).collect();
+
+    keys.shuffle(&mut thread_rng());
+    for &i in keys.iter() {
+        tree.insert([i], vec![i]);
+    }
+
+    keys.shuffle(&mut thread_rng());
+    for &i in keys.iter() {
+        assert_eq!(tree.get(&[i]), Some(&vec![i]));
+    }
+}
+
+#[test]
+fn shuffle_remove() {
+    let mut tree = AvlTree::new();
+
+    let mut keys: Vec<u8> = (0..100).collect();
+
+    keys.shuffle(&mut thread_rng());
+    for &i in keys.iter() {
+        tree.insert([i], vec![i]);
+    }
+
+    keys.shuffle(&mut thread_rng());
+    for &i in keys.iter() {
+        assert_eq!(tree.remove([i]), Some(vec![i]));
+    }
+
+    assert_eq!(tree.root, None);
 }
 
 #[test]
