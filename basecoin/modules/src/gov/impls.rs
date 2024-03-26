@@ -9,7 +9,9 @@ use basecoin_store::types::{Height, Path, ProtobufStore, TypedStore};
 use basecoin_store::utils::{SharedRw, SharedRwExt};
 use cosmrs::AccountId;
 use ibc::core::client::types::msgs::{MsgRecoverClient, RECOVER_CLIENT_TYPE_URL};
-use ibc::cosmos_host::upgrade_proposal::{execute_upgrade_client_proposal, UpgradeProposal};
+use ibc::cosmos_host::upgrade_proposal::{
+    execute_upgrade_client_proposal, UpgradeProposal, UPGRADE_PROPOSAL_TYPE_URL,
+};
 use ibc_proto::cosmos::gov::v1beta1::query_server::QueryServer;
 use ibc_proto::google::protobuf::Any;
 use ibc_proto::Protobuf;
@@ -101,14 +103,15 @@ where
                     let msg_recover_client =
                         MsgRecoverClient::decode_vec(message.content.value.as_slice()).unwrap();
 
-                    let ibc_ctx = *self.ibc_ctx.write_access();
+                    let mut ibc_ctx = self.ibc_ctx.write_access();
 
-                    validate(ibc_ctx.ctx(), msg_recover_client.clone())?;
+                    validate(&ibc_ctx.ctx, msg_recover_client.clone())?;
 
-                    execute(ibc_ctx.ctx(), msg_recover_client)?;
+                    execute(&mut ibc_ctx.ctx, msg_recover_client)?;
 
                     Ok(vec![])
                 }
+                _ => Err(AppError::NotHandled),
             }
         } else {
             Err(AppError::NotHandled)

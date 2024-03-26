@@ -35,8 +35,8 @@ tracing            = "0.1.26"
 tracing-subscriber = "0.3.16"
 
 # ibc dependencies
-ibc              = { git = "https://github.com/cosmos/ibc-rs", rev = "02e7450", default-features = false, features = ["serde"] }
-ibc-query        = { git = "https://github.com/cosmos/ibc-rs", rev = "02e7450", default-features = false }
+ibc              = { git = "https://github.com/cosmos/ibc-rs", rev = "8c76ff9", default-features = false, features = ["serde"] }
+ibc-query        = { git = "https://github.com/cosmos/ibc-rs", rev = "8c76ff9", default-features = false }
 ibc-proto        = { version = "0.42.2", default-features = false }
 ics23            = { version = "0.11", default-features = false }
 
