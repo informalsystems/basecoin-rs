@@ -8,6 +8,7 @@ use basecoin_store::impls::SharedStore;
 use basecoin_store::types::{Height, Path, ProtobufStore, TypedStore};
 use basecoin_store::utils::{SharedRw, SharedRwExt};
 use cosmrs::AccountId;
+use ibc::core::client::handler::recover_client;
 use ibc::core::client::types::msgs::{MsgRecoverClient, RECOVER_CLIENT_TYPE_URL};
 use ibc::cosmos_host::upgrade_proposal::{
     execute_upgrade_client_proposal, UpgradeProposal, UPGRADE_PROPOSAL_TYPE_URL,
@@ -27,8 +28,6 @@ use crate::gov::msg::MsgSubmitProposal;
 use crate::ibc::Ibc;
 use crate::types::QueryResult;
 use crate::upgrade::Upgrade;
-
-use ibc::core::client::handler::recover_client::{execute, validate};
 
 #[derive(Clone)]
 pub struct Governance<S>
@@ -103,10 +102,12 @@ where
                     let msg_recover_client =
                         MsgRecoverClient::decode_vec(message.content.value.as_slice()).unwrap();
 
+                    // TODO(seanchen1991): Ensure that the signer is the authority set for the ibc module
+
                     let mut ibc_ctx = self.ibc_ctx.write_access();
 
-                    validate(&ibc_ctx.ctx, msg_recover_client.clone())?;
-                    execute(&mut ibc_ctx.ctx, msg_recover_client)?;
+                    recover_client::validate(&ibc_ctx.ctx, msg_recover_client.clone())?;
+                    recover_client::execute(&mut ibc_ctx.ctx, msg_recover_client)?;
 
                     Ok(vec![])
                 }
