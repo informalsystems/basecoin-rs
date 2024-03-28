@@ -368,6 +368,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4114279215a005bc675e386011e594e1d9b800918cea18fcadadcce864a2046b"
 dependencies = [
  "borsh-derive",
+ "bytes",
  "hashbrown 0.13.2",
 ]
 
@@ -1649,6 +1650,15 @@ checksum = "8f518f335dce6725a761382244631d86cf0ccb2863413590b31338feb467f9c3"
 
 [[package]]
 name = "itertools"
+version = "0.10.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b0fd2260e829bddf4cb6ea802289de2f86d6a7a690192fbe91b3f46e0f2c8473"
+dependencies = [
+ "either",
+]
+
+[[package]]
+name = "itertools"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b1c173a5686ce8bfa551b3563d0c2170bf24ca44da99c7ca4bfdab5418c3fe57"
@@ -1661,6 +1671,27 @@ name = "itoa"
 version = "1.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49f1f14873335454500d59611f1cf4a4b0f786f9ac11f4312a78e4cf2566695b"
+
+[[package]]
+name = "jmt"
+version = "0.9.0"
+source = "git+https://github.com/penumbra-zone/jmt.git?rev=1d007e11cb68aa5ca13e9a5af4a12e6439d5f7b6#1d007e11cb68aa5ca13e9a5af4a12e6439d5f7b6"
+dependencies = [
+ "anyhow",
+ "borsh",
+ "digest 0.10.7",
+ "hashbrown 0.13.2",
+ "hex",
+ "ics23",
+ "itertools 0.10.5",
+ "mirai-annotations",
+ "num-derive",
+ "num-traits",
+ "serde",
+ "sha2 0.10.8",
+ "thiserror",
+ "tracing",
+]
 
 [[package]]
 name = "js-sys"
@@ -1763,6 +1794,12 @@ dependencies = [
  "wasi",
  "windows-sys 0.48.0",
 ]
+
+[[package]]
+name = "mirai-annotations"
+version = "1.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c9be0862c1b3f26a88803c4a49de6889c10e608b3ee9344e6ef5b45fb37ad3d1"
 
 [[package]]
 name = "nu-ansi-term"
@@ -2005,7 +2042,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "efb6c9a1dd1def8e2124d17e83a20af56f1570d6c2d2bd9e266ccb768df3840e"
 dependencies = [
  "anyhow",
- "itertools",
+ "itertools 0.11.0",
  "proc-macro2",
  "quote",
  "syn 2.0.55",
@@ -2509,24 +2546,29 @@ dependencies = [
 [[package]]
 name = "sov-celestia-client"
 version = "0.1.0"
-source = "git+https://github.com/informalsystems/sovereign-ibc.git?rev=0be13e4d#0be13e4d4c12b9cdb2cd76ee1d87b0e0eaa36fe3"
+source = "git+https://github.com/informalsystems/sovereign-ibc.git?rev=66138b87#66138b879c9dd40157eb90865638b35db26c5ae6"
 dependencies = [
+ "borsh",
  "derive_more",
+ "hex",
  "ibc-client-tendermint",
  "ibc-core",
  "ics23",
+ "jmt",
  "prost",
  "serde",
+ "sha2 0.10.8",
  "sov-celestia-client-types",
  "tendermint",
  "tendermint-light-client-verifier",
  "tendermint-proto",
+ "tracing",
 ]
 
 [[package]]
 name = "sov-celestia-client-types"
 version = "0.1.0"
-source = "git+https://github.com/informalsystems/sovereign-ibc.git?rev=0be13e4d#0be13e4d4c12b9cdb2cd76ee1d87b0e0eaa36fe3"
+source = "git+https://github.com/informalsystems/sovereign-ibc.git?rev=66138b87#66138b879c9dd40157eb90865638b35db26c5ae6"
 dependencies = [
  "base64",
  "bytes",
@@ -2535,6 +2577,7 @@ dependencies = [
  "ibc-client-tendermint",
  "ibc-core",
  "ics23",
+ "jmt",
  "prost",
  "serde",
  "sov-ibc-proto",
@@ -2546,7 +2589,7 @@ dependencies = [
 [[package]]
 name = "sov-ibc-proto"
 version = "0.1.0"
-source = "git+https://github.com/informalsystems/sovereign-ibc.git?rev=0be13e4d#0be13e4d4c12b9cdb2cd76ee1d87b0e0eaa36fe3"
+source = "git+https://github.com/informalsystems/sovereign-ibc.git?rev=66138b87#66138b879c9dd40157eb90865638b35db26c5ae6"
 dependencies = [
  "ibc-proto",
  "informalsystems-pbjson",
