@@ -211,6 +211,13 @@ where
             AnyClientState::Sovereign(cs) => cs.status(ctx, client_id),
         }
     }
+
+    fn check_substitute(&self, ctx: &V, substitute_client_state: Any) -> Result<(), ClientError> {
+        match self {
+            AnyClientState::Tendermint(cs) => cs.check_substitute(ctx, substitute_client_state),
+            AnyClientState::Sovereign(cs) => cs.check_substitute(ctx, substitute_client_state),
+        }
+    }
 }
 
 impl<E> ClientStateExecution<E> for AnyClientState
@@ -282,6 +289,22 @@ where
                 upgraded_client_state,
                 upgraded_consensus_state,
             ),
+        }
+    }
+
+    fn update_on_recovery(
+        &self,
+        ctx: &mut E,
+        subject_client_id: &ClientId,
+        substitute_client_state: Any,
+    ) -> Result<(), ClientError> {
+        match self {
+            AnyClientState::Tendermint(cs) => {
+                cs.update_on_recovery(ctx, subject_client_id, substitute_client_state)
+            }
+            AnyClientState::Sovereign(cs) => {
+                cs.update_on_recovery(ctx, subject_client_id, substitute_client_state)
+            }
         }
     }
 }
