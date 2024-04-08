@@ -47,6 +47,6 @@ tendermint-proto = { version = "0.34", default-features = false }
 tendermint-rpc   = { version = "0.34", default-features = false }
 
 [patch.crates-io]
-ibc        = { git = "https://github.com/cosmos/ibc-rs.git", revision = "fdab306" }
-ibc-query  = { git = "https://github.com/cosmos/ibc-rs.git", revision = "fdab306" }
+ibc        = { git = "https://github.com/cosmos/ibc-rs.git", revision = "dcb7c91" }
+ibc-query  = { git = "https://github.com/cosmos/ibc-rs.git", revision = "dcb7c91" }
 

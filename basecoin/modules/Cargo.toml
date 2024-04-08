@@ -38,4 +38,3 @@ tendermint-rpc     = { workspace = true , features = ["http-client"] }
 # internal dependencies
 basecoin-store     = { path = "../store" }
 
-
