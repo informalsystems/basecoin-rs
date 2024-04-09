@@ -208,6 +208,7 @@ dependencies = [
  "basecoin-modules",
  "basecoin-store",
  "clap",
+ "ibc",
  "ibc-proto",
  "serde",
  "serde_derive",

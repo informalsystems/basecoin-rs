@@ -5,7 +5,7 @@
 
 use std::io::Write;
 
-use basecoin::cli::command::{BasecoinCli, Commands, QueryCmd, UpgradeCmd};
+use basecoin::cli::command::{BasecoinCli, Commands, QueryCmd, TxCmd, UpgradeCmd};
 use basecoin::config::load_config;
 use basecoin::default_app_runner;
 use basecoin_modules::upgrade::query_upgrade_plan;
@@ -40,5 +40,17 @@ async fn main() {
             };
             let _ = write!(std::io::stdout(), "{:#?}", query_res);
         }
+        Commands::Tx(c) => match c {
+            TxCmd::Recover {
+                subject_client_id,
+                substitute_client_id,
+            } => submit_recovery_proposal(
+                cfg.cometbft.rpc_addr,
+                subject_client_id,
+                substitute_client_id,
+            )
+            .await
+            .unwrap(),
+        },
     };
 }
