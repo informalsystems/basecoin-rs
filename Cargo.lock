@@ -2571,7 +2571,7 @@ dependencies = [
 [[package]]
 name = "sov-celestia-client"
 version = "0.1.0"
-source = "git+https://github.com/informalsystems/sovereign-ibc.git?rev=300e4c16#300e4c16210af5c347739a8d2de449cc837600a7"
+source = "git+https://github.com/informalsystems/sovereign-ibc.git?rev=2214dbe#2214dbee441ff005083841f4cd5983229d08d306"
 dependencies = [
  "borsh",
  "derive_more",
@@ -2591,8 +2591,9 @@ dependencies = [
 [[package]]
 name = "sov-celestia-client-types"
 version = "0.1.0"
-source = "git+https://github.com/informalsystems/sovereign-ibc.git?rev=300e4c16#300e4c16210af5c347739a8d2de449cc837600a7"
+source = "git+https://github.com/informalsystems/sovereign-ibc.git?rev=2214dbe#2214dbee441ff005083841f4cd5983229d08d306"
 dependencies = [
+ "base64",
  "bytes",
  "derive_more",
  "hex",
@@ -2612,7 +2613,7 @@ dependencies = [
 [[package]]
 name = "sov-ibc-proto"
 version = "0.1.0"
-source = "git+https://github.com/informalsystems/sovereign-ibc.git?rev=300e4c16#300e4c16210af5c347739a8d2de449cc837600a7"
+source = "git+https://github.com/informalsystems/sovereign-ibc.git?rev=2214dbe#2214dbee441ff005083841f4cd5983229d08d306"
 dependencies = [
  "ibc-proto",
  "informalsystems-pbjson",
