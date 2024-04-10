@@ -51,4 +51,5 @@ sov-celestia-client     = { version = "0.1.0" }
 [patch.crates-io]
 ibc                     = { git = "https://github.com/cosmos/ibc-rs.git", rev = "c579628c67" }
 ibc-query               = { git = "https://github.com/cosmos/ibc-rs.git", rev = "c579628c67" }
-sov-celestia-client     = { git = "https://github.com/informalsystems/sovereign-ibc.git", rev = "300e4c16" }
+sov-celestia-client     = { git = "https://github.com/informalsystems/sovereign-ibc.git", rev = "2214dbe" }
+
