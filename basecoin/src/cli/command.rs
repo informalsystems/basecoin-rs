@@ -1,8 +1,5 @@
-use std::path::PathBuf;
-
-use ibc::core::host::types::identifiers::ClientId;
-
 use clap::{command, Parser};
+use std::path::PathBuf;
 
 #[derive(Clone, Debug, Parser)]
 #[command(author, version, about, long_about = None)]
@@ -62,8 +59,9 @@ pub enum TxCmd {
 pub struct RecoverCmd {
     /// Identifier of the client to be recovered.
     #[arg(long, global = true)]
-    subject_client_id: ClientId,
+    pub subject_client_id: String,
+
     /// Identifier of the client whose state the recovered client will emulate.
     #[arg(long, global = true)]
-    substitute_client_id: ClientId,
+    pub substitute_client_id: String,
 }

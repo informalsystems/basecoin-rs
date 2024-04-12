@@ -18,7 +18,7 @@ v0_38 = ["basecoin-app/v0_38", "dep:tendermint-abci"]
 
 [dependencies]
 # external dependencies
-clap = { version = "4.3.0", features = ["derive", "wrap_help"] }
+clap = { version = "4.5.0", features = ["derive", "wrap_help"] }
 ibc-proto = { workspace = true, features = [
     "server",
     "proto-descriptor",
