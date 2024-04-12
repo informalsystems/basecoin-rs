@@ -4,12 +4,14 @@
 #![forbid(unsafe_code)]
 
 use std::io::Write;
+use std::str::FromStr;
 
-use basecoin::cli::command::{BasecoinCli, Commands, QueryCmd, TxCmd, UpgradeCmd};
+use basecoin::cli::command::{BasecoinCli, Commands, QueryCmd, RecoverCmd, TxCmd, UpgradeCmd};
 use basecoin::config::load_config;
 use basecoin::default_app_runner;
 use basecoin_modules::upgrade::query_upgrade_plan;
 use clap::Parser;
+use ibc::core::host::types::identifiers::ClientId;
 use tracing::metadata::LevelFilter;
 
 #[tokio::main]
@@ -41,16 +43,25 @@ async fn main() {
             let _ = write!(std::io::stdout(), "{:#?}", query_res);
         }
         Commands::Tx(c) => match c {
-            TxCmd::Recover {
-                subject_client_id,
-                substitute_client_id,
-            } => submit_recovery_proposal(
-                cfg.cometbft.rpc_addr,
-                subject_client_id,
-                substitute_client_id,
-            )
-            .await
-            .unwrap(),
+            TxCmd::Recover(cmd) => {
+                let RecoverCmd {
+                    subject_client_id,
+                    substitute_client_id,
+                } = cmd;
+
+                let subject_client_id =
+                    ClientId::from_str(subject_client_id).expect("valid client ID");
+                let substitute_client_id =
+                    ClientId::from_str(substitute_client_id).expect("valid client ID");
+
+                submit_recovery_proposal(
+                    cfg.cometbft.rpc_addr,
+                    subject_client_id,
+                    substitute_client_id,
+                )
+                .await
+                .unwrap()
+            }
         },
     };
 }
