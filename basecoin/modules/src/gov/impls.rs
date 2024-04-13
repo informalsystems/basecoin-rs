@@ -8,7 +8,7 @@ use basecoin_store::impls::SharedStore;
 use basecoin_store::types::{Height, Path, ProtobufStore, TypedStore};
 use basecoin_store::utils::{SharedRw, SharedRwExt};
 use cosmrs::AccountId;
-use ibc::cosmos_host::upgrade_proposal::{upgrade_client_proposal_handler, UpgradeProposal};
+use ibc::cosmos_host::upgrade_proposal::{execute_upgrade_client_proposal, UpgradeProposal};
 use ibc_proto::cosmos::gov::v1beta1::query_server::QueryServer;
 use ibc_proto::google::protobuf::Any;
 use ibc_proto::Protobuf;
@@ -71,7 +71,7 @@ where
 
             let mut upgrade_ctx = self.upgrade_ctx.write_access();
 
-            let event = upgrade_client_proposal_handler(upgrade_ctx.deref_mut(), upgrade_proposal)
+            let event = execute_upgrade_client_proposal(upgrade_ctx.deref_mut(), upgrade_proposal)
                 .map_err(|e| AppError::Custom {
                     reason: format!("Error handling upgrade proposal: {:?}", e),
                 })?;
