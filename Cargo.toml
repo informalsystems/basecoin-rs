@@ -49,7 +49,8 @@ tendermint-rpc   = { version = "0.34", default-features = false }
 sov-celestia-client     = { version = "0.1.0" }
 
 [patch.crates-io]
-ibc                     = { git = "https://github.com/cosmos/ibc-rs.git", rev = "c579628c67" }
-ibc-query               = { git = "https://github.com/cosmos/ibc-rs.git", rev = "c579628c67" }
-sov-celestia-client     = { git = "https://github.com/informalsystems/sovereign-ibc.git", rev = "169ed382" }
-
+ibc                     = { git = "https://github.com/cosmos/ibc-rs.git", rev = "d5e3887770" }
+ibc-core                = { git = "https://github.com/cosmos/ibc-rs.git", rev = "d5e3887770" }
+ibc-client-tendermint   = { git = "https://github.com/cosmos/ibc-rs.git", rev = "d5e3887770" }
+ibc-query               = { git = "https://github.com/cosmos/ibc-rs.git", rev = "d5e3887770" }
+sov-celestia-client     = { git = "https://github.com/informalsystems/sovereign-ibc.git", rev = "0f84fa9f" }

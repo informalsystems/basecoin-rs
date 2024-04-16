@@ -1,14 +1,9 @@
 use ibc::clients::tendermint::client_state::ClientState as TmClientState;
-use ibc::clients::tendermint::context::{
-    ConsensusStateConverter as TmConsensusStateConverter, ExecutionContext as TmExecutionContext,
-    ValidationContext as TmValidationContext,
-};
 use ibc::clients::tendermint::types::{
-    ClientState as TmClientStateType, TENDERMINT_CLIENT_STATE_TYPE_URL,
+    ClientState as TmClientStateType, ConsensusState as TmConsensusState,
+    TENDERMINT_CLIENT_STATE_TYPE_URL,
 };
-use ibc::core::client::context::client_state::{
-    ClientStateCommon, ClientStateExecution, ClientStateValidation,
-};
+use ibc::core::client::context::prelude::*;
 use ibc::core::client::types::error::ClientError;
 use ibc::core::client::types::Height;
 use ibc::core::commitment_types::commitment::{
@@ -18,13 +13,10 @@ use ibc::core::host::types::identifiers::{ClientId, ClientType};
 use ibc::core::primitives::proto::Protobuf;
 use ibc_proto::google::protobuf::Any;
 use sov_celestia_client::client_state::ClientState as SovClientState;
-use sov_celestia_client::context::{
-    ConsensusStateConverter as SovConsensusStateConverter, ExecutionContext as SovExecutionContext,
-    ValidationContext as SovValidationContext,
-};
 use sov_celestia_client::types::client_state::{
     SovTmClientState as SovClientStateType, SOV_TENDERMINT_CLIENT_STATE_TYPE_URL,
 };
+use sov_celestia_client::types::consensus_state::SovTmConsensusState;
 
 #[derive(derive_more::TryInto, Debug, Clone)]
 pub enum AnyClientState {
@@ -164,10 +156,9 @@ impl ClientStateCommon for AnyClientState {
 
 impl<V> ClientStateValidation<V> for AnyClientState
 where
-    V: TmValidationContext,
-    V::ConsensusStateRef: TmConsensusStateConverter,
-    V: SovValidationContext,
-    V::ConsensusStateRef: SovConsensusStateConverter,
+    V: ExtClientValidationContext,
+    V::ConsensusStateRef: Convertible<TmConsensusState, ClientError>,
+    V::ConsensusStateRef: Convertible<SovTmConsensusState, ClientError>,
 {
     fn verify_client_message(
         &self,
@@ -222,12 +213,12 @@ where
 
 impl<E> ClientStateExecution<E> for AnyClientState
 where
-    E: TmExecutionContext + SovExecutionContext,
+    E: ExtClientExecutionContext,
     E::ClientStateMut: From<AnyClientState>,
     E::ClientStateMut: From<TmClientStateType>,
     E::ClientStateMut: From<SovClientStateType>,
-    E::ConsensusStateRef: TmConsensusStateConverter,
-    E::ConsensusStateRef: SovConsensusStateConverter,
+    E::ConsensusStateRef: Convertible<TmConsensusState, ClientError>,
+    E::ConsensusStateRef: Convertible<SovTmConsensusState, ClientError>,
 {
     fn initialise(
         &self,
