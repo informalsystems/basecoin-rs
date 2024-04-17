@@ -100,7 +100,10 @@ async fn main() {
                         }
                     };
 
-                tx::send_tx(rpc_addr, signed_tx).await
+                if let Err(e) = tx::send_tx(rpc_addr, signed_tx).await {
+                    tracing::error!(format!("{e}"));
+                    std::process::exit(1);
+                }
             }
         },
     };
