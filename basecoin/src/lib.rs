@@ -11,6 +11,7 @@ pub mod cli;
 pub mod config;
 pub mod helper;
 mod runner;
+pub mod tx;
 
 pub use runner::default_app_runner;
 

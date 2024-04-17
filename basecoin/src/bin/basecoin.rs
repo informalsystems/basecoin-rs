@@ -9,10 +9,16 @@ use std::str::FromStr;
 use basecoin::cli::command::{BasecoinCli, Commands, QueryCmd, RecoverCmd, TxCmd, UpgradeCmd};
 use basecoin::config::load_config;
 use basecoin::default_app_runner;
+use basecoin::helper::{dummy_chain_id, dummy_fee};
+use basecoin::tx::{self, KeyPair};
 use basecoin_modules::upgrade::query_upgrade_plan;
 use clap::Parser;
+use ibc::core::client::types::msgs::MsgRecoverClient;
 use ibc::core::host::types::identifiers::ClientId;
 use tracing::metadata::LevelFilter;
+
+const SEED_FILE_PATH: &str = "./ci/user_seed.json";
+const DEFAULT_DERIVATION_PATH: &str = "m/44'/118'/0'/0/0";
 
 #[tokio::main]
 async fn main() {
@@ -54,13 +60,47 @@ async fn main() {
                 let substitute_client_id =
                     ClientId::from_str(substitute_client_id).expect("valid client ID");
 
-                submit_recovery_proposal(
-                    cfg.cometbft.rpc_addr,
+                let key_pair =
+                    match KeyPair::from_seed_file(SEED_FILE_PATH, DEFAULT_DERIVATION_PATH) {
+                        Ok(key_pair) => key_pair,
+                        Err(e) => {
+                            tracing::error!(format!("{e}"));
+                            std::process::exit(1);
+                        }
+                    };
+
+                // Create the MsgRecoverClient
+                let msg = MsgRecoverClient {
                     subject_client_id,
                     substitute_client_id,
-                )
-                .await
-                .unwrap()
+                    signer: key_pair.account.clone(),
+                };
+
+                let chain_id = dummy_chain_id();
+                let grpc_addr = cfg.cometbft.grpc_addr.clone();
+                let rpc_addr = cfg.cometbft.rpc_addr.clone();
+
+                let account_info =
+                    match tx::query_account(grpc_addr, key_pair.account.clone()).await {
+                        Ok(account) => account,
+                        Err(e) => {
+                            tracing::error!(format!("{e}"));
+                            std::process::exit(1);
+                        }
+                    };
+
+                let signed_tx =
+                    match tx::sign_tx(&key_pair, &chain_id, &account_info, vec![msg], dummy_fee())
+                        .await
+                    {
+                        Ok(signed_tx) => signed_tx,
+                        Err(e) => {
+                            tracing::error!(format!("{e}"));
+                            std::process::exit(1);
+                        }
+                    };
+
+                tx::send_tx(rpc_addr, signed_tx).await
             }
         },
     };
