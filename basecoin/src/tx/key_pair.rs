@@ -69,7 +69,8 @@ impl KeyPair {
             })?;
 
         let derived_pubkey = Xpub::from_priv(&Secp256k1::signing_only(), &private_key);
-        let public_key = derived_pubkey.public_key.clone();
+        let public_key = derived_pubkey.public_key;
+        let private_key = private_key.private_key;
 
         Ok(KeyPair::new(public_key, private_key, account, address))
     }
@@ -78,7 +79,7 @@ impl KeyPair {
         let hashed_message: GenericArray<u8, U32> = Sha256::digest(message);
 
         let message = Message::from_digest_slice(&hashed_message).map_err(|_| Error::Custom {
-            reason: format!("attempted to sign an ill-formatted message"),
+            reason: "attempted to sign an ill-formatted message".to_string(),
         })?;
 
         Ok(Secp256k1::signing_only()
