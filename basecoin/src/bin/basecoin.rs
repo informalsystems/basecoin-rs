@@ -13,8 +13,11 @@ use basecoin::helper::{dummy_chain_id, dummy_fee};
 use basecoin::tx::{self, KeyPair};
 use basecoin_modules::upgrade::query_upgrade_plan;
 use clap::Parser;
+use hdpath::StandardHDPath;
 use ibc::core::client::types::msgs::MsgRecoverClient;
 use ibc::core::host::types::identifiers::ClientId;
+use ibc::primitives::{Signer, ToProto};
+
 use tracing::metadata::LevelFilter;
 
 const SEED_FILE_PATH: &str = "./ci/user_seed.json";
@@ -60,20 +63,23 @@ async fn main() {
                 let substitute_client_id =
                     ClientId::from_str(substitute_client_id).expect("valid client ID");
 
-                let key_pair =
-                    match KeyPair::from_seed_file(SEED_FILE_PATH, DEFAULT_DERIVATION_PATH) {
-                        Ok(key_pair) => key_pair,
-                        Err(e) => {
-                            tracing::error!(format!("{e}"));
-                            std::process::exit(1);
-                        }
-                    };
+                let hdpath = StandardHDPath::from_str(DEFAULT_DERIVATION_PATH).unwrap();
+
+                let key_pair = match KeyPair::from_seed_file(SEED_FILE_PATH, &hdpath) {
+                    Ok(key_pair) => key_pair,
+                    Err(e) => {
+                        tracing::error!("{e}");
+                        std::process::exit(1);
+                    }
+                };
+
+                let signer = Signer::from(key_pair.account.clone());
 
                 // Create the MsgRecoverClient
                 let msg = MsgRecoverClient {
                     subject_client_id,
                     substitute_client_id,
-                    signer: key_pair.account.clone(),
+                    signer,
                 };
 
                 let chain_id = dummy_chain_id();
@@ -84,24 +90,27 @@ async fn main() {
                     match tx::query_account(grpc_addr, key_pair.account.clone()).await {
                         Ok(account) => account,
                         Err(e) => {
-                            tracing::error!(format!("{e}"));
+                            tracing::error!("{e}");
                             std::process::exit(1);
                         }
                     };
 
-                let signed_tx =
-                    match tx::sign_tx(&key_pair, &chain_id, &account_info, vec![msg], dummy_fee())
-                        .await
-                    {
-                        Ok(signed_tx) => signed_tx,
-                        Err(e) => {
-                            tracing::error!(format!("{e}"));
-                            std::process::exit(1);
-                        }
-                    };
+                let signed_tx = match tx::sign_tx(
+                    &key_pair,
+                    &chain_id,
+                    &account_info,
+                    vec![msg.to_any()],
+                    dummy_fee(),
+                ) {
+                    Ok(signed_tx) => signed_tx,
+                    Err(e) => {
+                        tracing::error!("{e}");
+                        std::process::exit(1);
+                    }
+                };
 
                 if let Err(e) = tx::send_tx(rpc_addr, signed_tx).await {
-                    tracing::error!(format!("{e}"));
+                    tracing::error!("{e}");
                     std::process::exit(1);
                 }
             }

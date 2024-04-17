@@ -198,9 +198,7 @@ pub async fn query_account(grpc_addr: Url, address: String) -> Result<BaseAccoun
         }
     };
 
-    Ok(
-        BaseAccount::decode(resp_account.value.as_slice()).map_err(|e| Error::Custom {
-            reason: format!("failed to decode account: {e}"),
-        })?,
-    )
+    BaseAccount::decode(resp_account.value.as_slice()).map_err(|e| Error::Custom {
+        reason: format!("failed to decode account: {e}"),
+    })
 }
