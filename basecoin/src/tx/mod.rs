@@ -1,40 +1,43 @@
-use prost::Message;
+//! Utilities and logic for sending transactions from basecoin.
+//!
+//! These exist in order to test certain proposals and message
+//! types that Hermes does not support. Note that this logic
+//! is not meant to be as robust and production-ready as the
+//! transaction-sending logic in Hermes.
 
 use ibc::core::host::types::identifiers::ChainId;
-use ibc_proto::cosmos::auth::v1beta1::BaseAccount;
+use ibc_proto::cosmos::auth::v1beta1::query_client::QueryClient;
+use ibc_proto::cosmos::auth::v1beta1::{BaseAccount, QueryAccountRequest};
 use ibc_proto::cosmos::tx::v1beta1::mode_info::{Single, Sum};
 use ibc_proto::cosmos::tx::v1beta1::{AuthInfo, Fee, ModeInfo, SignDoc, SignerInfo, TxBody, TxRaw};
 use ibc_proto::google::protobuf::Any;
 
-use bitcoin::bip32::{Xpriv, Xpub};
-use k256::ecdsa::{Signature, SigningKey};
+use prost::Message;
+use tendermint_rpc::{Client, HttpClient, Url};
 
-use super::Error;
+use basecoin_modules::error::Error;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct KeyEntry {
-    public_key: Xpub,
-    private_key: Xpriv,
-    account: String,
-    address: Vec<u8>,
-}
+mod key_pair;
+pub use key_pair::*;
 
-impl KeyEntry {
-    pub fn new(public_key: Xpub, private_key: Xpriv, account: String, address: Vec<u8>) -> Self {
-        Self {
-            public_key,
-            private_key,
-            account,
-            address,
-        }
-    }
+pub async fn send_tx(rpc_addr: Url, signed_tx: Vec<u8>) -> Result<(), Error> {
+    let rpc_client = HttpClient::new(rpc_addr.clone()).unwrap();
+
+    rpc_client
+        .broadcast_tx_sync(signed_tx)
+        .await
+        .map_err(|e| Error::Custom {
+            reason: format!("failed to broadcast tx: {e}"),
+        })?;
+
+    Ok(())
 }
 
 /// Signs and encodes the given messages.
 ///
 /// Returns a raw ready-to-send transaction.
 pub fn sign_tx(
-    key: &KeyEntry,
+    key: &KeyPair,
     chain_id: &ChainId,
     account_info: &BaseAccount,
     messages: Vec<Any>,
@@ -59,12 +62,12 @@ pub fn sign_tx(
     Ok(tx_bytes)
 }
 
-pub fn encode_key_bytes(key: &KeyEntry) -> Result<Vec<u8>, Error> {
+pub fn encode_key_bytes(key: &KeyPair) -> Result<Vec<u8>, Error> {
     let mut pk_buf = Vec::new();
 
-    Message::encode(&key.public_key.to_pub().to_bytes(), &mut pk_buf).map_err(|e| {
-        Error::Encoding {
-            reason: e.to_string(),
+    Message::encode(&key.public_key.serialize().to_vec(), &mut pk_buf).map_err(|e| {
+        Error::Custom {
+            reason: format!("failed to encode signing key: {e}"),
         }
     })?;
 
@@ -98,15 +101,15 @@ pub fn encode_auth_info(signer_info: SignerInfo, fee: Fee) -> Result<(AuthInfo, 
 
     let mut auth_info_bytes = Vec::new();
 
-    Message::encode(&auth_info, &mut auth_info_bytes).map_err(|e| Error::Encoding {
-        reason: e.to_string(),
+    Message::encode(&auth_info, &mut auth_info_bytes).map_err(|e| Error::Custom {
+        reason: format!("failed to encode auth info: {e}"),
     })?;
 
     Ok((auth_info, auth_info_bytes))
 }
 
 pub fn encode_sign_doc(
-    key: KeyEntry,
+    key_pair: KeyPair,
     body_bytes: Vec<u8>,
     auth_info_bytes: Vec<u8>,
     chain_id: ChainId,
@@ -123,17 +126,11 @@ pub fn encode_sign_doc(
     let mut signdoc_buf = Vec::new();
     Message::encode(&sign_doc, &mut signdoc_buf).unwrap();
 
-    // Create signature
-    let private_key = key.private_key.to_priv().to_bytes();
-    let signing_key =
-        SigningKey::from_slice(private_key.as_slice()).map_err(|e| Error::Encoding {
-            reason: e.to_string(),
-        })?;
+    let signed = key_pair.sign(&signdoc_buf).map_err(|e| Error::Custom {
+        reason: format!("failed to create signature: {e}"),
+    })?;
 
-    let signature: Signature = signing_key.sign(&signdoc_buf);
-    let signature_bytes = signature.as_ref().to_vec();
-
-    Ok(signature_bytes)
+    Ok(signed)
 }
 
 pub fn encode_tx_body(messages: Vec<Any>) -> Result<(TxBody, Vec<u8>), Error> {
@@ -147,8 +144,8 @@ pub fn encode_tx_body(messages: Vec<Any>) -> Result<(TxBody, Vec<u8>), Error> {
 
     let mut body_bytes = Vec::new();
 
-    Message::encode(&body, &mut body_bytes).map_err(|e| Error::Encoding {
-        reason: e.to_string(),
+    Message::encode(&body, &mut body_bytes).map_err(|e| Error::Custom {
+        reason: format!("failed to encode transaction body: {e}"),
     })?;
 
     Ok((body, body_bytes))
@@ -159,7 +156,6 @@ pub fn encode_tx(
     auth_info_bytes: Vec<u8>,
     signature_bytes: Vec<u8>,
 ) -> Result<(TxRaw, Vec<u8>), Error> {
-    // Create and Encode TxRaw
     let tx_raw = TxRaw {
         body_bytes,
         auth_info_bytes,
@@ -168,9 +164,43 @@ pub fn encode_tx(
 
     let mut tx_bytes = Vec::new();
 
-    Message::encode(&tx_raw, &mut tx_bytes).map_err(|e| Error::Encoding {
-        reason: e.to_string(),
+    Message::encode(&tx_raw, &mut tx_bytes).map_err(|e| Error::Custom {
+        reason: format!("failed to encode transaction: {e}"),
     })?;
 
     Ok((tx_raw, tx_bytes))
+}
+
+/// Retrieves the account sequence via gRPC client.
+pub async fn query_account(grpc_addr: Url, address: String) -> Result<BaseAccount, Error> {
+    let mut client = QueryClient::connect(grpc_addr.to_string())
+        .await
+        .map_err(|e| Error::Custom {
+            reason: format!("failed to connect to gRPC client: {e}"),
+        })?;
+
+    let request = tonic::Request::new(QueryAccountRequest { address });
+
+    let response = client.account(request).await;
+
+    let resp_account = match response
+        .map_err(|e| Error::Custom {
+            reason: format!("failed to query account: {e}"),
+        })?
+        .into_inner()
+        .account
+    {
+        Some(account) => account,
+        None => {
+            return Err(Error::Custom {
+                reason: "failed to find account".to_string(),
+            })
+        }
+    };
+
+    Ok(
+        BaseAccount::decode(resp_account.value.as_slice()).map_err(|e| Error::Custom {
+            reason: format!("failed to decode account: {e}"),
+        })?,
+    )
 }

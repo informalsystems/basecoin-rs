@@ -13,7 +13,6 @@ description = """
 [dependencies]
 # external dependencies
 base64 = { workspace = true }
-bitcoin = { version = "0.31.2" }
 cosmrs = { workspace = true }
 displaydoc = { workspace = true }
 derive_more = { workspace = true }
