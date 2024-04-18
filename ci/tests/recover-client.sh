@@ -18,14 +18,15 @@ HERMES_RECOVERY_CONFIG="${HOME}/.hermes/recovery-config.toml"
 # specified as the subject client and the active client specified as the substitute
 # client.
 
-# Create the expired client that will act as the subject
+echo "creating the expired client"
 hermes --config "${HERMES_RECOVERY_CONFIG}" \
     create client --host-chain ibc-0 --reference-chain basecoin-0
 
-# Create the active client that will act as the substitute
+echo "creating the active client"
 hermes --config "${HERMES_RECOVERY_CONFIG}" \
     create client --host-chain basecoin-0 --reference-chain ibc-0
 
 sleep 1m
 
+echo "initiating client recovery"
 basecoin tx recover --subject-client-id 07-tendermint-0 --substitute-client-id 07-tendermint-1
