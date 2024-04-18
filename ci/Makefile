@@ -10,7 +10,7 @@ create-channel:
 
 recover-client: create-channel
 	@echo "Recovering client..."
-	base ~/tests/recover-client.sh
+	bash ~/tests/recover-client.sh
 	@echo "Client recovered"
 
 token-transfer: upgrade-client
