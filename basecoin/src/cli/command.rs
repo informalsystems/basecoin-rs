@@ -55,13 +55,13 @@ pub enum TxCmd {
 }
 
 #[derive(Clone, Debug, Parser)]
-#[command(about = "Specify the client identifiers needed for client recover")]
+#[command(about = "Specify the client identifiers needed for client recovery")]
 pub struct RecoverCmd {
     /// Identifier of the client to be recovered.
-    #[arg(long, global = true)]
+    #[arg(long)]
     pub subject_client_id: String,
 
     /// Identifier of the client whose state the recovered client will emulate.
-    #[arg(long, global = true)]
+    #[arg(long)]
     pub substitute_client_id: String,
 }
