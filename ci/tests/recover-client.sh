@@ -27,3 +27,5 @@ hermes --config "${HERMES_RECOVERY_CONFIG}" \
     create client --host-chain basecoin-0 --reference-chain ibc-0
 
 sleep 1m
+
+basecoin tx recover --subject-client-id 07-tendermint-0 --substitute-client-id 07-tendermint-1
