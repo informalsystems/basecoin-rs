@@ -265,7 +265,6 @@ dependencies = [
  "ibc-proto",
  "ibc-query",
  "ics23",
- "k256",
  "primitive-types",
  "prost",
  "serde",
@@ -1628,9 +1627,7 @@ dependencies = [
  "cfg-if",
  "ecdsa",
  "elliptic-curve",
- "once_cell",
  "sha2 0.10.8",
- "signature",
 ]
 
 [[package]]
