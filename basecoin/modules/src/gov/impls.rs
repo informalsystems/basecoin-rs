@@ -10,6 +10,7 @@ use basecoin_store::utils::{SharedRw, SharedRwExt};
 use cosmrs::AccountId;
 use ibc::core::client::handler::recover_client;
 use ibc::core::client::types::msgs::{MsgRecoverClient, RECOVER_CLIENT_TYPE_URL};
+use ibc::cosmos_host::upgrade_proposal::{execute_upgrade_client_proposal, UpgradeProposal};
 use ibc::cosmos_host::upgrade_proposal::{
     execute_upgrade_client_proposal, UpgradeProposal, UPGRADE_PROPOSAL_TYPE_URL,
 };
