@@ -1,0 +1,98 @@
+# Extra Hermes configuration utilized specifically for testing client recovery,
+# which requires two Hermes instances relaying between two pairs of clients, each
+# belonging on different chains.
+
+[global]
+log_level = 'debug'
+
+# Client on basecoin that is connected to a client on a gaiad chain.
+# This client is intended to act as the expired subject client that
+# will be recovered as per the client recovery process.
+[[chains]]
+id = 'ibc-0'
+rpc_addr = 'http://127.0.0.1:26657'
+grpc_addr = 'http://127.0.0.1:9090'
+event_source = { mode = 'push', url = 'ws://127.0.0.1:26557/websocket', batch_delay = '500ms' }
+rpc_timeout = '10s'
+trusted_node = false
+account_prefix = 'cosmos'
+key_name = 'testkey'
+store_prefix = 'ibc'
+default_gas = 100000
+max_gas = 4000000
+gas_price = { price = 0.001, denom = 'stake' }
+gas_multiplier = 1.1
+max_msg_num = 30
+max_tx_size = 2097152
+clock_drift = '5s'
+# `trusting_period` default value is '14days', but for the purpose of testing
+# the consensus state pruning mechanism of Tendermint client, it is set to '3m'
+trusting_period = '1m'
+trust_threshold = '2/3'
+address_type = { derivation = 'cosmos' }
+
+# Client on gaiad that is connected to a client on a basecoin chain.
+# This client is intended to act as the active substitute client whose
+#
+[[chains]]
+id = 'basecoin-0'
+rpc_addr = 'http://127.0.0.1:26357'
+grpc_addr = 'http://127.0.0.1:9093'
+event_source = { mode = 'push', url = 'ws://127.0.0.1:26357/websocket', batch_delay = '500ms' }
+rpc_timeout = '10s'
+trusted_node = false
+account_prefix = 'cosmos'
+key_name = 'testkey'
+store_prefix = 'ibc'
+default_gas = 100000
+max_gas = 4000000
+gas_price = { price = 0.001, denom = 'basecoin' }
+gas_multiplier = 1.1
+max_msg_num = 30
+max_tx_size = 2097152
+clock_drift = '5s'
+trusting_period = '3m'
+address_type = { derivation = 'cosmos' }
+proof_specs = '''
+[
+  {
+    "leaf_spec": {
+      "hash": 1,
+      "prehash_key": 0,
+      "prehash_value": 0,
+      "length": 0,
+      "prefix": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+    },
+    "inner_spec": {
+      "child_order": [0, 1, 2],
+      "child_size": 32,
+      "min_prefix_length": 0,
+      "max_prefix_length": 64,
+      "empty_child": "ACA=",
+      "hash": 1
+    },
+    "max_depth": 0,
+    "min_depth": 0
+  },
+  {
+    "leaf_spec": {
+      "hash": 1,
+      "prehash_key": 0,
+      "prehash_value": 0,
+      "length": 0,
+      "prefix": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+    },
+    "inner_spec": {
+      "child_order": [0, 1, 2],
+      "child_size": 32,
+      "min_prefix_length": 0,
+      "max_prefix_length": 64,
+      "empty_child": "ACA=",
+      "hash": 1
+    },
+    "max_depth": 0,
+    "min_depth": 0
+  }
+]
+'''
+trust_threshold = '2/3'
