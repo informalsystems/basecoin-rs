@@ -16,7 +16,6 @@ base64 = { workspace = true }
 cosmrs = { workspace = true }
 displaydoc = { workspace = true }
 derive_more = { workspace = true }
-k256 = { version = "0.13.3", features = ["ecdsa-core", "ecdsa", "sha256"] }
 primitive-types = { version = "0.12.0", default-features = false, features = [
     "serde_no_std",
 ] }
