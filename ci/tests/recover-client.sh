@@ -19,14 +19,16 @@ HERMES_RECOVERY_CONFIG="${HOME}/.hermes/recovery-config.toml"
 # client.
 
 echo "creating the expired client"
-hermes --config "${HERMES_RECOVERY_CONFIG}" \
-    create client --host-chain ibc-0 --reference-chain basecoin-0
+# hermes --config "${HERMES_RECOVERY_CONFIG}" \
+#     create client --host-chain ibc-0 --reference-chain basecoin-0
+hermes create client --host-chain ibc-0 --reference-chain basecoin-0
 
 # old client-id: 07-tendermint-0
 # creates new client-id: 07-tendermint-1 with short trusting period: 10s
 echo "creating the active client"
-hermes --config "${HERMES_RECOVERY_CONFIG}" \
-    create client --host-chain basecoin-0 --reference-chain ibc-0
+# hermes --config "${HERMES_RECOVERY_CONFIG}" \
+#     create client --host-chain basecoin-0 --reference-chain ibc-0
+hermes create client --host-chain basecoin-0 --reference-chain ibc-0
 
 # wait for more than the trusting period
 sleep 15s
