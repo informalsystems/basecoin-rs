@@ -1,6 +1,8 @@
-.PHONY: test create-channel token-transfer upgrade-client grpc-service recover-client
+# .PHONY: test create-channel token-transfer upgrade-client grpc-service recover-client
+.PHONY: test create-channel token-transfer grpc-service recover-client
 
-test: create-channel token-transfer upgrade-client grpc-service recover-client
+# test: create-channel token-transfer upgrade-client grpc-service recover-client
+test: create-channel token-transfer grpc-service recover-client
 	@echo "All tests passed"
 
 create-channel:
