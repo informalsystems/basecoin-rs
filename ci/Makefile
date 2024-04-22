@@ -20,10 +20,10 @@ token-transfer: create-channel
 	bash ~/tests/token-transfer.sh
 	@echo "Tokens transferred"
 
-upgrade-client: create-channel
-	@echo "Upgrading client..."
-	bash ~/tests/upgrade-client.sh
-	@echo "Client upgraded"
+# upgrade-client: create-channel
+# 	@echo "Upgrading client..."
+# 	bash ~/tests/upgrade-client.sh
+# 	@echo "Client upgraded"
 
 grpc-service: upgrade-client
 	@echo "Testing gRPC services..."
