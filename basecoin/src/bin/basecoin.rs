@@ -83,8 +83,10 @@ async fn main() {
                 };
 
                 let chain_id = dummy_chain_id();
-                let grpc_addr = cfg.cometbft.grpc_addr.clone();
                 let rpc_addr = cfg.cometbft.rpc_addr.clone();
+                let grpc_addr = format!("http://{}:{}", cfg.server.host, cfg.server.grpc_port)
+                    .parse()
+                    .expect("valid grpc endpoint");
 
                 let account_info =
                     match tx::query_account(grpc_addr, key_pair.account.clone()).await {
