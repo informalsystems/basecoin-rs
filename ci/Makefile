@@ -8,7 +8,7 @@ create-channel:
 	bash ~/tests/create-channel.sh
 	@echo "Channel created"
 
-token-transfer: create-channel
+token-transfer: upgrade-client
 	@echo "Transferring tokens..."
 	bash ~/tests/token-transfer.sh
 	@echo "Tokens transferred"
