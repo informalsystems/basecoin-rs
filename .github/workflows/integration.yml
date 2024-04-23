@@ -64,7 +64,7 @@ jobs:
           cp -r cometbft-config/ ~/.cometbft/config
           mkdir -p ~/.hermes
           cp hermes-config.toml ~/.hermes/config.toml
-          cp one-chain ~
+          cp one-chain.sh ~
           cp user_seed.json ~
           cp Makefile ..
           cp -r tests/ ~
