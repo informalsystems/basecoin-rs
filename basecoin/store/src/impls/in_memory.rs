@@ -9,9 +9,16 @@ use crate::avl::{AsBytes, AvlTree};
 use crate::context::{ProvableStore, Store};
 use crate::types::{Height, Path, RawHeight, State};
 
+/// A wrapper type around `Vec` that more easily facilitates the pruning of
+/// its elements at a particular height / index. Keeps track of the latest
+/// height at which its elements were pruned.
+///
+/// This type is used by [`InMemoryStore`] in order to prune old store entries.
 #[derive(Debug, Clone, Default)]
 pub struct PrunedVec<T> {
     vec: Vec<T>,
+    /// The latest index at which elements were pruned. In other words,
+    /// elements that exist at and before this index are no longer accessible.
     pruned: usize,
 }
 
