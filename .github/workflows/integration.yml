@@ -108,4 +108,17 @@ jobs:
         working-directory: ~
         run: |
           mkdir -p "${LOG_DIR}"
-          entrypoint.sh make test -j4
+          if ! entrypoint.sh make test -j4; then
+            echo ""
+            echo "Tests failed. Printing logs..."
+            echo ""
+            echo "Gaia logs:"
+            tail -100 "${HOME}/data/ibc-0.log"
+            echo ""
+            echo "Basecoin logs:"
+            tail -100 "${LOG_DIR}/basecoin.log"
+            echo ""
+            echo "CometBFT logs:"
+            tail -100 "${LOG_DIR}/cometbft.log"
+            exit 1
+          fi
