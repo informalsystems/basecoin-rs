@@ -1,4 +1,6 @@
 #!/bin/bash
+set -euo pipefail
+
 # Copied from https://github.com/cosmos/relayer/tree/master/scripts
 
 usage() {
