@@ -61,7 +61,6 @@ jobs:
           mkdir -p ~/.hermes
           cp hermes-config.toml ~/.hermes/config.toml
           cp one-chain.sh ~
-          cp hermes-config-recovery.toml ~/.hermes/recovery-config.toml
           cp user_seed.json ~
           cp Makefile ..
           cp -r tests/ ~
@@ -99,6 +98,11 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: stable
+
+      - name: Install basecoin binary
+        run: |
+          cargo install --path basecoin
+          basecoin --version
 
       - name: Install basecoin binary
         run: |
