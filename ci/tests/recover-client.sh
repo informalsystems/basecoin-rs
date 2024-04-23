@@ -23,12 +23,13 @@ hermes --config "${HERMES_RECOVERY_CONFIG}" \
     create client --host-chain ibc-0 --reference-chain basecoin-0
 
 # old client-id: 07-tendermint-0
-# creates new client-id: 07-tendermint-1 with short trusting period
+# creates new client-id: 07-tendermint-1 with short trusting period: 10s
 echo "creating the active client"
 hermes --config "${HERMES_RECOVERY_CONFIG}" \
     create client --host-chain basecoin-0 --reference-chain ibc-0
 
-sleep 1m
+# wait for more than the trusting period
+sleep 15s
 
 echo "initiating client recovery"
 # recovering 07-tendermint-1 with 07-tendermint-0

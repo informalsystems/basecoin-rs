@@ -26,8 +26,8 @@ max_msg_num = 30
 max_tx_size = 2097152
 clock_drift = '5s'
 # `trusting_period` default value is '14days', but for the purpose of testing
-# the consensus state pruning mechanism of Tendermint client, it is set to '3m'
-trusting_period = '1m'
+# the consensus state pruning mechanism of Tendermint client, it is set to '10s'
+trusting_period = '10s'
 trust_threshold = '2/3'
 address_type = { derivation = 'cosmos' }
 
