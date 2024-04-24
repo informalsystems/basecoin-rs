@@ -197,9 +197,11 @@ mod tests {
         pv.push(3);
         pv.push(4);
         pv.push(5);
-        assert_eq!(pv.len(), 5);
+        assert_eq!(pv.original_length(), 5);
         pv.prune(2);
-        assert_eq!(pv.len(), 5);
+        assert_eq!(pv.original_length(), 5);
+        assert_eq!(pv.pruned_length(), 2);
+        assert_eq!(pv.current_length(), 3);
         assert_eq!(pv.get(0), None);
         assert_eq!(pv.get(1), None);
         assert_eq!(pv.get(2), Some(&3));
