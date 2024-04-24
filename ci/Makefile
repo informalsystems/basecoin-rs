@@ -8,22 +8,22 @@ create-channel:
 	bash ~/tests/create-channel.sh
 	@echo "Channel created"
 
-upgrade-client: create-channel
-	@echo "Upgrading client..."
-	bash ~/tests/upgrade-client.sh
-	@echo "Client upgraded"
-
-recover-client: upgrade-client
+recover-client: create-channel
 	@echo "Recovering client..."
 	bash ~/tests/recover-client.sh
 	@echo "Client recovered"
 
-token-transfer: create-channel recover-client upgrade-client
+token-transfer: create-channel recover-client
 	@echo "Transferring tokens..."
 	bash ~/tests/token-transfer.sh
 	@echo "Tokens transferred"
 
-grpc-service: token-transfer
+upgrade-client: token-transfer
+	@echo "Upgrading client..."
+	bash ~/tests/upgrade-client.sh
+	@echo "Client upgraded"
+
+grpc-service: upgrade-client
 	@echo "Testing gRPC services..."
 	bash ~/tests/grpc-service.sh
 	@echo "gRPC services working"
