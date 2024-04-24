@@ -9,7 +9,7 @@ use crate::avl::{AsBytes, AvlTree};
 use crate::context::{ProvableStore, Store};
 use crate::types::{Height, Path, RawHeight, State};
 
-/// A wrapper type around `Vec` that more easily facilitates the pruning of
+/// A wrapper type around [`Vec`] that more easily facilitates the pruning of
 /// its elements at a particular height / index. Keeps track of the latest
 /// height at which its elements were pruned.
 ///
@@ -57,6 +57,17 @@ impl<T> PrunedVec<T> {
 }
 
 /// An in-memory store backed by an AvlTree.
+///
+/// [`InMemoryStore`] has two copies of the current working store - `staged` and `pending`.
+///
+/// Each transaction works on `pending` copy. When a transaction returns,
+/// - If it succeeds, the store _applies_ the transaction changes by copying `pending` to `staged`.
+/// - If it fails, the store _reverts_ the transaction changes by copying `staged` to `pending`.
+///
+/// When a block is committed, the staged copy is copied into the committed store.
+///
+/// Note that, it is not production-friendly. After each transaction, a whole store is copied
+/// from `pending` to `staged` or `staged` to `pending`.
 #[derive(Clone, Debug)]
 pub struct InMemoryStore {
     /// collection of states corresponding to every committed block height
