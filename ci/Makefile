@@ -18,6 +18,8 @@ token-transfer: create-channel recover-client
 	bash ~/tests/token-transfer.sh
 	@echo "Tokens transferred"
 
+# This test halts `gaiad` at the end.
+# So, this must be the last test that involves `gaiad`.
 upgrade-client: token-transfer
 	@echo "Upgrading client..."
 	bash ~/tests/upgrade-client.sh
