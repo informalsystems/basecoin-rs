@@ -4,18 +4,18 @@ use tracing::trace;
 use crate::context::{ProvableStore, Store};
 use crate::types::{Height, Path};
 
-/// A wrapper store that implements rudimentary `apply()`/`reset()` support for other stores
+/// A wrapper store that implements rudimentary `apply()`/`reset()` support for other stores.
 ///
 /// [`RevertibleStore`] relies on maintaining a list of processed operations - `delete` and `set`.
-/// If it has to revert on a failed transaction, it _reverts_ the previous operations.
-/// - If it was overwriting `set`, `set` with the old value.
-/// - If it was `delete`, `set` the old value.
-/// - If it was non-overwriting `set`, `delete` the current value.
 ///
-/// Note that, this introduces a problem to maintain a deterministic Merkle root hash.
-/// An overwriting `set` doesn't reorganize a Merkle tree - but non-overwriting `set` and `delete` may
-/// reorganize a Merkle tree - which may change the root hash. But a Merkle store should
-/// have no effect on a failed transaction.
+/// If it has to revert a failed transaction, it _reverts_ the previous operations as so:
+/// - If reverting an overwriting `set` or `delete` operation, it performs a `set` with the old value.
+/// - If reverting a non-overwriting `set`, it `delete`s the current value.
+///
+/// Note that this scheme makes it trickier to maintain deterministic Merkle root hashes:
+/// an overwriting `set` doesn't reorganize a Merkle tree - but non-overwriting `set` and `delete`
+/// operations may reorganize a Merkle tree - which may change the root hash. However, a Merkle
+/// store should have no effect on a failed transaction.
 #[derive(Clone, Debug)]
 pub struct RevertibleStore<S> {
     /// backing store

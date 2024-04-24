@@ -35,18 +35,29 @@ impl<T> PrunedVec<T> {
         self.vec.last()
     }
 
+    /// Returns the number of elements currently in the `PrunedVec`,
+    /// i.e., the total number of elements minus the pruned elements.
     pub fn current_length(&self) -> usize {
         self.vec.len()
     }
 
+    /// Returns the number of elements that have been pruned over the
+    /// lifetime of the instance of this type.
     pub fn pruned_length(&self) -> usize {
         self.pruned
     }
 
+    /// Returns the total number of elements that have been added to
+    /// the `PrunedVec` over the lifetime of the instance of this type.
+    /// This includes the number of pruned elements in its count.
     pub fn original_length(&self) -> usize {
         self.current_length() + self.pruned_length()
     }
 
+    /// Removes all elements from the `PrunedVec` up to the specified
+    /// index, inclusive. Note that `index` needs to be strictly greater
+    /// than the current `self.pruned` index, otherwise this method is
+    /// a no-op.
     pub fn prune(&mut self, index: usize) {
         trace!("pruning at index = {}", index);
         if index > self.pruned {
@@ -60,23 +71,22 @@ impl<T> PrunedVec<T> {
 ///
 /// [`InMemoryStore`] has two copies of the current working store - `staged` and `pending`.
 ///
-/// Each transaction works on `pending` copy. When a transaction returns,
-/// - If it succeeds, the store _applies_ the transaction changes by copying `pending` to `staged`.
-/// - If it fails, the store _reverts_ the transaction changes by copying `staged` to `pending`.
+/// Each transaction works on the `pending` copy. When a transaction returns:
+/// - If it succeeded, the store _applies_ the transaction changes by copying `pending` to `staged`.
+/// - If it failed, the store _reverts_ the transaction changes by copying `staged` to `pending`.
 ///
 /// When a block is committed, the staged copy is copied into the committed store.
 ///
-/// Note that, it is not production-friendly. After each transaction, a whole store is copied
-/// from `pending` to `staged` or `staged` to `pending`.
+/// Note that this store implementation is not production-friendly. After each transaction,
+/// the entire store is copied from `pending` to `staged`, or from `staged` to `pending`.
 #[derive(Clone, Debug)]
 pub struct InMemoryStore {
-    /// collection of states corresponding to every committed block height
+    /// A collection of states corresponding to every committed block height.
     store: PrunedVec<State>,
-    /// staged changes waiting to be committed
-    /// these changes are from successful transactions
+    /// The changes made as a result of successful transactions that are staged
+    /// and waiting to be committed.
     staged: State,
-    /// dirty changes that are not complete
-    /// middle of a transaction which may fail
+    /// The dirty changes resulting from transactions that have not yet completed.
     pending: State,
 }
 
