@@ -35,11 +35,16 @@ impl<T> PrunedVec<T> {
         self.vec.last()
     }
 
-    pub fn len(&self) -> usize {
-        self.vec
-            .len()
-            .checked_add(self.pruned)
-            .expect("no overflow")
+    pub fn current_length(&self) -> usize {
+        self.vec.len()
+    }
+
+    pub fn pruned_length(&self) -> usize {
+        self.pruned
+    }
+
+    pub fn original_length(&self) -> usize {
+        self.current_length() + self.pruned_length()
     }
 
     pub fn prune(&mut self, index: usize) {
@@ -145,7 +150,7 @@ impl Store for InMemoryStore {
     }
 
     fn current_height(&self) -> u64 {
-        self.store.len() as u64
+        self.store.original_length() as u64
     }
 
     fn get_keys(&self, key_prefix: &Path) -> Vec<Path> {
