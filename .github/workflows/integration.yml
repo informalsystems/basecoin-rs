@@ -100,16 +100,6 @@ jobs:
         with:
           toolchain: stable
 
-      - name: Install basecoin binary
-        run: |
-          cargo install --path basecoin
-          basecoin --version
-
-      - name: Install basecoin binary
-        run: |
-          cargo install --path basecoin
-          basecoin --version
-
       - name: Set environment variables
         run: |
           echo "BASECOIN_SRC=$(pwd)" >> $GITHUB_ENV
