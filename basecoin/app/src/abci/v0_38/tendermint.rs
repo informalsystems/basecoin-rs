@@ -1,4 +1,3 @@
-use std::convert::TryInto;
 use std::fmt::Debug;
 
 use basecoin_modules::error::Error;
