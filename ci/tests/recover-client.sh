@@ -2,6 +2,10 @@
 set -euo pipefail
 
 HERMES_RECOVERY_CONFIG="${HOME}/.hermes/recovery-config.toml"
+BUILD_ROOT="${HOME}/build"
+BASECOIN_SRC=${BASECOIN_SRC:-/src/basecoin-rs}
+BASECOIN_BUILD="${BUILD_ROOT}/basecoin-rs"
+BASECOIN_BIN="${BASECOIN_BUILD}/debug/basecoin"
 
 # In order to test client recovery of a client running on a basecoin chain, this
 # test exhibits the following setup:
@@ -31,6 +35,7 @@ hermes --config "${HERMES_RECOVERY_CONFIG}" \
 # wait for more than the trusting period
 sleep 15s
 
-echo "initiating client recovery"
+ echo "initiating client recovery"
+ cd "${BASECOIN_SRC}"
 # recovering 07-tendermint-1 with 07-tendermint-0
-basecoin tx recover --subject-client-id 07-tendermint-1 --substitute-client-id 07-tendermint-0
+"${BASECOIN_BIN}" tx recover --subject-client-id 07-tendermint-1 --substitute-client-id 07-tendermint-0
