@@ -32,6 +32,12 @@ hermes --config "${HERMES_RECOVERY_CONFIG}" \
 # wait for more than the trusting period
 sleep 15s
 
+grpcurl -plaintext -d '{"client_id":"07-tendermint-1"}' localhost:9093 ibc.core.client.v1.Query/ClientStatus \
+| jq -e 'if (.status == "Expired") then true else false end'
+
 echo "initiating client recovery"
 # recovering 07-tendermint-1 with 07-tendermint-0
 ${BASECOIN_BIN} tx recover --subject-client-id 07-tendermint-1 --substitute-client-id 07-tendermint-0
+
+grpcurl -plaintext -d '{"client_id":"07-tendermint-1"}' localhost:9093 ibc.core.client.v1.Query/ClientStatus \
+| jq -e 'if (.status == "Active") then true else false end'
