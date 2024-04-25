@@ -40,7 +40,7 @@ hermes --config "${HERMES_RECOVERY_CONFIG}" \
     create client --host-chain basecoin-0 --reference-chain ibc-0
 
 # wait for more than the trusting period
-sleep 15s
+sleep 10s
 
 # need to update the substitute client
 # substitute client height must be greater than the subject client height
@@ -51,12 +51,18 @@ grpcurl -plaintext -d '{"client_id":"07-tendermint-0"}' localhost:9093 ibc.core.
 grpcurl -plaintext -d '{"client_id":"07-tendermint-1"}' localhost:9093 ibc.core.client.v1.Query/ClientStatus \
     | jq -e '.status == "Expired"'
 
+grpcurl -plaintext -d '{"client_id":"07-tendermint-0"}' localhost:9093 ibc.core.client.v1.Query/ClientState
+grpcurl -plaintext -d '{"client_id":"07-tendermint-1"}' localhost:9093 ibc.core.client.v1.Query/ClientState
+
 echo "initiating client recovery"
 # recovering 07-tendermint-1 with 07-tendermint-0
 ${BASECOIN_BIN} tx recover --subject-client-id 07-tendermint-1 --substitute-client-id 07-tendermint-0
 
 # wait for the client to recover
 sleep 3s
+
+grpcurl -plaintext -d '{"client_id":"07-tendermint-0"}' localhost:9093 ibc.core.client.v1.Query/ClientState
+grpcurl -plaintext -d '{"client_id":"07-tendermint-1"}' localhost:9093 ibc.core.client.v1.Query/ClientState
 
 grpcurl -plaintext -d '{"client_id":"07-tendermint-0"}' localhost:9093 ibc.core.client.v1.Query/ClientStatus \
     | jq -e '.status == "Active"'
