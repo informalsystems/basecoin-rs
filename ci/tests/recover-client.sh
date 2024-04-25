@@ -44,6 +44,7 @@ sleep 15s
 
 # need to update the substitute client
 # substitute client height must be greater than the subject client height
+hermes --config "${HERMES_CONFIG}" update client --host-chain basecoin-0 --client 07-tendermint-0
 
 grpcurl -plaintext -d '{"client_id":"07-tendermint-0"}' localhost:9093 ibc.core.client.v1.Query/ClientStatus \
     | jq -e '.status == "Active"'
