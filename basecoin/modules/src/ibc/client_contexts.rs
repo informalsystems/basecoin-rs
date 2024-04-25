@@ -4,10 +4,9 @@ use basecoin_store::context::Store;
 use basecoin_store::types::Height;
 use ibc::clients::tendermint::client_state::ClientState as TmClientState;
 use ibc::clients::tendermint::consensus_state::ConsensusState as TmConsensusState;
-use ibc::clients::tendermint::context::{
-    ConsensusStateConverter, ValidationContext as TmValidationContext,
+use ibc::core::client::context::{
+    ClientExecutionContext, ClientValidationContext, ExtClientValidationContext,
 };
-use ibc::core::client::context::{ClientExecutionContext, ClientValidationContext};
 use ibc::core::client::types::error::ClientError;
 use ibc::core::client::types::Height as IbcHeight;
 use ibc::core::handler::types::error::ContextError;
@@ -196,7 +195,7 @@ where
     }
 }
 
-impl<S> TmValidationContext for IbcContext<S>
+impl<S> ExtClientValidationContext for IbcContext<S>
 where
     S: Store + Debug,
     Self::ConsensusStateRef: ConsensusStateConverter,
