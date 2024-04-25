@@ -28,13 +28,14 @@ python -m yq.tomlq -it '.chains[0].trusting_period = "10s"' ${HERMES_RECOVERY_CO
 # specified as the subject client and the active client specified as the substitute
 # client.
 
-echo "creating the expired client"
+# this is not necessary for the test, as we are not creating a connection.
+echo "creating the active client on ibc-0"
 hermes --config "${HERMES_RECOVERY_CONFIG}" \
     create client --host-chain ibc-0 --reference-chain basecoin-0
 
 # old client-id: 07-tendermint-0
-# creates new client-id: 07-tendermint-1 with short trusting period: 10s
-echo "creating the active client"
+# creates new client-id: 07-tendermint-1 with short trusting period: 10s.
+echo "creating the expiring client on basecoin-0"
 hermes --config "${HERMES_RECOVERY_CONFIG}" \
     create client --host-chain basecoin-0 --reference-chain ibc-0
 
