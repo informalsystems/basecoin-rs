@@ -11,6 +11,8 @@ use basecoin::config::load_config;
 use basecoin::default_app_runner;
 use basecoin::helper::{dummy_chain_id, dummy_fee};
 use basecoin::tx::{self, KeyPair};
+use basecoin_modules::bank::{Coin, Denom};
+use basecoin_modules::gov::MsgSubmitProposal;
 use basecoin_modules::upgrade::query_upgrade_plan;
 use clap::Parser;
 use hdpath::StandardHDPath;
@@ -82,6 +84,12 @@ async fn main() {
                     signer,
                 };
 
+                let proposal_msg = MsgSubmitProposal {
+                    content: msg.to_any(),
+                    initial_deposit: Coin::new_empty(Denom("basecoin".into())),
+                    proposer: key_pair.account.clone(),
+                };
+
                 let chain_id = dummy_chain_id();
                 let rpc_addr = cfg.cometbft.rpc_addr.clone();
                 let grpc_addr = format!("http://{}:{}", cfg.server.host, cfg.server.grpc_port)
@@ -101,7 +109,7 @@ async fn main() {
                     &key_pair,
                     &chain_id,
                     &account_info,
-                    vec![msg.to_any()],
+                    vec![proposal_msg.to_any()],
                     dummy_fee(),
                 ) {
                     Ok(signed_tx) => signed_tx,
