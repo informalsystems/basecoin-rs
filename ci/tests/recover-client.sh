@@ -1,8 +1,17 @@
 #!/bin/bash
 set -euo pipefail
 
-HERMES_RECOVERY_CONFIG="${HOME}/.hermes/recovery-config.toml"
 BASECOIN_BIN=${BASECOIN_BIN:-${HOME}/build/basecoin-rs/debug/basecoin}
+
+HERMES_CONFIG="${HOME}/.hermes/config.toml"
+HERMES_RECOVERY_CONFIG="recovery-config.toml"
+cp ${HERMES_CONFIG} ${HERMES_RECOVERY_CONFIG}
+
+# install yq if not already installed
+python -m yq --version || pip install yq
+
+# update ibc-0's trusting period: 10s
+python -m yq.tomlq -it '.chains[0].trusting_period = "10s"' ${HERMES_RECOVERY_CONFIG}
 
 # In order to test client recovery of a client running on a basecoin chain, this
 # test exhibits the following setup:
