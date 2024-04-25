@@ -7,11 +7,11 @@ HERMES_CONFIG="${HOME}/.hermes/config.toml"
 HERMES_RECOVERY_CONFIG="recovery-config.toml"
 cp ${HERMES_CONFIG} ${HERMES_RECOVERY_CONFIG}
 
-# install yq if not already installed
-python -m yq --version || pip install yq
+# install tomlq (part of yq) if not already installed
+command -v tomlq || pip install yq
 
 # update ibc-0's trusting period: 10s
-python -m yq.tomlq -it '.chains[0].trusting_period = "10s"' ${HERMES_RECOVERY_CONFIG}
+tomlq -it '.chains[0].trusting_period = "10s"' ${HERMES_RECOVERY_CONFIG}
 
 # In order to test client recovery of a client running on a basecoin chain, this
 # test exhibits the following setup:
