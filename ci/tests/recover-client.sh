@@ -51,7 +51,8 @@ echo "initiating client recovery"
 # recovering 07-tendermint-1 with 07-tendermint-0
 ${BASECOIN_BIN} tx recover --subject-client-id 07-tendermint-1 --substitute-client-id 07-tendermint-0
 
-sleep 7s # half for 15s trusting period
+# wait for the client to recover
+sleep 3s
 
 grpcurl -plaintext -d '{"client_id":"07-tendermint-0"}' localhost:9093 ibc.core.client.v1.Query/ClientStatus \
     | jq -e '.status == "Active"'
