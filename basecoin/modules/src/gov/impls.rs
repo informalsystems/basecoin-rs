@@ -107,6 +107,8 @@ where
                     recover_client::validate(&ibc_ctx.ctx, msg_recover_client.clone())?;
                     recover_client::execute(&mut ibc_ctx.ctx, msg_recover_client)?;
 
+                    // client recovery operation does not return an event
+                    // https://github.com/cosmos/ibc-go/blob/4c1aae32a8e4e5c34420c1e083e5bd88ac4a0bbb/modules/light-clients/07-tendermint/light_client_module.go#L249
                     Ok(vec![])
                 }
                 _ => Err(AppError::NotHandled),
