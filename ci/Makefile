@@ -1,6 +1,6 @@
-.PHONY: test create-channel token-transfer upgrade-client grpc-service
+.PHONY: test create-channel token-transfer upgrade-client grpc-service recover-client
 
-test: create-channel token-transfer upgrade-client grpc-service
+test: create-channel token-transfer upgrade-client grpc-service recover-client
 	@echo "All tests passed"
 
 create-channel:
@@ -8,7 +8,12 @@ create-channel:
 	bash ~/tests/create-channel.sh
 	@echo "Channel created"
 
-token-transfer: create-channel
+recover-client: create-channel
+	@echo "Recovering client..."
+	bash ~/tests/recover-client.sh
+	@echo "Client recovered"
+
+token-transfer: create-channel recover-client
 	@echo "Transferring tokens..."
 	bash ~/tests/token-transfer.sh
 	@echo "Tokens transferred"

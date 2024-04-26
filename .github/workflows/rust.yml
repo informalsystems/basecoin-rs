@@ -91,3 +91,13 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: doc
+
+  cargo-toml-fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: baptiste0928/cargo-install@v3
+        with:
+          crate: taplo-cli
+      - run: taplo fmt --check

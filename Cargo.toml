@@ -2,12 +2,7 @@
 
 resolver = "2"
 
-members = [
-    "basecoin",
-    "basecoin/app",
-    "basecoin/modules",
-    "basecoin/store",
-]
+members = [ "basecoin", "basecoin/app", "basecoin/modules", "basecoin/store" ]
 
 [workspace.package]
 version      = "0.1.0"
@@ -16,37 +11,40 @@ edition      = "2021"
 rust-version = "1.64"
 readme       = "README.md"
 repository   = "https://github.com/informalsystems/basecoin-rs"
-authors      = ["Informal Systems <hello@informal.systems>"]
+authors      = [ "Informal Systems <hello@informal.systems>" ]
 
 [workspace.dependencies]
 # external dependencies
-base64             = { version = "0.21.6", default-features = false, features = ["alloc"] }
+base64             = { version = "0.21.6", default-features = false, features = [ "alloc" ] }
 cosmrs             = { version = "0.15.0" }
 displaydoc         = { version = "0.2", default-features = false }
-derive_more        = { version = "0.99.17", default-features = false, features = ["from", "into", "display"] }
+derive_more        = { version = "0.99.17", default-features = false, features = [ "from", "into", "display" ] }
 ed25519            = { version = "2.1.0", default-features = false }
 prost              = { version = "0.12", default-features = false }
 serde              = "1.0"
 serde_json         = "1.0"
 sha2               = "0.10.2"
-tonic              = "0.10"
-tonic-reflection   = "0.10"
+tonic              = "0.11"
+tonic-reflection   = "0.11"
 tracing            = "0.1.26"
 tracing-subscriber = "0.3.16"
 
 # ibc dependencies
-ibc              = { version = "0.51.0", default-features = false, features = ["serde"] }
-ibc-query        = { version = "0.51.0", default-features = false }
-ibc-proto        = { version = "0.42.2", default-features = false }
-ics23            = { version = "0.11", default-features = false }
+ibc       = { version = "0.51.0", default-features = false, features = [ "serde" ] }
+ibc-query = { version = "0.51.0", default-features = false }
+ibc-proto = { version = "0.43.0", default-features = false }
+ics23     = { version = "0.11", default-features = false }
 
 # tendermint dependencies
-tendermint       = { version = "0.34", default-features = false }
-tendermint-abci  = { version = "0.34", default-features = false }
-tendermint-proto = { version = "0.34", default-features = false }
-tendermint-rpc   = { version = "0.34", default-features = false }
+tendermint       = { version = "0.35", default-features = false }
+tendermint-abci  = { version = "0.35", default-features = false }
+tendermint-proto = { version = "0.35", default-features = false }
+tendermint-rpc   = { version = "0.35", default-features = false }
+
+# tower abci
+tower-abci = { version = "0.12" }
 
 [patch.crates-io]
-ibc        = { git = "https://github.com/cosmos/ibc-rs.git", rev = "c659e210d2" }
-ibc-query  = { git = "https://github.com/cosmos/ibc-rs.git", rev = "c659e210d2" }
-
+ibc        = { git = "https://github.com/cosmos/ibc-rs.git", rev = "e5c626f" }
+ibc-query  = { git = "https://github.com/cosmos/ibc-rs.git", rev = "e5c626f" }
+tower-abci = { git = "https://github.com/informalsystems/tower-abci.git", rev = "a4c021b" }

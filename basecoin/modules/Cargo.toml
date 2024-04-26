@@ -1,40 +1,37 @@
 [package]
-name = "basecoin-modules"
+name        = "basecoin-modules"
 version     = { workspace = true }
 edition     = { workspace = true }
 license     = { workspace = true }
 readme      = { workspace = true }
 repository  = { workspace = true }
 authors     = { workspace = true }
-description = """
-        Contains simple implementations of various modules for the Basecoin application.
-"""
+description = "Contains simple implementations of various modules for the Basecoin application."
 
 [dependencies]
 # external dependencies
-base64             = { workspace = true }
-cosmrs             = { workspace = true }
-displaydoc         = { workspace = true }
-derive_more        = { workspace = true }
-primitive-types    = { version = "0.12.0", default-features = false, features = ["serde_no_std"] }
-prost              = { workspace = true }
-serde              = { workspace = true }
-serde_derive       = { version = "1.0.104", default-features = false }
-serde_json         = { workspace = true }
-sha2               = { workspace = true }
-tonic              = { workspace = true }
-tracing            = { workspace = true }
+base64          = { workspace = true }
+cosmrs          = { workspace = true }
+displaydoc      = { workspace = true }
+derive_more     = { workspace = true }
+primitive-types = { version = "0.12.0", default-features = false, features = [ "serde_no_std" ] }
+prost           = { workspace = true }
+serde           = { workspace = true }
+serde_derive    = { version = "1.0.104", default-features = false }
+serde_json      = { workspace = true }
+sha2            = { workspace = true }
+tonic           = { workspace = true }
+tracing         = { workspace = true }
 
 # ibc dependencies
-ibc                = { workspace = true }
-ibc-proto          = { workspace = true, features = ["server", "proto-descriptor", "serde"] }
-ibc-query          = { workspace = true }
-ics23              = { workspace = true, features = ["host-functions"] }
+ibc       = { workspace = true }
+ibc-proto = { workspace = true, features = [ "client", "server", "proto-descriptor", "serde" ] }
+ibc-query = { workspace = true }
+ics23     = { workspace = true, features = [ "host-functions" ] }
 
 # tendermint dependencies
-tendermint         = { workspace = true }
-tendermint-rpc     = { workspace = true , features = ["http-client"] }
+tendermint     = { workspace = true }
+tendermint-rpc = { workspace = true, features = [ "http-client" ] }
 
 # internal dependencies
-basecoin-store     = { path = "../store" }
-
+basecoin-store = { path = "../store" }

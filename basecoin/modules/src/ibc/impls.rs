@@ -15,7 +15,10 @@ use ibc::apps::transfer::handler::send_transfer;
 use ibc::apps::transfer::types::msgs::transfer::MsgTransfer;
 use ibc::clients::tendermint::client_state::ClientState as TmClientState;
 use ibc::clients::tendermint::consensus_state::ConsensusState as TmConsensusState;
-use ibc::clients::tendermint::types::ConsensusState as ConsensusStateType;
+use ibc::clients::tendermint::types::{
+    ClientState as ClientStateType, ConsensusState as ConsensusStateType,
+    TENDERMINT_CLIENT_STATE_TYPE_URL, TENDERMINT_CONSENSUS_STATE_TYPE_URL,
+};
 use ibc::core::channel::types::channel::{ChannelEnd, IdentifiedChannelEnd};
 use ibc::core::channel::types::commitment::{AcknowledgementCommitment, PacketCommitment};
 use ibc::core::channel::types::error::{ChannelError, PacketError};
@@ -39,7 +42,7 @@ use ibc::core::host::types::path::{
 };
 use ibc::core::host::{ClientStateRef, ConsensusStateRef, ExecutionContext, ValidationContext};
 use ibc::cosmos_host::IBC_QUERY_PATH;
-use ibc::derive::ConsensusState;
+use ibc::derive::{ClientState, ConsensusState};
 use ibc::primitives::{Signer, Timestamp};
 use ibc_proto::google::protobuf::Any;
 use ibc_proto::ibc::core::channel::v1::query_server::QueryServer as ChannelQueryServer;
@@ -67,10 +70,54 @@ use crate::types::QueryResult;
 use crate::upgrade::Upgrade;
 use crate::CHAIN_REVISION_NUMBER;
 
+#[derive(ClientState, Clone, From, TryInto)]
+#[validation(IbcContext<S: Store + Debug>)]
+#[execution(IbcContext<S: Store + Debug>)]
+pub enum AnyClientState {
+    Tendermint(TmClientState),
+}
+
+impl From<ClientStateType> for AnyClientState {
+    fn from(value: ClientStateType) -> Self {
+        AnyClientState::Tendermint(value.into())
+    }
+}
+
+impl TryFrom<AnyClientState> for ClientStateType {
+    type Error = ClientError;
+
+    fn try_from(value: AnyClientState) -> Result<Self, Self::Error> {
+        match value {
+            AnyClientState::Tendermint(tm_client_state) => Ok(tm_client_state.inner().clone()),
+        }
+    }
+}
+
+impl From<AnyClientState> for Any {
+    fn from(value: AnyClientState) -> Self {
+        match value {
+            AnyClientState::Tendermint(tm_client_state) => tm_client_state.into(),
+        }
+    }
+}
+
+impl TryFrom<Any> for AnyClientState {
+    type Error = ClientError;
+
+    fn try_from(value: Any) -> Result<Self, Self::Error> {
+        match value.type_url.as_str() {
+            TENDERMINT_CLIENT_STATE_TYPE_URL => Ok(AnyClientState::Tendermint(value.try_into()?)),
+            _ => Err(ClientError::Other {
+                description: "Unknown client state type".into(),
+            }),
+        }
+    }
+}
+
 // Note: We define `AnyConsensusState` just to showcase the use of the
 // derive macro. Technically, we could just use `TmConsensusState`
 // as the `AnyConsensusState`, since we only support this one variant.
-#[derive(ConsensusState, From, TryInto)]
+#[derive(ConsensusState, Clone, From, TryInto)]
 pub enum AnyConsensusState {
     Tendermint(TmConsensusState),
 }
@@ -101,12 +148,27 @@ impl From<AnyConsensusState> for Any {
     }
 }
 
+impl TryFrom<Any> for AnyConsensusState {
+    type Error = ClientError;
+
+    fn try_from(value: Any) -> Result<Self, Self::Error> {
+        match value.type_url.as_str() {
+            TENDERMINT_CONSENSUS_STATE_TYPE_URL => {
+                Ok(AnyConsensusState::Tendermint(value.try_into()?))
+            }
+            _ => Err(ClientError::Other {
+                description: "Unknown consensus state type".into(),
+            }),
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct Ibc<S>
 where
     S: Store + Debug,
 {
-    ctx: IbcContext<S>,
+    pub(crate) ctx: IbcContext<S>,
     router: Arc<IbcRouter<S>>,
 }
 
@@ -314,10 +376,10 @@ where
     pub(crate) consensus_states: Arc<RwLock<HashMap<u64, TmConsensusState>>>,
     /// A typed-store for AnyClientState
     pub(crate) client_state_store:
-        ProtobufStore<SharedStore<S>, ClientStatePath, TmClientState, Any>,
+        ProtobufStore<SharedStore<S>, ClientStatePath, AnyClientState, Any>,
     /// A typed-store for AnyConsensusState
     pub(crate) consensus_state_store:
-        ProtobufStore<SharedStore<S>, ClientConsensusStatePath, TmConsensusState, Any>,
+        ProtobufStore<SharedStore<S>, ClientConsensusStatePath, AnyConsensusState, Any>,
     /// A typed-store for ConnectionEnd
     connection_end_store:
         ProtobufStore<SharedStore<S>, ConnectionPath, ConnectionEnd, RawConnectionEnd>,
@@ -683,7 +745,7 @@ where
                             height,
                         }
                     })?;
-                Ok((height, client_state.into()))
+                Ok((height, client_state))
             })
             .collect()
     }
