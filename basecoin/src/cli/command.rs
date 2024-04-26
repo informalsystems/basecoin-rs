@@ -54,6 +54,18 @@ pub struct TxCmd {
     #[command(subcommand)]
     pub command: TxCmds,
 
+    /// Chain ID of the blockchain.
+    #[arg(long)]
+    pub chain_id: String,
+
+    /// Fee amount to be paid for the transaction.
+    #[arg(long, default_value = "4000basecoin")]
+    pub fee: String,
+
+    /// Gas limit for the transaction.
+    #[arg(long, default_value_t = 400000_u64)]
+    pub gas: u64,
+
     /// The path to the file containing the seed phrase.
     #[arg(long)]
     pub seed_file: PathBuf,
