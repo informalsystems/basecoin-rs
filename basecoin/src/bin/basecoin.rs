@@ -112,7 +112,14 @@ async fn main() {
                 }
             };
 
-            let signed_tx = match tx::sign_tx(&key_pair, &chain_id, &account_info, vec![msg], fee) {
+            let signed_tx = match tx::sign_tx(
+                &key_pair,
+                &chain_id,
+                &account_info,
+                vec![msg],
+                fee,
+                c.memo.to_owned(),
+            ) {
                 Ok(signed_tx) => signed_tx,
                 Err(e) => {
                     tracing::error!("{e}");

@@ -40,12 +40,13 @@ pub fn sign_tx(
     account_info: &BaseAccount,
     messages: Vec<Any>,
     fee: Fee,
+    memo: String,
 ) -> Result<Vec<u8>, Error> {
     let pk_bytes = encode_key_bytes(key)?;
 
     let signer_info = encode_signer_info(account_info.sequence, pk_bytes)?;
     let (_, auth_info_bytes) = encode_auth_info(signer_info, fee)?;
-    let (_, body_bytes) = encode_tx_body(messages)?;
+    let (_, body_bytes) = encode_tx_body(messages, memo)?;
 
     let signature_bytes = encode_sign_doc(
         key.clone(),
@@ -131,10 +132,10 @@ pub fn encode_sign_doc(
     Ok(signed)
 }
 
-pub fn encode_tx_body(messages: Vec<Any>) -> Result<(TxBody, Vec<u8>), Error> {
+pub fn encode_tx_body(messages: Vec<Any>, memo: String) -> Result<(TxBody, Vec<u8>), Error> {
     let body = TxBody {
         messages,
-        memo: "ibc".to_string(),
+        memo,
         timeout_height: 0_u64,
         extension_options: Vec::<Any>::default(),
         non_critical_extension_options: Vec::<Any>::default(),

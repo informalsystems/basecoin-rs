@@ -66,6 +66,10 @@ pub struct TxCmd {
     #[arg(long, default_value_t = 400000_u64)]
     pub gas: u64,
 
+    /// Memo to be included in the transaction.
+    #[arg(long, default_value = "")]
+    pub memo: String,
+
     /// The path to the file containing the seed phrase.
     #[arg(long)]
     pub seed_file: PathBuf,
