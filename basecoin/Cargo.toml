@@ -34,7 +34,6 @@ tonic-reflection   = { workspace = true }
 toml               = { version = "0.8" }
 tracing            = { workspace = true }
 tracing-subscriber = { workspace = true }
-tower-abci         = { workspace = true, optional = true }
 
 # ibc dependencies
 ibc       = { workspace = true }
@@ -43,6 +42,9 @@ ibc-proto = { workspace = true, features = [ "server", "proto-descriptor", "serd
 # tendermint dependencies
 tendermint-abci = { workspace = true, optional = true }
 tendermint-rpc  = { workspace = true, features = [ "http-client" ] }
+
+# tower abci
+tower-abci = { workspace = true, optional = true }
 
 # internal dependencies
 basecoin-store   = { path = "./store" }
