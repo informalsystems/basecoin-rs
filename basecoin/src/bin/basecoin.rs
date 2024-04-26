@@ -19,6 +19,7 @@ use hdpath::StandardHDPath;
 use ibc::core::client::types::msgs::MsgRecoverClient;
 use ibc::core::host::types::identifiers::ClientId;
 use ibc::primitives::{Signer, ToProto};
+use ibc_proto::cosmos::tx::v1beta1::Fee;
 use tracing::metadata::LevelFilter;
 
 #[tokio::main]
@@ -91,7 +92,14 @@ async fn main() {
                 }
             };
 
-            let chain_id = dummy_chain_id();
+            let chain_id = c.chain_id.parse().unwrap();
+            let fee = Fee {
+                amount: vec![Coin::from_str(&c.fee).unwrap().into()],
+                gas_limit: c.gas,
+                granter: "".into(),
+                payer: "".into(),
+            };
+
             let rpc_addr = cfg.cometbft.rpc_addr.clone();
             let grpc_addr = format!("http://{}:{}", cfg.server.host, cfg.server.grpc_port)
                 .parse()
@@ -105,14 +113,13 @@ async fn main() {
                 }
             };
 
-            let signed_tx =
-                match tx::sign_tx(&key_pair, &chain_id, &account_info, vec![msg], dummy_fee()) {
-                    Ok(signed_tx) => signed_tx,
-                    Err(e) => {
-                        tracing::error!("{e}");
-                        std::process::exit(1);
-                    }
-                };
+            let signed_tx = match tx::sign_tx(&key_pair, &chain_id, &account_info, vec![msg], fee) {
+                Ok(signed_tx) => signed_tx,
+                Err(e) => {
+                    tracing::error!("{e}");
+                    std::process::exit(1);
+                }
+            };
 
             if let Err(e) = tx::send_tx(rpc_addr, signed_tx).await {
                 tracing::error!("{e}");
