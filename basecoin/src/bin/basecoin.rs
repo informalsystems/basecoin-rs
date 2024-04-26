@@ -81,6 +81,7 @@ async fn main() {
                         signer,
                     };
 
+                    // MsgRecoverClient can only be executed via Gov module
                     MsgSubmitProposal {
                         content: msg.to_any(),
                         initial_deposit: Coin::new_empty(Denom("basecoin".into())),
