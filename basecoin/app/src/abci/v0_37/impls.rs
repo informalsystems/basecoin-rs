@@ -209,6 +209,10 @@ pub fn deliver_tx<S: Default + Debug + ProvableStore>(
                 for IdentifiedModule { module, .. } in modules.iter_mut() {
                     module.store_mut().reset();
                 }
+
+                // probably the main store doesn't need to be reset.
+                // currently the only time it is written while committing a block.
+                // but doing it nonetheless, just in case.
                 app.store.write_access().reset();
                 return ResponseDeliverTx::from_error(2, format!("deliver failed with error: {e}"));
             }
@@ -223,6 +227,10 @@ pub fn deliver_tx<S: Default + Debug + ProvableStore>(
             .apply()
             .expect("failed to apply to module state");
     }
+
+    // probably the main store doesn't need to be applied.
+    // currently the only time it is written while committing a block.
+    // but doing it nonetheless, just in case.
     app.store
         .write_access()
         .apply()
