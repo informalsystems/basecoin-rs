@@ -102,8 +102,6 @@ where
                     let msg_recover_client =
                         MsgRecoverClient::decode_vec(message.content.value.as_slice()).unwrap();
 
-                    // TODO(seanchen1991): Ensure that the signer is the authority set for the ibc module
-
                     let mut ibc_ctx = self.ibc_ctx.write_access();
 
                     recover_client::validate(&ibc_ctx.ctx, msg_recover_client.clone())?;

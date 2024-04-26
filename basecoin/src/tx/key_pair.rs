@@ -79,7 +79,7 @@ impl KeyPair {
         let hashed_message: GenericArray<u8, U32> = Sha256::digest(message);
 
         let message = Message::from_digest_slice(&hashed_message).map_err(|_| Error::Custom {
-            reason: "attempted to sign an ill-formatted message".to_string(),
+            reason: "attempted to sign a malformed message".to_string(),
         })?;
 
         Ok(Secp256k1::signing_only()
@@ -116,7 +116,7 @@ pub fn private_key_from_mnemonic(mnemonic: &str, hd_path: &StandardHDPath) -> Re
 
 pub fn decode_bech32(input: &str) -> Result<Vec<u8>, Error> {
     let (_, data) = bech32::decode(input).map_err(|e| Error::Custom {
-        reason: format!("failed to decode bech32 string {input}: {e}"),
+        reason: format!("failed to decode bech32 string {input:?}: {e}"),
     })?;
 
     Ok(data)

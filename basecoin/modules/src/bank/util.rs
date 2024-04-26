@@ -31,8 +31,8 @@ impl Coin {
 impl FromStr for Coin {
     type Err = Error;
 
-    // parses a coin string in the format "10basecoin"
-    // i.e. amount followed by denom
+    /// Parses a coin string in the format "10basecoin",
+    /// i.e. amount followed by denom
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut split = s.splitn(2, |c: char| c.is_alphabetic());
 

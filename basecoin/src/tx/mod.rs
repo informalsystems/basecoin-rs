@@ -137,8 +137,8 @@ pub fn encode_tx_body(messages: Vec<Any>, memo: String) -> Result<(TxBody, Vec<u
         messages,
         memo,
         timeout_height: 0_u64,
-        extension_options: Vec::<Any>::default(),
-        non_critical_extension_options: Vec::<Any>::default(),
+        extension_options: vec![],
+        non_critical_extension_options: vec![],
     };
 
     let mut body_bytes = Vec::new();
