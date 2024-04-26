@@ -2,8 +2,6 @@ use std::fmt::Debug;
 
 use basecoin_store::context::Store;
 use basecoin_store::types::Height;
-use ibc::clients::tendermint::client_state::ClientState as TmClientState;
-use ibc::clients::tendermint::consensus_state::ConsensusState as TmConsensusState;
 use ibc::core::client::context::{
     ClientExecutionContext, ClientValidationContext, ExtClientValidationContext,
 };
@@ -18,12 +16,13 @@ use ibc::core::host::ValidationContext;
 use ibc::primitives::Timestamp;
 
 use super::impls::{AnyConsensusState, IbcContext};
+use super::AnyClientState;
 
 impl<S> ClientValidationContext for IbcContext<S>
 where
     S: Store + Debug,
 {
-    type ClientStateRef = TmClientState;
+    type ClientStateRef = AnyClientState;
     type ConsensusStateRef = AnyConsensusState;
 
     fn client_state(&self, client_id: &ClientId) -> Result<Self::ClientStateRef, ContextError> {
@@ -52,7 +51,7 @@ where
                 height,
             })?;
 
-        Ok(consensus_state.into())
+        Ok(consensus_state)
     }
 
     /// Returns the time and height when the client state for the given
@@ -95,7 +94,7 @@ impl<S> ClientExecutionContext for IbcContext<S>
 where
     S: Store + Debug,
 {
-    type ClientStateMut = TmClientState;
+    type ClientStateMut = AnyClientState;
 
     /// Called upon successful client creation and update
     fn store_client_state(
@@ -118,12 +117,8 @@ where
         consensus_state_path: ClientConsensusStatePath,
         consensus_state: Self::ConsensusStateRef,
     ) -> Result<(), ContextError> {
-        let tm_consensus_state: TmConsensusState =
-            consensus_state.try_into().map_err(|_| ClientError::Other {
-                description: "Consensus state type mismatch".to_string(),
-            })?;
         self.consensus_state_store
-            .set(consensus_state_path, tm_consensus_state)
+            .set(consensus_state_path, consensus_state)
             .map_err(|_| ClientError::Other {
                 description: "Consensus state store error".to_string(),
             })?;
@@ -265,7 +260,7 @@ where
                     height: *height,
                 })?;
 
-            Ok(Some(consensus_state.into()))
+            Ok(Some(consensus_state))
         } else {
             Ok(None)
         }
@@ -302,7 +297,7 @@ where
                         client_id: client_id.clone(),
                         height: *height,
                     })?;
-                return Ok(Some(consensus_state.into()));
+                return Ok(Some(consensus_state));
             }
         }
         Ok(None)
