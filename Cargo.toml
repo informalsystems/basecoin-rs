@@ -45,6 +45,6 @@ tendermint-rpc   = { version = "0.35", default-features = false }
 tower-abci = { version = "0.12" }
 
 [patch.crates-io]
-ibc        = { git = "https://github.com/cosmos/ibc-rs.git", rev = "18375cb" }
-ibc-query  = { git = "https://github.com/cosmos/ibc-rs.git", rev = "18375cb" }
+ibc        = { git = "https://github.com/cosmos/ibc-rs.git", rev = "6f52da0" }
+ibc-query  = { git = "https://github.com/cosmos/ibc-rs.git", rev = "6f52da0" }
 tower-abci = { git = "https://github.com/informalsystems/tower-abci.git", rev = "a4c021b" }
