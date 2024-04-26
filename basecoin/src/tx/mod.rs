@@ -179,23 +179,17 @@ pub async fn query_account(grpc_addr: Url, address: String) -> Result<BaseAccoun
         })?;
 
     let request = tonic::Request::new(QueryAccountRequest { address });
-
     let response = client.account(request).await;
 
-    let resp_account = match response
+    let resp_account = response
         .map_err(|e| Error::Custom {
             reason: format!("failed to query account: {e}"),
         })?
         .into_inner()
         .account
-    {
-        Some(account) => account,
-        None => {
-            return Err(Error::Custom {
-                reason: "failed to find account".to_string(),
-            })
-        }
-    };
+        .ok_or_else(|| Error::Custom {
+            reason: "failed to find account".into(),
+        })?;
 
     BaseAccount::decode(resp_account.value.as_slice()).map_err(|e| Error::Custom {
         reason: format!("failed to decode account: {e}"),
