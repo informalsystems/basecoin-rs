@@ -19,7 +19,6 @@ use hdpath::StandardHDPath;
 use ibc::core::client::types::msgs::MsgRecoverClient;
 use ibc::core::host::types::identifiers::ClientId;
 use ibc::primitives::{Signer, ToProto};
-
 use tracing::metadata::LevelFilter;
 
 const SEED_FILE_PATH: &str = "./ci/user_seed.json";

@@ -5,17 +5,15 @@
 //! is not meant to be as robust and production-ready as the
 //! transaction-sending logic in Hermes.
 
+use basecoin_modules::error::Error;
 use ibc::core::host::types::identifiers::ChainId;
 use ibc_proto::cosmos::auth::v1beta1::query_client::QueryClient;
 use ibc_proto::cosmos::auth::v1beta1::{BaseAccount, QueryAccountRequest};
 use ibc_proto::cosmos::tx::v1beta1::mode_info::{Single, Sum};
 use ibc_proto::cosmos::tx::v1beta1::{AuthInfo, Fee, ModeInfo, SignDoc, SignerInfo, TxBody, TxRaw};
 use ibc_proto::google::protobuf::Any;
-
 use prost::Message;
 use tendermint_rpc::{Client, HttpClient, Url};
-
-use basecoin_modules::error::Error;
 
 mod key_pair;
 pub use key_pair::*;

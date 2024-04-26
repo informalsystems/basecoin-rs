@@ -1,16 +1,16 @@
 use std::path::Path;
 
+use basecoin_modules::error::Error;
 use bip39::{Language, Mnemonic, Seed};
 use bitcoin::bip32::{ChildNumber, DerivationPath, Xpriv, Xpub};
 use bitcoin::network::Network;
 use digest::Digest;
-use generic_array::{typenum::U32, GenericArray};
+use generic_array::typenum::U32;
+use generic_array::GenericArray;
 use hdpath::StandardHDPath;
 use secp256k1::{Message, PublicKey, Secp256k1, SecretKey};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
-
-use basecoin_modules::error::Error;
 
 /// Represents a JSON seed file.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
