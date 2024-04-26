@@ -52,65 +52,63 @@ async fn main() {
             };
             let _ = write!(std::io::stdout(), "{:#?}", query_res);
         }
-        Commands::Tx(c) => match c {
-            TxCmd::Recover(cmd) => {
-                let RecoverCmd {
-                    subject_client_id,
-                    substitute_client_id,
-                } = cmd;
+        Commands::Tx(c) => {
+            let hdpath = StandardHDPath::from_str(DEFAULT_DERIVATION_PATH).unwrap();
 
-                let subject_client_id =
-                    ClientId::from_str(subject_client_id).expect("valid client ID");
-                let substitute_client_id =
-                    ClientId::from_str(substitute_client_id).expect("valid client ID");
+            let key_pair = match KeyPair::from_seed_file(SEED_FILE_PATH, &hdpath) {
+                Ok(key_pair) => key_pair,
+                Err(e) => {
+                    tracing::error!("{e}");
+                    std::process::exit(1);
+                }
+            };
 
-                let hdpath = StandardHDPath::from_str(DEFAULT_DERIVATION_PATH).unwrap();
+            let signer = Signer::from(key_pair.account.clone());
 
-                let key_pair = match KeyPair::from_seed_file(SEED_FILE_PATH, &hdpath) {
-                    Ok(key_pair) => key_pair,
-                    Err(e) => {
-                        tracing::error!("{e}");
-                        std::process::exit(1);
-                    }
-                };
+            let msg = match c {
+                TxCmd::Recover(cmd) => {
+                    let RecoverCmd {
+                        subject_client_id,
+                        substitute_client_id,
+                    } = cmd;
 
-                let signer = Signer::from(key_pair.account.clone());
+                    let subject_client_id =
+                        ClientId::from_str(subject_client_id).expect("valid client ID");
+                    let substitute_client_id =
+                        ClientId::from_str(substitute_client_id).expect("valid client ID");
 
-                // Create the MsgRecoverClient
-                let msg = MsgRecoverClient {
-                    subject_client_id,
-                    substitute_client_id,
-                    signer,
-                };
-
-                let proposal_msg = MsgSubmitProposal {
-                    content: msg.to_any(),
-                    initial_deposit: Coin::new_empty(Denom("basecoin".into())),
-                    proposer: key_pair.account.clone(),
-                };
-
-                let chain_id = dummy_chain_id();
-                let rpc_addr = cfg.cometbft.rpc_addr.clone();
-                let grpc_addr = format!("http://{}:{}", cfg.server.host, cfg.server.grpc_port)
-                    .parse()
-                    .expect("valid grpc endpoint");
-
-                let account_info =
-                    match tx::query_account(grpc_addr, key_pair.account.clone()).await {
-                        Ok(account) => account,
-                        Err(e) => {
-                            tracing::error!("{e}");
-                            std::process::exit(1);
-                        }
+                    // Create the MsgRecoverClient
+                    let msg = MsgRecoverClient {
+                        subject_client_id,
+                        substitute_client_id,
+                        signer,
                     };
 
-                let signed_tx = match tx::sign_tx(
-                    &key_pair,
-                    &chain_id,
-                    &account_info,
-                    vec![proposal_msg.to_any()],
-                    dummy_fee(),
-                ) {
+                    MsgSubmitProposal {
+                        content: msg.to_any(),
+                        initial_deposit: Coin::new_empty(Denom("basecoin".into())),
+                        proposer: key_pair.account.clone(),
+                    }
+                    .to_any()
+                }
+            };
+
+            let chain_id = dummy_chain_id();
+            let rpc_addr = cfg.cometbft.rpc_addr.clone();
+            let grpc_addr = format!("http://{}:{}", cfg.server.host, cfg.server.grpc_port)
+                .parse()
+                .expect("valid grpc endpoint");
+
+            let account_info = match tx::query_account(grpc_addr, key_pair.account.clone()).await {
+                Ok(account) => account,
+                Err(e) => {
+                    tracing::error!("{e}");
+                    std::process::exit(1);
+                }
+            };
+
+            let signed_tx =
+                match tx::sign_tx(&key_pair, &chain_id, &account_info, vec![msg], dummy_fee()) {
                     Ok(signed_tx) => signed_tx,
                     Err(e) => {
                         tracing::error!("{e}");
@@ -118,11 +116,10 @@ async fn main() {
                     }
                 };
 
-                if let Err(e) = tx::send_tx(rpc_addr, signed_tx).await {
-                    tracing::error!("{e}");
-                    std::process::exit(1);
-                }
+            if let Err(e) = tx::send_tx(rpc_addr, signed_tx).await {
+                tracing::error!("{e}");
+                std::process::exit(1);
             }
-        },
+        }
     };
 }
