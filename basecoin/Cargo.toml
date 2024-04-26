@@ -1,57 +1,50 @@
 [package]
-name = "basecoin"
-version = { workspace = true }
-edition = { workspace = true }
-license = { workspace = true }
-readme = { workspace = true }
-repository = { workspace = true }
-authors = { workspace = true }
-description = """
-    Contains the basecoin daemon and CLI that integrates with ibc-rs, making
-    use of tendermint-rs.
-"""
+name        = "basecoin"
+version     = { workspace = true }
+edition     = { workspace = true }
+license     = { workspace = true }
+readme      = { workspace = true }
+repository  = { workspace = true }
+authors     = { workspace = true }
+description = "Contains the basecoin daemon and CLI that integrates with ibc-rs, making use of tendermint-rs."
 
 [features]
-default = ["v0_37"]
-v0_37 = ["basecoin-app/v0_37", "dep:tower-abci"]
-v0_38 = ["basecoin-app/v0_38", "dep:tendermint-abci"]
+default = [ "v0_37" ]
+v0_37   = [ "basecoin-app/v0_37", "dep:tower-abci" ]
+v0_38   = [ "basecoin-app/v0_38", "dep:tendermint-abci" ]
 
 [dependencies]
 # external dependencies
-bech32 = { version = "0.11.0" }
-tiny-bip39 = { version = "1" }
-digest = { version = "0.10.7" }
-bitcoin = { version = "0.31.2" }
-hdpath = { version = "0.6.3" }
-clap = { version = "4.5.0", features = ["derive", "wrap_help"] }
-generic-array = { version = "0.14.7" }
-prost = { workspace = true }
-serde = { workspace = true }
-serde_derive = { version = "1.0.104", default-features = false }
-serde_json = { workspace = true }
-secp256k1 = { version = "0.28.2", features = ["serde", "rand-std"] }
-sha2 = { workspace = true }
-tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
-tonic = { workspace = true }
-tonic-reflection = { workspace = true }
-toml = { version = "0.8" }
-tracing = { workspace = true }
+bech32             = { version = "0.11.0" }
+tiny-bip39         = { version = "1" }
+digest             = { version = "0.10.7" }
+bitcoin            = { version = "0.31.2" }
+hdpath             = { version = "0.6.3" }
+clap               = { version = "4.5.0", features = [ "derive", "wrap_help" ] }
+generic-array      = { version = "0.14.7" }
+prost              = { workspace = true }
+serde              = { workspace = true }
+serde_derive       = { version = "1.0.104", default-features = false }
+serde_json         = { workspace = true }
+secp256k1          = { version = "0.28.2", features = [ "serde", "rand-std" ] }
+sha2               = { workspace = true }
+tokio              = { version = "1.0", features = [ "macros", "rt-multi-thread" ] }
+tonic              = { workspace = true }
+tonic-reflection   = { workspace = true }
+toml               = { version = "0.8" }
+tracing            = { workspace = true }
 tracing-subscriber = { workspace = true }
-tower-abci = { workspace = true, optional = true }
+tower-abci         = { workspace = true, optional = true }
 
 # ibc dependencies
-ibc = { workspace = true }
-ibc-proto = { workspace = true, features = [
-    "server",
-    "proto-descriptor",
-    "serde",
-] }
+ibc       = { workspace = true }
+ibc-proto = { workspace = true, features = [ "server", "proto-descriptor", "serde" ] }
 
 # tendermint dependencies
 tendermint-abci = { workspace = true, optional = true }
-tendermint-rpc = { workspace = true, features = ["http-client"] }
+tendermint-rpc  = { workspace = true, features = [ "http-client" ] }
 
 # internal dependencies
-basecoin-store = { path = "./store" }
+basecoin-store   = { path = "./store" }
 basecoin-modules = { path = "./modules" }
-basecoin-app = { path = "./app", default-features = false }
+basecoin-app     = { path = "./app", default-features = false }
