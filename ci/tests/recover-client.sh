@@ -46,8 +46,11 @@ sleep 10s
 # substitute client height must be greater than the subject client height
 hermes --config "${HERMES_CONFIG}" update client --host-chain basecoin-0 --client 07-tendermint-0
 
+# substitute client is active
 grpcurl -plaintext -d '{"client_id":"07-tendermint-0"}' localhost:9093 ibc.core.client.v1.Query/ClientStatus \
     | jq -e '.status == "Active"'
+
+# subject client is expired
 grpcurl -plaintext -d '{"client_id":"07-tendermint-1"}' localhost:9093 ibc.core.client.v1.Query/ClientStatus \
     | jq -e '.status == "Expired"'
 
@@ -58,7 +61,10 @@ ${BASECOIN_BIN} tx recover --subject-client-id 07-tendermint-1 --substitute-clie
 # wait for the client to recover
 sleep 3s
 
+# substitute client is active
 grpcurl -plaintext -d '{"client_id":"07-tendermint-0"}' localhost:9093 ibc.core.client.v1.Query/ClientStatus \
     | jq -e '.status == "Active"'
+
+# subject client is recovered and now active
 grpcurl -plaintext -d '{"client_id":"07-tendermint-1"}' localhost:9093 ibc.core.client.v1.Query/ClientStatus \
     | jq -e '.status == "Active"'
