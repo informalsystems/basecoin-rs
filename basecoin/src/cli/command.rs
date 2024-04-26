@@ -55,7 +55,7 @@ pub struct TxCmd {
     pub command: TxCmds,
 
     /// The path to the file containing the seed phrase.
-    #[arg(long, default_value = "./ci/user_seed.json")]
+    #[arg(long)]
     pub seed_file: PathBuf,
 
     /// The derivation path for the key pair.

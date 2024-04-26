@@ -56,7 +56,8 @@ grpcurl -plaintext -d '{"client_id":"07-tendermint-1"}' localhost:9093 ibc.core.
 
 echo "initiating client recovery"
 # recovering 07-tendermint-1 with 07-tendermint-0
-${BASECOIN_BIN} tx recover --subject-client-id 07-tendermint-1 --substitute-client-id 07-tendermint-0
+${BASECOIN_BIN} tx --seed-file "./ci/user_seed.json" \
+    recover --subject-client-id 07-tendermint-1 --substitute-client-id 07-tendermint-0
 
 # wait for the client to recover
 sleep 3s
