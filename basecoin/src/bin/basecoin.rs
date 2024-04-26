@@ -6,7 +6,7 @@
 use std::io::Write;
 use std::str::FromStr;
 
-use basecoin::cli::command::{BasecoinCli, Commands, QueryCmd, RecoverCmd, TxCmd, UpgradeCmd};
+use basecoin::cli::command::{BasecoinCli, Commands, QueryCmd, RecoverCmd, TxCmds, UpgradeCmd};
 use basecoin::config::load_config;
 use basecoin::default_app_runner;
 use basecoin::helper::{dummy_chain_id, dummy_fee};
@@ -20,9 +20,6 @@ use ibc::core::client::types::msgs::MsgRecoverClient;
 use ibc::core::host::types::identifiers::ClientId;
 use ibc::primitives::{Signer, ToProto};
 use tracing::metadata::LevelFilter;
-
-const SEED_FILE_PATH: &str = "./ci/user_seed.json";
-const DEFAULT_DERIVATION_PATH: &str = "m/44'/118'/0'/0/0";
 
 #[tokio::main]
 async fn main() {
@@ -53,9 +50,9 @@ async fn main() {
             let _ = write!(std::io::stdout(), "{:#?}", query_res);
         }
         Commands::Tx(c) => {
-            let hdpath = StandardHDPath::from_str(DEFAULT_DERIVATION_PATH).unwrap();
+            let hdpath = StandardHDPath::from_str(&c.derivation_path).unwrap();
 
-            let key_pair = match KeyPair::from_seed_file(SEED_FILE_PATH, &hdpath) {
+            let key_pair = match KeyPair::from_seed_file(&c.seed_file, &hdpath) {
                 Ok(key_pair) => key_pair,
                 Err(e) => {
                     tracing::error!("{e}");
@@ -65,8 +62,8 @@ async fn main() {
 
             let signer = Signer::from(key_pair.account.clone());
 
-            let msg = match c {
-                TxCmd::Recover(cmd) => {
+            let msg = match &c.command {
+                TxCmds::Recover(cmd) => {
                     let RecoverCmd {
                         subject_client_id,
                         substitute_client_id,

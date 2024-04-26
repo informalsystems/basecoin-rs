@@ -32,7 +32,6 @@ pub enum Commands {
     Start,
     #[command(subcommand)]
     Query(QueryCmd),
-    #[command(subcommand)]
     Tx(TxCmd),
 }
 
@@ -51,7 +50,21 @@ pub enum UpgradeCmd {
 
 #[derive(Clone, Debug, Parser)]
 #[command(about = "Send a transaction to be processed by Basecoin")]
-pub enum TxCmd {
+pub struct TxCmd {
+    #[command(subcommand)]
+    pub command: TxCmds,
+
+    /// The path to the file containing the seed phrase.
+    #[arg(long, default_value = "./ci/user_seed.json")]
+    pub seed_file: PathBuf,
+
+    /// The derivation path for the key pair.
+    #[arg(long, default_value = "m/44'/118'/0'/0/0")]
+    pub derivation_path: String,
+}
+
+#[derive(Clone, Debug, Parser)]
+pub enum TxCmds {
     Recover(RecoverCmd),
 }
 
