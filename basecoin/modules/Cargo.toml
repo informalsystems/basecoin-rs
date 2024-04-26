@@ -1,14 +1,12 @@
 [package]
-name = "basecoin-modules"
-version = { workspace = true }
-edition = { workspace = true }
-license = { workspace = true }
-readme = { workspace = true }
-repository = { workspace = true }
-authors = { workspace = true }
-description = """
-        Contains simple implementations of various modules for the Basecoin application.
-"""
+name        = "basecoin-modules"
+version     = { workspace = true }
+edition     = { workspace = true }
+license     = { workspace = true }
+readme      = { workspace = true }
+repository  = { workspace = true }
+authors     = { workspace = true }
+description = "Contains simple implementations of various modules for the Basecoin application."
 
 [dependencies]
 # external dependencies
