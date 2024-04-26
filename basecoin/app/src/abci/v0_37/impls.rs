@@ -84,7 +84,7 @@ pub fn init_chain<S: Default + ProvableStore>(
     ResponseInitChain {
         consensus_params: request.consensus_params,
         validators: vec![], // use validator set proposed by tendermint (ie. in the genesis file)
-        app_hash: app.store.write_access().root_hash().into(),
+        app_hash: app.store.read_access().root_hash().into(),
     }
 }
 
