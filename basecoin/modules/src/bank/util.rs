@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use basecoin_store::types::Path;
 use cosmrs::{AccountId, Coin as MsgCoin};
 use ibc_proto::cosmos::base::v1beta1::Coin as ProtoCoin;
@@ -23,6 +25,37 @@ impl Coin {
             denom,
             amount: 0u64.into(),
         }
+    }
+}
+
+impl FromStr for Coin {
+    type Err = Error;
+
+    // parses a coin string in the format "10basecoin"
+    // i.e. amount followed by denom
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut split = s.splitn(2, |c: char| c.is_alphabetic());
+
+        let amount = split
+            .next()
+            .ok_or_else(|| Error::Custom {
+                reason: "missing amount".to_owned(),
+            })?
+            .parse()
+            .map_err(|e| Error::Custom {
+                reason: format!("failed to parse amount: {e:?}"),
+            })?;
+
+        let denom = Denom(
+            split
+                .next()
+                .ok_or_else(|| Error::Custom {
+                    reason: "missing denom".to_owned(),
+                })?
+                .to_owned(),
+        );
+
+        Ok(Self { denom, amount })
     }
 }
 
