@@ -70,13 +70,13 @@ pub struct TxCmd {
     #[arg(long, default_value = "")]
     pub memo: String,
 
-    /// The path to the file containing the seed phrase.
-    #[arg(long)]
-    pub seed_file: PathBuf,
-
     /// The derivation path for the key pair.
     #[arg(long, default_value = "m/44'/118'/0'/0/0")]
     pub derivation_path: String,
+
+    /// The path to the file containing the seed phrase.
+    #[arg(long)]
+    pub seed_file: PathBuf,
 }
 
 #[derive(Clone, Debug, Parser)]
