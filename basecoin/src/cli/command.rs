@@ -55,7 +55,7 @@ pub struct TxCmd {
     pub command: TxCmds,
 
     /// Chain ID of the blockchain.
-    #[arg(long)]
+    #[arg(long, default_value = "basecoin-0")]
     pub chain_id: String,
 
     /// Fee amount to be paid for the transaction.
