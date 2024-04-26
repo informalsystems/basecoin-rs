@@ -9,7 +9,6 @@ use std::str::FromStr;
 use basecoin::cli::command::{BasecoinCli, Commands, QueryCmd, RecoverCmd, TxCmds, UpgradeCmd};
 use basecoin::config::load_config;
 use basecoin::default_app_runner;
-use basecoin::helper::{dummy_chain_id, dummy_fee};
 use basecoin::tx::{self, KeyPair};
 use basecoin_modules::bank::{Coin, Denom};
 use basecoin_modules::gov::MsgSubmitProposal;

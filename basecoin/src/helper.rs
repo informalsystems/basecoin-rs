@@ -7,9 +7,6 @@ use basecoin_modules::context::{prefix, Identifiable};
 use basecoin_modules::ibc::Ibc;
 use basecoin_store::context::ProvableStore;
 use basecoin_store::utils::SharedRwExt;
-use ibc::core::host::types::identifiers::ChainId;
-use ibc_proto::cosmos::base::v1beta1::Coin;
-use ibc_proto::cosmos::tx::v1beta1::Fee;
 
 /// Gives access to the IBC module.
 pub fn ibc<S>(app: BaseCoinApp<S>) -> Ibc<S>
@@ -42,20 +39,4 @@ where
                 .cloned()
         })
         .expect("Bank module not found")
-}
-
-pub fn dummy_fee() -> Fee {
-    Fee {
-        amount: vec![Coin {
-            denom: "stake".to_string(),
-            amount: "4000".to_string(),
-        }],
-        gas_limit: 400000_u64,
-        payer: "".to_string(),
-        granter: "".to_string(),
-    }
-}
-
-pub fn dummy_chain_id() -> ChainId {
-    ChainId::new("ibc-0").unwrap()
 }
