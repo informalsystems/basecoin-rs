@@ -37,7 +37,7 @@ tonic-reflection = { workspace = true }
 toml = { version = "0.8" }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
-tower-abci = { version = "0.11", optional = true }
+tower-abci = { workspace = true, optional = true }
 
 # ibc dependencies
 ibc = { workspace = true }
