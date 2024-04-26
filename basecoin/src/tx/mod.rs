@@ -62,15 +62,9 @@ pub fn sign_tx(
 }
 
 pub fn encode_key_bytes(key: &KeyPair) -> Result<Vec<u8>, Error> {
-    let mut pk_buf = Vec::new();
-
-    Message::encode(&key.public_key.serialize().to_vec(), &mut pk_buf).map_err(|e| {
-        Error::Custom {
-            reason: format!("failed to encode signing key: {e}"),
-        }
-    })?;
-
-    Ok(pk_buf)
+    let serialized_key = &key.public_key.serialize().to_vec();
+    let pk = Message::encode_to_vec(serialized_key);
+    Ok(pk)
 }
 
 pub fn encode_signer_info(sequence: u64, key_bytes: Vec<u8>) -> Result<SignerInfo, Error> {
@@ -98,11 +92,7 @@ pub fn encode_auth_info(signer_info: SignerInfo, fee: Fee) -> Result<(AuthInfo, 
         tip: None,
     };
 
-    let mut auth_info_bytes = Vec::new();
-
-    Message::encode(&auth_info, &mut auth_info_bytes).map_err(|e| Error::Custom {
-        reason: format!("failed to encode auth info: {e}"),
-    })?;
+    let auth_info_bytes = Message::encode_to_vec(&auth_info);
 
     Ok((auth_info, auth_info_bytes))
 }
@@ -121,9 +111,7 @@ pub fn encode_sign_doc(
         account_number,
     };
 
-    // A protobuf serialization of a SignDoc
-    let mut signdoc_buf = Vec::new();
-    Message::encode(&sign_doc, &mut signdoc_buf).unwrap();
+    let signdoc_buf = Message::encode_to_vec(&sign_doc);
 
     let signed = key_pair.sign(&signdoc_buf).map_err(|e| Error::Custom {
         reason: format!("failed to create signature: {e}"),
@@ -141,11 +129,7 @@ pub fn encode_tx_body(messages: Vec<Any>, memo: String) -> Result<(TxBody, Vec<u
         non_critical_extension_options: vec![],
     };
 
-    let mut body_bytes = Vec::new();
-
-    Message::encode(&body, &mut body_bytes).map_err(|e| Error::Custom {
-        reason: format!("failed to encode transaction body: {e}"),
-    })?;
+    let body_bytes = Message::encode_to_vec(&body);
 
     Ok((body, body_bytes))
 }
@@ -161,11 +145,7 @@ pub fn encode_tx(
         signatures: vec![signature_bytes],
     };
 
-    let mut tx_bytes = Vec::new();
-
-    Message::encode(&tx_raw, &mut tx_bytes).map_err(|e| Error::Custom {
-        reason: format!("failed to encode transaction: {e}"),
-    })?;
+    let tx_bytes = Message::encode_to_vec(&tx_raw);
 
     Ok((tx_raw, tx_bytes))
 }
