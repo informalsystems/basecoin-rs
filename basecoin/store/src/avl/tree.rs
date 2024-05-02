@@ -69,6 +69,7 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
     }
 
     /// Return an existence proof for the given element, if it exists.
+    /// Otherwise return a non-existence proof.
     pub fn get_proof<Q: ?Sized>(&self, key: &Q) -> CommitmentProof
     where
         K: Borrow<Q>,
