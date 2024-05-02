@@ -97,15 +97,6 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
     }
 
     /// Removes the top node in the tree, if it exists.
-    ///
-    /// Note: this method is asymmetric. It tries to remove the leftmost
-    /// node in the right subtree, if it exists. If it does not, it replaces
-    /// the current node with the left node.
-    ///
-    /// But, it could have removed the rightmost node in the left subtree
-    /// or replaced the current node with the right node otherwise.
-    ///
-    /// Both works. The implementation (arbitrarily) chose the first option.
     fn remove_top(node_ref: &mut NodeRef<K, V>) -> NodeRef<K, V> {
         let removed_node = if let Some(node) = node_ref {
             if node.right.is_none() {
