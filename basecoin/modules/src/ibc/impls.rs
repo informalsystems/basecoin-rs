@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::convert::{TryFrom, TryInto};
 use std::fmt::Debug;
 use std::ops::Deref;
 use std::sync::{Arc, RwLock};
@@ -16,12 +15,14 @@ use ibc::apps::transfer::handler::send_transfer;
 use ibc::apps::transfer::types::msgs::transfer::MsgTransfer;
 use ibc::clients::tendermint::client_state::ClientState as TmClientState;
 use ibc::clients::tendermint::consensus_state::ConsensusState as TmConsensusState;
-use ibc::clients::tendermint::types::ConsensusState as ConsensusStateType;
+use ibc::clients::tendermint::types::{
+    ClientState as ClientStateType, ConsensusState as ConsensusStateType,
+    TENDERMINT_CLIENT_STATE_TYPE_URL, TENDERMINT_CONSENSUS_STATE_TYPE_URL,
+};
 use ibc::core::channel::types::channel::{ChannelEnd, IdentifiedChannelEnd};
 use ibc::core::channel::types::commitment::{AcknowledgementCommitment, PacketCommitment};
 use ibc::core::channel::types::error::{ChannelError, PacketError};
 use ibc::core::channel::types::packet::{PacketState, Receipt};
-use ibc::core::client::context::consensus_state::ConsensusState as _;
 use ibc::core::client::types::error::ClientError;
 use ibc::core::client::types::Height as IbcHeight;
 use ibc::core::commitment_types::commitment::{CommitmentPrefix, CommitmentRoot};
@@ -35,17 +36,19 @@ use ibc::core::handler::types::msgs::MsgEnvelope;
 use ibc::core::host::types::identifiers::{ClientId, ConnectionId, Sequence};
 use ibc::core::host::types::path::{
     AckPath, ChannelEndPath, ClientConnectionPath, ClientConsensusStatePath, ClientStatePath,
-    CommitmentPath, ConnectionPath, Path as IbcPath, ReceiptPath, SeqAckPath, SeqRecvPath,
-    SeqSendPath,
+    ClientUpdateHeightPath, ClientUpdateTimePath, CommitmentPath, ConnectionPath,
+    NextChannelSequencePath, NextClientSequencePath, NextConnectionSequencePath, Path as IbcPath,
+    ReceiptPath, SeqAckPath, SeqRecvPath, SeqSendPath,
 };
-use ibc::core::host::{ExecutionContext, ValidationContext};
+use ibc::core::host::{ClientStateRef, ConsensusStateRef, ExecutionContext, ValidationContext};
 use ibc::cosmos_host::IBC_QUERY_PATH;
-use ibc::derive::ConsensusState;
+use ibc::derive::{ClientState, ConsensusState};
 use ibc::primitives::{Signer, Timestamp};
 use ibc_proto::google::protobuf::Any;
 use ibc_proto::ibc::core::channel::v1::query_server::QueryServer as ChannelQueryServer;
 use ibc_proto::ibc::core::channel::v1::Channel as RawChannelEnd;
 use ibc_proto::ibc::core::client::v1::query_server::QueryServer as ClientQueryServer;
+use ibc_proto::ibc::core::client::v1::Height as RawHeight;
 use ibc_proto::ibc::core::connection::v1::query_server::QueryServer as ConnectionQueryServer;
 use ibc_proto::ibc::core::connection::v1::ConnectionEnd as RawConnectionEnd;
 use ibc_query::core::channel::ChannelQueryService;
@@ -67,12 +70,74 @@ use crate::types::QueryResult;
 use crate::upgrade::Upgrade;
 use crate::CHAIN_REVISION_NUMBER;
 
+#[derive(ClientState, Clone, From, TryInto)]
+#[validation(IbcContext<S: Store + Debug>)]
+#[execution(IbcContext<S: Store + Debug>)]
+pub enum AnyClientState {
+    Tendermint(TmClientState),
+}
+
+impl From<ClientStateType> for AnyClientState {
+    fn from(value: ClientStateType) -> Self {
+        AnyClientState::Tendermint(value.into())
+    }
+}
+
+impl TryFrom<AnyClientState> for ClientStateType {
+    type Error = ClientError;
+
+    fn try_from(value: AnyClientState) -> Result<Self, Self::Error> {
+        match value {
+            AnyClientState::Tendermint(tm_client_state) => Ok(tm_client_state.inner().clone()),
+        }
+    }
+}
+
+impl From<AnyClientState> for Any {
+    fn from(value: AnyClientState) -> Self {
+        match value {
+            AnyClientState::Tendermint(tm_client_state) => tm_client_state.into(),
+        }
+    }
+}
+
+impl TryFrom<Any> for AnyClientState {
+    type Error = ClientError;
+
+    fn try_from(value: Any) -> Result<Self, Self::Error> {
+        match value.type_url.as_str() {
+            TENDERMINT_CLIENT_STATE_TYPE_URL => Ok(AnyClientState::Tendermint(value.try_into()?)),
+            _ => Err(ClientError::Other {
+                description: "Unknown client state type".into(),
+            }),
+        }
+    }
+}
+
 // Note: We define `AnyConsensusState` just to showcase the use of the
 // derive macro. Technically, we could just use `TmConsensusState`
 // as the `AnyConsensusState`, since we only support this one variant.
-#[derive(ConsensusState, From, TryInto)]
+#[derive(ConsensusState, Clone, From, TryInto)]
 pub enum AnyConsensusState {
     Tendermint(TmConsensusState),
+}
+
+impl From<ConsensusStateType> for AnyConsensusState {
+    fn from(value: ConsensusStateType) -> Self {
+        AnyConsensusState::Tendermint(value.into())
+    }
+}
+
+impl TryFrom<AnyConsensusState> for ConsensusStateType {
+    type Error = ClientError;
+
+    fn try_from(value: AnyConsensusState) -> Result<Self, Self::Error> {
+        match value {
+            AnyConsensusState::Tendermint(tm_consensus_state) => {
+                Ok(tm_consensus_state.inner().clone())
+            }
+        }
+    }
 }
 
 impl From<AnyConsensusState> for Any {
@@ -83,12 +148,27 @@ impl From<AnyConsensusState> for Any {
     }
 }
 
+impl TryFrom<Any> for AnyConsensusState {
+    type Error = ClientError;
+
+    fn try_from(value: Any) -> Result<Self, Self::Error> {
+        match value.type_url.as_str() {
+            TENDERMINT_CONSENSUS_STATE_TYPE_URL => {
+                Ok(AnyConsensusState::Tendermint(value.try_into()?))
+            }
+            _ => Err(ClientError::Other {
+                description: "Unknown consensus state type".into(),
+            }),
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct Ibc<S>
 where
     S: Store + Debug,
 {
-    ctx: IbcContext<S>,
+    pub(crate) ctx: IbcContext<S>,
     router: Arc<IbcRouter<S>>,
 }
 
@@ -281,24 +361,25 @@ where
     /// Handle to store instance.
     /// The module is guaranteed exclusive access to all paths in the store key-space.
     pub store: SharedStore<S>,
-    /// Counter for clients
-    client_counter: u64,
-    /// Counter for connections
-    conn_counter: u64,
-    /// Counter for channels
-    channel_counter: u64,
+    /// A typed-store for next client counter sequence
+    client_counter: JsonStore<SharedStore<S>, NextClientSequencePath, u64>,
+    /// A typed-store for next connection counter sequence
+    conn_counter: JsonStore<SharedStore<S>, NextConnectionSequencePath, u64>,
+    /// A typed-store for next channel counter sequence
+    channel_counter: JsonStore<SharedStore<S>, NextChannelSequencePath, u64>,
     /// Tracks the processed time for client updates
-    pub(crate) client_processed_times: HashMap<(ClientId, IbcHeight), Timestamp>,
-    /// Tracks the processed height for client updates
-    pub(crate) client_processed_heights: HashMap<(ClientId, IbcHeight), IbcHeight>,
+    pub(crate) client_processed_times: JsonStore<SharedStore<S>, ClientUpdateTimePath, Timestamp>,
+    /// A typed-store to track the processed height for client updates
+    pub(crate) client_processed_heights:
+        ProtobufStore<SharedStore<S>, ClientUpdateHeightPath, IbcHeight, RawHeight>,
     /// Map of host consensus states
     pub(crate) consensus_states: Arc<RwLock<HashMap<u64, TmConsensusState>>>,
     /// A typed-store for AnyClientState
     pub(crate) client_state_store:
-        ProtobufStore<SharedStore<S>, ClientStatePath, TmClientState, Any>,
+        ProtobufStore<SharedStore<S>, ClientStatePath, AnyClientState, Any>,
     /// A typed-store for AnyConsensusState
     pub(crate) consensus_state_store:
-        ProtobufStore<SharedStore<S>, ClientConsensusStatePath, TmConsensusState, Any>,
+        ProtobufStore<SharedStore<S>, ClientConsensusStatePath, AnyConsensusState, Any>,
     /// A typed-store for ConnectionEnd
     connection_end_store:
         ProtobufStore<SharedStore<S>, ConnectionPath, ConnectionEnd, RawConnectionEnd>,
@@ -329,12 +410,28 @@ where
     S: ProvableStore + Debug,
 {
     pub fn new(store: SharedStore<S>) -> Self {
+        let mut client_counter = TypedStore::new(store.clone());
+        let mut conn_counter = TypedStore::new(store.clone());
+        let mut channel_counter = TypedStore::new(store.clone());
+
+        client_counter
+            .set(NextClientSequencePath, 0)
+            .expect("no error");
+
+        conn_counter
+            .set(NextConnectionSequencePath, 0)
+            .expect("no error");
+
+        channel_counter
+            .set(NextChannelSequencePath, 0)
+            .expect("no error");
+
         Self {
-            client_counter: 0,
-            conn_counter: 0,
-            channel_counter: 0,
-            client_processed_times: Default::default(),
-            client_processed_heights: Default::default(),
+            client_counter,
+            conn_counter,
+            channel_counter,
+            client_processed_times: TypedStore::new(store.clone()),
+            client_processed_heights: TypedStore::new(store.clone()),
             consensus_states: Default::default(),
             client_state_store: TypedStore::new(store.clone()),
             consensus_state_store: TypedStore::new(store.clone()),
@@ -369,41 +466,11 @@ where
     S: Store + Debug,
 {
     type V = Self;
-    type E = Self;
-    type AnyConsensusState = AnyConsensusState;
-    type AnyClientState = TmClientState;
+    type HostClientState = TmClientState;
+    type HostConsensusState = TmConsensusState;
 
-    fn client_state(&self, client_id: &ClientId) -> Result<Self::AnyClientState, ContextError> {
-        Ok(self
-            .client_state_store
-            .get(Height::Pending, &ClientStatePath(client_id.clone()))
-            .ok_or(ClientError::ClientStateNotFound {
-                client_id: client_id.clone(),
-            })?)
-    }
-
-    fn decode_client_state(&self, client_state: Any) -> Result<Self::AnyClientState, ContextError> {
-        Ok(TmClientState::try_from(client_state)?)
-    }
-
-    fn consensus_state(
-        &self,
-        client_cons_state_path: &ClientConsensusStatePath,
-    ) -> Result<Self::AnyConsensusState, ContextError> {
-        let height = IbcHeight::new(
-            client_cons_state_path.revision_number,
-            client_cons_state_path.revision_height,
-        )
-        .map_err(|_| ClientError::InvalidHeight)?;
-        let consensus_state = self
-            .consensus_state_store
-            .get(Height::Pending, client_cons_state_path)
-            .ok_or(ClientError::ConsensusStateNotFound {
-                client_id: client_cons_state_path.client_id.clone(),
-                height,
-            })?;
-
-        Ok(consensus_state.into())
+    fn get_client_validation_context(&self) -> &Self::V {
+        self
     }
 
     fn host_height(&self) -> Result<IbcHeight, ContextError> {
@@ -416,23 +483,28 @@ where
     fn host_timestamp(&self) -> Result<Timestamp, ContextError> {
         let host_height = self.host_height()?;
         let host_cons_state = self.host_consensus_state(&host_height)?;
-        Ok(host_cons_state.timestamp())
+        Ok(host_cons_state.timestamp().into())
     }
 
     fn host_consensus_state(
         &self,
         height: &IbcHeight,
-    ) -> Result<Self::AnyConsensusState, ContextError> {
+    ) -> Result<Self::HostConsensusState, ContextError> {
         let consensus_states_binding = self.consensus_states.read().expect("lock is poisoned");
         let consensus_state = consensus_states_binding
             .get(&height.revision_height())
             .ok_or(ClientError::MissingLocalConsensusState { height: *height })?;
 
-        Ok(consensus_state.clone().into())
+        Ok(consensus_state.clone())
     }
 
     fn client_counter(&self) -> Result<u64, ContextError> {
-        Ok(self.client_counter)
+        Ok(self
+            .client_counter
+            .get(Height::Pending, &NextClientSequencePath)
+            .ok_or(ClientError::Other {
+                description: "client counter not found".into(),
+            })?)
     }
 
     fn connection_end(&self, conn_id: &ConnectionId) -> Result<ConnectionEnd, ContextError> {
@@ -444,7 +516,10 @@ where
             })?)
     }
 
-    fn validate_self_client(&self, _counterparty_client_state: Any) -> Result<(), ContextError> {
+    fn validate_self_client(
+        &self,
+        _counterparty_client_state: Self::HostClientState,
+    ) -> Result<(), ContextError> {
         Ok(())
     }
 
@@ -455,11 +530,16 @@ where
     }
 
     fn connection_counter(&self) -> Result<u64, ContextError> {
-        Ok(self.conn_counter)
+        Ok(self
+            .conn_counter
+            .get(Height::Pending, &NextConnectionSequencePath)
+            .ok_or(ConnectionError::Other {
+                description: "connection counter not found".into(),
+            })?)
     }
 
     fn get_compatible_versions(&self) -> Vec<ConnectionVersion> {
-        vec![ConnectionVersion::default()]
+        ConnectionVersion::compatibles()
     }
 
     fn channel_end(&self, channel_end_path: &ChannelEndPath) -> Result<ChannelEnd, ContextError> {
@@ -568,7 +648,12 @@ where
     /// The value of this counter should increase only via method
     /// `ChannelKeeper::increase_channel_counter`.
     fn channel_counter(&self) -> Result<u64, ContextError> {
-        Ok(self.channel_counter)
+        Ok(self
+            .channel_counter
+            .get(Height::Pending, &NextChannelSequencePath)
+            .ok_or(ChannelError::Other {
+                description: "channel counter not found".into(),
+            })?)
     }
 
     /// Returns the maximum expected time per block
@@ -578,10 +663,6 @@ where
 
     fn validate_message_signer(&self, _signer: &Signer) -> Result<(), ContextError> {
         Ok(())
-    }
-
-    fn get_client_validation_context(&self) -> &Self::V {
-        self
     }
 }
 
@@ -604,7 +685,7 @@ where
     S: ProvableStore + Debug,
 {
     /// Returns the list of all client states.
-    fn client_states(&self) -> Result<Vec<(ClientId, Self::AnyClientState)>, ContextError> {
+    fn client_states(&self) -> Result<Vec<(ClientId, ClientStateRef<Self>)>, ContextError> {
         let path = "clients".to_owned().into();
 
         self.client_state_store
@@ -633,7 +714,7 @@ where
     fn consensus_states(
         &self,
         client_id: &ClientId,
-    ) -> Result<Vec<(IbcHeight, Self::AnyConsensusState)>, ContextError> {
+    ) -> Result<Vec<(IbcHeight, ConsensusStateRef<Self>)>, ContextError> {
         let path = format!("clients/{}/consensusStates", client_id)
             .try_into()
             .map_err(|_| ClientError::Other {
@@ -664,7 +745,7 @@ where
                             height,
                         }
                     })?;
-                Ok((height, client_state.into()))
+                Ok((height, client_state))
             })
             .collect()
     }
@@ -733,7 +814,7 @@ where
         &self,
         client_id: &ClientId,
     ) -> Result<Vec<ConnectionId>, ContextError> {
-        let client_connection_path = ClientConnectionPath::new(client_id);
+        let client_connection_path = ClientConnectionPath::new(client_id.clone());
 
         Ok(self
             .connection_ids_store
@@ -943,11 +1024,29 @@ impl<S> ExecutionContext for IbcContext<S>
 where
     S: Store + Debug,
 {
+    type E = Self;
+
+    fn get_client_execution_context(&mut self) -> &mut Self::E {
+        self
+    }
+
     /// Called upon client creation.
     /// Increases the counter which keeps track of how many clients have been created.
     /// Should never fail.
     fn increase_client_counter(&mut self) -> Result<(), ContextError> {
-        self.client_counter += 1;
+        let current_sequence = self
+            .client_counter
+            .get(Height::Pending, &NextClientSequencePath)
+            .ok_or(ClientError::Other {
+                description: "client counter not found".into(),
+            })?;
+
+        self.client_counter
+            .set(NextClientSequencePath, current_sequence + 1)
+            .map_err(|e| ClientError::Other {
+                description: format!("client counter update failed: {e:?}"),
+            })?;
+
         Ok(())
     }
 
@@ -988,7 +1087,19 @@ where
     /// Increases the counter which keeps track of how many connections have been created.
     /// Should never fail.
     fn increase_connection_counter(&mut self) -> Result<(), ContextError> {
-        self.conn_counter += 1;
+        let current_sequence = self
+            .conn_counter
+            .get(Height::Pending, &NextConnectionSequencePath)
+            .ok_or(ConnectionError::Other {
+                description: "connection counter not found".into(),
+            })?;
+
+        self.conn_counter
+            .set(NextConnectionSequencePath, current_sequence + 1)
+            .map_err(|e| ConnectionError::Other {
+                description: format!("connection counter update failed: {e:?}"),
+            })?;
+
         Ok(())
     }
 
@@ -1083,7 +1194,19 @@ where
     }
 
     fn increase_channel_counter(&mut self) -> Result<(), ContextError> {
-        self.channel_counter += 1;
+        let current_sequence = self
+            .channel_counter
+            .get(Height::Pending, &NextChannelSequencePath)
+            .ok_or(ChannelError::Other {
+                description: "channel counter not found".into(),
+            })?;
+
+        self.channel_counter
+            .set(NextChannelSequencePath, current_sequence + 1)
+            .map_err(|e| ChannelError::Other {
+                description: format!("channel counter update failed: {e:?}"),
+            })?;
+
         Ok(())
     }
 
@@ -1095,9 +1218,5 @@ where
     fn log_message(&mut self, message: String) -> Result<(), ContextError> {
         self.logs.push(message);
         Ok(())
-    }
-
-    fn get_client_execution_context(&mut self) -> &mut Self::E {
-        self
     }
 }

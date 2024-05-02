@@ -6,19 +6,17 @@ license     = { workspace = true }
 readme      = { workspace = true }
 repository  = { workspace = true }
 authors     = { workspace = true }
-description = """
-    A simple implementation of an AVL store tailored for the basecoin application.
-"""
+description = "A simple implementation of an AVL store tailored for the basecoin application."
 
 [dependencies]
-displaydoc  = { workspace = true }
-ics23       = { workspace = true, features = ["host-functions"] }
-prost       = { workspace = true }
-serde       = { workspace = true }
-serde_json  = { workspace = true }
-sha2        = { workspace = true }
-tendermint  = { workspace = true }
-tracing     = { workspace = true }
+displaydoc = { workspace = true }
+ics23      = { workspace = true, features = [ "host-functions" ] }
+prost      = { workspace = true }
+serde      = { workspace = true }
+serde_json = { workspace = true }
+sha2       = { workspace = true }
+tendermint = { workspace = true }
+tracing    = { workspace = true }
 
 [dev-dependencies]
 rand = { version = "0.8" }

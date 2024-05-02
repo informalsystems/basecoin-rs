@@ -1,6 +1,6 @@
-.PHONY: test create-channel token-transfer upgrade-client grpc-service
+.PHONY: test create-channel token-transfer upgrade-client grpc-service recover-client
 
-test: create-channel token-transfer upgrade-client grpc-service
+test: create-channel token-transfer upgrade-client grpc-service recover-client
 	@echo "All tests passed"
 
 create-channel:
@@ -8,12 +8,19 @@ create-channel:
 	bash ~/tests/create-channel.sh
 	@echo "Channel created"
 
-token-transfer: create-channel
+recover-client: create-channel
+	@echo "Recovering client..."
+	bash ~/tests/recover-client.sh
+	@echo "Client recovered"
+
+token-transfer: create-channel recover-client
 	@echo "Transferring tokens..."
 	bash ~/tests/token-transfer.sh
 	@echo "Tokens transferred"
 
-upgrade-client: create-channel
+# This test halts `gaiad` at the end.
+# So, this must be the last test that involves `gaiad`.
+upgrade-client: token-transfer
 	@echo "Upgrading client..."
 	bash ~/tests/upgrade-client.sh
 	@echo "Client upgraded"

@@ -1,9 +1,10 @@
-use std::borrow::Borrow;
-use std::mem;
+use core::borrow::Borrow;
+use core::mem;
 
 use sha2::{Digest, Sha256};
 use tendermint::hash::Hash;
 
+use super::proof::EMPTY_CHILD;
 use crate::avl::as_bytes::AsBytes;
 use crate::avl::{proof, HASH_ALGO};
 
@@ -40,7 +41,14 @@ where
         sha.update(key.as_bytes().as_ref());
         sha.update(value.borrow());
         let hash = sha.finalize();
-        let merkle_hash = Hash::from_bytes(HASH_ALGO, &Sha256::digest(hash)).unwrap();
+
+        let mut sha = Sha256::new();
+        sha.update(EMPTY_CHILD);
+        sha.update(hash);
+        sha.update(EMPTY_CHILD);
+        let merkle_hash = sha.finalize();
+
+        let merkle_hash = Hash::from_bytes(HASH_ALGO, &merkle_hash).unwrap();
         let hash = Hash::from_bytes(HASH_ALGO, &hash).unwrap();
 
         AvlNode {
@@ -102,7 +110,7 @@ where
             },
             Some(right) => match &self.left {
                 None => self.height = right.height + 1,
-                Some(left) => self.height = std::cmp::max(left.height, right.height) + 1,
+                Some(left) => self.height = core::cmp::max(left.height, right.height) + 1,
             },
         }
     }
@@ -110,13 +118,9 @@ where
     /// Update the node's merkle hash by looking at the hashes of its two children.
     fn update_hashes(&mut self) {
         let mut sha = Sha256::new();
-        if let Some(left) = &self.left {
-            sha.update(left.merkle_hash.as_bytes());
-        }
+        sha.update(self.left_hash().unwrap_or(&EMPTY_CHILD));
         sha.update(self.hash.as_bytes());
-        if let Some(right) = &self.right {
-            sha.update(right.merkle_hash.as_bytes())
-        }
+        sha.update(self.right_hash().unwrap_or(&EMPTY_CHILD));
         self.merkle_hash = Hash::from_bytes(HASH_ALGO, sha.finalize().as_slice()).unwrap();
     }
 

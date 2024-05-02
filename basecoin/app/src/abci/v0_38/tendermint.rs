@@ -1,4 +1,3 @@
-use std::convert::TryInto;
 use std::fmt::Debug;
 
 use basecoin_modules::error::Error;
@@ -125,7 +124,7 @@ impl<S: Debug + ProvableStore> Application for BaseCoinApp<S> {
             module
                 .store_mut()
                 .commit()
-                .expect("failed to commit to state");
+                .expect("failed to commit to module state");
             let mut state = self.store.write_access();
             state
                 .set(id.clone().into(), module.store().root_hash())

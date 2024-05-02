@@ -33,9 +33,11 @@ pub async fn default_app_runner(server_cfg: ServerConfig) {
         bank.bank_keeper().clone(),
     );
     let upgrade = Upgrade::new(app_builder.module_store(&prefix::Upgrade {}.identifier()));
+
     let governance = Governance::new(
         app_builder.module_store(&prefix::Governance {}.identifier()),
         upgrade.clone(),
+        ibc.clone(),
     );
 
     // instantiate gRPC services for each module

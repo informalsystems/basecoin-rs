@@ -5,23 +5,19 @@ on:
     branches:
       - main
 
-jobs:
-  cleanup-runs:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: rokroskar/workflow-run-cleanup-action@master
-        env:
-          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-    if: ${{ !startsWith(github.ref, 'refs/tags/') && github.ref != 'refs/heads/master' }}
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
+jobs:
   ibc-integration:
     runs-on: ubuntu-latest
     env:
-      COMETBFT_VERSION: 0.37.1
-      GAIA_VERSION: 7.1.1
-      HERMES_VERSION: 1.8.0
-      GRPCURL_VERSION: 1.8.7
-      RUST_VERSION: 1.65
+      COMETBFT_VERSION: 0.37.4
+      GAIA_VERSION: 15.2.0
+      HERMES_VERSION: 1.8.2
+      GRPCURL_VERSION: 1.9.1
+      RUST_VERSION: 1.77.2
       IBC_COMMITISH: master
     steps:
       - uses: actions/checkout@v3
@@ -64,7 +60,7 @@ jobs:
           cp -r cometbft-config/ ~/.cometbft/config
           mkdir -p ~/.hermes
           cp hermes-config.toml ~/.hermes/config.toml
-          cp one-chain ~
+          cp one-chain.sh ~
           cp user_seed.json ~
           cp Makefile ..
           cp -r tests/ ~
@@ -99,10 +95,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-rust-
 
-      - uses: actions-rs/toolchain@v1
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: stable
-          override: true
 
       - name: Set environment variables
         run: |
@@ -113,4 +108,17 @@ jobs:
         working-directory: ~
         run: |
           mkdir -p "${LOG_DIR}"
-          entrypoint.sh make test -j4
+          if ! entrypoint.sh make test -j4; then
+            echo ""
+            echo "Tests failed. Printing logs..."
+            echo ""
+            echo "Gaia logs:"
+            tail -100 "${HOME}/data/ibc-0.log"
+            echo ""
+            echo "Basecoin logs:"
+            tail -100 "${LOG_DIR}/basecoin.log"
+            echo ""
+            echo "CometBFT logs:"
+            tail -100 "${LOG_DIR}/cometbft.log"
+            exit 1
+          fi

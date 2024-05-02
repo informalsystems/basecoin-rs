@@ -19,7 +19,7 @@ ENV IBC_COMMITISH=master
 COPY entrypoint.sh /usr/bin/entrypoint.sh
 COPY cometbft-config/ /basecoin/.cometbft/config
 COPY hermes-config.toml /basecoin/.hermes/config.toml
-COPY one-chain /basecoin/one-chain
+COPY one-chain.sh /basecoin/one-chain.sh
 COPY user_seed.json /basecoin/user_seed.json
 COPY tests/ /basecoin/tests
 

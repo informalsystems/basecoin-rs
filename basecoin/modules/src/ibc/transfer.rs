@@ -1,4 +1,4 @@
-use core::fmt::Debug;
+use std::fmt::Debug;
 
 use cosmrs::AccountId;
 use ibc::apps::transfer::context::{TokenTransferExecutionContext, TokenTransferValidationContext};

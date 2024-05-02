@@ -1,41 +1,41 @@
 [package]
-name       = "basecoin-app"
+name        = "basecoin-app"
 version     = { workspace = true }
 edition     = { workspace = true }
 license     = { workspace = true }
 readme      = { workspace = true }
 repository  = { workspace = true }
 authors     = { workspace = true }
-description  = """
-    Contains a simple implementation of the Tendermint ABCI application.
-"""
+description = "Contains a simple implementation of the Tendermint ABCI application."
 
 [features]
-default = ["v0_37"]
+default = [ "v0_37" ]
 
 # Makes the application compatible with CometBFT v0.37
-v0_37 = ["dep:tower-abci", "dep:tower"]
+v0_37 = [ "dep:tower-abci", "dep:tower" ]
 
 # Makes the application compatible with CometBFT v0.38
 # (WIP) methods are not yet implemented
-v0_38 = ["dep:tendermint-abci"]
+v0_38 = [ "dep:tendermint-abci" ]
 
 [dependencies]
 # external dependencies
-cosmrs             = { workspace = true }
-ibc-proto          = { workspace = true, features = ["server", "proto-descriptor", "serde"] }
-prost              = { workspace = true }
-serde_json         = { workspace = true }
-tonic              = { workspace = true }
-tracing            = { workspace = true }
-tower-abci         = { version = "0.11", optional = true }
-tower              = { version = "0.4", features = ["full"], optional = true }
+cosmrs     = { workspace = true }
+ibc-proto  = { workspace = true, features = [ "server", "proto-descriptor", "serde" ] }
+prost      = { workspace = true }
+serde_json = { workspace = true }
+tonic      = { workspace = true }
+tracing    = { workspace = true }
+tower      = { version = "0.4", features = [ "full" ], optional = true }
 
 # tedermint dependencies
-tendermint         = { workspace = true }
-tendermint-abci    = { workspace = true, optional = true }
-tendermint-proto   = { workspace = true }
+tendermint       = { workspace = true }
+tendermint-abci  = { workspace = true, optional = true }
+tendermint-proto = { workspace = true }
 
 # internal dependencies
-basecoin-store     = { path = "../store" }
-basecoin-modules   = { path = "../modules" }
+basecoin-store   = { path = "../store" }
+basecoin-modules = { path = "../modules" }
+
+# tower abci
+tower-abci = { workspace = true, optional = true }

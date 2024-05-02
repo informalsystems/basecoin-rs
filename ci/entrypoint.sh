@@ -23,7 +23,7 @@ cargo build --bin basecoin --target-dir "${BASECOIN_BUILD}"
 echo ""
 echo "Setting up chain ibc-0..."
 mkdir -p "${CHAIN_DATA}"
-"${HOME}/one-chain" gaiad ibc-0 "${CHAIN_DATA}" 26657 26656 6060 9090 100000000000
+"${HOME}/one-chain.sh" gaiad ibc-0 "${CHAIN_DATA}" 26657 26656 6060 9090 100000000000
 
 echo ""
 echo "Configuring Hermes..."
