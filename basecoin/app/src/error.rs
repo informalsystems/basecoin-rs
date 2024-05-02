@@ -1,12 +1,9 @@
-#[cfg(any(feature = "v0_38", not(feature = "v0_37")))]
-use tendermint_proto::abci::{ResponseCheckTx, ResponseQuery};
-#[cfg(all(feature = "v0_37", not(feature = "v0_38")))]
-use tendermint_proto::v0_37::abci::{ResponseCheckTx, ResponseDeliverTx, ResponseQuery};
-
+#[cfg(any(feature = "v0_37", feature = "v0_38"))]
 pub(crate) trait ResponseFromErrorExt {
     fn from_error(code: u32, log: impl ToString) -> Self;
 }
 
+#[cfg(any(feature = "v0_37", feature = "v0_38"))]
 macro_rules! impl_response_error_for {
     ($($resp:ty),+) => {
         $(impl ResponseFromErrorExt for $resp {
@@ -22,8 +19,14 @@ macro_rules! impl_response_error_for {
     };
 }
 
-#[cfg(all(feature = "v0_37", not(feature = "v0_38")))]
-impl_response_error_for!(ResponseQuery, ResponseCheckTx, ResponseDeliverTx);
+#[cfg(feature = "v0_37")]
+const _: () = {
+    use tendermint_proto::v0_37::abci::{ResponseCheckTx, ResponseDeliverTx, ResponseQuery};
+    impl_response_error_for!(ResponseQuery, ResponseCheckTx, ResponseDeliverTx);
+};
 
-#[cfg(any(feature = "v0_38", not(feature = "v0_37")))]
-impl_response_error_for!(ResponseQuery, ResponseCheckTx);
+#[cfg(feature = "v0_38")]
+const _: () = {
+    use tendermint_proto::abci::{ResponseCheckTx, ResponseQuery};
+    impl_response_error_for!(ResponseQuery, ResponseCheckTx);
+};

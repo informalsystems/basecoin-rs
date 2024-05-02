@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::fmt::{Debug, Write};
 
 use basecoin_modules::error::Error;
 use basecoin_modules::types::IdentifiedModule;
@@ -64,14 +64,14 @@ impl<S: Debug + ProvableStore> Application for BaseCoinApp<S> {
     fn query(&self, request: RequestQuery) -> ResponseQuery {
         debug!("Got query request: {:?}", request);
 
-        let path: Option<Path> = request.path.try_into().ok();
+        let path = Path::from(request.path);
 
         let modules = self.modules.read_access();
 
         let height = Height::from(request.height as u64);
 
         for IdentifiedModule { id, module } in modules.iter() {
-            match module.query(&request.data, path.as_ref(), height, request.prove) {
+            match module.query(&request.data, Some(&path), height, request.prove) {
                 // success - implies query was handled by this module, so return response
                 Ok(result) => {
                     let store = self.store.read_access();
@@ -99,10 +99,7 @@ impl<S: Debug + ProvableStore> Application for BaseCoinApp<S> {
                         log: "exists".to_string(),
                         key: request.data,
                         value: result.data.into(),
-                        proof_ops: match proof_ops {
-                            Some(proof_ops) => Some(proof_ops.into()),
-                            None => None,
-                        },
+                        proof_ops: proof_ops.map(Into::into),
                         height: store.current_height() as i64,
                         ..Default::default()
                     };
@@ -138,7 +135,10 @@ impl<S: Debug + ProvableStore> Application for BaseCoinApp<S> {
         info!(
             "Committed height {} with hash({})",
             state.current_height() - 1,
-            data.iter().map(|b| format!("{b:02X}")).collect::<String>()
+            data.iter().fold(String::new(), |mut output, b| {
+                let _ = write!(output, "{b:02X}");
+                output
+            })
         );
         ResponseCommit { retain_height: 0 }
     }
