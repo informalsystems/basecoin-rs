@@ -92,7 +92,7 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
         }
     }
 
-    /// Recursively build a proof of existence for the desired value.
+    /// Recursively build a proof of existence or non-existence for the desired value.
     fn get_proof_rec<Q: ?Sized>(key: &Q, node: &NodeRef<K, V>) -> Proof
     where
         K: Borrow<Q>,
