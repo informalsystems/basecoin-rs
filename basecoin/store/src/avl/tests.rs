@@ -46,6 +46,7 @@ fn shuffle_get() {
     keys.shuffle(&mut thread_rng());
     for &i in keys.iter() {
         tree.insert([i], vec![i]);
+        assert!(tree.root.as_ref().unwrap().balance_factor().abs() <= 1);
     }
 
     keys.shuffle(&mut thread_rng());
@@ -63,10 +64,12 @@ fn shuffle_remove() {
     keys.shuffle(&mut thread_rng());
     for &i in keys.iter() {
         tree.insert([i], vec![i]);
+        assert!(tree.root.as_ref().unwrap().balance_factor().abs() <= 1);
     }
 
     keys.shuffle(&mut thread_rng());
     for &i in keys.iter() {
+        assert!(tree.root.as_ref().unwrap().balance_factor().abs() <= 1);
         assert_eq!(tree.remove([i]), Some(vec![i]));
     }
 
