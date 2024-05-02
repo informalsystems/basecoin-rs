@@ -2,11 +2,13 @@ use core::borrow::Borrow;
 use core::cmp::Ordering;
 
 use ics23::commitment_proof::Proof;
-use ics23::{CommitmentProof, ExistenceProof, HashOp, InnerOp, LeafOp, LengthOp};
+use ics23::{CommitmentProof, ExistenceProof, HashOp, InnerOp, NonExistenceProof};
 use tendermint::hash::Hash;
 
+use super::proof::{get_leaf_op, EMPTY_CHILD};
+use super::AvlNode;
 use crate::avl::node::{as_node_ref, NodeRef};
-use crate::avl::{proof, AsBytes};
+use crate::avl::AsBytes;
 
 /// An AVL Tree that supports `get` and `insert` operation and can be used to prove existence of a
 /// given key-value couple.
@@ -67,70 +69,111 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
     }
 
     /// Return an existence proof for the given element, if it exists.
-    pub fn get_proof<Q>(&self, key: &Q) -> Option<CommitmentProof>
+    /// Otherwise return a non-existence proof.
+    pub fn get_proof<Q>(&self, key: &Q) -> CommitmentProof
     where
         K: Borrow<Q>,
-        Q: Ord + ?Sized,
+        Q: Ord + AsBytes + ?Sized,
     {
-        let proof = Self::get_proof_rec(key, &self.root)?;
-        Some(CommitmentProof {
-            proof: Some(Proof::Exist(proof)),
-        })
+        let proof = Self::get_proof_rec(key, &self.root);
+        CommitmentProof { proof: Some(proof) }
     }
 
-    /// Recursively build a proof of existence for the desired value.
-    fn get_proof_rec<Q>(key: &Q, node: &NodeRef<K, V>) -> Option<ExistenceProof>
+    fn get_local_existence_proof(node: &AvlNode<K, V>) -> ExistenceProof {
+        ExistenceProof {
+            key: node.key.as_bytes().as_ref().to_owned(),
+            value: node.value.borrow().to_owned(),
+            leaf: Some(get_leaf_op()),
+            path: vec![InnerOp {
+                hash: HashOp::Sha256.into(),
+                prefix: node.left_hash().unwrap_or(&EMPTY_CHILD).to_vec(),
+                suffix: node.right_hash().unwrap_or(&EMPTY_CHILD).to_vec(),
+            }],
+        }
+    }
+
+    /// Recursively build a proof of existence or non-existence for the desired value.
+    fn get_proof_rec<Q>(key: &Q, node: &NodeRef<K, V>) -> Proof
     where
         K: Borrow<Q>,
-        Q: Ord + ?Sized,
+        Q: Ord + AsBytes + ?Sized,
     {
         if let Some(node) = node {
-            let empty_hash = [];
-            let (mut proof, prefix, suffix) = match node.key.borrow().cmp(key) {
+            match node.key.borrow().cmp(key) {
                 Ordering::Greater => {
-                    let proof = Self::get_proof_rec(key, &node.left)?;
                     let prefix = vec![];
                     let mut suffix = Vec::with_capacity(64);
                     suffix.extend(node.hash.as_bytes());
-                    suffix.extend(node.right_hash().unwrap_or(&empty_hash));
-                    (proof, prefix, suffix)
+                    suffix.extend(node.right_hash().unwrap_or(&EMPTY_CHILD));
+                    let inner = InnerOp {
+                        hash: HashOp::Sha256.into(),
+                        prefix,
+                        suffix,
+                    };
+                    match Self::get_proof_rec(key, &node.left) {
+                        Proof::Exist(mut proof) => {
+                            proof.path.push(inner);
+                            Proof::Exist(proof)
+                        }
+                        Proof::Nonexist(mut proof) => {
+                            if let Some(right) = proof.right.as_mut() {
+                                // right-neighbor already found
+                                right.path.push(inner.clone());
+                            }
+                            if let Some(left) = proof.left.as_mut() {
+                                // left-neighbor already found
+                                left.path.push(inner);
+                            }
+                            if proof.right.is_none() {
+                                // found the right-neighbor
+                                proof.right = Some(Self::get_local_existence_proof(node));
+                            }
+                            Proof::Nonexist(proof)
+                        }
+                        _ => unreachable!(),
+                    }
                 }
                 Ordering::Less => {
-                    let proof = Self::get_proof_rec(key, &node.right)?;
                     let suffix = vec![];
                     let mut prefix = Vec::with_capacity(64);
-                    prefix.extend(node.left_hash().unwrap_or(&empty_hash));
+                    prefix.extend(node.left_hash().unwrap_or(&EMPTY_CHILD));
                     prefix.extend(node.hash.as_bytes());
-                    (proof, prefix, suffix)
-                }
-                Ordering::Equal => {
-                    let leaf = Some(LeafOp {
+                    let inner = InnerOp {
                         hash: HashOp::Sha256.into(),
-                        prehash_key: HashOp::NoHash.into(),
-                        prehash_value: HashOp::NoHash.into(),
-                        length: LengthOp::NoPrefix.into(),
-                        prefix: proof::LEAF_PREFIX.to_vec(),
-                    });
-                    let proof = ExistenceProof {
-                        key: node.key.as_bytes().as_ref().to_owned(),
-                        value: node.value.borrow().to_owned(),
-                        leaf,
-                        path: vec![],
+                        prefix,
+                        suffix,
                     };
-                    let prefix = node.left_hash().unwrap_or(&empty_hash).to_vec();
-                    let suffix = node.right_hash().unwrap_or(&empty_hash).to_vec();
-                    (proof, prefix, suffix)
+                    match Self::get_proof_rec(key, &node.right) {
+                        Proof::Exist(mut proof) => {
+                            proof.path.push(inner);
+                            Proof::Exist(proof)
+                        }
+                        Proof::Nonexist(mut proof) => {
+                            if let Some(right) = proof.right.as_mut() {
+                                // right-neighbor already found
+                                right.path.push(inner.clone());
+                            }
+                            if let Some(left) = proof.left.as_mut() {
+                                // left-neighbor already found
+                                left.path.push(inner);
+                            }
+                            if proof.left.is_none() {
+                                // found the left-neighbor
+                                proof.left = Some(Self::get_local_existence_proof(node));
+                            }
+                            Proof::Nonexist(proof)
+                        }
+                        _ => unreachable!(),
+                    }
                 }
-            };
-            let inner = InnerOp {
-                hash: HashOp::Sha256.into(),
-                prefix,
-                suffix,
-            };
-            proof.path.push(inner);
-            Some(proof)
+                Ordering::Equal => Proof::Exist(Self::get_local_existence_proof(node)),
+            }
         } else {
-            None
+            Proof::Nonexist(NonExistenceProof {
+                key: key.as_bytes().as_ref().to_owned(),
+                left: None,
+                right: None,
+            })
         }
     }
 
