@@ -32,6 +32,7 @@ pub enum Commands {
     Start,
     #[command(subcommand)]
     Query(QueryCmd),
+    Tx(TxCmd),
 }
 
 #[derive(Clone, Debug, Parser)]
@@ -45,4 +46,52 @@ pub enum QueryCmd {
 #[command(about = "Query commands for the upgrade module")]
 pub enum UpgradeCmd {
     Plan,
+}
+
+#[derive(Clone, Debug, Parser)]
+#[command(about = "Send a transaction to be processed by Basecoin")]
+pub struct TxCmd {
+    #[command(subcommand)]
+    pub command: TxCmds,
+
+    /// Chain ID of the blockchain.
+    #[arg(long, default_value = "basecoin-0")]
+    pub chain_id: String,
+
+    /// Fee amount to be paid for the transaction.
+    #[arg(long, default_value = "4000basecoin")]
+    pub fee: String,
+
+    /// Gas limit for the transaction.
+    #[arg(long, default_value_t = 400000_u64)]
+    pub gas: u64,
+
+    /// Memo to be included in the transaction.
+    #[arg(long, default_value = "")]
+    pub memo: String,
+
+    /// The derivation path for the key pair.
+    #[arg(long, default_value = "m/44'/118'/0'/0/0")]
+    pub derivation_path: String,
+
+    /// The path to the file containing the seed phrase.
+    #[arg(long)]
+    pub seed_file: PathBuf,
+}
+
+#[derive(Clone, Debug, Parser)]
+pub enum TxCmds {
+    Recover(RecoverCmd),
+}
+
+#[derive(Clone, Debug, Parser)]
+#[command(about = "Recover an inactive client using a substitute client")]
+pub struct RecoverCmd {
+    /// Identifier of the client to be recovered.
+    #[arg(long)]
+    pub subject_client_id: String,
+
+    /// Identifier of the client whose state the recovered client will emulate.
+    #[arg(long)]
+    pub substitute_client_id: String,
 }

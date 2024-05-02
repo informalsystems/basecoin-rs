@@ -4,18 +4,20 @@ use basecoin_store::context::{ProvableStore, Store};
 use basecoin_store::impls::SharedStore;
 use basecoin_store::types::{Height, Path, ProtobufStore, TypedStore};
 use cosmrs::AccountId;
-use ibc::clients::tendermint::client_state::ClientState as TmClientState;
 use ibc::clients::tendermint::consensus_state::ConsensusState as TmConsensusState;
 use ibc::clients::tendermint::types::ConsensusState as ConsensusStateType;
 use ibc::core::client::types::error::UpgradeClientError;
+use ibc::core::client::types::Height as IbcHeight;
 use ibc::core::commitment_types::commitment::CommitmentRoot;
-use ibc::core::host::types::path::UpgradeClientPath;
+use ibc::core::host::types::path::{Path as IbcPath, UpgradeClientPath};
 use ibc::cosmos_host::upgrade_proposal::{
     Plan, UpgradeChain, UpgradeExecutionContext, UpgradeValidationContext,
+    UpgradedConsensusStateRef,
 };
 use ibc::cosmos_host::SDK_UPGRADE_QUERY_PATH;
 use ibc_proto::cosmos::upgrade::v1beta1::query_server::QueryServer;
 use ibc_proto::google::protobuf::Any;
+use ibc_query::core::context::ProvableContext;
 use prost::Message;
 use tendermint::abci::Event;
 use tendermint::merkle::proof::ProofOp;
@@ -26,7 +28,7 @@ use super::query::UPGRADE_PLAN_QUERY_PATH;
 use super::service::UpgradeService;
 use crate::context::Module;
 use crate::error::Error as AppError;
-use crate::ibc::{AnyConsensusState, IbcContext};
+use crate::ibc::{AnyClientState, AnyConsensusState, IbcContext};
 use crate::types::QueryResult;
 
 #[derive(Clone)]
@@ -39,10 +41,23 @@ where
     upgrade_plan: ProtobufStore<SharedStore<S>, UpgradePlanPath, Plan, Any>,
     /// A typed-store for upgraded ClientState
     upgraded_client_state_store:
-        ProtobufStore<SharedStore<S>, UpgradeClientPath, TmClientState, Any>,
+        ProtobufStore<SharedStore<S>, UpgradeClientPath, AnyClientState, Any>,
     /// A typed-store for upgraded ConsensusState
     upgraded_consensus_state_store:
-        ProtobufStore<SharedStore<S>, UpgradeClientPath, TmConsensusState, Any>,
+        ProtobufStore<SharedStore<S>, UpgradeClientPath, AnyConsensusState, Any>,
+}
+
+/// Trait to provide proofs in gRPC service blanket implementations.
+impl<S> ProvableContext for Upgrade<S>
+where
+    S: ProvableStore + Debug,
+{
+    /// Returns the proof for the given [`IbcHeight`] and [`Path`]
+    fn get_proof(&self, height: IbcHeight, path: &IbcPath) -> Option<Vec<u8>> {
+        self.store
+            .get_proof(height.revision_height().into(), &path.to_string().into())
+            .map(|p| p.encode_to_vec())
+    }
 }
 
 impl<S> Upgrade<S>
@@ -209,9 +224,6 @@ where
     S: Store + Debug,
 {
     type V = IbcContext<S>;
-    type E = IbcContext<S>;
-    type AnyConsensusState = AnyConsensusState;
-    type AnyClientState = TmClientState;
 
     fn upgrade_plan(&self) -> Result<Plan, UpgradeClientError> {
         let upgrade_plan = self
@@ -226,7 +238,7 @@ where
     fn upgraded_client_state(
         &self,
         upgrade_path: &UpgradeClientPath,
-    ) -> Result<TmClientState, UpgradeClientError> {
+    ) -> Result<AnyClientState, UpgradeClientError> {
         let upgraded_tm_client_state = self
             .upgraded_client_state_store
             .get(Height::Pending, upgrade_path)
@@ -239,14 +251,14 @@ where
     fn upgraded_consensus_state(
         &self,
         upgrade_path: &UpgradeClientPath,
-    ) -> Result<Self::AnyConsensusState, UpgradeClientError> {
+    ) -> Result<UpgradedConsensusStateRef<Self>, UpgradeClientError> {
         let upgraded_tm_consensus_state = self
             .upgraded_consensus_state_store
             .get(Height::Pending, upgrade_path)
             .ok_or(UpgradeClientError::Other {
                 reason: "No upgraded consensus state set".to_string(),
             })?;
-        Ok(upgraded_tm_consensus_state.into())
+        Ok(upgraded_tm_consensus_state)
     }
 }
 
@@ -304,7 +316,7 @@ where
     fn store_upgraded_client_state(
         &mut self,
         upgrade_path: UpgradeClientPath,
-        client_state: TmClientState,
+        client_state: AnyClientState,
     ) -> Result<(), UpgradeClientError> {
         self.upgraded_client_state_store
             .set(upgrade_path, client_state)
@@ -320,15 +332,8 @@ where
         upgrade_path: UpgradeClientPath,
         consensus_state: AnyConsensusState,
     ) -> Result<(), UpgradeClientError> {
-        let tm_consensus_state: TmConsensusState =
-            consensus_state
-                .try_into()
-                .map_err(|err: &str| UpgradeClientError::Other {
-                    reason: err.to_string(),
-                })?;
-
         self.upgraded_consensus_state_store
-            .set(upgrade_path, tm_consensus_state)
+            .set(upgrade_path, consensus_state)
             .map_err(|e| UpgradeClientError::Other {
                 reason: format!("Error storing upgraded consensus state: {e:?}"),
             })?;

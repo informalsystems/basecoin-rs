@@ -1,5 +1,5 @@
-use std::fmt::{Display, Formatter};
-use std::str::{from_utf8, FromStr, Utf8Error};
+use core::fmt::{Display, Formatter};
+use core::str::{from_utf8, FromStr, Utf8Error};
 
 use displaydoc::Display as DisplayDoc;
 
@@ -59,7 +59,7 @@ impl From<Identifier> for Path {
 }
 
 impl Display for Path {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         write!(
             f,
             "{}",

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copied from https://github.com/cosmos/relayer/tree/master/scripts
+set -euo pipefail
 
 usage() {
   echo "Usage: $0 BINARY CHAIN_ID CHAIN_DIR RPC_PORT P2P_PORT PROFILING_PORT GRPC_PORT SAMOLEANS"
@@ -75,7 +75,7 @@ USER_COINS="${STAKE},${SAMOLEANS}samoleans"
 # Hermes also needs stake to perform actions
 HERMES_COINS="${STAKE},${SAMOLEANS}samoleans"
 
-$BINARY --home $CHAIN_DIR/$CHAIN_ID --chain-id $CHAIN_ID init $CHAIN_ID &> /dev/null
+$BINARY --home $CHAIN_DIR/$CHAIN_ID --chain-id $CHAIN_ID init $CHAIN_ID
 sleep 1
 echo "Creating validator key"
 $BINARY --home $CHAIN_DIR/$CHAIN_ID keys add validator --keyring-backend="test" --output json > $CHAIN_DIR/$CHAIN_ID/validator_seed.json 2>&1
@@ -89,25 +89,25 @@ sleep 1
 
 # Add samoleans to user
 USER=$($BINARY --home $CHAIN_DIR/$CHAIN_ID keys --keyring-backend="test" show user -a)
-$BINARY --home $CHAIN_DIR/$CHAIN_ID add-genesis-account $USER $USER_COINS &> /dev/null
+$BINARY --home $CHAIN_DIR/$CHAIN_ID genesis add-genesis-account $USER $USER_COINS
 sleep 1
 
 # Add samoleans to user2
 USER2=$($BINARY --home $CHAIN_DIR/$CHAIN_ID keys --keyring-backend="test" show user2 -a)
-$BINARY --home $CHAIN_DIR/$CHAIN_ID add-genesis-account $USER2 $USER_COINS &> /dev/null
+$BINARY --home $CHAIN_DIR/$CHAIN_ID genesis add-genesis-account $USER2 $USER_COINS
 sleep 1
 
 
 # Add stake to validator
 VALIDATOR=$($BINARY --home $CHAIN_DIR/$CHAIN_ID keys --keyring-backend="test" show validator -a)
-$BINARY --home $CHAIN_DIR/$CHAIN_ID add-genesis-account $VALIDATOR $STAKE &> /dev/null
+$BINARY --home $CHAIN_DIR/$CHAIN_ID genesis add-genesis-account $VALIDATOR $STAKE
 sleep 1
 
 # Stake everything
-$BINARY --home $CHAIN_DIR/$CHAIN_ID gentx validator --keyring-backend="test" --chain-id $CHAIN_ID $STAKE &> /dev/null
+$BINARY --home $CHAIN_DIR/$CHAIN_ID genesis gentx validator --keyring-backend="test" --chain-id $CHAIN_ID $STAKE
 sleep 1
 
-$BINARY --home $CHAIN_DIR/$CHAIN_ID collect-gentxs &> /dev/null
+$BINARY --home $CHAIN_DIR/$CHAIN_ID genesis collect-gentxs
 sleep 1
 
 # Check platform
@@ -146,7 +146,7 @@ fi
 
 # Start gaia
 echo "Start gaia on grpc port: $GRPC_PORT..."
-$BINARY --home $CHAIN_DIR/$CHAIN_ID start --pruning=nothing --grpc.address="0.0.0.0:$GRPC_PORT" --log_level error > $CHAIN_DIR/$CHAIN_ID.log 2>&1 &
+$BINARY --home $CHAIN_DIR/$CHAIN_ID start --minimum-gas-prices=0stake --pruning=nothing --grpc.address="0.0.0.0:$GRPC_PORT" --log_level=error > $CHAIN_DIR/$CHAIN_ID.log 2>&1 &
 
 # Show validator's and user's balance
 sleep 3

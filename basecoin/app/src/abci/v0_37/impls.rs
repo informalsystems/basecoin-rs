@@ -84,7 +84,7 @@ pub fn init_chain<S: Default + ProvableStore>(
     ResponseInitChain {
         consensus_params: request.consensus_params,
         validators: vec![], // use validator set proposed by tendermint (ie. in the genesis file)
-        app_hash: app.store.write_access().root_hash().into(),
+        app_hash: app.store.read_access().root_hash().into(),
     }
 }
 
@@ -209,11 +209,32 @@ pub fn deliver_tx<S: Default + Debug + ProvableStore>(
                 for IdentifiedModule { module, .. } in modules.iter_mut() {
                     module.store_mut().reset();
                 }
+
+                // probably the main store doesn't need to be reset.
+                // currently the only time it is written while committing a block.
+                // but doing it nonetheless, just in case.
                 app.store.write_access().reset();
                 return ResponseDeliverTx::from_error(2, format!("deliver failed with error: {e}"));
             }
         }
     }
+
+    // persists changes from all the messages in this tx
+    let mut modules = app.modules.write_access();
+    for IdentifiedModule { module, .. } in modules.iter_mut() {
+        module
+            .store_mut()
+            .apply()
+            .expect("failed to apply to module state");
+    }
+
+    // probably the main store doesn't need to be applied.
+    // currently the only time it is written while committing a block.
+    // but doing it nonetheless, just in case.
+    app.store
+        .write_access()
+        .apply()
+        .expect("failed to commit to state");
 
     ResponseDeliverTx {
         log: "success".to_owned(),
@@ -228,7 +249,7 @@ pub fn commit<S: Default + ProvableStore>(app: &BaseCoinApp<S>) -> ResponseCommi
         module
             .store_mut()
             .commit()
-            .expect("failed to commit to state");
+            .expect("failed to commit to module state");
         let mut state = app.store.write_access();
         state
             .set(id.clone().into(), module.store().root_hash())

@@ -1,5 +1,5 @@
-use std::borrow::Borrow;
-use std::mem;
+use core::borrow::Borrow;
+use core::mem;
 
 use sha2::{Digest, Sha256};
 use tendermint::hash::Hash;
@@ -110,7 +110,7 @@ where
             },
             Some(right) => match &self.left {
                 None => self.height = right.height + 1,
-                Some(left) => self.height = std::cmp::max(left.height, right.height) + 1,
+                Some(left) => self.height = core::cmp::max(left.height, right.height) + 1,
             },
         }
     }

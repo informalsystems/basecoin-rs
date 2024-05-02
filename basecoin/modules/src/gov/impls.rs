@@ -8,7 +8,11 @@ use basecoin_store::impls::SharedStore;
 use basecoin_store::types::{Height, Path, ProtobufStore, TypedStore};
 use basecoin_store::utils::{SharedRw, SharedRwExt};
 use cosmrs::AccountId;
-use ibc::cosmos_host::upgrade_proposal::{upgrade_client_proposal_handler, UpgradeProposal};
+use ibc::core::client::handler::recover_client;
+use ibc::core::client::types::msgs::{MsgRecoverClient, RECOVER_CLIENT_TYPE_URL};
+use ibc::cosmos_host::upgrade_proposal::{
+    execute_upgrade_client_proposal, UpgradeProposal, UPGRADE_PROPOSAL_TYPE_URL,
+};
 use ibc_proto::cosmos::gov::v1beta1::query_server::QueryServer;
 use ibc_proto::google::protobuf::Any;
 use ibc_proto::Protobuf;
@@ -21,6 +25,7 @@ use super::service::GovernanceService;
 use crate::context::Module;
 pub use crate::error::Error as AppError;
 use crate::gov::msg::MsgSubmitProposal;
+use crate::ibc::Ibc;
 use crate::types::QueryResult;
 use crate::upgrade::Upgrade;
 
@@ -33,13 +38,14 @@ where
     pub proposal_counter: u64,
     pub proposal: ProtobufStore<SharedStore<S>, ProposalPath, Proposal, Any>,
     pub upgrade_ctx: SharedRw<Upgrade<S>>,
+    pub ibc_ctx: SharedRw<Ibc<S>>,
 }
 
 impl<S> Governance<S>
 where
     S: Store + Debug,
 {
-    pub fn new(store: SharedStore<S>, upgrade_ctx: Upgrade<S>) -> Self
+    pub fn new(store: SharedStore<S>, upgrade_ctx: Upgrade<S>, ibc_ctx: Ibc<S>) -> Self
     where
         S: Store,
     {
@@ -47,6 +53,7 @@ where
             proposal_counter: 0,
             proposal: TypedStore::new(store.clone()),
             upgrade_ctx: Arc::new(RwLock::new(upgrade_ctx)),
+            ibc_ctx: Arc::new(RwLock::new(ibc_ctx)),
             store,
         }
     }
@@ -64,27 +71,48 @@ where
 
     fn deliver(&mut self, message: Any, _signer: &AccountId) -> Result<Vec<Event>, AppError> {
         if let Ok(message) = MsgSubmitProposal::try_from(message) {
-            debug!("Delivering proposal message: {:?}", message);
+            match message.content.type_url.as_str() {
+                UPGRADE_PROPOSAL_TYPE_URL => {
+                    debug!("Delivering proposal message: {:?}", message);
 
-            let upgrade_proposal =
-                UpgradeProposal::decode_vec(message.content.value.as_slice()).unwrap();
+                    let upgrade_proposal =
+                        UpgradeProposal::decode_vec(message.content.value.as_slice()).unwrap();
 
-            let mut upgrade_ctx = self.upgrade_ctx.write_access();
+                    let mut upgrade_ctx = self.upgrade_ctx.write_access();
 
-            let event = upgrade_client_proposal_handler(upgrade_ctx.deref_mut(), upgrade_proposal)
-                .map_err(|e| AppError::Custom {
-                    reason: format!("Error handling upgrade proposal: {:?}", e),
-                })?;
+                    let event =
+                        execute_upgrade_client_proposal(upgrade_ctx.deref_mut(), upgrade_proposal)
+                            .map_err(|e| AppError::Custom {
+                                reason: format!("Error handling upgrade proposal: {:?}", e),
+                            })?;
 
-            let proposal = message.proposal(self.proposal_counter);
+                    let proposal = message.proposal(self.proposal_counter);
 
-            self.proposal
-                .set(ProposalPath::sdk_path(), proposal)
-                .unwrap();
+                    self.proposal
+                        .set(ProposalPath::sdk_path(), proposal)
+                        .unwrap();
 
-            self.proposal_counter += 1;
+                    self.proposal_counter += 1;
 
-            Ok(vec![event])
+                    Ok(vec![event])
+                }
+                RECOVER_CLIENT_TYPE_URL => {
+                    debug!("Delivering client recovery message: {:?}", message);
+
+                    let msg_recover_client =
+                        MsgRecoverClient::decode_vec(message.content.value.as_slice()).unwrap();
+
+                    let mut ibc_ctx = self.ibc_ctx.write_access();
+
+                    recover_client::validate(&ibc_ctx.ctx, msg_recover_client.clone())?;
+                    recover_client::execute(&mut ibc_ctx.ctx, msg_recover_client)?;
+
+                    // client recovery operation does not return an event
+                    // https://github.com/cosmos/ibc-go/blob/4c1aae32/modules/light-clients/07-tendermint/light_client_module.go#L249
+                    Ok(vec![])
+                }
+                _ => Err(AppError::NotHandled),
+            }
         } else {
             Err(AppError::NotHandled)
         }

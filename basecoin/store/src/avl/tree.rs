@@ -29,10 +29,10 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
     }
 
     /// Return the value corresponding to the key, if it exists.
-    pub fn get<Q: ?Sized>(&self, key: &Q) -> Option<&V>
+    pub fn get<Q>(&self, key: &Q) -> Option<&V>
     where
         K: Borrow<Q>,
-        Q: Ord,
+        Q: Ord + ?Sized,
     {
         let mut node_ref = &self.root;
         while let Some(ref node) = node_ref {
@@ -70,10 +70,10 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
 
     /// Return an existence proof for the given element, if it exists.
     /// Otherwise return a non-existence proof.
-    pub fn get_proof<Q: ?Sized>(&self, key: &Q) -> CommitmentProof
+    pub fn get_proof<Q>(&self, key: &Q) -> CommitmentProof
     where
         K: Borrow<Q>,
-        Q: Ord + AsBytes,
+        Q: Ord + AsBytes + ?Sized,
     {
         let proof = Self::get_proof_rec(key, &self.root);
         CommitmentProof { proof: Some(proof) }
@@ -93,10 +93,10 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
     }
 
     /// Recursively build a proof of existence or non-existence for the desired value.
-    fn get_proof_rec<Q: ?Sized>(key: &Q, node: &NodeRef<K, V>) -> Proof
+    fn get_proof_rec<Q>(key: &Q, node: &NodeRef<K, V>) -> Proof
     where
         K: Borrow<Q>,
-        Q: Ord + AsBytes,
+        Q: Ord + AsBytes + ?Sized,
     {
         if let Some(node) = node {
             match node.key.borrow().cmp(key) {
@@ -209,11 +209,11 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
         let mut node = root.take().expect("[AVL]: Empty root in right rotation");
         let mut left = node.left.take().expect("[AVL]: Unexpected right rotation");
         let mut left_right = left.right.take();
-        std::mem::swap(&mut node.left, &mut left_right);
+        core::mem::swap(&mut node.left, &mut left_right);
         node.update();
-        std::mem::swap(&mut left.right, &mut Some(node));
+        core::mem::swap(&mut left.right, &mut Some(node));
         left.update();
-        std::mem::swap(root, &mut Some(left));
+        core::mem::swap(root, &mut Some(left));
     }
 
     /// Perform a left rotation.
@@ -221,11 +221,11 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
         let mut node = root.take().expect("[AVL]: Empty root in left rotation");
         let mut right = node.right.take().expect("[AVL]: Unexpected left rotation");
         let mut right_left = right.left.take();
-        std::mem::swap(&mut node.right, &mut right_left);
+        core::mem::swap(&mut node.right, &mut right_left);
         node.update();
-        std::mem::swap(&mut right.left, &mut Some(node));
+        core::mem::swap(&mut right.left, &mut Some(node));
         right.update();
-        std::mem::swap(root, &mut Some(right))
+        core::mem::swap(root, &mut Some(right))
     }
 
     /// Return a list of the keys present in the tree.
