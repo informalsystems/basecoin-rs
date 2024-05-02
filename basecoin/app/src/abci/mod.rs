@@ -4,5 +4,5 @@
 #[cfg(all(feature = "v0_37", not(feature = "v0_38")))]
 pub mod v0_37;
 
-#[cfg(all(feature = "v0_38", not(feature = "v0_37")))]
+#[cfg(any(feature = "v0_38", not(feature = "v0_37")))]
 pub mod v0_38;
