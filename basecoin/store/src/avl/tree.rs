@@ -86,6 +86,8 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
             None
         };
 
+        // this should be in the `if let Some(node) = node_ref` branch,
+        // just like `insert_rec`. But it is here to avoid borrowing issues.
         if let Some(node) = node_ref {
             node.update();
             AvlTree::balance_node(node_ref);
