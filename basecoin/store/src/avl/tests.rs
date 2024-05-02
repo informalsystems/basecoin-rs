@@ -41,7 +41,7 @@ fn get() {
 fn shuffle_get() {
     let mut tree = AvlTree::new();
 
-    let mut keys: Vec<u8> = (0..100).collect();
+    let mut keys: Vec<u8> = (0..=255).collect();
 
     keys.shuffle(&mut thread_rng());
     for &i in keys.iter() {
@@ -59,7 +59,7 @@ fn shuffle_get() {
 fn shuffle_remove() {
     let mut tree = AvlTree::new();
 
-    let mut keys: Vec<u8> = (0..100).collect();
+    let mut keys: Vec<u8> = (0..=255).collect();
 
     keys.shuffle(&mut thread_rng());
     for &i in keys.iter() {
