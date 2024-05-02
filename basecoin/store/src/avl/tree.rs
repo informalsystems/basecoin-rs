@@ -108,7 +108,21 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
     /// Both works. The implementation (arbitrarily) chose the first option.
     fn remove_top(node_ref: &mut NodeRef<K, V>) -> NodeRef<K, V> {
         let removed_node = if let Some(node) = node_ref {
-            if node.right.is_some() {
+            if node.right.is_none() {
+                // there is no right node, replace the current node with the left node.
+                // removed_node <- node_ref <- node.left
+                let left_node = node.left.take();
+                std::mem::replace(node_ref, left_node)
+            } else if node.left.is_none() {
+                // there is no left node, replace the current node with the right node.
+                // removed_node <- node_ref <- node.right
+                let right_node = node.right.take();
+                std::mem::replace(node_ref, right_node)
+            } else if node.balance_factor() <= 0 {
+                // both left and right nodes exist.
+                // left.height <= right.height; right skewed.
+                // removing from right subtree is better.
+
                 // Remove the leftmost node in the right subtree and replace the current.
                 let mut leftmost_node_ref = AvlTree::remove_leftmost(&mut node.right);
                 // leftmost_node_ref.right <- node_ref.right
@@ -123,8 +137,24 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
                 }
                 std::mem::replace(node_ref, leftmost_node_ref)
             } else {
-                let left_node = node.left.take();
-                std::mem::replace(node_ref, left_node)
+                // node.balance_factor() > 0
+                // both left and right nodes exist.
+                // left.height > right.height; left skewed.
+                // removing from left subtree is better.
+
+                // Remove the rightmost node in the left subtree and replace the current.
+                let mut rightmost_node_ref = AvlTree::remove_rightmost(&mut node.left);
+                // rightmost_node_ref.right <- node_ref.right
+                // rightmost_node_ref.left <- node_ref.left
+                // removed_node <- node_ref <- rightmost_node_ref
+                if let Some(rightmost_node) = rightmost_node_ref.as_mut() {
+                    // removed rightmost node must be a leaf; not asserting, as it is an invariant.
+                    // assert!(rightmost_node.right.is_none() && rightmost_node.left.is_none());
+
+                    rightmost_node.right = node.right.take();
+                    rightmost_node.left = node.left.take();
+                }
+                std::mem::replace(node_ref, rightmost_node_ref)
             }
         } else {
             None
@@ -140,9 +170,6 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
     }
 
     /// Removes the leftmost key in the tree, if it exists.
-    ///
-    /// Note: there is no `remove_rightmost` method. This is because
-    /// of the choice made in [`Self::remove_top`] method.
     fn remove_leftmost(node_ref: &mut NodeRef<K, V>) -> NodeRef<K, V> {
         if let Some(node) = node_ref {
             if node.left.is_none() {
@@ -155,6 +182,29 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
                 let removed_node = AvlTree::remove_leftmost(&mut node.left);
 
                 // need to update, as left node is updated
+                node.update();
+                AvlTree::balance_node(node_ref);
+
+                removed_node
+            }
+        } else {
+            None
+        }
+    }
+
+    /// Removes the rightmost key in the tree, if it exists.
+    fn remove_rightmost(node_ref: &mut NodeRef<K, V>) -> NodeRef<K, V> {
+        if let Some(node) = node_ref {
+            if node.right.is_none() {
+                let left_node = node.left.take();
+                // removed_node <- node_ref <- left_node
+                std::mem::replace(node_ref, left_node)
+
+                // no need to update, as current node (left_node) is already updated
+            } else {
+                let removed_node = AvlTree::remove_rightmost(&mut node.right);
+
+                // need to update, as right node is updated
                 node.update();
                 AvlTree::balance_node(node_ref);
 
