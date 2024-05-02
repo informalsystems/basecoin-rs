@@ -96,7 +96,7 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
 
     /// Removes the top node in the tree, if it exists.
     ///
-    /// Note that this method is asymmetric. It tries to remove the leftmost
+    /// Note: this method is asymmetric. It tries to remove the leftmost
     /// node in the right subtree, if it exists. If it does not, it replaces
     /// the current node with the left node.
     ///
@@ -138,6 +138,9 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
     }
 
     /// Removes the leftmost key in the tree, if it exists.
+    ///
+    /// Note: there is no `remove_rightmost` method. This is because
+    /// of the choice made in [`Self::remove_top`] method.
     fn remove_leftmost(node_ref: &mut NodeRef<K, V>) -> NodeRef<K, V> {
         if let Some(node) = node_ref {
             if node.left.is_none() {
