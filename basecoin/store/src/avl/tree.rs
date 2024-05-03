@@ -99,16 +99,14 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
     /// Removes the top node in the tree, if it exists.
     fn remove_top(node_ref: &mut NodeRef<K, V>) -> NodeRef<K, V> {
         let removed_node = if let Some(node) = node_ref {
-            if node.right.is_none() {
+            let substitute_node_ref = if node.right.is_none() {
                 // there is no right node, replace the current node with the left node.
-                // removed_node <- node_ref <- node.left
-                let left_node = node.left.take();
-                std::mem::replace(node_ref, left_node)
+                // substitute_node_ref <- node.left
+                node.left.take()
             } else if node.left.is_none() {
                 // there is no left node, replace the current node with the right node.
-                // removed_node <- node_ref <- node.right
-                let right_node = node.right.take();
-                std::mem::replace(node_ref, right_node)
+                // substitute_node_ref <- node.right
+                node.right.take()
             } else if node.balance_factor() <= 0 {
                 // both left and right nodes exist.
                 // left.height <= right.height; right skewed.
@@ -118,7 +116,6 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
                 let mut leftmost_node_ref = AvlTree::remove_leftmost(&mut node.right);
                 // leftmost_node_ref.right <- node_ref.right
                 // leftmost_node_ref.left <- node_ref.left
-                // removed_node <- node_ref <- leftmost_node_ref
                 if let Some(leftmost_node) = leftmost_node_ref.as_mut() {
                     // removed leftmost node must be a leaf; not asserting, as it is an invariant.
                     // assert!(leftmost_node.right.is_none() && leftmost_node.left.is_none());
@@ -126,7 +123,8 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
                     leftmost_node.right = node.right.take();
                     leftmost_node.left = node.left.take();
                 }
-                std::mem::replace(node_ref, leftmost_node_ref)
+                // substitute_node_ref <- leftmost_node_ref
+                leftmost_node_ref
             } else {
                 // node.balance_factor() > 0
                 // both left and right nodes exist.
@@ -137,7 +135,6 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
                 let mut rightmost_node_ref = AvlTree::remove_rightmost(&mut node.left);
                 // rightmost_node_ref.right <- node_ref.right
                 // rightmost_node_ref.left <- node_ref.left
-                // removed_node <- node_ref <- rightmost_node_ref
                 if let Some(rightmost_node) = rightmost_node_ref.as_mut() {
                     // removed rightmost node must be a leaf; not asserting, as it is an invariant.
                     // assert!(rightmost_node.right.is_none() && rightmost_node.left.is_none());
@@ -145,8 +142,11 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
                     rightmost_node.right = node.right.take();
                     rightmost_node.left = node.left.take();
                 }
-                std::mem::replace(node_ref, rightmost_node_ref)
-            }
+                // substitute_node_ref <- rightmost_node_ref
+                rightmost_node_ref
+            };
+            // removed_node <- node_ref <- substitute_node_ref
+            std::mem::replace(node_ref, substitute_node_ref)
         } else {
             None
         };
