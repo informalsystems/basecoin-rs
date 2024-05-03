@@ -93,6 +93,15 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
     }
 
     /// Removes the top node in the tree, if it exists.
+    ///
+    /// Since we are removing the current node, we need to replace it with a new node.
+    /// The new node is chosen as follows:
+    /// - If the current node has no children, the new node is `None`.
+    /// - If the current node has only one child, the new node is the child.
+    /// - If the current node has both children.
+    ///   - If left child is shorter: the new node is the leftmost node in the right subtree.
+    ///     Also, the current node's children are set to the new node's children.
+    ///   - If right child is shorter, vice versa.
     fn remove_top(node_ref: &mut NodeRef<K, V>) -> NodeRef<K, V> {
         let node = node_ref.as_deref_mut()?;
 
@@ -114,7 +123,7 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
             // leftmost_node_ref.right <- node_ref.right
             // leftmost_node_ref.left <- node_ref.left
             if let Some(leftmost_node) = leftmost_node_ref.as_mut() {
-                // removed leftmost node must be a leaf; not asserting, as it is an invariant.
+                // removed leftmost node must be a leaf; it is an invariant.
                 // assert!(leftmost_node.right.is_none() && leftmost_node.left.is_none());
 
                 leftmost_node.right = node.right.take();
@@ -133,7 +142,7 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
             // rightmost_node_ref.right <- node_ref.right
             // rightmost_node_ref.left <- node_ref.left
             if let Some(rightmost_node) = rightmost_node_ref.as_mut() {
-                // removed rightmost node must be a leaf; not asserting, as it is an invariant.
+                // removed rightmost node must be a leaf; it is an invariant.
                 // assert!(rightmost_node.right.is_none() && rightmost_node.left.is_none());
 
                 rightmost_node.right = node.right.take();
