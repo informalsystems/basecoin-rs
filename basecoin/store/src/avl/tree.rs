@@ -81,7 +81,7 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
         let removed_value = match node.key.cmp(&key) {
             Ordering::Greater => AvlTree::remove_rec(&mut node.left, key),
             Ordering::Less => AvlTree::remove_rec(&mut node.right, key),
-            Ordering::Equal => AvlTree::remove_top(node_ref).map(|node| node.value),
+            Ordering::Equal => AvlTree::remove_root(node_ref).map(|node| node.value),
         };
 
         if let Some(node) = node_ref {
@@ -92,25 +92,25 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
         removed_value
     }
 
-    /// Removes the top node in the tree, if it exists.
+    /// Removes the root node in the tree, if it exists.
     ///
-    /// Since we are removing the current node, we need to replace it with a new node.
+    /// Since we are removing the root node, we need to replace it with a new node.
     /// The new node is chosen as follows:
-    /// - If the current node has no children, the new node is `None`.
-    /// - If the current node has only one child, the new node is the child.
-    /// - If the current node has both children.
+    /// - If the root node has no children, the new node is `None`.
+    /// - If the root node has only one child, the new node is the child.
+    /// - If the root node has both children.
     ///   - If left child is shorter: the new node is the leftmost node in the right subtree.
-    ///     Also, the current node's children are set to the new node's children.
+    ///     Also, the root node's children are set to the new node's children.
     ///   - If right child is shorter, vice versa.
-    fn remove_top(node_ref: &mut NodeRef<K, V>) -> NodeRef<K, V> {
+    fn remove_root(node_ref: &mut NodeRef<K, V>) -> NodeRef<K, V> {
         let node = node_ref.as_deref_mut()?;
 
         let substitute_node_ref = if node.right.is_none() {
-            // there is no right node, replace the current node with the left node.
+            // there is no right node, replace the root node with the left node.
             // substitute_node_ref <- node.left
             node.left.take()
         } else if node.left.is_none() {
-            // there is no left node, replace the current node with the right node.
+            // there is no left node, replace the root node with the right node.
             // substitute_node_ref <- node.right
             node.right.take()
         } else if node.balance_factor() <= 0 {
@@ -173,7 +173,7 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
             // removed_node <- node_ref <- right_node
             std::mem::replace(node_ref, right_node)
 
-            // no need to update, as current node (right_node) is already updated
+            // no need to update, as the new node (right_node) is already updated
         } else {
             let removed_node = AvlTree::remove_leftmost(&mut node.left);
 
@@ -194,7 +194,7 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
             // removed_node <- node_ref <- left_node
             std::mem::replace(node_ref, left_node)
 
-            // no need to update, as current node (left_node) is already updated
+            // no need to update, as the new node (left_node) is already updated
         } else {
             let removed_node = AvlTree::remove_rightmost(&mut node.right);
 
