@@ -60,6 +60,8 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
                 Ordering::Equal => Some(node.set_value(value)),
             };
             node.update();
+            // Note: when old_value is None, balancing not necessary.
+            // But we do it anyway as general rule.
             AvlTree::balance_node(node_ref);
             old_value
         } else {
@@ -71,22 +73,29 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
     /// Remove a value from the AVL tree, this operation runs in amortized O(log(n)).
     pub fn remove(&mut self, key: K) -> Option<V> {
         let node_ref = &mut self.root;
-        AvlTree::remove_rec(node_ref, key)
+        AvlTree::remove_rec(node_ref, key).map(|node| node.value)
     }
 
     /// Remove a value from the tree.
-    fn remove_rec(node_ref: &mut NodeRef<K, V>, key: K) -> Option<V> {
+    ///
+    /// Find the sub-tree whose root to be removed. Then, use [`Self::remove_root`].
+    fn remove_rec(node_ref: &mut NodeRef<K, V>, key: K) -> NodeRef<K, V> {
         let node = node_ref.as_deref_mut()?;
 
         let removed_value = match node.key.cmp(&key) {
             Ordering::Greater => AvlTree::remove_rec(&mut node.left, key),
             Ordering::Less => AvlTree::remove_rec(&mut node.right, key),
-            Ordering::Equal => AvlTree::remove_root(node_ref).map(|node| node.value),
+            Ordering::Equal => AvlTree::remove_root(node_ref),
         };
 
         if let Some(node) = node_ref {
-            node.update();
-            AvlTree::balance_node(node_ref);
+            if removed_value.is_some() {
+                // need to update, as root node is updated
+                // Note: if removed_value is None, nothing is removed.
+                // So no need to update and balance.
+                node.update();
+                AvlTree::balance_node(node_ref);
+            }
         }
 
         removed_value
@@ -102,6 +111,8 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
     ///   - If left child is shorter: the new node is the leftmost node in the right subtree.
     ///     Also, the root node's children are set to the new node's children.
     ///   - If right child is shorter, vice versa.
+    ///
+    /// Never called on an empty tree.
     fn remove_root(node_ref: &mut NodeRef<K, V>) -> NodeRef<K, V> {
         let node = node_ref.as_deref_mut()?;
 
