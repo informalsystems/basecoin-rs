@@ -16,6 +16,10 @@ use crate::types::{Height, Path};
 /// an overwriting `set` doesn't reorganize a Merkle tree - but non-overwriting `set` and `delete`
 /// operations may reorganize a Merkle tree - which may change the root hash. However, a Merkle
 /// store should have no effect on a failed transaction.
+#[deprecated(
+    since = "TBD",
+    note = "Using operation log to revert changes does not guarantee deterministic Merkle root hash."
+)]
 #[derive(Clone, Debug)]
 pub struct RevertibleStore<S> {
     /// backing store
