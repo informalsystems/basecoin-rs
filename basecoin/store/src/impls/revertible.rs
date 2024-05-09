@@ -99,6 +99,12 @@ where
         Ok(())
     }
 
+    /// Revert all operations in the operation log.
+    ///
+    /// This method doesn't guarantee the Merkle tree with the exactly previous root hash.
+    /// It should be avoided. Use `InMemoryStore` directly which implements rollback directly.
+    ///
+    /// GH issue: informalsystems/basecoin-rs#129
     #[inline]
     fn reset(&mut self) {
         // note that we do NOT call the backing store's reset here - this allows users to create
