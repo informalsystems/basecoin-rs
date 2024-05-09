@@ -142,8 +142,8 @@ impl Store for InMemoryStore {
         self.get_state(height).and_then(|v| v.get(path).cloned())
     }
 
-    fn delete(&mut self, _path: &Path) {
-        todo!()
+    fn delete(&mut self, path: &Path) {
+        self.pending.remove(path.clone());
     }
 
     fn commit(&mut self) -> Result<Vec<u8>, Self::Error> {

@@ -38,6 +38,55 @@ fn get() {
 }
 
 #[test]
+fn test_shuffle_insert_get_remove() {
+    let mut tree = AvlTree::new();
+    let mut std_tree = std::collections::BTreeMap::new();
+
+    let mut keys: Vec<u8> = (0..=255).collect();
+
+    keys.shuffle(&mut thread_rng());
+    for &i in keys.iter() {
+        tree.insert([i], vec![i]);
+        std_tree.insert([i], vec![i]);
+
+        // keys from BTreeMap must be present in AvlTree.
+        for key in std_tree.keys() {
+            assert_eq!(tree.get(key), std_tree.get(key));
+        }
+
+        // keys from AvlTree must be present in BTreeMap.
+        for key in tree.get_keys() {
+            assert_eq!(tree.get(key), std_tree.get(key));
+        }
+
+        // AvlTree must stay balanced.
+        assert!(tree.root.as_ref().unwrap().balance_factor().abs() <= 1);
+    }
+
+    keys.shuffle(&mut thread_rng());
+    for &i in keys.iter() {
+        // keys from BTreeMap must be present in AvlTree.
+        for key in std_tree.keys() {
+            assert_eq!(tree.get(key), std_tree.get(key));
+        }
+
+        // keys from AvlTree must be present in BTreeMap.
+        for key in tree.get_keys() {
+            assert_eq!(tree.get(key), std_tree.get(key));
+        }
+
+        // AvlTree must stay balanced.
+        assert!(tree.root.as_ref().unwrap().balance_factor().abs() <= 1);
+
+        assert_eq!(tree.remove([i]), Some(vec![i]));
+        assert_eq!(std_tree.remove(&[i]), Some(vec![i]));
+    }
+
+    assert!(std_tree.is_empty());
+    assert!(tree.root.is_none());
+}
+
+#[test]
 fn rotate_right() {
     let mut before = AvlTree {
         root: build_node(
