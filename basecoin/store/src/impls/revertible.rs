@@ -18,7 +18,7 @@ use crate::types::{Height, Path};
 /// store should have no effect on a failed transaction.
 #[deprecated(
     since = "TBD",
-    note = "RevertibleStore has been deprecated due to a bug where using the operation log to revert changes does not guarantee deterministic Merkle root hashes."
+    note = "RevertibleStore has a bug where using the operation log to revert changes does not guarantee deterministic Merkle root hashes."
 )]
 #[derive(Clone, Debug)]
 pub struct RevertibleStore<S> {
@@ -102,7 +102,7 @@ where
     /// Revert all operations in the operation log.
     ///
     /// This method doesn't guarantee that the Merkle tree will be reverted to the correct previous root hash.
-    /// It should be avoided. Use `InMemoryStore` directly which implements rollback directly.
+    /// It should be avoided. Use `InMemoryStore` directly which implements a correct rollback procedure.
     ///
     /// GH issue: informalsystems/basecoin-rs#129
     #[inline]
