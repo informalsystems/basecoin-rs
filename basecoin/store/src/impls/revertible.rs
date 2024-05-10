@@ -18,7 +18,7 @@ use crate::types::{Height, Path};
 /// store should have no effect on a failed transaction.
 #[deprecated(
     since = "TBD",
-    note = "RevertibleStore has a bug where using the operation log to revert changes does not guarantee deterministic Merkle root hashes."
+    note = "RevertibleStore has a bug where using the operation log to revert changes does not guarantee deterministic Merkle root hashes. Use InMemoryStore which implements a correct rollback procedure."
 )]
 #[derive(Clone, Debug)]
 pub struct RevertibleStore<S> {

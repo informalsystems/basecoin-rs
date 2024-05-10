@@ -10,7 +10,7 @@ use crate::types::{Height, Path};
 /// this would conflict with the deletion representation.
 #[deprecated(
     since = "TBD",
-    note = "GrowingStore does not implement deletion and has been deprecated in favor of InMemoryStore, which implements deletion of AVL tree nodes."
+    note = "GrowingStore does not implement deletion. Use InMemoryStore which implements deletion of AVL tree nodes."
 )]
 #[derive(Clone, Debug)]
 pub struct GrowingStore<S> {
