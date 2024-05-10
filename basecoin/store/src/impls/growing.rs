@@ -8,6 +8,10 @@ use crate::types::{Height, Path};
 /// If the path is deleted, the stored value is []
 /// Note: we should not allow empty vec to store as
 /// this would conflict with the deletion representation.
+#[deprecated(
+    since = "TBD",
+    note = "GrowingStore does not implement deletion. Use InMemoryStore which implements deletion of AVL tree nodes."
+)]
 #[derive(Clone, Debug)]
 pub struct GrowingStore<S> {
     store: S,

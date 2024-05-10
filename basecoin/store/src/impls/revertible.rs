@@ -16,6 +16,10 @@ use crate::types::{Height, Path};
 /// an overwriting `set` doesn't reorganize a Merkle tree - but non-overwriting `set` and `delete`
 /// operations may reorganize a Merkle tree - which may change the root hash. However, a Merkle
 /// store should have no effect on a failed transaction.
+#[deprecated(
+    since = "TBD",
+    note = "RevertibleStore has a bug where using the operation log to revert changes does not guarantee deterministic Merkle root hashes. Use InMemoryStore which implements a correct rollback procedure."
+)]
 #[derive(Clone, Debug)]
 pub struct RevertibleStore<S> {
     /// backing store
@@ -95,6 +99,12 @@ where
         Ok(())
     }
 
+    /// Revert all operations in the operation log.
+    ///
+    /// This method doesn't guarantee that the Merkle tree will be reverted to the correct previous root hash.
+    /// It should be avoided. Use `InMemoryStore` directly which implements a correct rollback procedure.
+    ///
+    /// GH issue: informalsystems/basecoin-rs#129
     #[inline]
     fn reset(&mut self) {
         // note that we do NOT call the backing store's reset here - this allows users to create
