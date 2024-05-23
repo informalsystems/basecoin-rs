@@ -15,10 +15,8 @@ use ibc::apps::transfer::handler::send_transfer;
 use ibc::apps::transfer::types::msgs::transfer::MsgTransfer;
 use ibc::clients::tendermint::client_state::ClientState as TmClientState;
 use ibc::clients::tendermint::consensus_state::ConsensusState as TmConsensusState;
-use ibc::clients::tendermint::types::{
-    ClientState as ClientStateType, ConsensusState as ConsensusStateType,
-    TENDERMINT_CLIENT_STATE_TYPE_URL, TENDERMINT_CONSENSUS_STATE_TYPE_URL,
-};
+use ibc::clients::tendermint::types::ClientState as TmClientStateType;
+use ibc::clients::tendermint::types::ConsensusState as TmConsensusStateType;
 use ibc::core::channel::types::channel::{ChannelEnd, IdentifiedChannelEnd};
 use ibc::core::channel::types::commitment::{AcknowledgementCommitment, PacketCommitment};
 use ibc::core::channel::types::error::{ChannelError, PacketError};
@@ -56,6 +54,10 @@ use ibc_query::core::client::ClientQueryService;
 use ibc_query::core::connection::ConnectionQueryService;
 use ibc_query::core::context::{ProvableContext, QueryContext};
 use prost::Message;
+use sov_celestia_client::client_state::ClientState as SovTmClientState;
+use sov_celestia_client::consensus_state::ConsensusState as SovTmConsensusState;
+use sov_celestia_client::types::client_state::SovTmClientState as SovTmClientStateType;
+use sov_celestia_client::types::consensus_state::SovTmConsensusState as SovTmConsensusStateType;
 use tendermint::abci::Event;
 use tendermint::block::Header;
 use tendermint::merkle::proof::ProofOp;
@@ -75,21 +77,18 @@ use crate::CHAIN_REVISION_NUMBER;
 #[execution(IbcContext<S: Store + Debug>)]
 pub enum AnyClientState {
     Tendermint(TmClientState),
+    Sovereign(SovTmClientState),
 }
 
-impl From<ClientStateType> for AnyClientState {
-    fn from(value: ClientStateType) -> Self {
-        AnyClientState::Tendermint(value.into())
+impl From<TmClientStateType> for AnyClientState {
+    fn from(value: TmClientStateType) -> Self {
+        Self::Tendermint(value.into())
     }
 }
 
-impl TryFrom<AnyClientState> for ClientStateType {
-    type Error = ClientError;
-
-    fn try_from(value: AnyClientState) -> Result<Self, Self::Error> {
-        match value {
-            AnyClientState::Tendermint(tm_client_state) => Ok(tm_client_state.inner().clone()),
-        }
+impl From<SovTmClientStateType> for AnyClientState {
+    fn from(value: SovTmClientStateType) -> Self {
+        Self::Sovereign(value.into())
     }
 }
 
@@ -97,6 +96,9 @@ impl From<AnyClientState> for Any {
     fn from(value: AnyClientState) -> Self {
         match value {
             AnyClientState::Tendermint(tm_client_state) => tm_client_state.into(),
+            AnyClientState::Sovereign(sov_celestia_client_state) => {
+                sov_celestia_client_state.into()
+            }
         }
     }
 }
@@ -105,12 +107,9 @@ impl TryFrom<Any> for AnyClientState {
     type Error = ClientError;
 
     fn try_from(value: Any) -> Result<Self, Self::Error> {
-        match value.type_url.as_str() {
-            TENDERMINT_CLIENT_STATE_TYPE_URL => Ok(AnyClientState::Tendermint(value.try_into()?)),
-            _ => Err(ClientError::Other {
-                description: "Unknown client state type".into(),
-            }),
-        }
+        TmClientState::try_from(value.clone())
+            .map(Into::into)
+            .or_else(|_| SovTmClientState::try_from(value).map(Into::into))
     }
 }
 
@@ -120,21 +119,46 @@ impl TryFrom<Any> for AnyClientState {
 #[derive(ConsensusState, Clone, From, TryInto)]
 pub enum AnyConsensusState {
     Tendermint(TmConsensusState),
+    Sovereign(SovTmConsensusState),
 }
 
-impl From<ConsensusStateType> for AnyConsensusState {
-    fn from(value: ConsensusStateType) -> Self {
-        AnyConsensusState::Tendermint(value.into())
+impl From<TmConsensusStateType> for AnyConsensusState {
+    fn from(value: TmConsensusStateType) -> Self {
+        Self::Tendermint(value.into())
     }
 }
 
-impl TryFrom<AnyConsensusState> for ConsensusStateType {
+impl From<SovTmConsensusStateType> for AnyConsensusState {
+    fn from(value: SovTmConsensusStateType) -> Self {
+        Self::Sovereign(value.into())
+    }
+}
+
+impl TryFrom<AnyConsensusState> for TmConsensusStateType {
     type Error = ClientError;
 
     fn try_from(value: AnyConsensusState) -> Result<Self, Self::Error> {
         match value {
             AnyConsensusState::Tendermint(tm_consensus_state) => {
                 Ok(tm_consensus_state.inner().clone())
+            }
+            AnyConsensusState::Sovereign(_) => Err(ClientError::Other {
+                description: "".to_string(),
+            }),
+        }
+    }
+}
+
+impl TryFrom<AnyConsensusState> for SovTmConsensusStateType {
+    type Error = ClientError;
+
+    fn try_from(value: AnyConsensusState) -> Result<Self, Self::Error> {
+        match value {
+            AnyConsensusState::Tendermint(_) => Err(ClientError::Other {
+                description: "".to_string(),
+            }),
+            AnyConsensusState::Sovereign(sov_celestia_consensus_state) => {
+                Ok(sov_celestia_consensus_state.inner().clone())
             }
         }
     }
@@ -144,6 +168,9 @@ impl From<AnyConsensusState> for Any {
     fn from(value: AnyConsensusState) -> Self {
         match value {
             AnyConsensusState::Tendermint(tm_consensus_state) => tm_consensus_state.into(),
+            AnyConsensusState::Sovereign(sov_celestia_consensus_state) => {
+                sov_celestia_consensus_state.into()
+            }
         }
     }
 }
@@ -152,14 +179,9 @@ impl TryFrom<Any> for AnyConsensusState {
     type Error = ClientError;
 
     fn try_from(value: Any) -> Result<Self, Self::Error> {
-        match value.type_url.as_str() {
-            TENDERMINT_CONSENSUS_STATE_TYPE_URL => {
-                Ok(AnyConsensusState::Tendermint(value.try_into()?))
-            }
-            _ => Err(ClientError::Other {
-                description: "Unknown consensus state type".into(),
-            }),
-        }
+        TmConsensusState::try_from(value.clone())
+            .map(Into::into)
+            .or_else(|_| SovTmConsensusState::try_from(value).map(Into::into))
     }
 }
 
@@ -325,7 +347,7 @@ where
     }
 
     fn begin_block(&mut self, header: &Header) -> Vec<Event> {
-        let consensus_state = ConsensusStateType::new(
+        let consensus_state = TmConsensusStateType::new(
             CommitmentRoot::from_bytes(header.app_hash.as_ref()),
             header.time,
             header.next_validators_hash,
