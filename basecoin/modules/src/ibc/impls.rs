@@ -490,6 +490,7 @@ where
     type V = Self;
     type HostClientState = TmClientState;
     type HostConsensusState = TmConsensusState;
+    type ClientStateWrapperAtAnyCounterParty<CS> = CS;
 
     fn get_client_validation_context(&self) -> &Self::V {
         self
