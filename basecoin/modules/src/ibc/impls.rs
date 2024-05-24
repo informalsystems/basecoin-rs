@@ -541,7 +541,9 @@ where
 
     fn validate_self_client(
         &self,
-        _counterparty_client_state: Self::HostClientState,
+        _counterparty_client_state: Self::ClientStateWrapperAtAnyCounterParty<
+            Self::HostClientState,
+        >,
     ) -> Result<(), ContextError> {
         Ok(())
     }
