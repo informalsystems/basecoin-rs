@@ -32,7 +32,7 @@ tracing-subscriber = "0.3.16"
 # ibc dependencies
 ibc       = { version = "0.53.0", default-features = false, features = [ "serde" ] }
 ibc-query = { version = "0.53.0", default-features = false }
-ibc-proto = { version = "0.44.0", default-features = false }
+ibc-proto = { version = "0.45.0", default-features = false }
 ics23     = { version = "0.11", default-features = false }
 
 # tendermint dependencies
@@ -45,5 +45,5 @@ tendermint-rpc   = { version = "0.36", default-features = false }
 tower-abci = { version = "0.14" }
 
 [patch.crates-io]
-ibc       = { git = "https://github.com/cosmos/ibc-rs.git", rev = "01506d4" }
-ibc-query = { git = "https://github.com/cosmos/ibc-rs.git", rev = "01506d4" }
+ibc       = { git = "https://github.com/cosmos/ibc-rs.git", rev = "34d28ce" }
+ibc-query = { git = "https://github.com/cosmos/ibc-rs.git", rev = "34d28ce" }
