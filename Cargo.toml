@@ -48,14 +48,15 @@ sov-celestia-client = { version = "0.1.0" }
 tower-abci = { version = "0.14" }
 
 [patch.crates-io]
-ibc                   = { git = "https://github.com/cosmos/ibc-rs.git", rev = "d90295e" }
-ibc-core              = { git = "https://github.com/cosmos/ibc-rs.git", rev = "d90295e" }
-ibc-core-client       = { git = "https://github.com/cosmos/ibc-rs.git", rev = "d90295e" }
-ibc-core-host-cosmos  = { git = "https://github.com/cosmos/ibc-rs.git", rev = "d90295e" }
-ibc-client-tendermint = { git = "https://github.com/cosmos/ibc-rs.git", rev = "d90295e" }
-ibc-client-wasm-types = { git = "https://github.com/cosmos/ibc-rs.git", rev = "d90295e" }
-ibc-app-transfer      = { git = "https://github.com/cosmos/ibc-rs.git", rev = "d90295e" }
-ibc-primitives        = { git = "https://github.com/cosmos/ibc-rs.git", rev = "d90295e" }
-ibc-query             = { git = "https://github.com/cosmos/ibc-rs.git", rev = "d90295e" }
-sov-celestia-client   = { git = "https://github.com/informalsystems/sovereign-ibc.git", rev = "8d6837c" }
+ibc                   = { git = "https://github.com/cosmos/ibc-rs.git", branch = "rano/downgrade-borsh" }
+ibc-core              = { git = "https://github.com/cosmos/ibc-rs.git", branch = "rano/downgrade-borsh" }
+ibc-core-client       = { git = "https://github.com/cosmos/ibc-rs.git", branch = "rano/downgrade-borsh" }
+ibc-core-host-cosmos  = { git = "https://github.com/cosmos/ibc-rs.git", branch = "rano/downgrade-borsh" }
+ibc-client-tendermint = { git = "https://github.com/cosmos/ibc-rs.git", branch = "rano/downgrade-borsh" }
+ibc-client-wasm-types = { git = "https://github.com/cosmos/ibc-rs.git", branch = "rano/downgrade-borsh" }
+ibc-app-transfer      = { git = "https://github.com/cosmos/ibc-rs.git", branch = "rano/downgrade-borsh" }
+ibc-primitives        = { git = "https://github.com/cosmos/ibc-rs.git", branch = "rano/downgrade-borsh" }
+ibc-query             = { git = "https://github.com/cosmos/ibc-rs.git", branch = "rano/downgrade-borsh" }
+
+sov-celestia-client   = { git = "https://github.com/informalsystems/sovereign-ibc.git", rev = "88af9ef" }
 cosmrs                = { git = "https://github.com/cosmos/cosmos-rust.git", rev = "ced74a7" }
