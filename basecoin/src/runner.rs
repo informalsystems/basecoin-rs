@@ -9,10 +9,6 @@ use basecoin_modules::upgrade::Upgrade;
 use basecoin_store::impls::InMemoryStore;
 use ibc_proto::cosmos::base::tendermint::v1beta1::service_server::ServiceServer as HealthServer;
 use ibc_proto::cosmos::tx::v1beta1::service_server::ServiceServer as TxServer;
-#[cfg(all(feature = "v0_38", not(feature = "v0_37")))]
-use tendermint_abci::ServerBuilder;
-#[cfg(all(feature = "v0_37", not(feature = "v0_38")))]
-use tower_abci::v037::split;
 
 use crate::config::ServerConfig;
 
@@ -64,7 +60,7 @@ pub async fn default_app_runner(server_cfg: ServerConfig) {
         tracing::info!("Starting Tendermint ABCI server");
 
         // run the blocking ABCI server on a separate thread
-        let server = ServerBuilder::new(server_cfg.read_buf_size)
+        let server = tendermint_abci::ServerBuilder::new(server_cfg.read_buf_size)
             .bind(
                 format!("{}:{}", server_cfg.host, server_cfg.port),
                 app.clone(),
@@ -81,7 +77,7 @@ pub async fn default_app_runner(server_cfg: ServerConfig) {
         tracing::info!("Starting tower ABCI server");
 
         let app_split = app.clone();
-        let (consensus, mempool, snapshot, info) = split::service(app_split, 10);
+        let (consensus, mempool, snapshot, info) = tower_abci::v037::split::service(app_split, 10);
 
         let server = tower_abci::v037::Server::builder()
             .consensus(consensus)
