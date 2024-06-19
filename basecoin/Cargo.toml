@@ -21,7 +21,6 @@ digest             = { version = "0.10.7" }
 bitcoin            = { version = "0.32.2" }
 hdpath             = { version = "0.6.3" }
 clap               = { version = "4.5.7", features = [ "derive", "wrap_help" ] }
-generic-array      = { version = "1.0.0" }
 prost              = { workspace = true }
 serde              = { workspace = true }
 serde_derive       = { version = "1.0.203", default-features = false }
