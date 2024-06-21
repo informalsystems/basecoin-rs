@@ -5,8 +5,6 @@ use bip39::{Language, Mnemonic, Seed};
 use bitcoin::bip32::{ChildNumber, DerivationPath, Xpriv, Xpub};
 use bitcoin::network::Network;
 use digest::Digest;
-use generic_array::typenum::U32;
-use generic_array::GenericArray;
 use hdpath::StandardHDPath;
 use secp256k1::{Message, PublicKey, Secp256k1, SecretKey};
 use serde::{Deserialize, Serialize};
@@ -76,7 +74,7 @@ impl KeyPair {
     }
 
     pub fn sign(&self, message: &[u8]) -> Result<Vec<u8>, Error> {
-        let hashed_message: GenericArray<u8, U32> = Sha256::digest(message);
+        let hashed_message = Sha256::digest(message);
 
         let message = Message::from_digest_slice(&hashed_message).map_err(|_| Error::Custom {
             reason: "attempted to sign a malformed message".to_string(),
