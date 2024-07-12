@@ -525,8 +525,7 @@ where
 
     fn commitment_prefix(&self) -> CommitmentPrefix {
         use crate::context::prefix::Ibc as IbcPrefix;
-        CommitmentPrefix::try_from(IbcPrefix {}.identifier().as_bytes().to_vec())
-            .expect("empty prefix")
+        CommitmentPrefix::from(IbcPrefix {}.identifier().as_bytes().to_vec())
     }
 
     fn connection_counter(&self) -> Result<u64, ContextError> {
