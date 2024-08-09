@@ -2,7 +2,7 @@ use basecoin_store::context::Store;
 use basecoin_store::impls::SharedStore;
 use basecoin_store::types::{Height, ProtobufStore, TypedStore};
 use ibc::clients::tendermint::types::ConsensusState as TmConsensusState;
-use ibc::core::host::types::path::UpgradeClientPath;
+use ibc::core::host::types::path::UpgradeConsensusStatePath;
 use ibc_proto::cosmos::upgrade::v1beta1::query_server::Query as UpgradeQuery;
 use ibc_proto::cosmos::upgrade::v1beta1::{
     QueryAppliedPlanRequest, QueryAppliedPlanResponse, QueryAuthorityRequest,
@@ -16,7 +16,7 @@ use tonic::{Request, Response, Status};
 
 pub struct UpgradeService<S> {
     upgraded_consensus_state_store:
-        ProtobufStore<SharedStore<S>, UpgradeClientPath, TmConsensusState, Any>,
+        ProtobufStore<SharedStore<S>, UpgradeConsensusStatePath, TmConsensusState, Any>,
 }
 
 impl<S> UpgradeService<S>
@@ -60,7 +60,8 @@ impl<S: Store> UpgradeQuery for UpgradeService<S> {
         let last_height = u64::try_from(request.into_inner().last_height)
             .map_err(|_| Status::invalid_argument("invalid height".to_string()))?;
 
-        let upgraded_consensus_state_path = UpgradeClientPath::UpgradedClientState(last_height);
+        let upgraded_consensus_state_path =
+            UpgradeConsensusStatePath::new_with_default_path(last_height);
 
         let upgraded_consensus_state = self
             .upgraded_consensus_state_store

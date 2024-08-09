@@ -9,7 +9,9 @@ use ibc::clients::tendermint::types::ConsensusState as ConsensusStateType;
 use ibc::core::client::types::error::UpgradeClientError;
 use ibc::core::client::types::Height as IbcHeight;
 use ibc::core::commitment_types::commitment::CommitmentRoot;
-use ibc::core::host::types::path::{Path as IbcPath, UpgradeClientPath};
+use ibc::core::host::types::path::{
+    Path as IbcPath, UpgradeClientStatePath, UpgradeConsensusStatePath,
+};
 use ibc::cosmos_host::upgrade_proposal::{
     Plan, UpgradeChain, UpgradeExecutionContext, UpgradeValidationContext,
     UpgradedConsensusStateRef,
@@ -41,10 +43,10 @@ where
     upgrade_plan: ProtobufStore<SharedStore<S>, UpgradePlanPath, Plan, Any>,
     /// A typed-store for upgraded ClientState
     upgraded_client_state_store:
-        ProtobufStore<SharedStore<S>, UpgradeClientPath, AnyClientState, Any>,
+        ProtobufStore<SharedStore<S>, UpgradeClientStatePath, AnyClientState, Any>,
     /// A typed-store for upgraded ConsensusState
     upgraded_consensus_state_store:
-        ProtobufStore<SharedStore<S>, UpgradeClientPath, AnyConsensusState, Any>,
+        ProtobufStore<SharedStore<S>, UpgradeConsensusStatePath, AnyConsensusState, Any>,
 }
 
 /// Trait to provide proofs in gRPC service blanket implementations.
@@ -153,7 +155,8 @@ where
         if let Ok(plan) = self.upgrade_plan() {
             debug!("Upgrade plan found: {:?}", plan);
 
-            let upgraded_client_state_path = UpgradeClientPath::UpgradedClientState(plan.height);
+            let upgraded_client_state_path =
+                UpgradeClientStatePath::new_with_default_path(plan.height);
 
             // Checks if the upgraded client state for this plan is already set.
             self.upgraded_client_state(&upgraded_client_state_path)
@@ -173,7 +176,7 @@ where
                 };
 
                 let upgraded_cons_state_path =
-                    UpgradeClientPath::UpgradedClientConsensusState(plan.height);
+                    UpgradeConsensusStatePath::new_with_default_path(plan.height);
 
                 self.store_upgraded_consensus_state(
                     upgraded_cons_state_path,
@@ -237,7 +240,7 @@ where
 
     fn upgraded_client_state(
         &self,
-        upgrade_path: &UpgradeClientPath,
+        upgrade_path: &UpgradeClientStatePath,
     ) -> Result<AnyClientState, UpgradeClientError> {
         let upgraded_tm_client_state = self
             .upgraded_client_state_store
@@ -250,7 +253,7 @@ where
 
     fn upgraded_consensus_state(
         &self,
-        upgrade_path: &UpgradeClientPath,
+        upgrade_path: &UpgradeConsensusStatePath,
     ) -> Result<UpgradedConsensusStateRef<Self>, UpgradeClientError> {
         let upgraded_tm_consensus_state = self
             .upgraded_consensus_state_store
@@ -298,12 +301,13 @@ where
             });
         }
 
-        let upgraded_client_state_path = UpgradeClientPath::UpgradedClientState(plan_height);
+        let upgraded_client_state_path = UpgradeClientStatePath::new_with_default_path(plan_height);
 
         self.upgraded_client_state_store
             .delete(upgraded_client_state_path);
 
-        let upgraded_cons_state_path = UpgradeClientPath::UpgradedClientConsensusState(plan_height);
+        let upgraded_cons_state_path =
+            UpgradeConsensusStatePath::new_with_default_path(plan_height);
 
         self.upgraded_consensus_state_store
             .delete(upgraded_cons_state_path);
@@ -315,7 +319,7 @@ where
 
     fn store_upgraded_client_state(
         &mut self,
-        upgrade_path: UpgradeClientPath,
+        upgrade_path: UpgradeClientStatePath,
         client_state: AnyClientState,
     ) -> Result<(), UpgradeClientError> {
         self.upgraded_client_state_store
@@ -329,7 +333,7 @@ where
 
     fn store_upgraded_consensus_state(
         &mut self,
-        upgrade_path: UpgradeClientPath,
+        upgrade_path: UpgradeConsensusStatePath,
         consensus_state: AnyConsensusState,
     ) -> Result<(), UpgradeClientError> {
         self.upgraded_consensus_state_store

@@ -483,7 +483,12 @@ where
     fn host_timestamp(&self) -> Result<Timestamp, ContextError> {
         let host_height = self.host_height()?;
         let host_cons_state = self.host_consensus_state(&host_height)?;
-        Ok(host_cons_state.timestamp().into())
+        Ok(host_cons_state
+            .timestamp()
+            .try_into()
+            .map_err(|_| ClientError::Other {
+                description: "Invalid timestamp".into(),
+            })?)
     }
 
     fn host_consensus_state(
