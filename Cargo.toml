@@ -41,12 +41,9 @@ tendermint-abci  = { version = "0.38", default-features = false }
 tendermint-proto = { version = "0.38", default-features = false }
 tendermint-rpc   = { version = "0.38", default-features = false }
 
-# tower abci
-tower-abci = { version = "0.15" }
+# For now, we’re using a fork to support Tendermint 0.38
+tower-abci = { git = "https://github.com/informalsystems/tower-abci", rev = "0992541" }
 
 [patch.crates-io]
 ibc       = { git = "https://github.com/cosmos/ibc-rs.git", rev = "6c7a65e" }
 ibc-query = { git = "https://github.com/cosmos/ibc-rs.git", rev = "6c7a65e" }
-
-# for tendermint 0.37
-tower-abci = { git = "https://github.com/informalsystems/tower-abci", rev = "582dd60" }
