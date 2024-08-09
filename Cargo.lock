@@ -227,7 +227,7 @@ checksum = "8c3c1a368f70d6cf7302d78f8f7093da241fb8e8807c05cc9e51a125895a6d5b"
 
 [[package]]
 name = "basecoin"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "basecoin-app",
  "basecoin-modules",
@@ -259,7 +259,7 @@ dependencies = [
 
 [[package]]
 name = "basecoin-app"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "basecoin-modules",
  "basecoin-store",
@@ -278,7 +278,7 @@ dependencies = [
 
 [[package]]
 name = "basecoin-modules"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "base64 0.22.1",
  "basecoin-store",
@@ -303,7 +303,7 @@ dependencies = [
 
 [[package]]
 name = "basecoin-store"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "displaydoc",
  "ics23",
