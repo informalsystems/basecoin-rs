@@ -60,7 +60,7 @@ where
             ACCOUNT_PREFIX,
             &cosmos_adr028_escrow_address(port_id, channel_id),
         )
-        .map_err(|_| TokenTransferError::ParseAccountFailure)?;
+        .map_err(|_| TokenTransferError::FailedToParseAccount)?;
 
         Ok(account_id)
     }
@@ -379,12 +379,12 @@ where
         let from = from_account
             .to_string()
             .parse()
-            .map_err(|_| TokenTransferError::ParseAccountFailure)?;
+            .map_err(|_| TokenTransferError::FailedToParseAccount)?;
         let to = self
             .get_escrow_account(port_id, channel_id)?
             .to_string()
             .parse()
-            .map_err(|_| TokenTransferError::ParseAccountFailure)?;
+            .map_err(|_| TokenTransferError::FailedToParseAccount)?;
         let coins = vec![Coin {
             denom: Denom(coin.denom.to_string()),
             amount: coin.amount.into(),
@@ -404,11 +404,11 @@ where
             .get_escrow_account(port_id, channel_id)?
             .to_string()
             .parse()
-            .map_err(|_| TokenTransferError::ParseAccountFailure)?;
+            .map_err(|_| TokenTransferError::FailedToParseAccount)?;
         let to = to_account
             .to_string()
             .parse()
-            .map_err(|_| TokenTransferError::ParseAccountFailure)?;
+            .map_err(|_| TokenTransferError::FailedToParseAccount)?;
         let coins = vec![Coin {
             denom: Denom(coin.denom.to_string()),
             amount: coin.amount.into(),
@@ -425,7 +425,7 @@ where
         let account = account
             .to_string()
             .parse()
-            .map_err(|_| TokenTransferError::ParseAccountFailure)?;
+            .map_err(|_| TokenTransferError::FailedToParseAccount)?;
         let coins = vec![Coin {
             denom: Denom(amt.denom.to_string()),
             amount: amt.amount.into(),
@@ -443,7 +443,7 @@ where
         let account = account
             .to_string()
             .parse()
-            .map_err(|_| TokenTransferError::ParseAccountFailure)?;
+            .map_err(|_| TokenTransferError::FailedToParseAccount)?;
         let coins = vec![Coin {
             denom: Denom(amt.denom.to_string()),
             amount: amt.amount.into(),
