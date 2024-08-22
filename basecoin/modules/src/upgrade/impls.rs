@@ -233,7 +233,7 @@ where
             .upgrade_plan
             .get(Height::Pending, &UpgradePlanPath::sdk_pending_path())
             .ok_or(UpgradeClientError::InvalidUpgradePlan {
-                reason: "No upgrade plan set".to_string(),
+                description: "No upgrade plan set".to_string(),
             })?;
         Ok(upgrade_plan)
     }
@@ -245,9 +245,7 @@ where
         let upgraded_tm_client_state = self
             .upgraded_client_state_store
             .get(Height::Pending, upgrade_path)
-            .ok_or(UpgradeClientError::Other {
-                reason: "No upgraded client state set".to_string(),
-            })?;
+            .ok_or(UpgradeClientError::MissingUpgradedClientState)?;
         Ok(upgraded_tm_client_state)
     }
 
@@ -258,9 +256,7 @@ where
         let upgraded_tm_consensus_state = self
             .upgraded_consensus_state_store
             .get(Height::Pending, upgrade_path)
-            .ok_or(UpgradeClientError::Other {
-                reason: "No upgraded consensus state set".to_string(),
-            })?;
+            .ok_or(UpgradeClientError::MissingUpgradedConsensusState)?;
         Ok(upgraded_tm_consensus_state)
     }
 }
@@ -274,7 +270,7 @@ where
 
         if plan.height < host_height {
             return Err(UpgradeClientError::InvalidUpgradeProposal {
-                reason: "upgrade plan height is in the past".to_string(),
+                description: "upgrade plan height is in the past".to_string(),
             })?;
         }
 
@@ -284,8 +280,8 @@ where
 
         self.upgrade_plan
             .set(UpgradePlanPath::sdk_pending_path(), plan)
-            .map_err(|e| UpgradeClientError::Other {
-                reason: format!("Error storing upgrade plan: {e:?}"),
+            .map_err(|e| UpgradeClientError::FailedToStoreUpgradePlan {
+                description: format!("{e:?}"),
             })?;
         Ok(())
     }
@@ -297,7 +293,7 @@ where
 
         if upgrade_plan.is_none() {
             return Err(UpgradeClientError::InvalidUpgradePlan {
-                reason: "No upgrade plan set".to_string(),
+                description: "No upgrade plan set".to_string(),
             });
         }
 
@@ -324,8 +320,8 @@ where
     ) -> Result<(), UpgradeClientError> {
         self.upgraded_client_state_store
             .set(upgrade_path, client_state)
-            .map_err(|e| UpgradeClientError::Other {
-                reason: format!("Error storing upgraded client state: {e:?}"),
+            .map_err(|e| UpgradeClientError::FailedToStoreUpgradedClientState {
+                description: format!("{e:?}"),
             })?;
 
         Ok(())
@@ -338,9 +334,11 @@ where
     ) -> Result<(), UpgradeClientError> {
         self.upgraded_consensus_state_store
             .set(upgrade_path, consensus_state)
-            .map_err(|e| UpgradeClientError::Other {
-                reason: format!("Error storing upgraded consensus state: {e:?}"),
-            })?;
+            .map_err(
+                |e| UpgradeClientError::FailedToStoreUpgradedConsensusState {
+                    description: format!("{e:?}"),
+                },
+            )?;
 
         Ok(())
     }

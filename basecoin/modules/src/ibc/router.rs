@@ -67,9 +67,7 @@ where
     fn lookup_module(&self, port_id: &PortId) -> Option<ModuleId> {
         self.port_to_module_map
             .get(port_id)
-            .ok_or(RouterError::UnknownPort {
-                port_id: port_id.clone(),
-            })
+            .ok_or(RouterError::UnknownPort(port_id.clone()))
             .cloned()
             .ok()
     }
