@@ -498,7 +498,7 @@ where
         let consensus_states_binding = self.consensus_states.read().expect("lock is poisoned");
         let consensus_state = consensus_states_binding
             .get(&height.revision_height())
-            .ok_or(ClientError::MissingLocalConsensusState { height: *height })?;
+            .ok_or(ClientError::MissingLocalConsensusState(*height))?;
 
         Ok(consensus_state.clone())
     }
@@ -516,9 +516,7 @@ where
         Ok(self
             .connection_end_store
             .get(Height::Pending, &ConnectionPath::new(conn_id))
-            .ok_or(ConnectionError::ConnectionNotFound {
-                connection_id: conn_id.clone(),
-            })?)
+            .ok_or(ConnectionError::MissingConnection(conn_id.clone()))?)
     }
 
     fn validate_self_client(
@@ -537,9 +535,7 @@ where
         Ok(self
             .conn_counter
             .get(Height::Pending, &NextConnectionSequencePath)
-            .ok_or(ConnectionError::Other {
-                description: "connection counter not found".into(),
-            })?)
+            .ok_or(ConnectionError::MissingConnectionCounter)?)
     }
 
     fn get_compatible_versions(&self) -> Vec<ConnectionVersion> {
@@ -553,7 +549,10 @@ where
                 Height::Pending,
                 &ChannelEndPath::new(&channel_end_path.0, &channel_end_path.1),
             )
-            .ok_or(ChannelError::MissingChannel)?;
+            .ok_or(ChannelError::NonexistentChannel {
+                port_id: channel_end_path.0.clone(),
+                channel_id: channel_end_path.1.clone(),
+            })?;
         Ok(channel_end)
     }
 
@@ -626,9 +625,7 @@ where
                 ),
             )
             .then_some(Receipt::Ok)
-            .ok_or(PacketError::PacketReceiptNotFound {
-                sequence: receipt_path.sequence,
-            })?;
+            .ok_or(PacketError::MissingPacketReceipt(receipt_path.sequence))?;
         Ok(receipt)
     }
 
@@ -642,9 +639,7 @@ where
                 Height::Pending,
                 &AckPath::new(&ack_path.port_id, &ack_path.channel_id, ack_path.sequence),
             )
-            .ok_or(PacketError::PacketAcknowledgementNotFound {
-                sequence: ack_path.sequence,
-            })?;
+            .ok_or(PacketError::MissingPacketAcknowledgment(ack_path.sequence))?;
         Ok(ack)
     }
 
@@ -655,9 +650,7 @@ where
         Ok(self
             .channel_counter
             .get(Height::Pending, &NextChannelSequencePath)
-            .ok_or(ChannelError::Other {
-                description: "channel counter not found".into(),
-            })?)
+            .ok_or(ChannelError::MissingCounter)?)
     }
 
     /// Returns the maximum expected time per block
@@ -706,9 +699,7 @@ where
                 let client_state = self
                     .client_state_store
                     .get(Height::Pending, &client_state_path)
-                    .ok_or_else(|| ClientError::ClientStateNotFound {
-                        client_id: client_state_path.0.clone(),
-                    })?;
+                    .ok_or_else(|| ClientError::MissingClientState(client_state_path.0.clone()))?;
                 Ok((client_state_path.0, client_state))
             })
             .collect()
@@ -744,7 +735,7 @@ where
                     .consensus_state_store
                     .get(Height::Pending, &consensus_path)
                     .ok_or({
-                        ClientError::ConsensusStateNotFound {
+                        ClientError::MissingConsensusState {
                             client_id: consensus_path.client_id,
                             height,
                         }
@@ -802,9 +793,7 @@ where
                 let connection_end = self
                     .connection_end_store
                     .get(Height::Pending, &connection_path)
-                    .ok_or_else(|| ConnectionError::ConnectionNotFound {
-                        connection_id: connection_path.0.clone(),
-                    })?;
+                    .ok_or_else(|| ConnectionError::MissingConnection(connection_path.0.clone()))?;
                 Ok(IdentifiedConnectionEnd {
                     connection_id: connection_path.0,
                     connection_end,
@@ -844,7 +833,7 @@ where
                 let channel_end = self
                     .channel_end_store
                     .get(Height::Pending, &channel_path)
-                    .ok_or_else(|| ChannelError::ChannelNotFound {
+                    .ok_or_else(|| ChannelError::NonexistentChannel {
                         port_id: channel_path.0.clone(),
                         channel_id: channel_path.1.clone(),
                     })?;
@@ -862,17 +851,14 @@ where
         &self,
         channel_end_path: &ChannelEndPath,
     ) -> Result<Vec<PacketState>, ContextError> {
-        let path = format!(
+        let path_prefix = format!(
             "commitments/ports/{}/channels/{}/sequences",
             channel_end_path.0, channel_end_path.1
         )
-        .try_into()
-        .map_err(|_| PacketError::Other {
-            description: "Invalid commitment path".into(),
-        })?;
+        .into();
 
         self.packet_commitment_store
-            .get_keys(&path)
+            .get_keys(&path_prefix)
             .into_iter()
             .flat_map(|path| {
                 if let Ok(IbcPath::Commitment(commitment_path)) = path.try_into() {
@@ -911,10 +897,7 @@ where
                 "acks/ports/{}/channels/{}/sequences",
                 channel_end_path.0, channel_end_path.1
             )
-            .try_into()
-            .map_err(|_| PacketError::Other {
-                description: "Invalid ack path".into(),
-            })?;
+            .into();
 
             self.packet_ack_store
                 .get_keys(&ack_path_prefix)
@@ -989,10 +972,7 @@ where
                 "commitments/ports/{}/channels/{}/sequences",
                 channel_end_path.0, channel_end_path.1
             )
-            .try_into()
-            .map_err(|_| PacketError::Other {
-                description: "Invalid commitment path".into(),
-            })?;
+            .into();
 
             self.packet_commitment_store
                 .get_keys(&commitment_path_prefix)
@@ -1062,9 +1042,7 @@ where
     ) -> Result<(), ContextError> {
         self.connection_end_store
             .set(connection_path.clone(), connection_end)
-            .map_err(|_| ConnectionError::Other {
-                description: "Connection end store error".to_string(),
-            })?;
+            .map_err(|_| ConnectionError::FailedToStoreConnectionEnd)?;
         Ok(())
     }
 
@@ -1081,9 +1059,7 @@ where
         conn_ids.push(conn_id);
         self.connection_ids_store
             .set(client_connection_path.clone(), conn_ids)
-            .map_err(|_| ConnectionError::Other {
-                description: "Connection ids store error".to_string(),
-            })?;
+            .map_err(|_| ConnectionError::FailedToStoreConnectionIds)?;
         Ok(())
     }
 
@@ -1094,15 +1070,11 @@ where
         let current_sequence = self
             .conn_counter
             .get(Height::Pending, &NextConnectionSequencePath)
-            .ok_or(ConnectionError::Other {
-                description: "connection counter not found".into(),
-            })?;
+            .ok_or(ConnectionError::MissingConnectionCounter)?;
 
         self.conn_counter
             .set(NextConnectionSequencePath, current_sequence + 1)
-            .map_err(|e| ConnectionError::Other {
-                description: format!("connection counter update failed: {e:?}"),
-            })?;
+            .map_err(|_| ConnectionError::FailedToUpdateConnectionCounter)?;
 
         Ok(())
     }
@@ -1158,8 +1130,8 @@ where
     ) -> Result<(), ContextError> {
         self.channel_end_store
             .set(channel_end_path.clone(), channel_end)
-            .map_err(|_| ChannelError::Other {
-                description: "Channel end store error".to_string(),
+            .map_err(|e| ChannelError::FailedToStoreChannel {
+                description: format!("{e:?}"),
             })?;
         Ok(())
     }
@@ -1201,14 +1173,12 @@ where
         let current_sequence = self
             .channel_counter
             .get(Height::Pending, &NextChannelSequencePath)
-            .ok_or(ChannelError::Other {
-                description: "channel counter not found".into(),
-            })?;
+            .ok_or(ChannelError::MissingCounter)?;
 
         self.channel_counter
             .set(NextChannelSequencePath, current_sequence + 1)
-            .map_err(|e| ChannelError::Other {
-                description: format!("channel counter update failed: {e:?}"),
+            .map_err(|e| ChannelError::FailedToUpdateCounter {
+                description: format!("{e:?}"),
             })?;
 
         Ok(())

@@ -29,9 +29,7 @@ where
         Ok(self
             .client_state_store
             .get(Height::Pending, &ClientStatePath(client_id.clone()))
-            .ok_or(ClientError::ClientStateNotFound {
-                client_id: client_id.clone(),
-            })?)
+            .ok_or(ClientError::MissingClientState(client_id.clone()))?)
     }
 
     fn consensus_state(
@@ -46,7 +44,7 @@ where
         let consensus_state = self
             .consensus_state_store
             .get(Height::Pending, client_cons_state_path)
-            .ok_or(ClientError::ConsensusStateNotFound {
+            .ok_or(ClientError::MissingConsensusState {
                 client_id: client_cons_state_path.client_id.clone(),
                 height,
             })?;
@@ -69,7 +67,7 @@ where
         let processed_timestamp = self
             .client_processed_times
             .get(Height::Pending, &client_update_time_path)
-            .ok_or(ClientError::UpdateMetaDataNotFound {
+            .ok_or(ClientError::MissingUpdateMetaData {
                 client_id: client_id.clone(),
                 height: *height,
             })?;
@@ -81,7 +79,7 @@ where
         let processed_height = self
             .client_processed_heights
             .get(Height::Pending, &client_update_height_path)
-            .ok_or(ClientError::UpdateMetaDataNotFound {
+            .ok_or(ClientError::MissingUpdateMetaData {
                 client_id: client_id.clone(),
                 height: *height,
             })?;
@@ -255,7 +253,7 @@ where
             let consensus_state = self
                 .consensus_state_store
                 .get(Height::Pending, &path)
-                .ok_or(ClientError::ConsensusStateNotFound {
+                .ok_or(ClientError::MissingConsensusState {
                     client_id: client_id.clone(),
                     height: *height,
                 })?;
@@ -293,7 +291,7 @@ where
                 let consensus_state = self
                     .consensus_state_store
                     .get(Height::Pending, &prev_path)
-                    .ok_or(ClientError::ConsensusStateNotFound {
+                    .ok_or(ClientError::MissingConsensusState {
                         client_id: client_id.clone(),
                         height: *height,
                     })?;
