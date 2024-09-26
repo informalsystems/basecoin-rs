@@ -56,7 +56,7 @@ pub fn sign_tx(
         account_info.account_number,
     )?;
 
-    let (_, tx_bytes) = encode_tx(body_bytes, auth_info_bytes, signature_bytes.clone())?;
+    let (_, tx_bytes) = encode_tx(body_bytes, auth_info_bytes, signature_bytes)?;
 
     Ok(tx_bytes)
 }

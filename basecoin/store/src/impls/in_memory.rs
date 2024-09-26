@@ -115,7 +115,7 @@ impl Default for InMemoryStore {
 
         let store = PrunedVec::default();
         let staged = genesis_state.clone();
-        let pending = genesis_state.clone();
+        let pending = genesis_state;
 
         Self {
             store,
@@ -267,8 +267,8 @@ mod tests {
 
         assert_eq!(store.get(Height::Pending, &path), Some(value2.clone()));
         assert_eq!(store.get(Height::Latest, &path), Some(value2.clone()));
-        assert_eq!(store.get(Height::Stable(1), &path), Some(value1.clone()));
-        assert_eq!(store.get(Height::Stable(2), &path), Some(value2.clone()));
+        assert_eq!(store.get(Height::Stable(1), &path), Some(value1));
+        assert_eq!(store.get(Height::Stable(2), &path), Some(value2));
         assert_eq!(store.get(Height::Stable(3), &path), None);
         assert_eq!(store.current_height(), 2);
         assert!(!store.root_hash().is_empty());

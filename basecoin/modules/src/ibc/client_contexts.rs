@@ -181,7 +181,7 @@ where
         );
         self.client_processed_times.delete(client_update_time_path);
         let client_update_height_path = ClientUpdateHeightPath::new(
-            client_id.clone(),
+            client_id,
             height.revision_number(),
             height.revision_height(),
         );
