@@ -6,9 +6,9 @@ use basecoin_store::types::{Height, Path, ProtobufStore, TypedStore};
 use cosmrs::AccountId;
 use ibc::clients::tendermint::consensus_state::ConsensusState as TmConsensusState;
 use ibc::clients::tendermint::types::ConsensusState as ConsensusStateType;
-use ibc::core::client::types::error::UpgradeClientError;
 use ibc::core::client::types::Height as IbcHeight;
 use ibc::core::commitment_types::commitment::CommitmentRoot;
+use ibc::core::host::types::error::HostError;
 use ibc::core::host::types::path::{
     Path as IbcPath, UpgradeClientStatePath, UpgradeConsensusStatePath,
 };
@@ -100,7 +100,7 @@ where
         height: Height,
         prove: bool,
     ) -> Result<QueryResult, AppError> {
-        let path = path.ok_or(AppError::NotHandled)?;
+        let path = path.ok_or_else(||AppError::NotHandled)?;
         if path.to_string() == SDK_UPGRADE_QUERY_PATH {
             let path: Path = String::from_utf8(data.to_vec())
                 .map_err(|_| AppError::Custom {
@@ -115,7 +115,7 @@ where
             );
 
             let proof = if prove {
-                let proof = self.get_proof(height, &path).ok_or(AppError::Custom {
+                let proof = self.get_proof(height, &path).ok_or_else(||AppError::Custom {
                     reason: "Proof not found".to_string(),
                 })?;
                 Some(vec![ProofOp {
@@ -127,7 +127,7 @@ where
                 None
             };
 
-            let data = self.store.get(height, &path).ok_or(AppError::Custom {
+            let data = self.store.get(height, &path).ok_or_else(||AppError::Custom {
                 reason: "Data not found".to_string(),
             })?;
             return Ok(QueryResult { data, proof });
@@ -137,7 +137,7 @@ where
             let plan: Any = self
                 .upgrade_plan
                 .get(Height::Pending, &UpgradePlanPath::sdk_pending_path())
-                .ok_or(AppError::Custom {
+                .ok_or_else(||AppError::Custom {
                     reason: "Data not found".to_string(),
                 })?
                 .into();
@@ -228,35 +228,33 @@ where
 {
     type V = IbcContext<S>;
 
-    fn upgrade_plan(&self) -> Result<Plan, UpgradeClientError> {
+    fn upgrade_plan(&self) -> Result<Plan, HostError> {
         let upgrade_plan = self
             .upgrade_plan
             .get(Height::Pending, &UpgradePlanPath::sdk_pending_path())
-            .ok_or(UpgradeClientError::InvalidUpgradePlan {
-                description: "No upgrade plan set".to_string(),
-            })?;
+            .ok_or_else(||HostError::invalid_state("No UpgradePlan"))?;
         Ok(upgrade_plan)
     }
 
     fn upgraded_client_state(
         &self,
         upgrade_path: &UpgradeClientStatePath,
-    ) -> Result<AnyClientState, UpgradeClientError> {
+    ) -> Result<AnyClientState, HostError> {
         let upgraded_tm_client_state = self
             .upgraded_client_state_store
             .get(Height::Pending, upgrade_path)
-            .ok_or(UpgradeClientError::MissingUpgradedClientState)?;
+            .ok_or_else(||HostError::missing_state("Upgraded ClientState"))?;
         Ok(upgraded_tm_client_state)
     }
 
     fn upgraded_consensus_state(
         &self,
         upgrade_path: &UpgradeConsensusStatePath,
-    ) -> Result<UpgradedConsensusStateRef<Self>, UpgradeClientError> {
+    ) -> Result<UpgradedConsensusStateRef<Self>, HostError> {
         let upgraded_tm_consensus_state = self
             .upgraded_consensus_state_store
             .get(Height::Pending, upgrade_path)
-            .ok_or(UpgradeClientError::MissingUpgradedConsensusState)?;
+            .ok_or_else(||HostError::missing_state("Upgraded ConsensusState"))?;
         Ok(upgraded_tm_consensus_state)
     }
 }
@@ -265,13 +263,13 @@ impl<S> UpgradeExecutionContext for Upgrade<S>
 where
     S: 'static + Store + Send + Sync + Debug,
 {
-    fn schedule_upgrade(&mut self, plan: Plan) -> Result<(), UpgradeClientError> {
+    fn schedule_upgrade(&mut self, plan: Plan) -> Result<(), HostError> {
         let host_height = self.store.current_height();
 
         if plan.height < host_height {
-            return Err(UpgradeClientError::InvalidUpgradeProposal {
-                description: "upgrade plan height is in the past".to_string(),
-            })?;
+            return Err(HostError::invalid_state(
+                "Upgrade plan height is in the past",
+            ));
         }
 
         if self.upgrade_plan().is_ok() {
@@ -280,21 +278,17 @@ where
 
         self.upgrade_plan
             .set(UpgradePlanPath::sdk_pending_path(), plan)
-            .map_err(|e| UpgradeClientError::FailedToStoreUpgradePlan {
-                description: format!("{e:?}"),
-            })?;
+            .map_err(|e| HostError::failed_to_store(format!("UpgradePlan: {e:?}")))?;
         Ok(())
     }
 
-    fn clear_upgrade_plan(&mut self, plan_height: u64) -> Result<(), UpgradeClientError> {
+    fn clear_upgrade_plan(&mut self, plan_height: u64) -> Result<(), HostError> {
         let path = UpgradePlanPath::sdk_pending_path();
 
         let upgrade_plan = self.upgrade_plan.get(Height::Pending, &path);
 
         if upgrade_plan.is_none() {
-            return Err(UpgradeClientError::InvalidUpgradePlan {
-                description: "No upgrade plan set".to_string(),
-            });
+            return Err(HostError::invalid_state("No upgrade plan set"));
         }
 
         let upgraded_client_state_path = UpgradeClientStatePath::new_with_default_path(plan_height);
@@ -317,12 +311,10 @@ where
         &mut self,
         upgrade_path: UpgradeClientStatePath,
         client_state: AnyClientState,
-    ) -> Result<(), UpgradeClientError> {
+    ) -> Result<(), HostError> {
         self.upgraded_client_state_store
             .set(upgrade_path, client_state)
-            .map_err(|e| UpgradeClientError::FailedToStoreUpgradedClientState {
-                description: format!("{e:?}"),
-            })?;
+            .map_err(|e| HostError::failed_to_store(format!("UpgradedClientState: {e:?}")))?;
 
         Ok(())
     }
@@ -331,14 +323,10 @@ where
         &mut self,
         upgrade_path: UpgradeConsensusStatePath,
         consensus_state: AnyConsensusState,
-    ) -> Result<(), UpgradeClientError> {
+    ) -> Result<(), HostError> {
         self.upgraded_consensus_state_store
             .set(upgrade_path, consensus_state)
-            .map_err(
-                |e| UpgradeClientError::FailedToStoreUpgradedConsensusState {
-                    description: format!("{e:?}"),
-                },
-            )?;
+            .map_err(|e| HostError::failed_to_store(format!("UpgradeConsensusState: {e:?}")))?;
 
         Ok(())
     }

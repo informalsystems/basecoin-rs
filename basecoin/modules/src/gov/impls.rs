@@ -19,6 +19,7 @@ use ibc_proto::Protobuf;
 use tendermint::abci::Event;
 use tracing::debug;
 
+use super::error::Error as GovError;
 use super::path::ProposalPath;
 use super::proposal::Proposal;
 use super::service::GovernanceService;
@@ -104,8 +105,16 @@ where
 
                     let mut ibc_ctx = self.ibc_ctx.write_access();
 
-                    recover_client::validate(&ibc_ctx.ctx, msg_recover_client.clone())?;
-                    recover_client::execute(&mut ibc_ctx.ctx, msg_recover_client)?;
+                    recover_client::validate(&ibc_ctx.ctx, msg_recover_client.clone()).map_err(
+                        |e| GovError::ValidationFailure {
+                            reason: format!("Error validating client recovery message: {:?}", e),
+                        },
+                    )?;
+                    recover_client::execute(&mut ibc_ctx.ctx, msg_recover_client).map_err(|e| {
+                        GovError::ValidationFailure {
+                            reason: format!("Error executing client recovery message: {:?}", e),
+                        }
+                    })?;
 
                     // client recovery operation does not return an event
                     // https://github.com/cosmos/ibc-go/blob/4c1aae32/modules/light-clients/07-tendermint/light_client_module.go#L249
@@ -125,7 +134,7 @@ where
         _height: Height,
         _prove: bool,
     ) -> Result<QueryResult, AppError> {
-        let path = path.ok_or(AppError::NotHandled)?;
+        let path = path.ok_or_else(|| AppError::NotHandled)?;
 
         if path.to_string() != "/cosmos.gov.v1beta1.Query/Proposal" {
             return Err(AppError::NotHandled);
@@ -134,7 +143,7 @@ where
         let data = self
             .store
             .get(Height::Pending, &Path::from(ProposalPath::sdk_path()))
-            .ok_or(AppError::Custom {
+            .ok_or_else(|| AppError::Custom {
                 reason: "Data not found".to_string(),
             })?;
 

@@ -4,10 +4,10 @@ use std::fmt::Debug;
 
 use basecoin_store::context::Store;
 use ibc::apps::transfer::types::MODULE_ID_STR as IBC_TRANSFER_MODULE_ID;
+use ibc::core::host::types::error::HostError;
 use ibc::core::host::types::identifiers::PortId;
 use ibc::core::router::module::Module as IbcModule;
 use ibc::core::router::router::Router;
-use ibc::core::router::types::error::RouterError;
 use ibc::core::router::types::module::ModuleId;
 
 use crate::bank::BankBalanceKeeper;
@@ -67,7 +67,7 @@ where
     fn lookup_module(&self, port_id: &PortId) -> Option<ModuleId> {
         self.port_to_module_map
             .get(port_id)
-            .ok_or(RouterError::UnknownPort(port_id.clone()))
+            .ok_or_else(|| HostError::missing_state(format!("missing port_id: {port_id}")))
             .cloned()
             .ok()
     }
