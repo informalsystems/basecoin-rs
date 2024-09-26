@@ -20,14 +20,14 @@ tiny-bip39         = { version = "1" }
 digest             = { version = "0.10.7" }
 bitcoin            = { version = "0.32.2" }
 hdpath             = { version = "0.6.3" }
-clap               = { version = "4.5.7", features = [ "derive", "wrap_help" ] }
+clap               = { version = "4.5", features = [ "derive", "wrap_help" ] }
 prost              = { workspace = true }
 serde              = { workspace = true }
-serde_derive       = { version = "1.0.203", default-features = false }
+serde_derive       = { workspace = true }
 serde_json         = { workspace = true }
-secp256k1          = { version = "0.29.0", features = [ "serde", "rand-std" ] }
+secp256k1          = { version = "0.29", features = [ "serde", "rand-std" ] }
 sha2               = { workspace = true }
-tokio              = { version = "1.38", features = [ "macros", "rt-multi-thread" ] }
+tokio              = { version = "1.40", features = [ "macros", "rt-multi-thread" ] }
 tonic              = { workspace = true }
 tonic-reflection   = { workspace = true }
 toml               = { version = "0.8" }
