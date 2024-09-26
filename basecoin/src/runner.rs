@@ -97,7 +97,7 @@ pub async fn default_app_runner(server_cfg: ServerConfig) {
     // the gRPC reflection service
     let service = tonic_reflection::server::Builder::configure()
         .register_encoded_file_descriptor_set(ibc_proto::FILE_DESCRIPTOR_SET)
-        .build()
+        .build_v1()
         .unwrap();
 
     // run the gRPC server
