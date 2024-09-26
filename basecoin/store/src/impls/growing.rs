@@ -4,6 +4,7 @@ use crate::context::{ProvableStore, Store};
 use crate::types::{Height, Path};
 
 /// GrowingStore does not prune any path.
+///
 /// If the path is set to v, the stored value is v
 /// If the path is deleted, the stored value is []
 /// Note: we should not allow empty vec to store as
