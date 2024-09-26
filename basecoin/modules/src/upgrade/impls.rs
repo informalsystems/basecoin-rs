@@ -100,7 +100,7 @@ where
         height: Height,
         prove: bool,
     ) -> Result<QueryResult, AppError> {
-        let path = path.ok_or_else(|| AppError::NotHandled)?;
+        let path = path.ok_or(AppError::NotHandled)?;
         if path.to_string() == SDK_UPGRADE_QUERY_PATH {
             let path: Path = String::from_utf8(data.to_vec())
                 .map_err(|_| AppError::Custom {

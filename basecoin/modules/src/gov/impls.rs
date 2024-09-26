@@ -134,7 +134,7 @@ where
         _height: Height,
         _prove: bool,
     ) -> Result<QueryResult, AppError> {
-        let path = path.ok_or_else(|| AppError::NotHandled)?;
+        let path = path.ok_or(AppError::NotHandled)?;
 
         if path.to_string() != "/cosmos.gov.v1beta1.Query/Proposal" {
             return Err(AppError::NotHandled);
