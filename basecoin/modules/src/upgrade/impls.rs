@@ -100,7 +100,7 @@ where
         height: Height,
         prove: bool,
     ) -> Result<QueryResult, AppError> {
-        let path = path.ok_or_else(||AppError::NotHandled)?;
+        let path = path.ok_or_else(|| AppError::NotHandled)?;
         if path.to_string() == SDK_UPGRADE_QUERY_PATH {
             let path: Path = String::from_utf8(data.to_vec())
                 .map_err(|_| AppError::Custom {
@@ -115,9 +115,11 @@ where
             );
 
             let proof = if prove {
-                let proof = self.get_proof(height, &path).ok_or_else(||AppError::Custom {
-                    reason: "Proof not found".to_string(),
-                })?;
+                let proof = self
+                    .get_proof(height, &path)
+                    .ok_or_else(|| AppError::Custom {
+                        reason: "Proof not found".to_string(),
+                    })?;
                 Some(vec![ProofOp {
                     field_type: "".to_string(),
                     key: path.to_string().into_bytes(),
@@ -127,9 +129,12 @@ where
                 None
             };
 
-            let data = self.store.get(height, &path).ok_or_else(||AppError::Custom {
-                reason: "Data not found".to_string(),
-            })?;
+            let data = self
+                .store
+                .get(height, &path)
+                .ok_or_else(|| AppError::Custom {
+                    reason: "Data not found".to_string(),
+                })?;
             return Ok(QueryResult { data, proof });
         }
 
@@ -137,7 +142,7 @@ where
             let plan: Any = self
                 .upgrade_plan
                 .get(Height::Pending, &UpgradePlanPath::sdk_pending_path())
-                .ok_or_else(||AppError::Custom {
+                .ok_or_else(|| AppError::Custom {
                     reason: "Data not found".to_string(),
                 })?
                 .into();
@@ -232,7 +237,7 @@ where
         let upgrade_plan = self
             .upgrade_plan
             .get(Height::Pending, &UpgradePlanPath::sdk_pending_path())
-            .ok_or_else(||HostError::invalid_state("No UpgradePlan"))?;
+            .ok_or_else(|| HostError::invalid_state("No UpgradePlan"))?;
         Ok(upgrade_plan)
     }
 
@@ -243,7 +248,7 @@ where
         let upgraded_tm_client_state = self
             .upgraded_client_state_store
             .get(Height::Pending, upgrade_path)
-            .ok_or_else(||HostError::missing_state("Upgraded ClientState"))?;
+            .ok_or_else(|| HostError::missing_state("Upgraded ClientState"))?;
         Ok(upgraded_tm_client_state)
     }
 
@@ -254,7 +259,7 @@ where
         let upgraded_tm_consensus_state = self
             .upgraded_consensus_state_store
             .get(Height::Pending, upgrade_path)
-            .ok_or_else(||HostError::missing_state("Upgraded ConsensusState"))?;
+            .ok_or_else(|| HostError::missing_state("Upgraded ConsensusState"))?;
         Ok(upgraded_tm_consensus_state)
     }
 }

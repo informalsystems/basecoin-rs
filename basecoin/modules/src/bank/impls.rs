@@ -293,12 +293,7 @@ where
 
             let account_id = AccountId::from_str(&account).unwrap();
             self.balance_keeper
-                .mint_coins(
-                    account_id,
-                    balances
-                        .into_iter()
-                        .map(|b| b.into()),
-                )
+                .mint_coins(account_id, balances.into_iter().map(|b| b.into()))
                 .unwrap();
         }
     }
