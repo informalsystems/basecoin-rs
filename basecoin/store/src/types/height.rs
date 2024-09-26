@@ -12,8 +12,8 @@ pub enum Height {
 impl From<RawHeight> for Height {
     fn from(value: u64) -> Self {
         match value {
-            0 => Height::Latest, // see https://docs.tendermint.com/master/spec/abci/abci.html#query
-            _ => Height::Stable(value),
+            0 => Self::Latest, // see https://docs.tendermint.com/master/spec/abci/abci.html#query
+            _ => Self::Stable(value),
         }
     }
 }

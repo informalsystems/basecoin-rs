@@ -77,7 +77,7 @@ pub enum AnyClientState {
 
 impl From<ClientStateType> for AnyClientState {
     fn from(value: ClientStateType) -> Self {
-        AnyClientState::Tendermint(value.into())
+        Self::Tendermint(value.into())
     }
 }
 
@@ -104,7 +104,7 @@ impl TryFrom<Any> for AnyClientState {
 
     fn try_from(raw: Any) -> Result<Self, Self::Error> {
         if let TENDERMINT_CLIENT_STATE_TYPE_URL = raw.type_url.as_str() {
-            Ok(AnyClientState::Tendermint(raw.try_into()?))
+            Ok(Self::Tendermint(raw.try_into()?))
         } else {
             Err(DecodingError::UnknownTypeUrl(raw.type_url))
         }
@@ -121,7 +121,7 @@ pub enum AnyConsensusState {
 
 impl From<ConsensusStateType> for AnyConsensusState {
     fn from(value: ConsensusStateType) -> Self {
-        AnyConsensusState::Tendermint(value.into())
+        Self::Tendermint(value.into())
     }
 }
 
@@ -150,7 +150,7 @@ impl TryFrom<Any> for AnyConsensusState {
 
     fn try_from(value: Any) -> Result<Self, Self::Error> {
         if let TENDERMINT_CONSENSUS_STATE_TYPE_URL = value.type_url.as_str() {
-            Ok(AnyConsensusState::Tendermint(value.try_into()?))
+            Ok(Self::Tendermint(value.try_into()?))
         } else {
             Err(DecodingError::UnknownTypeUrl(value.type_url))
         }

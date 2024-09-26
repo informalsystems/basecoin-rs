@@ -6,6 +6,6 @@ pub type Error = HandlerError;
 
 impl From<Error> for AppError {
     fn from(e: Error) -> Self {
-        AppError::Ibc(e)
+        Self::Ibc(e)
     }
 }

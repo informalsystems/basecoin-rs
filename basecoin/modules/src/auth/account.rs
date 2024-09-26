@@ -60,7 +60,7 @@ impl TryFrom<BaseAccount> for AuthAccount {
     type Error = String;
 
     fn try_from(account: BaseAccount) -> Result<Self, Self::Error> {
-        Ok(AuthAccount {
+        Ok(Self {
             address: account
                 .address
                 .parse()
@@ -73,7 +73,7 @@ impl TryFrom<BaseAccount> for AuthAccount {
 
 impl From<AuthAccount> for BaseAccount {
     fn from(account: AuthAccount) -> Self {
-        BaseAccount {
+        Self {
             address: account.address.to_string(),
             pub_key: None,
             account_number: account.number,
@@ -85,7 +85,7 @@ impl From<AuthAccount> for BaseAccount {
 impl From<AuthAccount> for Any {
     fn from(account: AuthAccount) -> Self {
         let account = BaseAccount::from(account);
-        Any {
+        Self {
             type_url: "/cosmos.auth.v1beta1.BaseAccount".to_string(),
             value: account.encode_to_vec(),
         }

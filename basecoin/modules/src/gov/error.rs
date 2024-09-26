@@ -14,6 +14,6 @@ pub enum Error {
 
 impl From<Error> for AppError {
     fn from(e: Error) -> Self {
-        AppError::Gov(e)
+        Self::Gov(e)
     }
 }

@@ -33,7 +33,7 @@ where
         let transfer_module_id: ModuleId = ModuleId::new(IBC_TRANSFER_MODULE_ID.to_string());
         port_to_module_map.insert(PortId::transfer(), transfer_module_id);
 
-        IbcRouter {
+        Self {
             transfer,
             port_to_module_map,
         }
