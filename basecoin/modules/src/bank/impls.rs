@@ -297,8 +297,7 @@ where
                     account_id,
                     balances
                         .into_iter()
-                        .map(|b| b.into())
-                        .collect::<Vec<Coin>>(),
+                        .map(|b| b.into()),
                 )
                 .unwrap();
         }
