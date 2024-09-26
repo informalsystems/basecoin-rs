@@ -508,7 +508,7 @@ where
     fn connection_end(&self, conn_id: &ConnectionId) -> Result<ConnectionEnd, HostError> {
         self.connection_end_store
             .get(Height::Pending, &ConnectionPath::new(conn_id))
-            .ok_or_else(|| HostError::failed_to_retrieve(format!("connection end: {}", conn_id)))
+            .ok_or_else(|| HostError::missing_state(format!("connection end: {}", conn_id)))
     }
 
     fn validate_self_client(
@@ -587,7 +587,7 @@ where
                     commitment_path.sequence,
                 ),
             )
-            .ok_or_else(|| HostError::failed_to_retrieve("packet commitment"))
+            .ok_or_else(|| HostError::missing_state("packet commitment"))
     }
 
     fn get_packet_receipt(&self, receipt_path: &ReceiptPath) -> Result<Receipt, HostError> {
@@ -601,7 +601,7 @@ where
                 ),
             )
             .then_some(Receipt::Ok)
-            .ok_or_else(|| HostError::failed_to_retrieve("packet receipt"))
+            .ok_or_else(|| HostError::missing_state("packet receipt"))
     }
 
     fn get_packet_acknowledgement(
@@ -613,9 +613,7 @@ where
                 Height::Pending,
                 &AckPath::new(&ack_path.port_id, &ack_path.channel_id, ack_path.sequence),
             )
-            .ok_or_else(|| {
-                HostError::failed_to_retrieve(format!("packet ack: {:?}", ack_path.sequence))
-            })
+            .ok_or_else(|| HostError::missing_state(format!("packet ack: {:?}", ack_path.sequence)))
     }
 
     /// Returns a counter on the number of channel ids have been created thus far.
