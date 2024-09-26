@@ -103,7 +103,7 @@ impl TryFrom<Any> for AnyClientState {
     type Error = DecodingError;
 
     fn try_from(raw: Any) -> Result<Self, Self::Error> {
-        if let TENDERMINT_CLIENT_STATE_TYPE_URL = raw.type_url.as_str() {
+        if raw.type_url.as_str() == TENDERMINT_CLIENT_STATE_TYPE_URL {
             Ok(Self::Tendermint(raw.try_into()?))
         } else {
             Err(DecodingError::UnknownTypeUrl(raw.type_url))
@@ -149,7 +149,7 @@ impl TryFrom<Any> for AnyConsensusState {
     type Error = DecodingError;
 
     fn try_from(value: Any) -> Result<Self, Self::Error> {
-        if let TENDERMINT_CONSENSUS_STATE_TYPE_URL = value.type_url.as_str() {
+        if value.type_url.as_str() == TENDERMINT_CONSENSUS_STATE_TYPE_URL {
             Ok(Self::Tendermint(value.try_into()?))
         } else {
             Err(DecodingError::UnknownTypeUrl(value.type_url))
