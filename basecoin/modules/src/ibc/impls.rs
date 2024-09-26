@@ -492,12 +492,11 @@ where
         height: &IbcHeight,
     ) -> Result<Self::HostConsensusState, HostError> {
         let consensus_states_binding = self.consensus_states.read().expect("lock is poisoned");
-        let consensus_state = consensus_states_binding
+        Ok(consensus_states_binding
             .get(&height.revision_height())
             .ok_or_else(|| ClientError::MissingLocalConsensusState(*height))
-            .map_err(HostError::missing_state)?;
-
-        Ok(consensus_state.clone())
+            .map_err(HostError::missing_state)?
+            .clone())
     }
 
     fn client_counter(&self) -> Result<u64, HostError> {

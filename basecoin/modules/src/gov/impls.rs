@@ -79,13 +79,13 @@ where
                     let upgrade_proposal =
                         UpgradeProposal::decode_vec(message.content.value.as_slice()).unwrap();
 
-                    let mut upgrade_ctx = self.upgrade_ctx.write_access();
-
-                    let event =
-                        execute_upgrade_client_proposal(upgrade_ctx.deref_mut(), upgrade_proposal)
-                            .map_err(|e| AppError::Custom {
-                                reason: format!("Error handling upgrade proposal: {:?}", e),
-                            })?;
+                    let event = execute_upgrade_client_proposal(
+                        self.upgrade_ctx.write_access().deref_mut(),
+                        upgrade_proposal,
+                    )
+                    .map_err(|e| AppError::Custom {
+                        reason: format!("Error handling upgrade proposal: {:?}", e),
+                    })?;
 
                     let proposal = message.proposal(self.proposal_counter);
 
