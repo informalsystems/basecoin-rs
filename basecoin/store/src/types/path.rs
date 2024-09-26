@@ -16,7 +16,6 @@ pub enum Error {
 
 /// A new type representing a valid ICS024 `Path`.
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Clone)]
-
 pub struct Path(Vec<Identifier>);
 
 impl Path {
