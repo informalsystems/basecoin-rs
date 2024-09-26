@@ -43,7 +43,7 @@ impl TryFrom<RawProposal> for Proposal {
                 })
             }
         };
-        Ok(Proposal {
+        Ok(Self {
             proposal_id: raw.proposal_id,
             content: raw.content.unwrap(),
             status,

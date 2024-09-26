@@ -70,7 +70,7 @@ impl KeyPair {
         let public_key = derived_pubkey.public_key;
         let private_key = private_key.private_key;
 
-        Ok(KeyPair::new(public_key, private_key, account, address))
+        Ok(Self::new(public_key, private_key, account, address))
     }
 
     pub fn sign(&self, message: &[u8]) -> Result<Vec<u8>, Error> {

@@ -63,7 +63,7 @@ impl TryFrom<Any> for MsgSubmitProposal {
 
     fn try_from(raw: Any) -> Result<Self, Self::Error> {
         match raw.type_url.as_str() {
-            TYPE_URL => MsgSubmitProposal::decode_vec(&raw.value).map_err(|e| Error::Custom {
+            TYPE_URL => Self::decode_vec(&raw.value).map_err(|e| Error::Custom {
                 reason: e.to_string(),
             }),
             _ => Err(Error::Custom {

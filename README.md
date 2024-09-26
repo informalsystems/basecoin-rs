@@ -9,7 +9,7 @@ of the ibc-rs modules.
 
 ## Requirements
 So far this app has been tested with:
-* Rust > v1.64
+* Rust > v1.75
 * CometBFT v0.37
 
 ## How to integrate ibc-rs changes into basecoin

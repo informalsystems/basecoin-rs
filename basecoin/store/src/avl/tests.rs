@@ -151,7 +151,7 @@ fn proof() {
         .expect("There should be a leaf in the proof");
     let mut sha = Sha256::new();
     sha.update(&leaf.prefix);
-    sha.update("B".as_bytes());
+    sha.update(b"B");
     sha.update([1]);
     let child_hash = sha.finalize();
     // Apply first inner node transformations
@@ -176,7 +176,7 @@ fn proof() {
         &ics_proof,
         &spec,
         &root.as_bytes().to_vec(),
-        "B".as_bytes(),
+        b"B",
         &[1]
     ));
 }

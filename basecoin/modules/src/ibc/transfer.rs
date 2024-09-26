@@ -12,10 +12,11 @@ use ibc::apps::transfer::types::error::TokenTransferError;
 use ibc::apps::transfer::types::{Memo, PrefixedCoin, VERSION};
 use ibc::core::channel::types::acknowledgement::Acknowledgement;
 use ibc::core::channel::types::channel::{Counterparty, Order};
-use ibc::core::channel::types::error::{ChannelError, PacketError};
+use ibc::core::channel::types::error::ChannelError;
 use ibc::core::channel::types::packet::Packet;
 use ibc::core::channel::types::Version as ChannelVersion;
 use ibc::core::handler::types::events::IbcEvent;
+use ibc::core::host::types::error::HostError;
 use ibc::core::host::types::identifiers::{ChannelId, ConnectionId, PortId};
 use ibc::core::router::module::Module as IbcModule;
 use ibc::core::router::types::module::ModuleExtras;
@@ -89,7 +90,7 @@ where
             counterparty,
             version,
         )
-        .map_err(|e: TokenTransferError| ChannelError::AppModule {
+        .map_err(|e: TokenTransferError| ChannelError::AppSpecific {
             description: e.to_string(),
         })?;
         Ok(ChannelVersion::new(VERSION.to_string()))
@@ -113,7 +114,7 @@ where
             counterparty,
             version,
         )
-        .map_err(|e: TokenTransferError| ChannelError::AppModule {
+        .map_err(|e: TokenTransferError| ChannelError::AppSpecific {
             description: e.to_string(),
         })
     }
@@ -136,7 +137,7 @@ where
             counterparty,
             counterparty_version,
         )
-        .map_err(|e: TokenTransferError| ChannelError::AppModule {
+        .map_err(|e: TokenTransferError| ChannelError::AppSpecific {
             description: e.to_string(),
         })?;
         Ok(ChannelVersion::new(VERSION.to_string()))
@@ -160,7 +161,7 @@ where
             counterparty,
             counterparty_version,
         )
-        .map_err(|e: TokenTransferError| ChannelError::AppModule {
+        .map_err(|e: TokenTransferError| ChannelError::AppSpecific {
             description: e.to_string(),
         })
     }
@@ -172,7 +173,7 @@ where
         counterparty_version: &ChannelVersion,
     ) -> Result<(), ChannelError> {
         on_chan_open_ack_validate(self, port_id, channel_id, counterparty_version).map_err(
-            |e: TokenTransferError| ChannelError::AppModule {
+            |e: TokenTransferError| ChannelError::AppSpecific {
                 description: e.to_string(),
             },
         )
@@ -193,7 +194,7 @@ where
         channel_id: &ChannelId,
     ) -> Result<(), ChannelError> {
         on_chan_open_confirm_validate(self, port_id, channel_id).map_err(|e: TokenTransferError| {
-            ChannelError::AppModule {
+            ChannelError::AppSpecific {
                 description: e.to_string(),
             }
         })
@@ -252,9 +253,9 @@ where
         packet: &Packet,
         acknowledgement: &Acknowledgement,
         relayer: &Signer,
-    ) -> Result<(), PacketError> {
+    ) -> Result<(), ChannelError> {
         on_acknowledgement_packet_validate(self, packet, acknowledgement, relayer).map_err(
-            |e: TokenTransferError| PacketError::AppModule {
+            |e: TokenTransferError| ChannelError::AppSpecific {
                 description: e.to_string(),
             },
         )
@@ -265,7 +266,7 @@ where
         _packet: &Packet,
         _acknowledgement: &Acknowledgement,
         _relayer: &Signer,
-    ) -> (ModuleExtras, Result<(), PacketError>) {
+    ) -> (ModuleExtras, Result<(), ChannelError>) {
         (ModuleExtras::empty(), Ok(()))
     }
 
@@ -274,9 +275,9 @@ where
         &self,
         packet: &Packet,
         relayer: &Signer,
-    ) -> Result<(), PacketError> {
+    ) -> Result<(), ChannelError> {
         on_timeout_packet_validate(self, packet, relayer).map_err(|e: TokenTransferError| {
-            PacketError::AppModule {
+            ChannelError::AppSpecific {
                 description: e.to_string(),
             }
         })
@@ -287,12 +288,12 @@ where
         &mut self,
         packet: &Packet,
         relayer: &Signer,
-    ) -> (ModuleExtras, Result<(), PacketError>) {
+    ) -> (ModuleExtras, Result<(), ChannelError>) {
         let res = on_timeout_packet_execute(self, packet, relayer);
         (
             res.0,
             res.1
-                .map_err(|e: TokenTransferError| PacketError::AppModule {
+                .map_err(|e: TokenTransferError| ChannelError::AppSpecific {
                     description: e.to_string(),
                 }),
         )
@@ -305,7 +306,7 @@ where
 {
     type AccountId = Signer;
 
-    fn get_port(&self) -> Result<PortId, TokenTransferError> {
+    fn get_port(&self) -> Result<PortId, HostError> {
         Ok(PortId::transfer())
     }
 
@@ -313,7 +314,7 @@ where
         &self,
         _account: &Self::AccountId,
         _coin: &PrefixedCoin,
-    ) -> Result<(), TokenTransferError> {
+    ) -> Result<(), HostError> {
         // Architectures that don't use `dispatch()` and care about the
         // distinction between `validate()` and `execute()` would want to check
         // that we can also send the coins between the 2 accounts.
@@ -326,7 +327,7 @@ where
         _account: &Self::AccountId,
         _coin: &PrefixedCoin,
         _memo: &Memo,
-    ) -> Result<(), TokenTransferError> {
+    ) -> Result<(), HostError> {
         // Architectures that don't use `dispatch()` and care about the
         // distinction between `validate()` and `execute()` would want to check
         // that we can also send the coins between the 2 accounts.
@@ -334,11 +335,11 @@ where
         Ok(())
     }
 
-    fn can_send_coins(&self) -> Result<(), TokenTransferError> {
+    fn can_send_coins(&self) -> Result<(), HostError> {
         Ok(())
     }
 
-    fn can_receive_coins(&self) -> Result<(), TokenTransferError> {
+    fn can_receive_coins(&self) -> Result<(), HostError> {
         Ok(())
     }
 
@@ -349,7 +350,7 @@ where
         _channel_id: &ChannelId,
         _coin: &PrefixedCoin,
         _memo: &Memo,
-    ) -> Result<(), TokenTransferError> {
+    ) -> Result<(), HostError> {
         Ok(())
     }
 
@@ -359,7 +360,7 @@ where
         _port_id: &PortId,
         _channel_id: &ChannelId,
         _coin: &PrefixedCoin,
-    ) -> Result<(), TokenTransferError> {
+    ) -> Result<(), HostError> {
         Ok(())
     }
 }
@@ -375,16 +376,24 @@ where
         channel_id: &ChannelId,
         coin: &PrefixedCoin,
         _memo: &Memo,
-    ) -> Result<(), TokenTransferError> {
+    ) -> Result<(), HostError> {
         let from = from_account
             .to_string()
             .parse()
-            .map_err(|_| TokenTransferError::FailedToParseAccount)?;
+            .map_err(|_| HostError::Other {
+                description: TokenTransferError::FailedToParseAccount.to_string(),
+            })?;
         let to = self
-            .get_escrow_account(port_id, channel_id)?
-            .to_string()
-            .parse()
-            .map_err(|_| TokenTransferError::FailedToParseAccount)?;
+            .get_escrow_account(port_id, channel_id)
+            .and_then(|account| {
+                account
+                    .to_string()
+                    .parse()
+                    .map_err(|_| TokenTransferError::FailedToParseAccount)
+            })
+            .map_err(|e| HostError::Other {
+                description: e.to_string(),
+            })?;
         let coins = vec![Coin {
             denom: Denom(coin.denom.to_string()),
             amount: coin.amount.into(),
@@ -399,16 +408,24 @@ where
         port_id: &PortId,
         channel_id: &ChannelId,
         coin: &PrefixedCoin,
-    ) -> Result<(), TokenTransferError> {
+    ) -> Result<(), HostError> {
         let from = self
-            .get_escrow_account(port_id, channel_id)?
-            .to_string()
-            .parse()
-            .map_err(|_| TokenTransferError::FailedToParseAccount)?;
+            .get_escrow_account(port_id, channel_id)
+            .and_then(|account| {
+                account
+                    .to_string()
+                    .parse()
+                    .map_err(|_| TokenTransferError::FailedToParseAccount)
+            })
+            .map_err(|e| HostError::Other {
+                description: e.to_string(),
+            })?;
         let to = to_account
             .to_string()
             .parse()
-            .map_err(|_| TokenTransferError::FailedToParseAccount)?;
+            .map_err(|_| HostError::Other {
+                description: TokenTransferError::FailedToParseAccount.to_string(),
+            })?;
         let coins = vec![Coin {
             denom: Denom(coin.denom.to_string()),
             amount: coin.amount.into(),
@@ -421,11 +438,10 @@ where
         &mut self,
         account: &Self::AccountId,
         amt: &PrefixedCoin,
-    ) -> Result<(), TokenTransferError> {
-        let account = account
-            .to_string()
-            .parse()
-            .map_err(|_| TokenTransferError::FailedToParseAccount)?;
+    ) -> Result<(), HostError> {
+        let account = account.to_string().parse().map_err(|_| HostError::Other {
+            description: TokenTransferError::FailedToParseAccount.to_string(),
+        })?;
         let coins = vec![Coin {
             denom: Denom(amt.denom.to_string()),
             amount: amt.amount.into(),
@@ -439,11 +455,10 @@ where
         account: &Self::AccountId,
         amt: &PrefixedCoin,
         _memo: &Memo,
-    ) -> Result<(), TokenTransferError> {
-        let account = account
-            .to_string()
-            .parse()
-            .map_err(|_| TokenTransferError::FailedToParseAccount)?;
+    ) -> Result<(), HostError> {
+        let account = account.to_string().parse().map_err(|_| HostError::Other {
+            description: TokenTransferError::FailedToParseAccount.to_string(),
+        })?;
         let coins = vec![Coin {
             denom: Denom(amt.denom.to_string()),
             amount: amt.amount.into(),

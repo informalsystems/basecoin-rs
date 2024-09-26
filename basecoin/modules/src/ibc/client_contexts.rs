@@ -5,9 +5,8 @@ use basecoin_store::types::Height;
 use ibc::core::client::context::{
     ClientExecutionContext, ClientValidationContext, ExtClientValidationContext,
 };
-use ibc::core::client::types::error::ClientError;
 use ibc::core::client::types::Height as IbcHeight;
-use ibc::core::handler::types::error::ContextError;
+use ibc::core::host::types::error::HostError;
 use ibc::core::host::types::identifiers::ClientId;
 use ibc::core::host::types::path::{
     ClientConsensusStatePath, ClientStatePath, ClientUpdateHeightPath, ClientUpdateTimePath, Path,
@@ -25,28 +24,31 @@ where
     type ClientStateRef = AnyClientState;
     type ConsensusStateRef = AnyConsensusState;
 
-    fn client_state(&self, client_id: &ClientId) -> Result<Self::ClientStateRef, ContextError> {
-        Ok(self
-            .client_state_store
+    fn client_state(&self, client_id: &ClientId) -> Result<Self::ClientStateRef, HostError> {
+        self.client_state_store
             .get(Height::Pending, &ClientStatePath(client_id.clone()))
-            .ok_or(ClientError::MissingClientState(client_id.clone()))?)
+            .ok_or_else(|| {
+                HostError::missing_state(format!("client state for client_id {client_id}"))
+            })
     }
 
     fn consensus_state(
         &self,
         client_cons_state_path: &ClientConsensusStatePath,
-    ) -> Result<Self::ConsensusStateRef, ContextError> {
+    ) -> Result<Self::ConsensusStateRef, HostError> {
         let height = IbcHeight::new(
             client_cons_state_path.revision_number,
             client_cons_state_path.revision_height,
         )
-        .map_err(|_| ClientError::InvalidHeight)?;
+        .map_err(|e| HostError::invalid_state(format!("consensus state height: {e:?}")))?;
         let consensus_state = self
             .consensus_state_store
             .get(Height::Pending, client_cons_state_path)
-            .ok_or(ClientError::MissingConsensusState {
-                client_id: client_cons_state_path.client_id.clone(),
-                height,
+            .ok_or_else(|| {
+                HostError::missing_state(format!(
+                    "consensus state for client_id {} at height {height}",
+                    client_cons_state_path.client_id
+                ))
             })?;
 
         Ok(consensus_state)
@@ -58,7 +60,7 @@ where
         &self,
         client_id: &ClientId,
         height: &IbcHeight,
-    ) -> Result<(Timestamp, IbcHeight), ContextError> {
+    ) -> Result<(Timestamp, IbcHeight), HostError> {
         let client_update_time_path = ClientUpdateTimePath::new(
             client_id.clone(),
             height.revision_number(),
@@ -67,9 +69,10 @@ where
         let processed_timestamp = self
             .client_processed_times
             .get(Height::Pending, &client_update_time_path)
-            .ok_or(ClientError::MissingUpdateMetaData {
-                client_id: client_id.clone(),
-                height: *height,
+            .ok_or_else(|| {
+                HostError::missing_state(format!(
+                    "update time for client_id {client_id} at height {height}"
+                ))
             })?;
         let client_update_height_path = ClientUpdateHeightPath::new(
             client_id.clone(),
@@ -79,9 +82,10 @@ where
         let processed_height = self
             .client_processed_heights
             .get(Height::Pending, &client_update_height_path)
-            .ok_or(ClientError::MissingUpdateMetaData {
-                client_id: client_id.clone(),
-                height: *height,
+            .ok_or_else(|| {
+                HostError::missing_state(format!(
+                    "update height for client_id {client_id} at height {height}"
+                ))
             })?;
 
         Ok((processed_timestamp, processed_height))
@@ -99,13 +103,10 @@ where
         &mut self,
         client_state_path: ClientStatePath,
         client_state: Self::ClientStateMut,
-    ) -> Result<(), ContextError> {
+    ) -> Result<(), HostError> {
         self.client_state_store
             .set(client_state_path, client_state)
-            .map(|_| ())
-            .map_err(|_| ClientError::Other {
-                description: "Client state store error".to_string(),
-            })?;
+            .map_err(|e| HostError::failed_to_store(format!("client state: {e:?}")))?;
         Ok(())
     }
 
@@ -114,19 +115,17 @@ where
         &mut self,
         consensus_state_path: ClientConsensusStatePath,
         consensus_state: Self::ConsensusStateRef,
-    ) -> Result<(), ContextError> {
+    ) -> Result<(), HostError> {
         self.consensus_state_store
             .set(consensus_state_path, consensus_state)
-            .map_err(|_| ClientError::Other {
-                description: "Consensus state store error".to_string(),
-            })?;
+            .map_err(|e| HostError::failed_to_store(format!("consensus state: {e:?}")))?;
         Ok(())
     }
 
     fn delete_consensus_state(
         &mut self,
         consensus_state_path: ClientConsensusStatePath,
-    ) -> Result<(), ContextError> {
+    ) -> Result<(), HostError> {
         self.consensus_state_store.delete(consensus_state_path);
         Ok(())
     }
@@ -140,7 +139,7 @@ where
         height: IbcHeight,
         host_timestamp: Timestamp,
         host_height: IbcHeight,
-    ) -> Result<(), ContextError> {
+    ) -> Result<(), HostError> {
         let client_update_time_path = ClientUpdateTimePath::new(
             client_id.clone(),
             height.revision_number(),
@@ -148,8 +147,10 @@ where
         );
         self.client_processed_times
             .set(client_update_time_path, host_timestamp)
-            .map_err(|_| ClientError::Other {
-                description: "store update error".into(),
+            .map_err(|e| {
+                HostError::failed_to_store(format!(
+                    "update time for client {client_id} as height {height}: {e:?}"
+                ))
             })?;
         let client_update_height_path = ClientUpdateHeightPath::new(
             client_id.clone(),
@@ -158,8 +159,10 @@ where
         );
         self.client_processed_heights
             .set(client_update_height_path, host_height)
-            .map_err(|_| ClientError::Other {
-                description: "store update error".into(),
+            .map_err(|e| {
+                HostError::failed_to_store(format!(
+                    "update height for client {client_id} as height {height}: {e:?}"
+                ))
             })?;
         Ok(())
     }
@@ -170,7 +173,7 @@ where
         &mut self,
         client_id: ClientId,
         height: IbcHeight,
-    ) -> Result<(), ContextError> {
+    ) -> Result<(), HostError> {
         let client_update_time_path = ClientUpdateTimePath::new(
             client_id.clone(),
             height.revision_number(),
@@ -178,7 +181,7 @@ where
         );
         self.client_processed_times.delete(client_update_time_path);
         let client_update_height_path = ClientUpdateHeightPath::new(
-            client_id.clone(),
+            client_id,
             height.revision_number(),
             height.revision_height(),
         );
@@ -192,23 +195,18 @@ impl<S> ExtClientValidationContext for IbcContext<S>
 where
     S: Store + Debug,
 {
-    fn host_timestamp(&self) -> Result<Timestamp, ContextError> {
+    fn host_timestamp(&self) -> Result<Timestamp, HostError> {
         ValidationContext::host_timestamp(self)
     }
 
-    fn host_height(&self) -> Result<IbcHeight, ContextError> {
+    fn host_height(&self) -> Result<IbcHeight, HostError> {
         ValidationContext::host_height(self)
     }
 
-    fn consensus_state_heights(
-        &self,
-        client_id: &ClientId,
-    ) -> Result<Vec<IbcHeight>, ContextError> {
+    fn consensus_state_heights(&self, client_id: &ClientId) -> Result<Vec<IbcHeight>, HostError> {
         let path = format!("clients/{}/consensusStates", client_id)
             .try_into()
-            .map_err(|_| ClientError::Other {
-                description: "Invalid consensus state path".into(),
-            })?;
+            .map_err(|e| HostError::invalid_state(format!("consensus state path: {e:?}")))?;
 
         self.consensus_state_store
             .get_keys(&path)
@@ -224,7 +222,8 @@ where
                 let height = IbcHeight::new(
                     consensus_path.revision_number,
                     consensus_path.revision_height,
-                )?;
+                )
+                .map_err(|e| HostError::invalid_state(format!("consensus state height: {e:?}")))?;
                 Ok(height)
             })
             .collect()
@@ -234,7 +233,7 @@ where
         &self,
         client_id: &ClientId,
         height: &IbcHeight,
-    ) -> Result<Option<Self::ConsensusStateRef>, ContextError> {
+    ) -> Result<Option<Self::ConsensusStateRef>, HostError> {
         let path = format!("clients/{client_id}/consensusStates")
             .try_into()
             .unwrap(); // safety - path must be valid since ClientId and height are valid Identifiers
@@ -253,9 +252,10 @@ where
             let consensus_state = self
                 .consensus_state_store
                 .get(Height::Pending, &path)
-                .ok_or(ClientError::MissingConsensusState {
-                    client_id: client_id.clone(),
-                    height: *height,
+                .ok_or_else(|| {
+                    HostError::missing_state(format!(
+                        "consensus state for client_id {client_id} at height {height}"
+                    ))
                 })?;
 
             Ok(Some(consensus_state))
@@ -268,7 +268,7 @@ where
         &self,
         client_id: &ClientId,
         height: &IbcHeight,
-    ) -> Result<Option<Self::ConsensusStateRef>, ContextError> {
+    ) -> Result<Option<Self::ConsensusStateRef>, HostError> {
         let path = format!("clients/{client_id}/consensusStates")
             .try_into()
             .unwrap(); // safety - path must be valid since ClientId and height are valid Identifiers
@@ -291,9 +291,10 @@ where
                 let consensus_state = self
                     .consensus_state_store
                     .get(Height::Pending, &prev_path)
-                    .ok_or(ClientError::MissingConsensusState {
-                        client_id: client_id.clone(),
-                        height: *height,
+                    .ok_or_else(|| {
+                        HostError::missing_state(format!(
+                            "consensus state for client_id {client_id} at height {height}"
+                        ))
                     })?;
                 return Ok(Some(consensus_state));
             }

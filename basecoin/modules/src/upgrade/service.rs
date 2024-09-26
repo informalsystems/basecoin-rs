@@ -66,9 +66,7 @@ impl<S: Store> UpgradeQuery for UpgradeService<S> {
         let upgraded_consensus_state = self
             .upgraded_consensus_state_store
             .get(Height::Pending, &upgraded_consensus_state_path)
-            .ok_or(Status::not_found(
-                "upgraded consensus state not found".to_string(),
-            ))?;
+            .ok_or_else(|| Status::not_found("upgraded consensus state not found".to_string()))?;
 
         let any_cons_state = Any::from(upgraded_consensus_state);
         let mut cons_state_value = Vec::new();

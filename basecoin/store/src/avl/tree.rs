@@ -20,7 +20,7 @@ pub struct AvlTree<K: Ord + AsBytes, V> {
 impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
     /// Return an empty AVL tree.
     pub fn new() -> Self {
-        AvlTree { root: None }
+        Self { root: None }
     }
 
     /// Return the hash of the merkle tree root, if it has at least one node.
@@ -48,21 +48,21 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
     /// Insert a value into the AVL tree, this operation runs in amortized O(log(n)).
     pub fn insert(&mut self, key: K, value: V) -> Option<V> {
         let node_ref = &mut self.root;
-        AvlTree::insert_rec(node_ref, key, value)
+        Self::insert_rec(node_ref, key, value)
     }
 
     /// Insert a value in the tree.
     fn insert_rec(node_ref: &mut NodeRef<K, V>, key: K, value: V) -> Option<V> {
         if let Some(node) = node_ref {
             let old_value = match node.key.cmp(&key) {
-                Ordering::Greater => AvlTree::insert_rec(&mut node.left, key, value),
-                Ordering::Less => AvlTree::insert_rec(&mut node.right, key, value),
+                Ordering::Greater => Self::insert_rec(&mut node.left, key, value),
+                Ordering::Less => Self::insert_rec(&mut node.right, key, value),
                 Ordering::Equal => Some(node.set_value(value)),
             };
             node.update();
             // Note: when old_value is None, balancing not necessary.
             // But we do it anyway as general rule.
-            AvlTree::balance_node(node_ref);
+            Self::balance_node(node_ref);
             old_value
         } else {
             *node_ref = as_node_ref(key, value);
@@ -73,7 +73,7 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
     /// Remove a value from the AVL tree, this operation runs in amortized O(log(n)).
     pub fn remove(&mut self, key: K) -> Option<V> {
         let node_ref = &mut self.root;
-        AvlTree::remove_rec(node_ref, key).map(|node| node.value)
+        Self::remove_rec(node_ref, key).map(|node| node.value)
     }
 
     /// Remove a value from the tree.
@@ -83,9 +83,9 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
         let node = node_ref.as_deref_mut()?;
 
         let removed_value = match node.key.cmp(&key) {
-            Ordering::Greater => AvlTree::remove_rec(&mut node.left, key),
-            Ordering::Less => AvlTree::remove_rec(&mut node.right, key),
-            Ordering::Equal => AvlTree::remove_root(node_ref),
+            Ordering::Greater => Self::remove_rec(&mut node.left, key),
+            Ordering::Less => Self::remove_rec(&mut node.right, key),
+            Ordering::Equal => Self::remove_root(node_ref),
         };
 
         if let Some(node) = node_ref {
@@ -94,7 +94,7 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
                 // Note: if removed_value is None, nothing is removed.
                 // So no need to update and balance.
                 node.update();
-                AvlTree::balance_node(node_ref);
+                Self::balance_node(node_ref);
             }
         }
 
@@ -130,7 +130,7 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
             // removing from right subtree is better.
 
             // Remove the leftmost node in the right subtree and replace the current.
-            let mut leftmost_node_ref = AvlTree::remove_leftmost(&mut node.right);
+            let mut leftmost_node_ref = Self::remove_leftmost(&mut node.right);
             // leftmost_node_ref.right <- node_ref.right
             // leftmost_node_ref.left <- node_ref.left
             if let Some(leftmost_node) = leftmost_node_ref.as_mut() {
@@ -149,7 +149,7 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
             // removing from left subtree is better.
 
             // Remove the rightmost node in the left subtree and replace the current.
-            let mut rightmost_node_ref = AvlTree::remove_rightmost(&mut node.left);
+            let mut rightmost_node_ref = Self::remove_rightmost(&mut node.left);
             // rightmost_node_ref.right <- node_ref.right
             // rightmost_node_ref.left <- node_ref.left
             if let Some(rightmost_node) = rightmost_node_ref.as_mut() {
@@ -169,7 +169,7 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
         if let Some(node) = node_ref {
             // need to update, as top node is replaced
             node.update();
-            AvlTree::balance_node(node_ref);
+            Self::balance_node(node_ref);
         }
 
         removed_node
@@ -186,11 +186,11 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
 
             // no need to update, as the new node (right_node) is already updated
         } else {
-            let removed_node = AvlTree::remove_leftmost(&mut node.left);
+            let removed_node = Self::remove_leftmost(&mut node.left);
 
             // need to update, as left node is updated
             node.update();
-            AvlTree::balance_node(node_ref);
+            Self::balance_node(node_ref);
 
             removed_node
         }
@@ -207,11 +207,11 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
 
             // no need to update, as the new node (left_node) is already updated
         } else {
-            let removed_node = AvlTree::remove_rightmost(&mut node.right);
+            let removed_node = Self::remove_rightmost(&mut node.right);
 
             // need to update, as right node is updated
             node.update();
-            AvlTree::balance_node(node_ref);
+            Self::balance_node(node_ref);
 
             removed_node
         }
@@ -338,18 +338,18 @@ impl<K: Ord + AsBytes, V: Borrow<[u8]>> AvlTree<K, V> {
                 .as_mut()
                 .expect("[AVL]: Unexpected empty left node");
             if left.balance_factor() < 1 {
-                AvlTree::rotate_left(&mut node.left);
+                Self::rotate_left(&mut node.left);
             }
-            AvlTree::rotate_right(node_ref);
+            Self::rotate_right(node_ref);
         } else if balance_factor <= -2 {
             let right = node
                 .right
                 .as_mut()
                 .expect("[AVL]: Unexpected empty right node");
             if right.balance_factor() > -1 {
-                AvlTree::rotate_right(&mut node.right);
+                Self::rotate_right(&mut node.right);
             }
-            AvlTree::rotate_left(node_ref);
+            Self::rotate_left(node_ref);
         }
     }
 

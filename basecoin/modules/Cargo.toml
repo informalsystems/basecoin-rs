@@ -17,7 +17,7 @@ derive_more     = { workspace = true }
 primitive-types = { version = "0.12.2", default-features = false, features = [ "serde_no_std" ] }
 prost           = { workspace = true }
 serde           = { workspace = true }
-serde_derive    = { version = "1.0.203", default-features = false }
+serde_derive    = { workspace = true }
 serde_json      = { workspace = true }
 sha2            = { workspace = true }
 tonic           = { workspace = true }

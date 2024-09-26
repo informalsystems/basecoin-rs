@@ -51,7 +51,7 @@ where
         let merkle_hash = Hash::from_bytes(HASH_ALGO, &merkle_hash).unwrap();
         let hash = Hash::from_bytes(HASH_ALGO, &hash).unwrap();
 
-        AvlNode {
+        Self {
             key,
             value,
             hash,

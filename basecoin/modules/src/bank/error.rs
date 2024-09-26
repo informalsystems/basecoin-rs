@@ -21,6 +21,6 @@ pub enum Error {
 
 impl From<Error> for AppError {
     fn from(e: Error) -> Self {
-        AppError::Bank(e)
+        Self::Bank(e)
     }
 }
