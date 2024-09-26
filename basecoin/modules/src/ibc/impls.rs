@@ -33,6 +33,7 @@ use ibc::core::entrypoint::dispatch;
 use ibc::core::handler::types::error::ContextError;
 use ibc::core::handler::types::events::IbcEvent;
 use ibc::core::handler::types::msgs::MsgEnvelope;
+use ibc::core::host::types::error::{DecodingError, HostError};
 use ibc::core::host::types::identifiers::{ClientId, ConnectionId, Sequence};
 use ibc::core::host::types::path::{
     AckPath, ChannelEndPath, ClientConnectionPath, ClientConsensusStatePath, ClientStatePath,
@@ -102,14 +103,13 @@ impl From<AnyClientState> for Any {
 }
 
 impl TryFrom<Any> for AnyClientState {
-    type Error = ClientError;
+    type Error = DecodingError;
 
-    fn try_from(value: Any) -> Result<Self, Self::Error> {
-        match value.type_url.as_str() {
-            TENDERMINT_CLIENT_STATE_TYPE_URL => Ok(AnyClientState::Tendermint(value.try_into()?)),
-            _ => Err(ClientError::Other {
-                description: "Unknown client state type".into(),
-            }),
+    fn try_from(raw: Any) -> Result<Self, Self::Error> {
+        if let TENDERMINT_CLIENT_STATE_TYPE_URL = raw.type_url.as_str() {
+            Ok(AnyClientState::Tendermint(raw.try_into()?))
+        } else {
+            Err(DecodingError::UnknownTypeUrl(raw.type_url))
         }
     }
 }
@@ -129,7 +129,7 @@ impl From<ConsensusStateType> for AnyConsensusState {
 }
 
 impl TryFrom<AnyConsensusState> for ConsensusStateType {
-    type Error = ClientError;
+    type Error = DecodingError;
 
     fn try_from(value: AnyConsensusState) -> Result<Self, Self::Error> {
         match value {
@@ -149,16 +149,13 @@ impl From<AnyConsensusState> for Any {
 }
 
 impl TryFrom<Any> for AnyConsensusState {
-    type Error = ClientError;
+    type Error = DecodingError;
 
     fn try_from(value: Any) -> Result<Self, Self::Error> {
-        match value.type_url.as_str() {
-            TENDERMINT_CONSENSUS_STATE_TYPE_URL => {
-                Ok(AnyConsensusState::Tendermint(value.try_into()?))
-            }
-            _ => Err(ClientError::Other {
-                description: "Unknown consensus state type".into(),
-            }),
+        if let TENDERMINT_CONSENSUS_STATE_TYPE_URL = value.type_url.as_str() {
+            Ok(AnyConsensusState::Tendermint(value.try_into()?))
+        } else {
+            Err(DecodingError::UnknownTypeUrl(value.type_url))
         }
     }
 }
