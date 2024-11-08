@@ -2,9 +2,11 @@ use basecoin_store::context::ProvableStore;
 use ibc_proto::cosmos::bank::v1beta1::query_server::Query;
 use ibc_proto::cosmos::bank::v1beta1::{
     QueryAllBalancesRequest, QueryAllBalancesResponse, QueryBalanceRequest, QueryBalanceResponse,
-    QueryDenomMetadataRequest, QueryDenomMetadataResponse, QueryDenomOwnersRequest,
-    QueryDenomOwnersResponse, QueryDenomsMetadataRequest, QueryDenomsMetadataResponse,
-    QueryParamsRequest, QueryParamsResponse, QuerySendEnabledRequest, QuerySendEnabledResponse,
+    QueryDenomMetadataByQueryStringRequest, QueryDenomMetadataByQueryStringResponse,
+    QueryDenomMetadataRequest, QueryDenomMetadataResponse, QueryDenomOwnersByQueryRequest,
+    QueryDenomOwnersByQueryResponse, QueryDenomOwnersRequest, QueryDenomOwnersResponse,
+    QueryDenomsMetadataRequest, QueryDenomsMetadataResponse, QueryParamsRequest,
+    QueryParamsResponse, QuerySendEnabledRequest, QuerySendEnabledResponse,
     QuerySpendableBalanceByDenomRequest, QuerySpendableBalanceByDenomResponse,
     QuerySpendableBalancesRequest, QuerySpendableBalancesResponse, QuerySupplyOfRequest,
     QuerySupplyOfResponse, QueryTotalSupplyRequest, QueryTotalSupplyResponse,
@@ -115,6 +117,20 @@ impl<S: ProvableStore> Query for BankService<S> {
         &self,
         _request: Request<QuerySpendableBalanceByDenomRequest>,
     ) -> Result<Response<QuerySpendableBalanceByDenomResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn denom_metadata_by_query_string(
+        &self,
+        _request: Request<QueryDenomMetadataByQueryStringRequest>,
+    ) -> Result<Response<QueryDenomMetadataByQueryStringResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn denom_owners_by_query(
+        &self,
+        _request: Request<QueryDenomOwnersByQueryRequest>,
+    ) -> Result<Response<QueryDenomOwnersByQueryResponse>, Status> {
         unimplemented!()
     }
 }
