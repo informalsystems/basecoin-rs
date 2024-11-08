@@ -1277,7 +1277,7 @@ dependencies = [
 [[package]]
 name = "ibc"
 version = "0.55.1"
-source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#c49e4e8be9337c1ef1de885f473ffce260dbb582"
+source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#3aa6b869706e1903f2f70768182ca38d4073ed6b"
 dependencies = [
  "ibc-apps",
  "ibc-clients",
@@ -1290,7 +1290,7 @@ dependencies = [
 [[package]]
 name = "ibc-app-transfer"
 version = "0.55.1"
-source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#c49e4e8be9337c1ef1de885f473ffce260dbb582"
+source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#3aa6b869706e1903f2f70768182ca38d4073ed6b"
 dependencies = [
  "ibc-app-transfer-types",
  "ibc-core",
@@ -1300,7 +1300,7 @@ dependencies = [
 [[package]]
 name = "ibc-app-transfer-types"
 version = "0.55.1"
-source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#c49e4e8be9337c1ef1de885f473ffce260dbb582"
+source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#3aa6b869706e1903f2f70768182ca38d4073ed6b"
 dependencies = [
  "derive_more 0.99.18",
  "displaydoc",
@@ -1314,7 +1314,7 @@ dependencies = [
 [[package]]
 name = "ibc-apps"
 version = "0.55.1"
-source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#c49e4e8be9337c1ef1de885f473ffce260dbb582"
+source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#3aa6b869706e1903f2f70768182ca38d4073ed6b"
 dependencies = [
  "ibc-app-transfer",
 ]
@@ -1322,7 +1322,7 @@ dependencies = [
 [[package]]
 name = "ibc-client-tendermint"
 version = "0.55.1"
-source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#c49e4e8be9337c1ef1de885f473ffce260dbb582"
+source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#3aa6b869706e1903f2f70768182ca38d4073ed6b"
 dependencies = [
  "derive_more 0.99.18",
  "ibc-client-tendermint-types",
@@ -1339,7 +1339,7 @@ dependencies = [
 [[package]]
 name = "ibc-client-tendermint-types"
 version = "0.55.1"
-source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#c49e4e8be9337c1ef1de885f473ffce260dbb582"
+source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#3aa6b869706e1903f2f70768182ca38d4073ed6b"
 dependencies = [
  "displaydoc",
  "ibc-core-client-types",
@@ -1356,7 +1356,7 @@ dependencies = [
 [[package]]
 name = "ibc-client-wasm-types"
 version = "0.55.1"
-source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#c49e4e8be9337c1ef1de885f473ffce260dbb582"
+source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#3aa6b869706e1903f2f70768182ca38d4073ed6b"
 dependencies = [
  "base64 0.22.1",
  "displaydoc",
@@ -1370,7 +1370,7 @@ dependencies = [
 [[package]]
 name = "ibc-clients"
 version = "0.55.1"
-source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#c49e4e8be9337c1ef1de885f473ffce260dbb582"
+source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#3aa6b869706e1903f2f70768182ca38d4073ed6b"
 dependencies = [
  "ibc-client-tendermint",
  "ibc-client-wasm-types",
@@ -1379,7 +1379,7 @@ dependencies = [
 [[package]]
 name = "ibc-core"
 version = "0.55.1"
-source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#c49e4e8be9337c1ef1de885f473ffce260dbb582"
+source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#3aa6b869706e1903f2f70768182ca38d4073ed6b"
 dependencies = [
  "ibc-core-channel",
  "ibc-core-client",
@@ -1395,7 +1395,7 @@ dependencies = [
 [[package]]
 name = "ibc-core-channel"
 version = "0.55.1"
-source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#c49e4e8be9337c1ef1de885f473ffce260dbb582"
+source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#3aa6b869706e1903f2f70768182ca38d4073ed6b"
 dependencies = [
  "ibc-core-channel-types",
  "ibc-core-client",
@@ -1410,7 +1410,7 @@ dependencies = [
 [[package]]
 name = "ibc-core-channel-types"
 version = "0.55.1"
-source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#c49e4e8be9337c1ef1de885f473ffce260dbb582"
+source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#3aa6b869706e1903f2f70768182ca38d4073ed6b"
 dependencies = [
  "derive_more 0.99.18",
  "displaydoc",
@@ -1429,7 +1429,7 @@ dependencies = [
 [[package]]
 name = "ibc-core-client"
 version = "0.55.1"
-source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#c49e4e8be9337c1ef1de885f473ffce260dbb582"
+source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#3aa6b869706e1903f2f70768182ca38d4073ed6b"
 dependencies = [
  "ibc-core-client-context",
  "ibc-core-client-types",
@@ -1442,7 +1442,7 @@ dependencies = [
 [[package]]
 name = "ibc-core-client-context"
 version = "0.55.1"
-source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#c49e4e8be9337c1ef1de885f473ffce260dbb582"
+source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#3aa6b869706e1903f2f70768182ca38d4073ed6b"
 dependencies = [
  "derive_more 0.99.18",
  "displaydoc",
@@ -1458,7 +1458,7 @@ dependencies = [
 [[package]]
 name = "ibc-core-client-types"
 version = "0.55.1"
-source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#c49e4e8be9337c1ef1de885f473ffce260dbb582"
+source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#3aa6b869706e1903f2f70768182ca38d4073ed6b"
 dependencies = [
  "derive_more 0.99.18",
  "displaydoc",
@@ -1474,7 +1474,7 @@ dependencies = [
 [[package]]
 name = "ibc-core-commitment-types"
 version = "0.55.1"
-source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#c49e4e8be9337c1ef1de885f473ffce260dbb582"
+source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#3aa6b869706e1903f2f70768182ca38d4073ed6b"
 dependencies = [
  "derive_more 0.99.18",
  "displaydoc",
@@ -1489,7 +1489,7 @@ dependencies = [
 [[package]]
 name = "ibc-core-connection"
 version = "0.55.1"
-source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#c49e4e8be9337c1ef1de885f473ffce260dbb582"
+source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#3aa6b869706e1903f2f70768182ca38d4073ed6b"
 dependencies = [
  "ibc-core-client",
  "ibc-core-connection-types",
@@ -1501,7 +1501,7 @@ dependencies = [
 [[package]]
 name = "ibc-core-connection-types"
 version = "0.55.1"
-source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#c49e4e8be9337c1ef1de885f473ffce260dbb582"
+source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#3aa6b869706e1903f2f70768182ca38d4073ed6b"
 dependencies = [
  "derive_more 0.99.18",
  "displaydoc",
@@ -1518,7 +1518,7 @@ dependencies = [
 [[package]]
 name = "ibc-core-handler"
 version = "0.55.1"
-source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#c49e4e8be9337c1ef1de885f473ffce260dbb582"
+source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#3aa6b869706e1903f2f70768182ca38d4073ed6b"
 dependencies = [
  "ibc-core-channel",
  "ibc-core-client",
@@ -1533,7 +1533,7 @@ dependencies = [
 [[package]]
 name = "ibc-core-handler-types"
 version = "0.55.1"
-source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#c49e4e8be9337c1ef1de885f473ffce260dbb582"
+source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#3aa6b869706e1903f2f70768182ca38d4073ed6b"
 dependencies = [
  "derive_more 0.99.18",
  "displaydoc",
@@ -1553,7 +1553,7 @@ dependencies = [
 [[package]]
 name = "ibc-core-host"
 version = "0.55.1"
-source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#c49e4e8be9337c1ef1de885f473ffce260dbb582"
+source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#3aa6b869706e1903f2f70768182ca38d4073ed6b"
 dependencies = [
  "derive_more 0.99.18",
  "displaydoc",
@@ -1571,7 +1571,7 @@ dependencies = [
 [[package]]
 name = "ibc-core-host-cosmos"
 version = "0.55.1"
-source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#c49e4e8be9337c1ef1de885f473ffce260dbb582"
+source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#3aa6b869706e1903f2f70768182ca38d4073ed6b"
 dependencies = [
  "derive_more 0.99.18",
  "displaydoc",
@@ -1594,7 +1594,7 @@ dependencies = [
 [[package]]
 name = "ibc-core-host-types"
 version = "0.55.1"
-source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#c49e4e8be9337c1ef1de885f473ffce260dbb582"
+source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#3aa6b869706e1903f2f70768182ca38d4073ed6b"
 dependencies = [
  "base64 0.22.1",
  "derive_more 0.99.18",
@@ -1607,7 +1607,7 @@ dependencies = [
 [[package]]
 name = "ibc-core-router"
 version = "0.55.1"
-source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#c49e4e8be9337c1ef1de885f473ffce260dbb582"
+source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#3aa6b869706e1903f2f70768182ca38d4073ed6b"
 dependencies = [
  "derive_more 0.99.18",
  "displaydoc",
@@ -1621,7 +1621,7 @@ dependencies = [
 [[package]]
 name = "ibc-core-router-types"
 version = "0.55.1"
-source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#c49e4e8be9337c1ef1de885f473ffce260dbb582"
+source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#3aa6b869706e1903f2f70768182ca38d4073ed6b"
 dependencies = [
  "derive_more 0.99.18",
  "displaydoc",
@@ -1636,7 +1636,7 @@ dependencies = [
 [[package]]
 name = "ibc-derive"
 version = "0.9.0"
-source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#c49e4e8be9337c1ef1de885f473ffce260dbb582"
+source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#3aa6b869706e1903f2f70768182ca38d4073ed6b"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1646,7 +1646,7 @@ dependencies = [
 [[package]]
 name = "ibc-primitives"
 version = "0.55.1"
-source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#c49e4e8be9337c1ef1de885f473ffce260dbb582"
+source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#3aa6b869706e1903f2f70768182ca38d4073ed6b"
 dependencies = [
  "derive_more 0.99.18",
  "displaydoc",
@@ -1659,7 +1659,8 @@ dependencies = [
 [[package]]
 name = "ibc-proto"
 version = "0.51.1"
-source = "git+https://github.com/cosmos/ibc-proto-rs?branch=release/v0.51.1#ebbb9b2df8d652801c23bc6709bf6a177ca03c02"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9b70f517162e74e2d35875b8b94bf4d1e45f2c69ef3de452dc855944455d33ca"
 dependencies = [
  "base64 0.22.1",
  "bytes",
@@ -1677,7 +1678,7 @@ dependencies = [
 [[package]]
 name = "ibc-query"
 version = "0.55.1"
-source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#c49e4e8be9337c1ef1de885f473ffce260dbb582"
+source = "git+https://github.com/cosmos/ibc-rs.git?branch=rano/chore/bump-deps#3aa6b869706e1903f2f70768182ca38d4073ed6b"
 dependencies = [
  "displaydoc",
  "ibc",
