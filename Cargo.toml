@@ -16,7 +16,7 @@ authors      = [ "Informal Systems <hello@informal.systems>" ]
 [workspace.dependencies]
 # external dependencies
 base64             = { version = "0.22.1", default-features = false, features = [ "alloc" ] }
-cosmrs             = { version = "0.20.0" }
+cosmrs             = { version = "0.21.0" }
 displaydoc         = { version = "0.2", default-features = false }
 derive_more        = { version = "1.0.0", default-features = false, features = [ "from", "into", "try_into", "display" ] }
 ed25519            = { version = "2.2.3", default-features = false }
