@@ -22,6 +22,7 @@ use ibc::clients::tendermint::types::{
 use ibc::core::channel::types::channel::{ChannelEnd, IdentifiedChannelEnd};
 use ibc::core::channel::types::commitment::{AcknowledgementCommitment, PacketCommitment};
 use ibc::core::channel::types::packet::{PacketState, Receipt};
+use ibc::core::client::context::consensus_state::ConsensusState as ConsensusStateTrait;
 use ibc::core::client::types::error::ClientError;
 use ibc::core::client::types::Height as IbcHeight;
 use ibc::core::commitment_types::commitment::{CommitmentPrefix, CommitmentRoot};
@@ -481,10 +482,7 @@ where
     fn host_timestamp(&self) -> Result<Timestamp, HostError> {
         let host_height = self.host_height()?;
         let host_cons_state = self.host_consensus_state(&host_height)?;
-        host_cons_state
-            .timestamp()
-            .try_into()
-            .map_err(HostError::invalid_state)
+        ConsensusStateTrait::timestamp(&host_cons_state).map_err(HostError::invalid_state)
     }
 
     fn host_consensus_state(
